@@ -1,0 +1,196 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  color: #18181b;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  overflow: hidden;
+}
+
+/* Fills the whole viewport (the OS screen in fullscreen presentation, or the LMS iframe's own
+   viewport when embedded) and centers the stage in it - any leftover space left over top/bottom
+   or left/right, once the stage below is fit to the larger dimension, shows through as black. */
+.weft-stage-wrap {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+/* Sized to the *largest* box of the module's own aspect ratio (--ar-w / --ar-h, set inline per
+   render by stageStyle() in player.runtime.js) that still fits the viewport in both dimensions -
+   width: min(full viewport width, the width you'd get by maximizing height instead) and
+   height the mirror image of that. Whichever of the two is the tighter constraint wins, exactly
+   like object-fit: contain on an image, which is the point: the slide now scales as a whole
+   picture rather than reflowing its contents at a fixed pixel width. */
+.weft-stage {
+  position: relative;
+  background: #ffffff;
+  overflow: hidden;
+  aspect-ratio: var(--ar-w) / var(--ar-h);
+  width: min(100vw, 100vh * var(--ar-w) / var(--ar-h));
+  width: min(100vw, 100dvh * var(--ar-w) / var(--ar-h));
+  height: min(100vh, 100vw * var(--ar-h) / var(--ar-w));
+  height: min(100dvh, 100vw * var(--ar-h) / var(--ar-w));
+  /* Lets descendants size themselves in cqw - percent of THIS element's own rendered width -
+     instead of vw (percent of the browser viewport, which here is the LMS page or the OS
+     screen in fullscreen, not the slide). That's what makes block text scale like it's part of
+     a picture of the slide, matching whatever size the slide itself ends up rendered at. */
+  container-type: inline-size;
+}
+
+.weft-stage-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.weft-done-message {
+  font-size: 20px;
+  font-size: 2.2cqw;
+  color: #52525b;
+}
+
+/* Extra-specific (not just .weft-done-restart) so this reliably beats .weft-block-button-el's
+   width/height: 100% regardless of the two rules' order in the stylesheet - that 100% is sized
+   for a block dropped on a percent-positioned slide, not a lone button centered in a flex box. */
+.weft-stage-done .weft-done-restart {
+  width: auto;
+  height: auto;
+  padding: 10px 28px;
+}
+
+.weft-block {
+  overflow: auto;
+  /* Base size for all block content; headings/etc keep the browser's normal em-relative
+     multiples of this (h1 = 2em, p = 1em, ...), so the whole type scale rides along with it.
+     ~16px at the default 960px-wide stage. Falls back to a fixed 16px on browsers that don't
+     understand container query units yet (Safari < 16 / macOS < 13), instead of the value
+     being dropped in favor of some larger inherited default. */
+  font-size: 16px;
+  font-size: 1.7cqw;
+}
+
+.weft-block-text {
+  padding: 4px;
+}
+
+.weft-block-text > :first-child {
+  margin-top: 0;
+}
+
+.weft-block-text > :last-child {
+  margin-bottom: 0;
+}
+
+.weft-quiz {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  overflow: auto;
+}
+
+.weft-quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.weft-quiz-feedback.is-correct {
+  color: #16a34a;
+}
+
+.weft-quiz-feedback.is-incorrect {
+  color: #dc2626;
+}
+
+.weft-block-button {
+  overflow: visible;
+}
+
+.weft-block-button-el {
+  width: 100%;
+  height: 100%;
+  padding: 0 12px;
+  border: 1px solid #18181b;
+  border-radius: 6px;
+  background: #18181b;
+  color: #fff;
+  font-size: 14px;
+  font-size: 1.5cqw;
+  cursor: pointer;
+}
+
+.weft-block-button-el:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.weft-qr-gate {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  overflow: hidden;
+}
+
+/* flex: 1 1 auto + min-height: 0 lets this shrink to whatever height the (fixed-height) link
+   below leaves - without min-height: 0 a flex child won't shrink past its content size, which
+   is exactly what let a tall QR code push the link's height to 0 instead of itself. aspect-ratio
+   then derives the width from that resolved height (not the other way round, so it can never
+   run wider than it is tall); max-width guards the case where even that would overflow sideways
+   (a very short, wide block) and min-width: 0 stops the flex auto-min-size from blocking it. */
+.weft-qr-code {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
+.weft-qr-code svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-qr-link {
+  flex: 0 0 auto;
+  border: 1px solid #d4d4d8;
+  background: #fff;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-size: 1.4cqw;
+  color: #18181b;
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weft-qr-link:hover {
+  border-color: #18181b;
+}

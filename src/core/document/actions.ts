@@ -1,0 +1,431 @@
+import { createId } from "../id";
+import { useAssetStore } from "../assets/assetStore";
+import type {
+  AspectRatio,
+  Block,
+  BlockPosition,
+  Branch,
+  Layout,
+  Page,
+  StaticBlock,
+  VariableCondition,
+  VariableDef,
+  VariableType,
+  WeftModule,
+} from "../types";
+import { useDocumentStore } from "./store";
+
+function edit(label: string, recipe: (draft: WeftModule) => void) {
+  useDocumentStore.getState().edit(label, recipe);
+}
+
+function emptyPage(layoutId: string | null): Page {
+  return { id: createId(), layoutId, blocks: [] };
+}
+
+// ---- Module settings -------------------------------------------------
+
+export function setModuleTitle(title: string) {
+  edit("Titel ändern", (m) => {
+    m.title = title;
+  });
+}
+
+export function setAspectRatio(aspectRatio: AspectRatio) {
+  edit("Seitenverhältnis ändern", (m) => {
+    m.aspectRatio = aspectRatio;
+  });
+}
+
+export function setLmsEnabled(enabled: boolean) {
+  edit("LMS-Anbindung umschalten", (m) => {
+    m.lms.enabled = enabled;
+  });
+}
+
+export function setLmsAllowedOrigins(origins: string[]) {
+  edit("Erlaubte LMS-Origins ändern", (m) => {
+    m.lms.allowedOrigins = origins;
+  });
+}
+
+// ---- Variables ---------------------------------------------------------
+
+export function addVariable(name: string, type: VariableType) {
+  const initialValue = type === "number" ? 0 : type === "boolean" ? false : "";
+  const variable: VariableDef = { id: createId(), name, type, initialValue };
+  edit("Variable hinzufügen", (m) => {
+    m.variables.push(variable);
+  });
+  return variable.id;
+}
+
+export function updateVariable(id: string, patch: Partial<Omit<VariableDef, "id">>) {
+  edit("Variable bearbeiten", (m) => {
+    const variable = m.variables.find((v) => v.id === id);
+    if (variable) Object.assign(variable, patch);
+  });
+}
+
+export function removeVariable(id: string) {
+  edit("Variable entfernen", (m) => {
+    m.variables = m.variables.filter((v) => v.id !== id);
+  });
+}
+
+// ---- Sequence: pages & logic blocks -------------------------------------
+
+export function addPageToSequence(afterIndex: number, layoutId: string | null) {
+  const page = emptyPage(layoutId);
+  edit("Folie hinzufügen", (m) => {
+    m.pages[page.id] = page;
+    m.sequence.splice(afterIndex + 1, 0, { kind: "page", pageId: page.id });
+  });
+  return page.id;
+}
+
+export function addLogicBlockToSequence(afterIndex: number, layoutId: string | null) {
+  const branchPage = emptyPage(layoutId);
+  const branch: Branch = { id: createId(), label: "Zweig 1", condition: null, pageIds: [branchPage.id] };
+  const logicBlockId = createId();
+  edit("Logikblock hinzufügen", (m) => {
+    m.pages[branchPage.id] = branchPage;
+    m.logicBlocks[logicBlockId] = { id: logicBlockId, name: "Verzweigung", branches: [branch] };
+    m.sequence.splice(afterIndex + 1, 0, { kind: "logic", logicBlockId });
+  });
+  return logicBlockId;
+}
+
+export function moveSequenceNode(from: number, to: number) {
+  if (from === to) return;
+  edit("Reihenfolge ändern", (m) => {
+    const [node] = m.sequence.splice(from, 1);
+    m.sequence.splice(to, 0, node);
+  });
+}
+
+export function removeSequenceNodeAt(index: number) {
+  edit("Element entfernen", (m) => {
+    m.sequence.splice(index, 1);
+  });
+}
+
+export function removeLogicBlock(logicBlockId: string) {
+  edit("Verzweigung löschen", (m) => {
+    const index = m.sequence.findIndex((n) => n.kind === "logic" && n.logicBlockId === logicBlockId);
+    if (index !== -1) m.sequence.splice(index, 1);
+  });
+}
+
+/** Removes a page wherever it lives - the main sequence or a branch - without the caller having
+ * to know which (unlike removeSequenceNodeAt/removePageFromBranch, used by the Sidebar's own
+ * context menus, which already have that location at hand from the row they're rendering). Used
+ * by the Delete/Backspace shortcut, where the selection only carries a page id. */
+export function removePage(pageId: string) {
+  edit("Folie löschen", (m) => {
+    const location = locatePage(m, pageId);
+    if (!location) return;
+    if (location.kind === "top") {
+      m.sequence.splice(location.index, 1);
+    } else {
+      const branch = m.logicBlocks[location.logicBlockId]?.branches.find((b) => b.id === location.branchId);
+      branch?.pageIds.splice(location.index, 1);
+    }
+  });
+}
+
+export function setPageLayout(pageId: string, layoutId: string | null) {
+  edit("Layout zuweisen", (m) => {
+    const page = m.pages[pageId];
+    if (page) page.layoutId = layoutId;
+  });
+}
+
+export function addLayout(name: string) {
+  const layout: Layout = { id: createId(), name, blocks: [] };
+  edit("Layout hinzufügen", (m) => {
+    m.layouts[layout.id] = layout;
+  });
+  return layout.id;
+}
+
+export function renameLayout(layoutId: string, name: string) {
+  edit("Layout umbenennen", (m) => {
+    const layout = m.layouts[layoutId];
+    if (layout) layout.name = name;
+  });
+}
+
+export function renameLogicBlock(logicBlockId: string, name: string) {
+  edit("Logikblock umbenennen", (m) => {
+    const logicBlock = m.logicBlocks[logicBlockId];
+    if (logicBlock) logicBlock.name = name;
+  });
+}
+
+// ---- Branches ------------------------------------------------------------
+
+/**
+ * Branches are evaluated in array order like if/else-if/else: every branch but the last must
+ * carry a condition, and the last branch is always the unconditional fallback. A new branch is
+ * therefore inserted just before the trailing branch (which stays last and stays condition-less)
+ * rather than appended after it - appending would silently turn the old "sonst" into a
+ * conditional branch and leave nothing as the fallback.
+ */
+export function addBranch(logicBlockId: string, layoutId: string | null) {
+  const page = emptyPage(layoutId);
+  const branchId = createId();
+  edit("Zweig hinzufügen", (m) => {
+    m.pages[page.id] = page;
+    const logicBlock = m.logicBlocks[logicBlockId];
+    if (!logicBlock) return;
+    const branch: Branch = {
+      id: branchId,
+      label: "Neuer Zweig",
+      condition: { variableId: m.variables[0]?.id ?? "", comparator: "eq", value: 0 },
+      pageIds: [page.id],
+    };
+    logicBlock.branches.splice(Math.max(logicBlock.branches.length - 1, 0), 0, branch);
+  });
+  return branchId;
+}
+
+export function removeBranch(logicBlockId: string, branchId: string) {
+  edit("Zweig entfernen", (m) => {
+    const logicBlock = m.logicBlocks[logicBlockId];
+    if (!logicBlock) return;
+    logicBlock.branches = logicBlock.branches.filter((b) => b.id !== branchId);
+    // If the removed branch was the trailing "sonst", promote the new last branch into that role.
+    const newLast = logicBlock.branches[logicBlock.branches.length - 1];
+    if (newLast) newLast.condition = null;
+  });
+}
+
+export function renameBranch(logicBlockId: string, branchId: string, label: string) {
+  edit("Zweig umbenennen", (m) => {
+    const branch = m.logicBlocks[logicBlockId]?.branches.find((b) => b.id === branchId);
+    if (branch) branch.label = label;
+  });
+}
+
+/** Edits the fields of a non-last branch's condition; never used on the trailing "sonst" branch. */
+export function updateBranchCondition(logicBlockId: string, branchId: string, patch: Partial<VariableCondition>) {
+  edit("Bedingung ändern", (m) => {
+    const branch = m.logicBlocks[logicBlockId]?.branches.find((b) => b.id === branchId);
+    if (!branch) return;
+    branch.condition = { ...(branch.condition ?? { variableId: "", comparator: "eq", value: 0 }), ...patch };
+  });
+}
+
+export function addPageToBranch(logicBlockId: string, branchId: string, layoutId: string | null) {
+  const page = emptyPage(layoutId);
+  edit("Folie zu Zweig hinzufügen", (m) => {
+    m.pages[page.id] = page;
+    m.logicBlocks[logicBlockId]?.branches.find((b) => b.id === branchId)?.pageIds.push(page.id);
+  });
+  return page.id;
+}
+
+export function moveBranchPage(logicBlockId: string, branchId: string, from: number, to: number) {
+  if (from === to) return;
+  edit("Reihenfolge im Zweig ändern", (m) => {
+    const branch = m.logicBlocks[logicBlockId]?.branches.find((b) => b.id === branchId);
+    if (!branch) return;
+    const [pageId] = branch.pageIds.splice(from, 1);
+    branch.pageIds.splice(to, 0, pageId);
+  });
+}
+
+export function removePageFromBranch(logicBlockId: string, branchId: string, pageId: string) {
+  edit("Folie aus Zweig entfernen", (m) => {
+    const branch = m.logicBlocks[logicBlockId]?.branches.find((b) => b.id === branchId);
+    if (branch) branch.pageIds = branch.pageIds.filter((id) => id !== pageId);
+  });
+}
+
+// ---- Blocks ----------------------------------------------------------------
+
+function defaultBlockFor(kind: Block["kind"]): Block {
+  const position = { x: 10, y: 40, width: 80, height: 20 };
+  switch (kind) {
+    case "text":
+      return { id: createId(), kind, position, html: "<p>Neuer Text</p>" };
+    case "image":
+      return { id: createId(), kind, position, assetId: null, alt: "" };
+    case "iframe":
+      return { id: createId(), kind, position, url: "https://www.youtube.com/embed/", sandbox: ["allow-scripts"], qrCode: false };
+    case "button":
+      return { id: createId(), kind, position: { x: 35, y: 82, width: 30, height: 10 }, text: "Weiter", action: "next" };
+    case "quiz":
+      return {
+        id: createId(),
+        kind,
+        position,
+        question: "Neue Frage",
+        options: [
+          { id: createId(), text: "Option A" },
+          { id: createId(), text: "Option B" },
+        ],
+        correctOptionIds: [],
+        onCorrect: [],
+        onIncorrect: [],
+        advanceOnCorrect: false,
+        advanceOnIncorrect: false,
+      };
+  }
+}
+
+export function addBlockToPage(pageId: string, kind: Block["kind"]) {
+  const block = defaultBlockFor(kind);
+  edit("Block hinzufügen", (m) => {
+    m.pages[pageId]?.blocks.push(block);
+  });
+  return block.id;
+}
+
+export function addBlockToLayout(layoutId: string, kind: StaticBlock["kind"]) {
+  const block = defaultBlockFor(kind) as StaticBlock;
+  edit("Block zu Layout hinzufügen", (m) => {
+    m.layouts[layoutId]?.blocks.push(block);
+  });
+  return block.id;
+}
+
+export function updateBlock(pageId: string, blockId: string, patch: Partial<Block>) {
+  edit("Block bearbeiten", (m) => {
+    const block = m.pages[pageId]?.blocks.find((b) => b.id === blockId);
+    if (block) Object.assign(block, patch);
+  });
+}
+
+export function removeBlock(pageId: string, blockId: string) {
+  edit("Block entfernen", (m) => {
+    const page = m.pages[pageId];
+    if (page) page.blocks = page.blocks.filter((b) => b.id !== blockId);
+  });
+}
+
+export function setBlockImage(pageId: string, blockId: string, file: File) {
+  const assetId = createId();
+  useAssetStore.getState().setAsset(assetId, file);
+  edit("Bild setzen", (m) => {
+    m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
+    const block = m.pages[pageId]?.blocks.find((b) => b.id === blockId);
+    if (block && block.kind === "image") block.assetId = assetId;
+  });
+}
+
+export function updateLayoutBlock(layoutId: string, blockId: string, patch: Partial<Block>) {
+  edit("Block bearbeiten", (m) => {
+    const block = m.layouts[layoutId]?.blocks.find((b) => b.id === blockId);
+    if (block) Object.assign(block, patch);
+  });
+}
+
+export function removeLayoutBlock(layoutId: string, blockId: string) {
+  edit("Block entfernen", (m) => {
+    const layout = m.layouts[layoutId];
+    if (layout) layout.blocks = layout.blocks.filter((b) => b.id !== blockId);
+  });
+}
+
+export function setLayoutBlockImage(layoutId: string, blockId: string, file: File) {
+  const assetId = createId();
+  useAssetStore.getState().setAsset(assetId, file);
+  edit("Bild setzen", (m) => {
+    m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
+    const block = m.layouts[layoutId]?.blocks.find((b) => b.id === blockId);
+    if (block && block.kind === "image") block.assetId = assetId;
+  });
+}
+
+// ---- Copy / paste (Cmd/Ctrl+C / +V - see features/editor/useCopyPaste.ts) -------------------
+
+type PageLocation =
+  | { kind: "top"; index: number }
+  | { kind: "branch"; logicBlockId: string; branchId: string; index: number };
+
+function locatePage(m: WeftModule, pageId: string): PageLocation | null {
+  const topIndex = m.sequence.findIndex((n) => n.kind === "page" && n.pageId === pageId);
+  if (topIndex !== -1) return { kind: "top", index: topIndex };
+  for (const logicBlock of Object.values(m.logicBlocks)) {
+    for (const branch of logicBlock.branches) {
+      const branchIndex = branch.pageIds.indexOf(pageId);
+      if (branchIndex !== -1) return { kind: "branch", logicBlockId: logicBlock.id, branchId: branch.id, index: branchIndex };
+    }
+  }
+  return null;
+}
+
+function cloneBlockWithNewId(block: Block): Block {
+  return { ...structuredClone(block), id: createId() };
+}
+
+/** Nudges a pasted block a few percent down-right so it doesn't land exactly on top of the
+ * block it was copied from, clamped to stay on the slide - same clamp shape as clampMove in
+ * features/editor/blocks/resizeMath.ts, duplicated rather than imported so core/ doesn't reach
+ * into features/. */
+function offsetPosition(position: BlockPosition): BlockPosition {
+  return {
+    ...position,
+    x: Math.min(Math.max(position.x + 3, 0), 100 - position.width),
+    y: Math.min(Math.max(position.y + 3, 0), 100 - position.height),
+  };
+}
+
+/**
+ * Pastes a copied page right after wherever `afterPageId` currently lives (top-level sequence or
+ * a branch) - copy/paste always duplicates in place next to a reference page, never at some
+ * unrelated spot, so "paste" reads the same as "duplicate this page". Returns null if
+ * `afterPageId` no longer exists (e.g. it was deleted between copy and paste).
+ */
+export function pastePageAfter(afterPageId: string, sourcePage: Page): string | null {
+  const newPageId = createId();
+  let inserted = false;
+  edit("Folie einfügen", (m) => {
+    const location = locatePage(m, afterPageId);
+    if (!location) return;
+    const newPage: Page = {
+      id: newPageId,
+      layoutId: sourcePage.layoutId,
+      blocks: sourcePage.blocks.map(cloneBlockWithNewId),
+    };
+    m.pages[newPageId] = newPage;
+    if (location.kind === "top") {
+      m.sequence.splice(location.index + 1, 0, { kind: "page", pageId: newPageId });
+    } else {
+      const branch = m.logicBlocks[location.logicBlockId]?.branches.find((b) => b.id === location.branchId);
+      branch?.pageIds.splice(location.index + 1, 0, newPageId);
+    }
+    inserted = true;
+  });
+  return inserted ? newPageId : null;
+}
+
+/**
+ * Pastes a copied block into a page's or layout's own block list. Silently refuses a Quiz block
+ * for a layout target, since layouts can't carry interactive/graded blocks (see StaticBlock).
+ */
+export function pasteBlockInto(
+  target: { kind: "page"; pageId: string } | { kind: "layout"; layoutId: string },
+  sourceBlock: Block,
+): string | null {
+  if (target.kind === "layout" && sourceBlock.kind === "quiz") return null;
+  const newBlock = cloneBlockWithNewId(sourceBlock);
+  newBlock.position = offsetPosition(newBlock.position);
+
+  let inserted = false;
+  edit("Element einfügen", (m) => {
+    if (target.kind === "page") {
+      const page = m.pages[target.pageId];
+      if (!page) return;
+      page.blocks.push(newBlock);
+    } else {
+      const layout = m.layouts[target.layoutId];
+      if (!layout) return;
+      layout.blocks.push(newBlock as StaticBlock);
+    }
+    inserted = true;
+  });
+  return inserted ? newBlock.id : null;
+}

@@ -1,0 +1,1149 @@
+:root {
+  --weft-bg: #0a0d16;
+  --weft-panel: #12151f;
+  --weft-panel-raised: #181c2a;
+  --weft-input-bg: #10131e;
+  --weft-border: #242938;
+  --weft-border-subtle: #1b1f2c;
+  --weft-text: #e7e9ee;
+  --weft-text-muted: #8b93a7;
+  --weft-text-faint: #565f74;
+  --weft-accent: #3b82f6;
+  --weft-accent-hover: #5b95f7;
+  --weft-accent-soft: rgba(59, 130, 246, 0.16);
+  --weft-danger: #f87171;
+  --weft-radius-lg: 12px;
+  --weft-radius: 8px;
+  --weft-radius-sm: 6px;
+  --weft-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family:
+    -apple-system,
+    "SF Pro Text",
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+  color: var(--weft-text);
+  background: var(--weft-bg);
+  font-size: 13px;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  color: var(--weft-text);
+  background: var(--weft-input-bg);
+}
+
+/* ---- Shell / Toolbar ---- */
+
+.weft-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.weft-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  height: 52px;
+  flex-shrink: 0;
+  background: var(--weft-panel);
+  border-bottom: 1px solid var(--weft-border-subtle);
+}
+
+.weft-app-name {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+}
+
+.weft-toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--weft-border);
+}
+
+.weft-doc-title {
+  font-size: 13px;
+  color: var(--weft-text-muted);
+}
+
+.weft-doc-title-unsaved {
+  color: var(--weft-text-faint);
+}
+
+.weft-toolbar-spacer {
+  flex: 1;
+}
+
+.weft-busy {
+  color: var(--weft-text-faint);
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+.weft-toolbar-group {
+  display: flex;
+  gap: 2px;
+  margin-right: 4px;
+}
+
+.weft-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--weft-radius-sm);
+  background: transparent;
+  color: var(--weft-text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.weft-icon-button:hover:not(:disabled) {
+  background: var(--weft-panel-raised);
+  color: var(--weft-text);
+}
+
+.weft-icon-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.weft-ghost-button {
+  padding: 6px 12px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: transparent;
+  color: var(--weft-text);
+  cursor: pointer;
+  font-size: 12.5px;
+}
+
+.weft-ghost-button:hover {
+  background: var(--weft-panel-raised);
+  border-color: var(--weft-text-faint);
+}
+
+.weft-primary-button {
+  padding: 6px 14px;
+  border: 1px solid var(--weft-accent);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-accent);
+  color: #fff;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.weft-primary-button:hover {
+  background: var(--weft-accent-hover);
+  border-color: var(--weft-accent-hover);
+}
+
+.weft-full-width {
+  width: 100%;
+}
+
+/* ---- Body layout ---- */
+
+.weft-body {
+  flex: 1;
+  display: grid;
+  /* grid-template-columns is overridden inline with the live sidebar width; this is just the
+     initial-render fallback before React attaches. */
+  grid-template-columns: 260px 6px 1fr 300px;
+  min-height: 0;
+}
+
+.weft-resizer {
+  cursor: col-resize;
+  background: var(--weft-border-subtle);
+  touch-action: none;
+}
+
+.weft-resizer:hover,
+.weft-resizer:active {
+  background: var(--weft-accent);
+}
+
+/* ---- Sidebar ---- */
+
+.weft-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--weft-panel);
+  border-right: 1px solid var(--weft-border-subtle);
+}
+
+.weft-sidebar-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 10px 10px 0;
+  border-bottom: 1px solid var(--weft-border-subtle);
+}
+
+.weft-sidebar-tab {
+  flex: 1;
+  padding: 8px 6px;
+  border: none;
+  background: transparent;
+  color: var(--weft-text-muted);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.weft-sidebar-tab.is-active {
+  color: var(--weft-text);
+  border-bottom-color: var(--weft-accent);
+}
+
+.weft-sidebar-tab:hover:not(.is-active) {
+  color: var(--weft-text);
+}
+
+.weft-sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.weft-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weft-sequence {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.weft-sequence-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 2px;
+}
+
+.weft-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  padding: 6px;
+  border: 2px solid transparent;
+  border-radius: var(--weft-radius);
+  background: var(--weft-panel-raised);
+  cursor: grab;
+  font-size: 12.5px;
+  color: var(--weft-text);
+  touch-action: none;
+}
+
+.weft-node.is-active {
+  border-color: var(--weft-accent);
+  background: var(--weft-accent-soft);
+}
+
+.weft-node.is-dragging {
+  opacity: 0.4;
+}
+
+.weft-node.is-drop-before {
+  border-top-color: var(--weft-accent);
+}
+
+.weft-node.is-drop-after {
+  border-bottom-color: var(--weft-accent);
+}
+
+body.weft-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+body.weft-dragging .weft-node {
+  cursor: grabbing;
+}
+
+.weft-node-page {
+  padding: 6px;
+}
+
+.weft-node-logic {
+  padding: 8px 10px;
+}
+
+.weft-node-index {
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+  color: var(--weft-text-faint);
+  font-size: 11px;
+}
+
+.weft-node-index-logic {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: #4c3a12;
+  color: #f3c667;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+
+.weft-node-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weft-node-logic-wrap {
+  position: relative;
+  padding-bottom: 2px;
+}
+
+/* ---- Slide thumbnails ---- */
+
+.weft-thumb {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  background: #ffffff;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+  /* Same cqw approach as the editor canvas and the player (see player.runtime.css) - the
+     thumbnail's own width becomes the 100% reference, so its text keeps shrinking and growing
+     with it as you resize the sidebar, instead of staying pinned at a fixed pixel size. */
+  container-type: inline-size;
+}
+
+.weft-thumb-stage {
+  position: absolute;
+  inset: 0;
+  font-size: 4px;
+  font-size: 1.7cqw;
+  color: #18181b;
+  line-height: 1.3;
+}
+
+.weft-thumb-block {
+  position: absolute;
+  overflow: hidden;
+}
+
+.weft-thumb-block-text :first-child {
+  margin-top: 0;
+}
+
+.weft-thumb-block-placeholder {
+  background: #e4e4e7;
+  color: #a1a1aa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 6px;
+  font-size: 2.5cqw;
+}
+
+.weft-thumb-block-button {
+  background: #18181b;
+  color: #fff;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 5px;
+  font-size: 2cqw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
+}
+
+img.weft-thumb-block {
+  object-fit: contain;
+}
+
+/* ---- Layout picker (Inspector) ---- */
+
+.weft-layout-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.weft-layout-current {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.weft-layout-current:hover {
+  border-color: var(--weft-accent);
+}
+
+.weft-layout-thumb-empty {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f4f4f5;
+  color: #a1a1aa;
+  font-size: 11px;
+}
+
+.weft-layout-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 8px;
+  background: var(--weft-input-bg);
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+}
+
+.weft-layout-grid-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: var(--weft-radius-sm);
+  background: transparent;
+  cursor: pointer;
+  color: var(--weft-text-muted);
+  font-size: 10.5px;
+  text-align: center;
+}
+
+.weft-layout-grid-item:hover {
+  border-color: var(--weft-accent);
+  color: var(--weft-text);
+}
+
+.weft-layout-grid-add {
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+  border: 1px dashed var(--weft-border);
+}
+
+.weft-layout-current .weft-thumb,
+.weft-layout-grid-item .weft-thumb {
+  flex: none;
+  width: 100%;
+}
+
+.weft-branches {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0 4px 10px;
+  padding: 6px 4px 8px 14px;
+  border-left: 2px solid #3a3115;
+  overflow-x: auto;
+}
+
+/* flex-grow: 1 lets columns share out any leftover row width when there's room; min-width is
+   the floor flex-shrink can never go below, so once all columns are already at that floor the
+   row simply overflows and .weft-branches' overflow-x: auto takes over instead of squeezing
+   further. */
+.weft-branch {
+  flex: 1 1 96px;
+  min-width: 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weft-branch-header {
+  font-size: 10px;
+  color: var(--weft-text-muted);
+  padding: 2px;
+  cursor: context-menu;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.weft-branch-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Branch columns run narrower than the main slide list, so give each page row inside one
+   less padding to leave more room for the thumbnail itself. */
+.weft-branch .weft-node {
+  padding: 4px;
+  gap: 4px;
+}
+
+.weft-branch .weft-node-index {
+  width: 20px;
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+/* ---- Context menu ---- */
+
+.weft-context-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 200px;
+  padding: 4px;
+  background: var(--weft-panel-raised);
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius);
+  box-shadow: var(--weft-shadow);
+}
+
+.weft-context-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  color: var(--weft-text);
+  font-size: 12.5px;
+  border-radius: var(--weft-radius-sm);
+  cursor: pointer;
+}
+
+.weft-context-menu-item:hover {
+  background: var(--weft-accent-soft);
+}
+
+.weft-context-menu-item.is-danger {
+  color: var(--weft-danger);
+}
+
+.weft-context-menu-item.is-danger:hover {
+  background: rgba(248, 113, 113, 0.14);
+}
+
+.weft-context-menu-separator {
+  height: 1px;
+  background: var(--weft-border);
+  margin: 4px 2px;
+}
+
+/* ---- Canvas ---- */
+
+.weft-canvas {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--weft-bg);
+}
+
+.weft-canvas-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--weft-border-subtle);
+  background: var(--weft-panel);
+}
+
+.weft-canvas-toolbar button {
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--weft-radius-sm);
+  background: transparent;
+  color: var(--weft-text-muted);
+  cursor: pointer;
+  font-size: 12.5px;
+}
+
+.weft-canvas-toolbar button:hover {
+  background: var(--weft-panel-raised);
+  border-color: var(--weft-border);
+  color: var(--weft-text);
+}
+
+.weft-canvas-context {
+  margin-left: 8px;
+  padding: 5px 0;
+  color: var(--weft-text-faint);
+  font-size: 12px;
+}
+
+.weft-canvas-stage-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  overflow: auto;
+}
+
+.weft-canvas-empty,
+.weft-preview-loading {
+  color: var(--weft-text-faint);
+  font-size: 13px;
+}
+
+.weft-stage {
+  position: relative;
+  width: 100%;
+  max-width: 920px;
+  background: #ffffff;
+  color: #18181b;
+  box-shadow: var(--weft-shadow);
+  overflow: hidden;
+  /* See the matching comment in player.runtime.css - cqw here scales block text with the
+     slide's own rendered width instead of the app window's. */
+  container-type: inline-size;
+}
+
+.weft-preview-frame {
+  width: 100%;
+  max-width: 920px;
+  height: 100%;
+  border: 0;
+  background: #fff;
+  box-shadow: var(--weft-shadow);
+}
+
+/* ---- Presentation mode (Keynote-style: nothing but the running module) ---- */
+
+.weft-presentation {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+.weft-presentation .weft-preview-frame {
+  max-width: 100%;
+  height: 100%;
+  box-shadow: none;
+}
+
+.weft-presentation-exit {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1001;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  /* The module itself can be light or dark, so this needs its own contrast either way rather
+     than blending into whatever backdrop happens to show through. */
+  background: rgba(0, 0, 0, 0.55);
+  color: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.weft-presentation-exit:hover {
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+}
+
+.weft-edit-block {
+  position: absolute;
+  outline: 1px dashed transparent;
+  touch-action: none;
+  /* Same base size as the exported player (see player.runtime.css) so the edit canvas and the
+     real output agree - and so it visibly scales as you resize the slide itself. */
+  font-size: 16px;
+  font-size: 1.7cqw;
+}
+
+.weft-edit-block-inner {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.weft-edit-block:not(.is-locked):hover {
+  outline-color: var(--weft-accent-hover);
+}
+
+.weft-edit-block.is-selected {
+  outline: 2px solid var(--weft-accent);
+}
+
+.weft-edit-block.is-near-edge {
+  cursor: move;
+}
+
+.weft-edit-block.is-locked {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.weft-resize-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #ffffff;
+  border: 1px solid var(--weft-accent);
+  border-radius: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  touch-action: none;
+  z-index: 1;
+}
+
+.weft-resize-handle-n {
+  top: -5px;
+  left: calc(50% - 4px);
+  cursor: ns-resize;
+}
+
+.weft-resize-handle-s {
+  bottom: -5px;
+  left: calc(50% - 4px);
+  cursor: ns-resize;
+}
+
+.weft-resize-handle-e {
+  right: -5px;
+  top: calc(50% - 4px);
+  cursor: ew-resize;
+}
+
+.weft-resize-handle-w {
+  left: -5px;
+  top: calc(50% - 4px);
+  cursor: ew-resize;
+}
+
+.weft-resize-handle-nw {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+
+.weft-resize-handle-se {
+  bottom: -5px;
+  right: -5px;
+  cursor: nwse-resize;
+}
+
+.weft-resize-handle-ne {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+
+.weft-resize-handle-sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
+}
+
+.weft-edit-block-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.weft-edit-block-text > :first-child {
+  margin-top: 0;
+}
+
+.weft-edit-block-text > :last-child {
+  margin-bottom: 0;
+}
+
+.weft-edit-block-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: #f4f4f5;
+  color: #a1a1aa;
+  font-size: 13px;
+  font-size: 1.4cqw;
+}
+
+.weft-edit-block-iframe-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-edit-block-iframe-wrap iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  pointer-events: none;
+}
+
+.weft-edit-block-iframe-overlay {
+  position: absolute;
+  inset: 0;
+}
+
+.weft-edit-block-qr-gate {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px;
+  background: #fff;
+  overflow: hidden;
+}
+
+/* flex: 1 1 auto + min-height: 0 lets this shrink to whatever height the (fixed-height) link
+   below leaves - without min-height: 0 a flex child won't shrink past its content size, which
+   is exactly what let a tall QR code push the link's height to 0 instead of itself. aspect-ratio
+   then derives the width from that resolved height (not the other way round, so it can never
+   run wider than it is tall); max-width guards the case where even that would overflow sideways
+   (a very short, wide block) and min-width: 0 stops the flex auto-min-size from blocking it. */
+.weft-edit-block-qr-code {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
+.weft-edit-block-qr-code.is-empty {
+  width: 60%;
+  background: #f4f4f5;
+  border: 1px dashed #d4d4d8;
+}
+
+.weft-edit-block-qr-code svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-edit-block-qr-link {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-size: 1.2cqw;
+  color: #52525b;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weft-edit-block-button {
+  width: 100%;
+  height: 100%;
+  border: 1px solid #18181b;
+  border-radius: 6px;
+  background: #18181b;
+  color: #fff;
+  font-size: 14px;
+  font-size: 1.45cqw;
+  cursor: default;
+}
+
+.weft-edit-block-quiz {
+  padding: 4px;
+  font-size: 14px;
+  font-size: 1.45cqw;
+}
+
+.weft-edit-block-quiz .is-correct {
+  color: #16a34a;
+}
+
+/* ---- Inspector ---- */
+
+.weft-inspector {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--weft-panel);
+  border-left: 1px solid var(--weft-border-subtle);
+}
+
+.weft-inspector-header {
+  padding: 14px 14px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--weft-border-subtle);
+}
+
+.weft-inspector-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+
+.weft-inspector-empty {
+  color: var(--weft-text-faint);
+  font-size: 12.5px;
+  padding: 8px 2px;
+  line-height: 1.5;
+}
+
+/* ---- Collapsible sections ---- */
+
+.weft-collapsible {
+  border: 1px solid var(--weft-border-subtle);
+  border-radius: var(--weft-radius);
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: var(--weft-panel-raised);
+}
+
+.weft-collapsible-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  color: var(--weft-text);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+}
+
+.weft-collapsible-chevron {
+  color: var(--weft-text-faint);
+  transition: transform 0.15s;
+  transform: rotate(-90deg);
+}
+
+.weft-collapsible-chevron.is-open {
+  transform: rotate(0deg);
+}
+
+.weft-collapsible-body {
+  padding: 2px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---- Form fields (shared) ---- */
+
+.weft-hint {
+  font-size: 11.5px;
+  color: var(--weft-text-faint);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.weft-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.weft-field > span {
+  color: var(--weft-text-muted);
+  font-size: 11.5px;
+}
+
+.weft-field-inline {
+  flex-direction: row;
+  align-items: center;
+}
+
+.weft-field input[type="text"],
+.weft-field input:not([type]),
+.weft-field input[type="number"],
+.weft-field select,
+.weft-field textarea,
+.weft-field code {
+  padding: 7px 9px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-input-bg);
+  font-size: 12.5px;
+}
+
+.weft-field input:focus,
+.weft-field select:focus,
+.weft-field textarea:focus {
+  outline: none;
+  border-color: var(--weft-accent);
+}
+
+.weft-module-id {
+  font-size: 10.5px;
+  color: var(--weft-text-faint);
+  word-break: break-all;
+  display: block;
+}
+
+.weft-divider {
+  height: 1px;
+  background: var(--weft-border-subtle);
+  margin: 6px 0;
+}
+
+.weft-subgroup-label {
+  font-size: 11px;
+  color: var(--weft-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.weft-variable-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.weft-variable-row,
+.weft-effect-row,
+.weft-condition-row,
+.weft-quiz-option-row {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.weft-variable-row input,
+.weft-variable-row select,
+.weft-effect-row input,
+.weft-effect-row select,
+.weft-condition-row input,
+.weft-condition-row select,
+.weft-quiz-option-row input:not([type="checkbox"]) {
+  padding: 6px 8px;
+  border: 1px solid var(--weft-border);
+  background: var(--weft-input-bg);
+  border-radius: var(--weft-radius-sm);
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.weft-block-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weft-block-list li {
+  display: flex;
+  gap: 4px;
+}
+
+.weft-block-list li button:first-child {
+  flex: 1;
+  text-align: left;
+  padding: 6px 9px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-input-bg);
+  color: var(--weft-text);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.weft-block-list li button.is-active {
+  border-color: var(--weft-accent);
+  background: var(--weft-accent-soft);
+}
+
+.weft-add-block-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.weft-add-block-row button {
+  font-size: 11px;
+  padding: 4px 8px;
+  border: 1px dashed var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: transparent;
+  color: var(--weft-text-muted);
+  cursor: pointer;
+}
+
+.weft-add-block-row button:hover {
+  border-color: var(--weft-accent);
+  color: var(--weft-accent);
+}
+
+.weft-position-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.weft-position-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--weft-text-muted);
+}
+
+.weft-position-grid input {
+  padding: 6px 8px;
+  border: 1px solid var(--weft-border);
+  background: var(--weft-input-bg);
+  border-radius: var(--weft-radius-sm);
+  color: var(--weft-text);
+}

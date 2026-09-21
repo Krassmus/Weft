@@ -1,0 +1,67 @@
+import type { CustomFont, WeftModule } from "../types";
+import { CURATED_FONTS } from "./curatedFonts";
+import type { CuratedFont } from "./curatedFonts";
+
+/** The font text renders in when nothing else is explicitly chosen - see the matching
+ * font-family rule in player.runtime.css/App.css. Always bundled below (not just when
+ * explicitly referenced by a <font face> tag), since otherwise a module whose text never
+ * explicitly sets a font would silently lose its default in export. */
+export const DEFAULT_FONT_FAMILY = "Open Sans";
+
+/** All text block HTML in the module, pages and layouts alike - where a font-family/font-face
+ * value applied via richText.ts's applyFormat would show up. */
+function allTextHtml(module: WeftModule): string {
+  const html: string[] = [];
+  for (const page of Object.values(module.pages)) {
+    for (const block of page.blocks) if (block.kind === "text") html.push(block.html);
+  }
+  for (const layout of Object.values(module.layouts)) {
+    for (const block of layout.blocks) if (block.kind === "text") html.push(block.html);
+  }
+  return html.join("\n");
+}
+
+/** Which curated fonts this document's content actually references - only these get bundled
+ * into an export, so picking a font from the list is a guarantee (unlike a system font, which
+ * may simply not be installed wherever the module ends up playing), without bundling all eleven
+ * into every single export regardless of use. */
+export function usedCuratedFonts(module: WeftModule): CuratedFont[] {
+  const html = allTextHtml(module);
+  return CURATED_FONTS.filter((font) => font.family === DEFAULT_FONT_FAMILY || html.includes(`face="${font.family}"`));
+}
+
+/**
+ * Builds the @font-face CSS for every curated font this document uses plus every custom font it
+ * carries, resolving each underlying file to a URL through the given callbacks - a relative
+ * "fonts/…" zip path for the real export, or a data: URI for the sandboxed preview iframe (an
+ * opaque-origin srcDoc can't fetch a relative path at all, same reason images go through
+ * buildPreviewAssetUrls instead of a plain <img src="assets/…">).
+ */
+export async function buildFontFaceCss(
+  module: WeftModule,
+  resolveCuratedFile: (fileName: string) => Promise<string>,
+  resolveCustomFont: (font: CustomFont) => Promise<string>,
+): Promise<string> {
+  const rules: string[] = [];
+
+  for (const font of usedCuratedFonts(module)) {
+    for (const face of font.faces) {
+      const url = await resolveCuratedFile(face.file);
+      const unicodeRange = face.unicodeRange ? `unicode-range:${face.unicodeRange};` : "";
+      rules.push(
+        `@font-face{font-family:'${escapeFontFamily(font.family)}';font-style:${face.style};font-weight:${face.weight};font-display:swap;src:url('${url}') format('woff2');${unicodeRange}}`,
+      );
+    }
+  }
+
+  for (const font of module.customFonts) {
+    const url = await resolveCustomFont(font);
+    rules.push(`@font-face{font-family:'${escapeFontFamily(font.family)}';font-display:swap;src:url('${url}');}`);
+  }
+
+  return rules.join("\n");
+}
+
+function escapeFontFamily(family: string): string {
+  return family.replace(/['\\]/g, "\\$&");
+}

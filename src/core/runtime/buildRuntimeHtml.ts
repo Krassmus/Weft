@@ -8,8 +8,14 @@ import type { IframeBlock, WeftModule } from "../types";
  * (assetUrls empty, images resolved as relative assets/<id>_<name> paths written into the zip)
  * and for the editor's live sandboxed-iframe preview (assetUrls pre-resolved to data: URIs,
  * since a sandboxed srcDoc iframe has an opaque origin and can't reach the app's blob: URLs).
+ * fontFaceCss is built the same asymmetric way - see core/fonts/fontFaceCss.ts and its two
+ * callers (pack.ts for export, buildPreviewFontUrls.ts for preview).
  */
-export async function buildRuntimeHtml(module: WeftModule, assetUrls: Record<string, string> = {}): Promise<string> {
+export async function buildRuntimeHtml(
+  module: WeftModule,
+  assetUrls: Record<string, string> = {},
+  fontFaceCss = "",
+): Promise<string> {
   const qrCodeSvgs = await buildQrCodeSvgs(module);
 
   // Escaping every "<" keeps the embedded JSON from ever containing a literal "</script>",
@@ -25,6 +31,7 @@ export async function buildRuntimeHtml(module: WeftModule, assetUrls: Record<str
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(module.title)}</title>
 <style>${playerRuntimeCss}</style>
+<style>${fontFaceCss}</style>
 </head>
 <body>
 <div id="weft-root"></div>

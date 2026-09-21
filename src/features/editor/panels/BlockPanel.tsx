@@ -1,7 +1,12 @@
 import { createId } from "../../../core/id";
+import { addCustomFont } from "../../../core/document/actions";
 import { useDocumentStore } from "../../../core/document/store";
-import type { Block, ButtonBlock, IframeBlock, ImageBlock, QuizBlock, TextBlock, VariableEffect } from "../../../core/types";
+import { CURATED_FONT_FAMILIES } from "../../../core/fonts/curatedFonts";
+import { DEFAULT_FONT_FAMILY } from "../../../core/fonts/fontFaceCss";
+import type { Block, ButtonBlock, IframeBlock, ImageBlock, QuizBlock, VariableEffect } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
+import { applyFontSize, applyFormat, useFormatSnapshot } from "../blocks/richText";
+import type { TriState } from "../blocks/richText";
 
 const SANDBOX_FLAGS = ["allow-scripts", "allow-same-origin", "allow-popups", "allow-forms"];
 const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
@@ -24,7 +29,7 @@ export function BlockPanel({ block, onUpdate, onSetImage }: BlockPanelProps) {
       <Collapsible title={`Element · ${BLOCK_KIND_LABELS[block.kind]}`}>
         <PositionEditor block={block} onUpdate={onUpdate} />
       </Collapsible>
-      {block.kind === "text" && <TextEditor block={block} onUpdate={onUpdate} />}
+      {block.kind === "text" && <TextEditor />}
       {block.kind === "image" && <ImageEditor block={block} onUpdate={onUpdate} onSetImage={onSetImage} />}
       {block.kind === "iframe" && <IframeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "button" && <ButtonEditor block={block} onUpdate={onUpdate} />}
@@ -65,13 +70,180 @@ function PositionEditor({ block, onUpdate }: { block: Block; onUpdate: BlockPane
   );
 }
 
-function TextEditor({ block, onUpdate }: { block: TextBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
+function formatButtonClass(state: TriState): string {
+  return "weft-format-button" + (state === "on" ? " is-active" : state === "mixed" ? " is-mixed" : "");
+}
+
+/**
+ * No HTML source field on purpose - the text itself is edited directly on the slide (see
+ * EditableText in blocks/BlockView.tsx, contentEditable while the block is selected); this panel
+ * only holds the formatting controls for whatever's currently selected/typed there, reflecting
+ * its current state (useFormatSnapshot, recomputed on every selection change - see richText.ts).
+ * A selection can span mixed formatting (e.g. only half of it bold), shown as "is-mixed" rather
+ * than picking a side. The buttons use onMouseDown+preventDefault so clicking them never steals
+ * focus (and with it the text selection) away from the slide; the select/inputs can't avoid
+ * taking focus themselves, so they carry data-weft-format-control, which EditableText's blur
+ * handler checks to keep richText.ts's notion of "the active editor" alive across that focus hop
+ * instead of tearing it down.
+ */
+function TextEditor() {
+  const snapshot = useFormatSnapshot();
+  const customFonts = useDocumentStore((s) => s.doc.content.customFonts);
+  const sortedOtherFonts = CURATED_FONT_FAMILIES.filter((family) => family !== DEFAULT_FONT_FAMILY).sort((a, b) =>
+    a.localeCompare(b, "de"),
+  );
+  // Reflecting the live value means these can't be plain controlled inputs (there's nowhere to
+  // store what's mid-typed - the source of truth is the DOM selection, not local component
+  // state), so they're kept as remount-on-change-elsewhere uncontrolled fields instead: a key
+  // tied to the reflected value forces a fresh DOM input (and fresh cursor) only when the
+  // selection actually moved to different formatting, never while the user is still typing here.
+  const fontSizeKey = snapshot.fontSizePx === "mixed" ? "mixed" : String(snapshot.fontSizePx ?? "");
+  const colorKey = snapshot.color === "mixed" ? "mixed" : snapshot.color;
+
   return (
     <Collapsible title="Inhalt">
-      <label className="weft-field">
-        <span>HTML-Inhalt</span>
-        <textarea rows={6} value={block.html} onChange={(e) => onUpdate({ html: e.target.value })} />
-      </label>
+      <p className="weft-hint">Text direkt auf der Folie eingeben. Markierten Text hier formatieren.</p>
+      <div className="weft-format-toolbar" data-weft-format-control>
+        <div className="weft-format-row">
+          <button
+            type="button"
+            className={formatButtonClass(snapshot.bold)}
+            title="Fett"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => applyFormat("bold")}
+          >
+            <strong>F</strong>
+          </button>
+          <button
+            type="button"
+            className={formatButtonClass(snapshot.italic)}
+            title="Kursiv"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => applyFormat("italic")}
+          >
+            <em>K</em>
+          </button>
+          <button
+            type="button"
+            className={formatButtonClass(snapshot.underline)}
+            title="Unterstrichen"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => applyFormat("underline")}
+          >
+            <span style={{ textDecoration: "underline" }}>U</span>
+          </button>
+          <span className="weft-format-divider" />
+          <button
+            type="button"
+            className={"weft-format-button" + (snapshot.align === "left" ? " is-active" : "")}
+            title="Linksbündig"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => applyFormat("justifyLeft")}
+          >
+            ⇤
+          </button>
+          <button
+            type="button"
+            className={"weft-format-button" + (snapshot.align === "center" ? " is-active" : "")}
+            title="Zentriert"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => applyFormat("justifyCenter")}
+          >
+            ↔
+          </button>
+          <button
+            type="button"
+            className={"weft-format-button" + (snapshot.align === "right" ? " is-active" : "")}
+            title="Rechtsbündig"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => applyFormat("justifyRight")}
+          >
+            ⇥
+          </button>
+        </div>
+
+        <label className="weft-field">
+          <span>Schriftart</span>
+          <select
+            value={snapshot.fontFamily === "mixed" ? "mixed" : snapshot.fontFamily || DEFAULT_FONT_FAMILY}
+            onChange={(e) => {
+              if (e.target.value) applyFormat("fontName", e.target.value);
+            }}
+          >
+            {snapshot.fontFamily === "mixed" && (
+              <option value="mixed" disabled>
+                Verschiedene …
+              </option>
+            )}
+            <option value={DEFAULT_FONT_FAMILY}>{DEFAULT_FONT_FAMILY}</option>
+            {customFonts.length > 0 && (
+              <optgroup label="Eigene Schriften">
+                {customFonts.map((font) => (
+                  <option key={font.id} value={font.family}>
+                    {font.family}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label="Schriften (im Export enthalten)">
+              {sortedOtherFonts.map((family) => (
+                <option key={family} value={family}>
+                  {family}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+        </label>
+
+        {/* Its own <label>, not sharing one with the select above or anything else interactive -
+            nesting another control inside a <label> makes clicking it also forward a click to
+            the label's own input (see the same fix in SettingsTab.tsx), popping the file picker
+            open unexpectedly. Uploading here is a shortcut: the font is still stored globally
+            (doc.content.customFonts, the same list Einstellungen manages) and just also gets
+            applied to the current selection immediately, since that's the point of reaching for
+            it while formatting text rather than in Einstellungen. */}
+        <label className="weft-field">
+          <span>Eigene Schriftart hochladen</span>
+          <input
+            type="file"
+            accept=".woff2,.woff,.ttf,.otf"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (!file) return;
+              const { family } = addCustomFont(file);
+              applyFormat("fontName", family);
+            }}
+          />
+        </label>
+
+        <div className="weft-format-row">
+          <label className="weft-field">
+            <span>Schriftgröße (px)</span>
+            <input
+              key={fontSizeKey}
+              type="number"
+              min={8}
+              max={300}
+              defaultValue={fontSizeKey === "mixed" ? "" : fontSizeKey}
+              placeholder={snapshot.fontSizePx === "mixed" ? "Verschiedene" : "z. B. 24"}
+              onBlur={(e) => {
+                const px = Number(e.target.value);
+                if (px > 0) applyFontSize(px);
+              }}
+            />
+          </label>
+          <label className="weft-field">
+            <span>Farbe</span>
+            <input
+              key={colorKey}
+              type="color"
+              defaultValue={snapshot.color === "mixed" || !snapshot.color ? "#000000" : snapshot.color}
+              onChange={(e) => applyFormat("foreColor", e.target.value)}
+            />
+          </label>
+        </div>
+      </div>
     </Collapsible>
   );
 }

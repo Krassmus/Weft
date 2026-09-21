@@ -139,6 +139,17 @@ export interface AssetMeta {
   mimeType: string;
 }
 
+/** A font file the user uploaded (see core/fonts/), stored as a blob keyed by `id` exactly like
+ * an AssetMeta - unlike the curated set in core/fonts/curatedFonts.ts, which ships with the app
+ * and isn't a per-document asset at all. `family` is what block HTML's font-face/font-family
+ * actually references, so renaming here would silently detach it from any text already using it. */
+export interface CustomFont {
+  id: UUID;
+  family: string;
+  fileName: string;
+  mimeType: string;
+}
+
 export interface LmsConfig {
   /** Off by default - the module works as a stand-alone presentation until this is switched on. */
   enabled: boolean;
@@ -158,6 +169,7 @@ export interface WeftModule {
   logicBlocks: Record<UUID, LogicBlock>;
   sequence: SequenceNodeRef[];
   assets: AssetMeta[];
+  customFonts: CustomFont[];
   lms: LmsConfig;
 }
 

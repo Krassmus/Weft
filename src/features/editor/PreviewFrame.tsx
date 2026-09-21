@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { buildPreviewAssetUrls } from "../../core/runtime/buildPreviewAssetUrls";
+import { buildPreviewFontFaceCss } from "../../core/runtime/buildPreviewFontUrls";
 import { buildRuntimeHtml } from "../../core/runtime/buildRuntimeHtml";
 import type { WeftModule } from "../../core/types";
 
@@ -14,8 +15,8 @@ export function PreviewFrame({ module }: { module: WeftModule }) {
 
   useEffect(() => {
     let cancelled = false;
-    buildPreviewAssetUrls(module)
-      .then((assetUrls) => buildRuntimeHtml(module, assetUrls))
+    Promise.all([buildPreviewAssetUrls(module), buildPreviewFontFaceCss(module)])
+      .then(([assetUrls, fontFaceCss]) => buildRuntimeHtml(module, assetUrls, fontFaceCss))
       .then((html) => {
         if (!cancelled) setSrcDoc(html);
       });

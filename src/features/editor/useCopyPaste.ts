@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { getClipboard, setClipboard } from "../../core/document/clipboard";
-import { pasteBlockInto, pastePageAfter } from "../../core/document/actions";
+import { pasteBlockInto, pastePageAfter, removeBlock, removeLayoutBlock, removePage } from "../../core/document/actions";
 import { useDocumentStore } from "../../core/document/store";
 import type { SelectionRef } from "../../core/document/store";
 import type { Block, WeftModule } from "../../core/types";
@@ -35,10 +35,12 @@ function resolveBlockTarget(selection: SelectionRef | null): { kind: "page"; pag
 
 /**
  * Cmd/Ctrl+C copies the selected page or block into an in-app clipboard (see core/document/
- * clipboard.ts); Cmd/Ctrl+V pastes it right next to whatever is currently selected. A plain
- * window keydown listener rather than React's synthetic events, since the shortcut has to fire
- * no matter which part of the editor last had focus - but it backs off whenever focus is in a
- * text input/textarea/contenteditable, so normal text copy/paste there keeps working untouched.
+ * clipboard.ts); Cmd/Ctrl+X does the same but also removes the original (like Delete, see
+ * useDeleteSelection.ts, plus clearing the now-stale selection); Cmd/Ctrl+V pastes right next to
+ * whatever is currently selected. A plain window keydown listener rather than React's synthetic
+ * events, since the shortcut has to fire no matter which part of the editor last had focus - but
+ * it backs off whenever focus is in a text input/textarea/contenteditable, so normal text
+ * copy/cut/paste there keeps working untouched.
  */
 export function useCopyPaste(enabled: boolean) {
   useEffect(() => {
@@ -48,22 +50,31 @@ export function useCopyPaste(enabled: boolean) {
       const mod = e.metaKey || e.ctrlKey;
       if (!mod || e.shiftKey || e.altKey) return;
       const key = e.key.toLowerCase();
-      if (key !== "c" && key !== "v") return;
+      if (key !== "c" && key !== "v" && key !== "x") return;
       if (isEditableTarget(document.activeElement)) return;
 
       const { doc, selection, select } = useDocumentStore.getState();
       const content = doc.content;
 
-      if (key === "c") {
+      if (key === "c" || key === "x") {
         if (selection?.type === "page") {
           const page = content.pages[selection.pageId];
           if (!page) return;
           setClipboard({ kind: "page", page });
+          if (key === "x") {
+            removePage(selection.pageId);
+            select(null);
+          }
           e.preventDefault();
         } else if (selection?.type === "block") {
           const block = resolveSelectedBlock(content, selection);
           if (!block) return;
           setClipboard({ kind: "block", block });
+          if (key === "x") {
+            if (selection.container.kind === "page") removeBlock(selection.container.pageId, selection.blockId);
+            else removeLayoutBlock(selection.container.layoutId, selection.blockId);
+            select(null);
+          }
           e.preventDefault();
         }
         return;

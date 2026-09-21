@@ -1,13 +1,40 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import type { DragEvent as ReactDragEvent } from "react";
 import { ASPECT_RATIO_CSS } from "../../core/aspectRatio";
-import { updateBlock, updateLayoutBlock } from "../../core/document/actions";
+import { addImageBlockToLayout, addImageBlockToPage, updateBlock, updateLayoutBlock } from "../../core/document/actions";
 import { useDocumentStore } from "../../core/document/store";
-import type { Layout, Page, WeftDocument } from "../../core/types";
+import type { BlockContainerRef } from "../../core/document/store";
+import type { BlockPosition, Layout, Page, WeftDocument } from "../../core/types";
 import { BlockView } from "./blocks/BlockView";
 import { clampMove } from "./blocks/resizeMath";
 
 const ARROW_STEP_PERCENT = 1;
 const ARROW_STEP_PERCENT_FAST = 5;
+
+// Dropped images land at this size, centered on the cursor - object-fit: contain (both here and
+// in the exported player) means the block's own aspect ratio doesn't need to match the image's
+// for it to display correctly, so a fixed default is simplest.
+const DROP_IMAGE_WIDTH = 40;
+const DROP_IMAGE_HEIGHT = 30;
+// Dropping several images at once cascades each further one a bit, so they don't land in one
+// exact pile - same idea as the paste offset in core/document/actions.ts.
+const DROP_CASCADE_PERCENT = 4;
+
+function clampAxis(value: number, size: number): number {
+  return Math.min(Math.max(value, 0), Math.max(0, 100 - size));
+}
+
+function dropPosition(clientX: number, clientY: number, stageRect: DOMRect, cascadeIndex: number): BlockPosition {
+  const centerX = ((clientX - stageRect.left) / stageRect.width) * 100;
+  const centerY = ((clientY - stageRect.top) / stageRect.height) * 100;
+  const offset = cascadeIndex * DROP_CASCADE_PERCENT;
+  return {
+    x: clampAxis(centerX - DROP_IMAGE_WIDTH / 2 + offset, DROP_IMAGE_WIDTH),
+    y: clampAxis(centerY - DROP_IMAGE_HEIGHT / 2 + offset, DROP_IMAGE_HEIGHT),
+    width: DROP_IMAGE_WIDTH,
+    height: DROP_IMAGE_HEIGHT,
+  };
+}
 
 function isEditableTarget(el: Element | null): boolean {
   if (!el) return false;
@@ -93,11 +120,41 @@ export function Canvas({ onPresent }: { onPresent: () => void }) {
   const doc = useDocumentStore((s) => s.doc);
   const selection = useDocumentStore((s) => s.selection);
   const select = useDocumentStore((s) => s.select);
+  const [dragOver, setDragOver] = useState(false);
 
   const target = resolveEditTarget(doc, selection);
   const aspect = ASPECT_RATIO_CSS[doc.content.aspectRatio];
 
   useArrowMove(doc, selection);
+
+  function handleDragOver(e: ReactDragEvent<HTMLDivElement>) {
+    // Only react to an actual file drag (e.g. from the Finder) - not our own internal block
+    // dragging, which uses Pointer Events and never sets a "Files" payload.
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    setDragOver(true);
+  }
+
+  async function handleImageDrop(
+    e: ReactDragEvent<HTMLDivElement>,
+    container: BlockContainerRef,
+    addImage: (file: File, position: BlockPosition) => Promise<string>,
+  ) {
+    e.preventDefault();
+    setDragOver(false);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const imageFiles = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+    // Sequential, not Promise.all - addImage reads the image's own dimensions before editing the
+    // document, and each edit() call is its own undo step, so keeping them in drop order keeps
+    // undo order sane too.
+    let lastBlockId: string | null = null;
+    for (const [index, file] of imageFiles.entries()) {
+      lastBlockId = await addImage(file, dropPosition(e.clientX, e.clientY, rect, index));
+    }
+    // Select whichever landed last, mirroring how pasting a block selects the new copy.
+    if (lastBlockId) select({ type: "block", container, blockId: lastBlockId });
+  }
 
   return (
     <div className="weft-canvas">
@@ -113,9 +170,16 @@ export function Canvas({ onPresent }: { onPresent: () => void }) {
           <div className="weft-canvas-empty">Wähle eine Folie in einem Zweig, um sie zu bearbeiten.</div>
         ) : target?.kind === "layout" ? (
           <div
-            className="weft-stage weft-stage-edit"
+            className={"weft-stage weft-stage-edit" + (dragOver ? " is-drag-over" : "")}
             style={{ aspectRatio: aspect }}
             onClick={() => select({ type: "layout", layoutId: target.layout.id })}
+            onDragOver={handleDragOver}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) =>
+              handleImageDrop(e, { kind: "layout", layoutId: target.layout.id }, (file, position) =>
+                addImageBlockToLayout(target.layout.id, file, position),
+              )
+            }
           >
             {target.layout.blocks.map((block) => (
               <BlockView
@@ -137,9 +201,16 @@ export function Canvas({ onPresent }: { onPresent: () => void }) {
           </div>
         ) : target?.kind === "page" ? (
           <div
-            className="weft-stage weft-stage-edit"
+            className={"weft-stage weft-stage-edit" + (dragOver ? " is-drag-over" : "")}
             style={{ aspectRatio: aspect }}
             onClick={() => select({ type: "page", pageId: target.page.id })}
+            onDragOver={handleDragOver}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) =>
+              handleImageDrop(e, { kind: "page", pageId: target.page.id }, (file, position) =>
+                addImageBlockToPage(target.page.id, file, position),
+              )
+            }
           >
             {target.layout?.blocks.map((block) => <BlockView key={block.id} block={block} selected={false} locked />)}
             {target.page.blocks.map((block) => (

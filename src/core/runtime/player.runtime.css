@@ -8,7 +8,11 @@ body {
   height: 100%;
   background: #000;
   color: #18181b;
+  /* Open Sans is always bundled (see core/fonts/fontFaceCss.ts - usedCuratedFonts always
+     includes it), so this is the one font every module can actually rely on rendering as, rather
+     than whatever system-ui happens to resolve to on the machine that plays it back. */
   font-family:
+    "Open Sans",
     system-ui,
     -apple-system,
     "Segoe UI",

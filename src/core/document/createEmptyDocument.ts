@@ -136,6 +136,7 @@ export function createEmptyDocument(): WeftDocument {
     logicBlocks: { [logicBlock.id]: logicBlock },
     sequence,
     assets: [],
+    customFonts: [],
     lms: { enabled: false, allowedOrigins: [] },
   };
 

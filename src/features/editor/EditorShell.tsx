@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { useDocumentStore } from "../../core/document/store";
-import { exportAsHtmlModule, openDocument, saveDocumentAs } from "../../core/io/fileIO";
+import { useCustomFontRegistration } from "../../core/fonts/registerCustomFonts";
+import { exportAsHtmlModule, isTauri, openDocument, saveDocumentAs, saveDocumentToPath } from "../../core/io/fileIO";
 import { enterFullscreenPreview, watchFullscreenExit } from "../../core/window/fullscreen";
 import { Canvas } from "./Canvas";
 import { Inspector } from "./Inspector";
@@ -64,6 +66,31 @@ export function EditorShell() {
   // listener would otherwise silently act on whatever was selected before presenting started.
   useCopyPaste(!presenting);
   useDeleteSelection(!presenting);
+  useCustomFontRegistration();
+
+  // "Öffnen"/"Speichern" in the native "Datei" menu (see src-tauri/src/lib.rs, which owns the
+  // Cmd/Ctrl+O and Cmd/Ctrl+S accelerators) just emit an event - refs, not a dependency array,
+  // so this one-time subscription always calls whichever handleOpen/handleSave closure is
+  // current instead of the one captured on mount. presentingRef guards against calling a stale
+  // handler while presenting - handleSave/handleOpen stop being reassigned past the early return
+  // below, and a save dialog popping up over a live presentation would be unwelcome anyway.
+  const handleSaveRef = useRef<() => void>(() => {});
+  const handleOpenRef = useRef<() => void>(() => {});
+  const presentingRef = useRef(presenting);
+  presentingRef.current = presenting;
+  useEffect(() => {
+    if (!isTauri()) return;
+    const unlistenSave = listen("weft://menu-save", () => {
+      if (!presentingRef.current) handleSaveRef.current();
+    });
+    const unlistenOpen = listen("weft://menu-open", () => {
+      if (!presentingRef.current) handleOpenRef.current();
+    });
+    return () => {
+      void unlistenSave.then((fn) => fn());
+      void unlistenOpen.then((fn) => fn());
+    };
+  }, []);
 
   function handlePresent() {
     setPresenting(true);
@@ -74,17 +101,25 @@ export function EditorShell() {
     return <PresentationView onExit={() => setPresenting(false)} />;
   }
 
+  // Only a brand-new document (no filePath yet) asks where to save - once it has one, whether
+  // from a prior save or from "Öffnen", Speichern/Cmd+S silently overwrites that same file,
+  // matching how Save works in most other apps.
   async function handleSave() {
     setBusy("Speichern …");
     try {
-      const path = await saveDocumentAs(doc);
-      if (path) useDocumentStore.setState({ filePath: path });
+      if (filePath) {
+        await saveDocumentToPath(doc, filePath);
+      } else {
+        const path = await saveDocumentAs(doc);
+        if (path) useDocumentStore.setState({ filePath: path });
+      }
     } catch (err) {
       alert(`Speichern fehlgeschlagen:\n${errorMessage(err)}`);
     } finally {
       setBusy(null);
     }
   }
+  handleSaveRef.current = handleSave;
 
   async function handleExport() {
     setBusy("Exportieren …");
@@ -108,6 +143,7 @@ export function EditorShell() {
       setBusy(null);
     }
   }
+  handleOpenRef.current = handleOpen;
 
   return (
     <div className="weft-shell">

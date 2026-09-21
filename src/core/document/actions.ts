@@ -1,10 +1,12 @@
 import { createId } from "../id";
+import { ASPECT_RATIO_NUMERIC } from "../aspectRatio";
 import { useAssetStore } from "../assets/assetStore";
 import type {
   AspectRatio,
   Block,
   BlockPosition,
   Branch,
+  CustomFont,
   Layout,
   Page,
   StaticBlock,
@@ -305,13 +307,63 @@ export function removeBlock(pageId: string, blockId: string) {
   });
 }
 
-export function setBlockImage(pageId: string, blockId: string, file: File) {
+// ---- Image sizing: fitting a picked/dropped image to its own aspect ratio -------------------
+
+async function imageAspectRatio(file: File): Promise<number> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    return bitmap.width / bitmap.height;
+  } finally {
+    bitmap.close();
+  }
+}
+
+/** An image's own pixel aspect ratio, translated through the module's stage aspect ratio into
+ * the width%/height% ratio a block needs to render that image edge-to-edge (percent axes aren't
+ * equal-scale unless the stage itself is square, so this isn't just the image's raw ratio). */
+async function percentRatioForImage(file: File): Promise<number> {
+  const imageAspect = await imageAspectRatio(file);
+  const stageAspect = ASPECT_RATIO_NUMERIC[useDocumentStore.getState().doc.content.aspectRatio];
+  return imageAspect / stageAspect;
+}
+
+function clampPercent(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), Math.max(min, max));
+}
+
+/** Reshapes a block's rect to a given width%/height% ratio, keeping the same center and roughly
+ * the same footprint (area), clamped to the stage - so a newly picked/dropped image renders
+ * edge-to-edge in its selection box instead of letterboxed inside an unrelated rectangle.
+ * Duplicated in spirit from clampMove in features/editor/blocks/resizeMath.ts rather than
+ * imported, so core/ doesn't reach into features/. */
+function fitImageToAspect(position: BlockPosition, percentRatio: number): BlockPosition {
+  const area = position.width * position.height;
+  let width = Math.sqrt(area * percentRatio);
+  let height = width / percentRatio;
+  const scale = Math.min(1, 100 / width, 100 / height);
+  width *= scale;
+  height *= scale;
+  const centerX = position.x + position.width / 2;
+  const centerY = position.y + position.height / 2;
+  return {
+    x: clampPercent(centerX - width / 2, 0, 100 - width),
+    y: clampPercent(centerY - height / 2, 0, 100 - height),
+    width,
+    height,
+  };
+}
+
+export async function setBlockImage(pageId: string, blockId: string, file: File) {
   const assetId = createId();
   useAssetStore.getState().setAsset(assetId, file);
+  const percentRatio = await percentRatioForImage(file);
   edit("Bild setzen", (m) => {
     m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
     const block = m.pages[pageId]?.blocks.find((b) => b.id === blockId);
-    if (block && block.kind === "image") block.assetId = assetId;
+    if (block && block.kind === "image") {
+      block.assetId = assetId;
+      block.position = fitImageToAspect(block.position, percentRatio);
+    }
   });
 }
 
@@ -329,14 +381,47 @@ export function removeLayoutBlock(layoutId: string, blockId: string) {
   });
 }
 
-export function setLayoutBlockImage(layoutId: string, blockId: string, file: File) {
+export async function setLayoutBlockImage(layoutId: string, blockId: string, file: File) {
   const assetId = createId();
   useAssetStore.getState().setAsset(assetId, file);
+  const percentRatio = await percentRatioForImage(file);
   edit("Bild setzen", (m) => {
     m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
     const block = m.layouts[layoutId]?.blocks.find((b) => b.id === blockId);
-    if (block && block.kind === "image") block.assetId = assetId;
+    if (block && block.kind === "image") {
+      block.assetId = assetId;
+      block.position = fitImageToAspect(block.position, percentRatio);
+    }
   });
+}
+
+/** Drops a new image block onto a page/layout in one step, already carrying the file - used by
+ * dragging an image in from the Finder (see Canvas.tsx), where there's no existing block to
+ * attach it to yet the way setBlockImage/setLayoutBlockImage's picker flow has. `position` is
+ * treated as a starting footprint (its area and center are kept) and reshaped to the image's own
+ * aspect ratio - see fitImageToAspect. */
+export async function addImageBlockToPage(pageId: string, file: File, position: BlockPosition) {
+  const assetId = createId();
+  const blockId = createId();
+  useAssetStore.getState().setAsset(assetId, file);
+  const percentRatio = await percentRatioForImage(file);
+  edit("Bild hinzufügen", (m) => {
+    m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
+    m.pages[pageId]?.blocks.push({ id: blockId, kind: "image", position: fitImageToAspect(position, percentRatio), assetId, alt: "" });
+  });
+  return blockId;
+}
+
+export async function addImageBlockToLayout(layoutId: string, file: File, position: BlockPosition) {
+  const assetId = createId();
+  const blockId = createId();
+  useAssetStore.getState().setAsset(assetId, file);
+  const percentRatio = await percentRatioForImage(file);
+  edit("Bild hinzufügen", (m) => {
+    m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
+    m.layouts[layoutId]?.blocks.push({ id: blockId, kind: "image", position: fitImageToAspect(position, percentRatio), assetId, alt: "" });
+  });
+  return blockId;
 }
 
 // ---- Copy / paste (Cmd/Ctrl+C / +V - see features/editor/useCopyPaste.ts) -------------------
@@ -428,4 +513,35 @@ export function pasteBlockInto(
     inserted = true;
   });
   return inserted ? newBlock.id : null;
+}
+
+// ---- Custom fonts (uploaded, unlike the curated set shipped with the app - see core/fonts/) --
+
+function deriveFontFamilyName(fileName: string, existing: CustomFont[]): string {
+  const base = fileName.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim() || "Eigene Schriftart";
+  const taken = new Set(existing.map((f) => f.family));
+  if (!taken.has(base)) return base;
+  let n = 2;
+  while (taken.has(`${base} ${n}`)) n++;
+  return `${base} ${n}`;
+}
+
+/** Uploads a font file as a document asset (same blob store as images) and makes it selectable
+ * in the font-family control - see BlockPanel.tsx and richText.ts's applyFormat("fontName", …).
+ * Its family name is derived from the file name, not user-chosen, since that name is also what
+ * gets written into every span/font tag that uses it. */
+export function addCustomFont(file: File): { id: string; family: string } {
+  const fontId = createId();
+  useAssetStore.getState().setAsset(fontId, file);
+  const family = deriveFontFamilyName(file.name, useDocumentStore.getState().doc.content.customFonts);
+  edit("Schriftart hinzufügen", (m) => {
+    m.customFonts.push({ id: fontId, family, fileName: file.name, mimeType: file.type || "font/woff2" });
+  });
+  return { id: fontId, family };
+}
+
+export function removeCustomFont(id: string) {
+  edit("Schriftart entfernen", (m) => {
+    m.customFonts = m.customFonts.filter((f) => f.id !== id);
+  });
 }

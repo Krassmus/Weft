@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "settings",
+  "description": "Capability for the settings window - deliberately minimal: it only reads/writes its own preference to localStorage (a plain web API, not a Tauri command) and calls the app's own set_menu_language command, neither of which needs fs/dialog/shell access the way the main editor window does.",
+  "windows": ["settings"],
+  "permissions": ["core:default"]
+}

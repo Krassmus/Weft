@@ -38,9 +38,12 @@ export interface FormatSnapshot {
   align: "left" | "center" | "right" | "mixed";
   /** "" = no explicit font set (using the default) - distinct from "mixed". */
   fontFamily: string | "mixed";
-  /** Rounded px-equivalent at the stage's current rendered size, for display only - the actual
-   * stored value is in cqw (see applyFontSize) so it scales with the slide. null = no explicit
-   * size set. */
+  /** Current font size in px, resolved from the DOM either way: an explicit override (see
+   * applyFontSize) converted from its stored cqw back to the stage's current rendered size, or
+   * otherwise whatever the browser is actually rendering it at (via getComputedStyle, which
+   * already resolves .weft-block's own base cqw rule - see App.css - to a real pixel value for
+   * the stage's current width). null only when nothing is focused at all (see `active`);
+   * "mixed" when the selection spans genuinely different rendered sizes. */
   fontSizePx: number | "mixed" | null;
   /** "" = no explicit color set. */
   color: string | "mixed";
@@ -163,8 +166,18 @@ function computeSnapshot(): FormatSnapshot {
 
   const fontSizeCqw = triValue(els, (el) => fontSizeCqwOf(el, root));
   const widthPx = stageWidthPx(root);
+  // No explicit cqw override on (all of) the selection doesn't mean "no size" - text still
+  // renders at whatever .weft-block's own base rule resolves to, which depends on the stage's
+  // current width same as an explicit override does. Falling back to a guessed constant here
+  // (as an earlier version of this code, and the size stepper that reads it, both did) shows a
+  // number with no relation to the actual text, and jumps to a wildly wrong size the moment
+  // it's used as the base for a +/- step.
   const fontSizePx =
-    fontSizeCqw === "mixed" || fontSizeCqw === null || !widthPx ? fontSizeCqw : Math.round((fontSizeCqw / 100) * widthPx);
+    fontSizeCqw === "mixed"
+      ? "mixed"
+      : fontSizeCqw !== null && widthPx
+        ? Math.round((fontSizeCqw / 100) * widthPx)
+        : triValue(els, (el) => Math.round(parseFloat(getComputedStyle(el).fontSize)));
 
   return {
     active: true,
@@ -254,12 +267,23 @@ export function applyFontSize(px: number) {
   const cqw = (px / widthPx) * 100;
   document.execCommand("fontSize", false, "7");
   const spans: HTMLElement[] = [];
-  active.el.querySelectorAll('font[size="7"]').forEach((el) => {
+  active.el.querySelectorAll('font[size="7"]').forEach((fontEl) => {
     const span = document.createElement("span");
     span.style.fontSize = `${cqw}cqw`;
-    span.innerHTML = el.innerHTML;
-    el.replaceWith(span);
+    span.innerHTML = fontEl.innerHTML;
     spans.push(span);
+    // execCommand merges size onto whatever <font> already wraps the selection rather than
+    // nesting a new element - so a font already carrying face/color (from a prior font-family
+    // or color change) shows up here too, not just a bare size=7 one. Discarding the whole
+    // element for the span would silently drop that face/color along with it; keep the <font>
+    // (minus the size attribute) as the outer wrapper and nest the resized span inside instead.
+    if (fontEl.hasAttribute("face") || fontEl.hasAttribute("color")) {
+      fontEl.removeAttribute("size");
+      fontEl.innerHTML = "";
+      fontEl.appendChild(span);
+    } else {
+      fontEl.replaceWith(span);
+    }
   });
   // Unlike applyFormat's execCommand-only wrap, replaceWith() here rebuilds the affected nodes
   // from an innerHTML string, so the browser's live selection (still pointing at the discarded

@@ -14,11 +14,27 @@
     "core:window:allow-is-fullscreen",
     {
       "identifier": "fs:allow-read-file",
-      "allow": [{ "path": "$HOME/**" }]
+      "allow": [{ "path": "$HOME/**" }, { "path": "$APPCACHE/**" }]
     },
     {
       "identifier": "fs:allow-write-file",
-      "allow": [{ "path": "$HOME/**" }]
+      "allow": [{ "path": "$HOME/**" }, { "path": "$APPCACHE/**" }]
+    },
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [{ "path": "$APPCACHE/**" }]
+    },
+    {
+      "identifier": "fs:allow-remove",
+      "allow": [{ "path": "$APPCACHE/**" }]
+    },
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        { "name": "ffmpeg-path", "cmd": "ffmpeg", "args": true },
+        { "name": "ffmpeg-homebrew-arm", "cmd": "/opt/homebrew/bin/ffmpeg", "args": true },
+        { "name": "ffmpeg-homebrew-intel", "cmd": "/usr/local/bin/ffmpeg", "args": true }
+      ]
     }
   ]
 }

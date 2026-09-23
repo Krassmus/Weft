@@ -12,6 +12,7 @@ import {
   removeSequenceNodeAt,
 } from "../../core/document/actions";
 import { useDocumentStore } from "../../core/document/store";
+import { useTranslation } from "../../core/i18n/useTranslation";
 import type { LogicBlock } from "../../core/types";
 import { ContextMenu, useContextMenu } from "./ContextMenu";
 import type { ContextMenuItem } from "./ContextMenu";
@@ -29,13 +30,14 @@ function firstLayoutId(): string | null {
 }
 
 const TABS = [
-  { id: "folien", label: "Folien" },
-  { id: "variablen", label: "Variablen" },
-  { id: "einstellungen", label: "Einstellungen" },
+  { id: "folien", labelKey: "sidebar.tab.slides" },
+  { id: "variablen", labelKey: "sidebar.tab.variables" },
+  { id: "einstellungen", labelKey: "sidebar.tab.settings" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
 export function Sidebar() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<TabId>("folien");
   const contextMenu = useContextMenu();
   const { bind } = useDragReorder();
@@ -43,14 +45,14 @@ export function Sidebar() {
   return (
     <aside className="weft-sidebar">
       <div className="weft-sidebar-tabs">
-        {TABS.map((t) => (
+        {TABS.map((tabDef) => (
           <button
-            key={t.id}
+            key={tabDef.id}
             type="button"
-            className={"weft-sidebar-tab" + (tab === t.id ? " is-active" : "")}
-            onClick={() => setTab(t.id)}
+            className={"weft-sidebar-tab" + (tab === tabDef.id ? " is-active" : "")}
+            onClick={() => setTab(tabDef.id)}
           >
-            {t.label}
+            {t(tabDef.labelKey)}
           </button>
         ))}
       </div>
@@ -71,6 +73,10 @@ function SequenceTree({ openMenu, bind }: { openMenu: ReturnType<typeof useConte
   const selection = useDocumentStore((s) => s.selection);
   const select = useDocumentStore((s) => s.select);
   const { sequence, logicBlocks } = doc.content;
+  // The page a selected block lives on - a block selection means the page itself isn't the
+  // active sidebar entry anymore, but it's still useful to see at a glance which page's canvas
+  // you're looking at, so its row gets a weaker version of the same highlight (see PageRow).
+  const currentPageId = selection?.type === "block" && selection.container.kind === "page" ? selection.container.pageId : null;
 
   if (sequence.length === 0) {
     return (
@@ -99,6 +105,7 @@ function SequenceTree({ openMenu, bind }: { openMenu: ReturnType<typeof useConte
               pageId={node.pageId}
               index={index + 1}
               active={selection?.type === "page" && selection.pageId === node.pageId}
+              isCurrent={currentPageId === node.pageId}
               onSelect={() => select({ type: "page", pageId: node.pageId })}
               dragProps={bind("top", index, (from, to) => moveSequenceNode(from, to))}
               onContextMenu={(e) =>
@@ -140,6 +147,7 @@ function PageRow({
   pageId,
   index,
   active,
+  isCurrent,
   onSelect,
   onContextMenu,
   dragProps,
@@ -147,6 +155,7 @@ function PageRow({
   pageId: string;
   index: number | string;
   active: boolean;
+  isCurrent?: boolean;
   onSelect: () => void;
   onContextMenu: (e: ReactMouseEvent) => void;
   dragProps: ReturnType<DragBind>;
@@ -159,7 +168,11 @@ function PageRow({
   return (
     <button
       type="button"
-      className={"weft-node weft-node-page" + (active ? " is-active" : "") + dragClassName}
+      className={
+        "weft-node weft-node-page" +
+        (active ? " is-active" : isCurrent ? " is-current" : "") +
+        dragClassName
+      }
       onClick={onSelect}
       onContextMenu={onContextMenu}
       {...dragAttrs}
@@ -191,6 +204,7 @@ function LogicBlockRow({
 }) {
   const selection = useDocumentStore((s) => s.selection);
   const select = useDocumentStore((s) => s.select);
+  const currentPageId = selection?.type === "block" && selection.container.kind === "page" ? selection.container.pageId : null;
   const { dragClassName, ...dragAttrs } = dragProps;
   if (!logicBlock) return null;
 
@@ -231,6 +245,7 @@ function LogicBlockRow({
                   pageId={pageId}
                   index={`.${pageIndex + 1}`}
                   active={selection?.type === "page" && selection.pageId === pageId}
+                  isCurrent={currentPageId === pageId}
                   onSelect={() => select({ type: "page", pageId })}
                   dragProps={bind(`branch:${logicBlock.id}:${branch.id}`, pageIndex, (from, to) =>
                     moveBranchPage(logicBlock.id, branch.id, from, to),

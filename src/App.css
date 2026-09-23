@@ -280,6 +280,15 @@ textarea {
   background: var(--weft-accent-soft);
 }
 
+/* A block on this page is selected (in the Eigenschaften panel, not the page itself) - same
+   background as the fully-active page above so it still reads as "you're here", but a visibly
+   weaker border so it's never confused with the page actually being the current sidebar
+   selection. */
+.weft-node.is-current {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: var(--weft-accent-soft);
+}
+
 .weft-node.is-dragging {
   opacity: 0.4;
 }
@@ -402,6 +411,79 @@ body.weft-dragging .weft-node {
 
 img.weft-thumb-block {
   object-fit: contain;
+}
+
+.weft-thumb-block-video-wrap {
+  background: #000;
+}
+
+.weft-thumb-block-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Same watermark as the editor canvas's video block (see BlockView.tsx) - no min/max px clamp
+   here unlike there, since a thumbnail's own blocks can be far smaller than an edited one. */
+.weft-thumb-block-video-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30%;
+  aspect-ratio: 1;
+  color: rgb(255 255 255 / 55%);
+}
+
+.weft-thumb-block-video-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-thumb-block-video-icon svg,
+.weft-thumb-block-video-icon svg [fill] {
+  fill: currentColor;
+}
+
+.weft-thumb-icon {
+  width: 32%;
+  aspect-ratio: 1;
+  color: #a1a1aa;
+}
+
+.weft-thumb-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-thumb-icon svg,
+.weft-thumb-icon svg [fill] {
+  fill: currentColor;
+}
+
+.weft-thumb-block-quiz {
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px #e4e4e7;
+  overflow: hidden;
+  padding: 3px 4px;
+  font-size: 5px;
+  font-size: 2cqw;
+}
+
+.weft-thumb-block-quiz strong {
+  display: block;
+}
+
+.weft-thumb-block-quiz ul {
+  margin: 2px 0 0;
+  padding-left: 12px;
+}
+
+.weft-thumb-block-quiz li.is-correct {
+  color: #16a34a;
 }
 
 /* ---- Layout picker (Inspector) ---- */
@@ -806,6 +888,49 @@ img.weft-thumb-block {
   object-fit: contain;
 }
 
+.weft-edit-block-video-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-edit-block-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* Not interactive on the canvas - see BlockView.tsx's video case - so a click anywhere on it
+     selects/drags the block like clicking anywhere else on it, instead of reaching the video
+     underneath. */
+  pointer-events: none;
+}
+
+/* A static "this is a video" watermark, not a play button - see BlockView.tsx's video case for
+   why the real controls/play icon are left out of the canvas entirely. currentColor lets this one
+   rule recolor the icon regardless of which of the two SVGs (this one or player.runtime.css's
+   play icon) ends up reusing it. */
+.weft-edit-block-video-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 18%;
+  min-width: 20px;
+  max-width: 48px;
+  aspect-ratio: 1;
+  color: rgb(255 255 255 / 55%);
+  pointer-events: none;
+}
+
+.weft-edit-block-video-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-edit-block-video-icon svg [fill] {
+  fill: currentColor;
+}
+
 .weft-edit-block-text {
   width: 100%;
   height: 100%;
@@ -854,6 +979,25 @@ img.weft-thumb-block {
   height: 100%;
   border: 0;
   pointer-events: none;
+}
+
+/* Forced-viewport iframe (see IframeFrame in BlockView.tsx) - container-type: size (not just
+   inline-size, unlike most cqw usage elsewhere in this file) so 100cqh resolves too, which the
+   iframe's own inline height/transform styles need to derive its virtual viewport height from
+   this wrap's aspect ratio. flex centering is a belt-and-braces fallback for float rounding -
+   the derived height means the scaled result should already fill the wrap exactly. */
+.weft-edit-block-iframe-viewport-wrap {
+  container-type: size;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.weft-edit-block-iframe-viewport-wrap iframe {
+  flex: none;
 }
 
 .weft-edit-block-iframe-overlay {
@@ -1052,11 +1196,104 @@ img.weft-thumb-block {
   border-color: var(--weft-accent);
 }
 
-.weft-module-id {
-  font-size: 10.5px;
+/* ---- Font-family picker (FontSelect.tsx) ----
+   A styled stand-in for a native <select> - see the component's own doc comment for why: the
+   "Abc" preview needs each option's real font-family applied to it, which a native <option>
+   can't reliably do across platforms. */
+.weft-font-select {
+  position: relative;
+}
+
+.weft-font-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-input-bg);
+  color: var(--weft-text);
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.weft-font-select-trigger:hover {
+  border-color: var(--weft-text-faint);
+}
+
+.weft-font-select-trigger-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weft-font-select-caret {
+  margin-left: auto;
+  flex-shrink: 0;
   color: var(--weft-text-faint);
-  word-break: break-all;
-  display: block;
+  font-size: 10px;
+}
+
+.weft-font-select-preview {
+  flex-shrink: 0;
+  color: var(--weft-text-muted);
+}
+
+.weft-font-select-popup {
+  z-index: 1000;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--weft-panel-raised);
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius);
+  box-shadow: var(--weft-shadow);
+}
+
+.weft-font-select-group + .weft-font-select-group {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--weft-border-subtle);
+}
+
+.weft-font-select-group-label {
+  padding: 4px 8px 2px;
+  color: var(--weft-text-faint);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.weft-font-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 7px 8px;
+  border: none;
+  border-radius: var(--weft-radius-sm);
+  background: transparent;
+  color: var(--weft-text);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.weft-font-select-option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weft-font-select-option:hover {
+  background: var(--weft-panel);
+}
+
+.weft-font-select-option.is-selected {
+  background: var(--weft-accent-soft);
 }
 
 .weft-divider {
@@ -1131,41 +1368,79 @@ img.weft-thumb-block {
   background: var(--weft-input-bg);
 }
 
-.weft-custom-font-list {
+.weft-stepper {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 6px;
-}
-
-.weft-custom-font-chip {
-  display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 4px 3px 8px;
+}
+
+.weft-stepper input[type="number"] {
+  flex: 1;
+  min-width: 0;
+  /* Chrome/Safari's built-in up/down spinner is redundant with (and visually clashes with) the
+     +/- buttons either side of it. */
+  -moz-appearance: textfield;
+}
+
+.weft-stepper input[type="number"]::-webkit-outer-spin-button,
+.weft-stepper input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.weft-stepper .weft-format-button {
+  flex: 0 0 auto;
+}
+
+.weft-custom-font-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weft-custom-font-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 10px;
   border: 1px solid var(--weft-border);
-  border-radius: 999px;
-  font-size: 11px;
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-panel-raised);
+  font-size: 12px;
+  color: var(--weft-text);
+}
+
+.weft-custom-font-row-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weft-custom-font-row-preview {
+  flex-shrink: 0;
   color: var(--weft-text-muted);
 }
 
-.weft-custom-font-chip button {
+.weft-custom-font-row button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
   border: none;
   border-radius: 999px;
   background: transparent;
   color: var(--weft-text-faint);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1;
 }
 
-.weft-custom-font-chip button:hover {
-  background: var(--weft-panel-raised);
+.weft-custom-font-row button:hover {
+  background: var(--weft-panel);
   color: var(--weft-text);
 }
 
@@ -1260,24 +1535,84 @@ img.weft-thumb-block {
   color: var(--weft-accent);
 }
 
-.weft-position-grid {
+.weft-field-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 6px 12px;
   font-size: 11px;
 }
 
-.weft-position-grid label {
+/* Label text beside its input rather than stacked above it - short, rounded values (see
+   round3 in BlockPanel.tsx) leave enough room in each grid cell for both side by side. */
+.weft-field-grid label {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   color: var(--weft-text-muted);
 }
 
-.weft-position-grid input {
+.weft-field-grid input {
+  /* Lets the input shrink to share the row with its label instead of overflowing the grid
+     column at its default intrinsic width - min-width: 0 alone isn't enough for a flex item
+     that also needs to grow, hence width: 0 as the flex-basis. */
+  width: 0;
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 6px 8px;
   border: 1px solid var(--weft-border);
   background: var(--weft-input-bg);
   border-radius: var(--weft-radius-sm);
   color: var(--weft-text);
+  /* No +/- buttons next to these (unlike .weft-stepper's font-size field) to justify a spinner,
+     and it sits right where a stray click aiming for the field's edge tends to land - too easy to
+     nudge x/y/width/height by a whole unit (or, for width/height on an image/video, both at once
+     now that they're aspect-locked) without meaning to. */
+  -moz-appearance: textfield;
+}
+
+.weft-field-grid input::-webkit-outer-spin-button,
+.weft-field-grid input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.weft-field-grid-full {
+  grid-column: 1 / -1;
+}
+
+/* ---- Settings window (SettingsWindow.tsx) - its own top-level webview window, not part of
+   weft-shell, so it needs its own padding/layout rather than relying on the editor's grid. ---- */
+
+.weft-settings-window {
+  padding: 20px;
+  height: 100%;
+  background: var(--weft-bg);
+}
+
+.weft-settings-window-title {
+  margin: 0 0 16px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.weft-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius);
+}
+
+.weft-settings-field legend {
+  padding: 0 4px;
+  color: var(--weft-text-muted);
+  font-size: 11.5px;
+}
+
+.weft-settings-field .weft-hint {
+  margin-top: 4px;
 }

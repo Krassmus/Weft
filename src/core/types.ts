@@ -25,6 +25,12 @@ export type BlockPosition = {
   y: number;
   width: number;
   height: number;
+  /** Degrees, 0-360. Optional (rather than defaulting to 0 in every object literal that builds a
+   * BlockPosition) since a module saved before this field existed won't have it in its JSON
+   * either way - readers fall back to `?? 0`, so there's no real difference between "optional"
+   * and "required with a default" here, just less churn at every construction site that doesn't
+   * care about rotation. */
+  rotation?: number;
 };
 
 interface BaseBlock {
@@ -43,6 +49,17 @@ export interface ImageBlock extends BaseBlock {
   alt: string;
 }
 
+export interface VideoBlock extends BaseBlock {
+  kind: "video";
+  assetId: UUID | null;
+  autoplay: boolean;
+  loop: boolean;
+  /** Autoplay only ever actually starts when this is true too (every browser's autoplay policy
+   * requires it) - BlockPanel.tsx keeps the two in sync in the UI so that's never a silent trap. */
+  muted: boolean;
+  controls: boolean;
+}
+
 export interface IframeBlock extends BaseBlock {
   kind: "iframe";
   url: string;
@@ -56,6 +73,12 @@ export interface IframeBlock extends BaseBlock {
    * people join by scanning the code on their phone, this is the results view shown on screen.
    * Falls back to `url` when empty. */
   presentationUrl?: string;
+  /** When set, the embedded page is given exactly this CSS-pixel width as its viewport (e.g. to
+   * force its mobile layout) - the height isn't separately configurable, it's derived from the
+   * block's own on-slide aspect ratio, so the scaled result always fills the block exactly with
+   * no letterboxing. Undefined just fills the block at whatever size that resolves to (the
+   * original behavior). */
+  forcedViewportWidth?: number;
 }
 
 export interface QuizBlock extends BaseBlock {
@@ -84,7 +107,7 @@ export interface ButtonBlock extends BaseBlock {
  * excluded here: a Layout is a page template, and templates must not carry graded state. A
  * navigation button carries no state of its own, so - unlike Quiz - it's allowed in a Layout,
  * which lets an author bake one consistent "Weiter" button into every slide of that layout. */
-export type StaticBlock = TextBlock | ImageBlock | IframeBlock | ButtonBlock;
+export type StaticBlock = TextBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock;
 export type Block = StaticBlock | QuizBlock;
 
 export interface Layout {

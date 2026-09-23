@@ -1,6 +1,7 @@
 import { createId } from "../id";
 import { ASPECT_RATIO_NUMERIC } from "../aspectRatio";
 import { useAssetStore } from "../assets/assetStore";
+import { isFfmpegAvailable, transcodeToH264 } from "../io/videoTranscode";
 import type {
   AspectRatio,
   Block,
@@ -254,6 +255,8 @@ function defaultBlockFor(kind: Block["kind"]): Block {
       return { id: createId(), kind, position, html: "<p>Neuer Text</p>" };
     case "image":
       return { id: createId(), kind, position, assetId: null, alt: "" };
+    case "video":
+      return { id: createId(), kind, position, assetId: null, autoplay: false, loop: false, muted: false, controls: true };
     case "iframe":
       return { id: createId(), kind, position, url: "https://www.youtube.com/embed/", sandbox: ["allow-scripts"], qrCode: false };
     case "button":
@@ -307,7 +310,7 @@ export function removeBlock(pageId: string, blockId: string) {
   });
 }
 
-// ---- Image sizing: fitting a picked/dropped image to its own aspect ratio -------------------
+// ---- Media sizing: fitting a picked/dropped image or video to its own aspect ratio -----------
 
 async function imageAspectRatio(file: File): Promise<number> {
   const bitmap = await createImageBitmap(file);
@@ -318,13 +321,134 @@ async function imageAspectRatio(file: File): Promise<number> {
   }
 }
 
-/** An image's own pixel aspect ratio, translated through the module's stage aspect ratio into
- * the width%/height% ratio a block needs to render that image edge-to-edge (percent axes aren't
- * equal-scale unless the stage itself is square, so this isn't just the image's raw ratio). */
-async function percentRatioForImage(file: File): Promise<number> {
-  const imageAspect = await imageAspectRatio(file);
+interface VideoProbe {
+  aspect: number;
+  /** Whether this browser could actually decode the file at all - false most commonly means an
+   * iPhone/Mac export in HEVC/H.265, which only Safari can play back. Surfaced to the caller so
+   * the UI can warn the author (see fileIO.ts's warnUnplayableVideo) - the exported module needs
+   * to run wherever it's opened, not just in whichever browser uploaded it. */
+  playable: boolean;
+}
+
+/** Reads a video file's own pixel aspect ratio and whether this browser can actually play it
+ * back, via one throwaway <video> element (there's no createImageBitmap equivalent for video,
+ * and a second element/object URL would just repeat the same probe). Aspect falls back to 16:9
+ * if dimensions never became available - fitToAspect still needs *some* ratio, and a wrong guess
+ * is only ever a one-time sizing nuisance the author can resize away, not a blocker to adding
+ * the block at all; unlike `playable`, it doesn't gate the warning.
+ *
+ * Loading enough to decode and show one frame (loadeddata/canplay) turned out not to be proof
+ * playback actually works: some engines can display a single keyframe for a codec they can't
+ * sustain real decoding for at all, which is exactly what let a genuinely unplayable upload
+ * through with no warning before - the editor's own paused preview looked completely normal,
+ * and only autoplay in the live "Vorschau" (a real play() call) ever revealed the broken-play
+ * icon. So this actually calls play() once loading gets that far, and only trusts the video's
+ * own currentTime genuinely advancing afterwards - attached off-screen in the document while it
+ * runs, since a detached element risks the same inconsistent decode behavior this is trying to
+ * catch in the first place. */
+function probeVideo(file: File): Promise<VideoProbe> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const videoEl = document.createElement("video");
+    videoEl.muted = true;
+    videoEl.playsInline = true;
+    // Loops so a very short clip can't reach its natural end mid-probe (see the catch handler
+    // below for what that does to play()'s promise) - irrelevant to real playback, this element
+    // is thrown away the moment the probe settles either way.
+    videoEl.loop = true;
+    videoEl.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;";
+    document.body.appendChild(videoEl);
+
+    let settled = false;
+    let triedPlay = false;
+    function aspectOf(): number {
+      return videoEl.videoWidth && videoEl.videoHeight ? videoEl.videoWidth / videoEl.videoHeight : 16 / 9;
+    }
+    function finish(playable: boolean) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      videoEl.pause();
+      videoEl.remove();
+      URL.revokeObjectURL(url);
+      resolve({ aspect: aspectOf(), playable });
+    }
+    function attemptPlayback() {
+      if (triedPlay) return;
+      triedPlay = true;
+      videoEl
+        .play()
+        .then(() => {
+          videoEl.ontimeupdate = () => finish(true);
+          // Some engines resolve play() itself even though decoding then silently never
+          // advances - give it a moment to actually move before giving up.
+          setTimeout(() => finish(videoEl.currentTime > 0), 1500);
+        })
+        .catch(() => {
+          // A very short clip can reach the end before play()'s own promise resolves, which
+          // Chromium reports as an AbortError rejection here rather than a normal resolve +
+          // immediate "ended" - `ended` still means it genuinely played through, not that
+          // playback failed (loop above mostly prevents this, but a last frame decoded exactly
+          // as play() settles is still possible).
+          finish(videoEl.ended);
+        });
+    }
+    videoEl.onloadeddata = attemptPlayback;
+    videoEl.oncanplay = attemptPlayback;
+    videoEl.onerror = () => finish(false);
+    // Nothing above is guaranteed to fire at all for a codec this browser can't handle - the
+    // container itself can be perfectly valid (so it's never rejected outright), it just never
+    // manages to decode anything, so it sits "loading" forever instead of failing loudly.
+    // Timing out therefore has to mean "not confirmed playable", not "probably fine" - everything
+    // here is a local blob URL (no network fetch), so actually playing a frame should be
+    // near-instant regardless of file size whenever it's going to work at all.
+    const timer = setTimeout(() => finish(false), 8000);
+    videoEl.preload = "auto";
+    videoEl.src = url;
+    videoEl.load();
+  });
+}
+
+/** What a video upload came away with - whether it's confirmed playable, and if not, enough to
+ * explain why (see fileIO.ts's warnUnplayableVideo): `ffmpegAttempted` distinguishes "no ffmpeg
+ * to try" from "ffmpeg ran and still didn't produce a playable file", and `error` carries
+ * whatever ffmpeg itself (or finding it) actually said, surfaced instead of just logged - a
+ * silent "nothing happened, no idea why" is exactly the failure mode this exists to avoid. */
+export interface VideoUploadResult {
+  playable: boolean;
+  ffmpegAttempted: boolean;
+  error?: string;
+}
+
+/** The file to actually store for a video upload, plus its aspect ratio and its VideoUploadResult
+ * - probes the file as given, and if that fails, tries re-encoding it with a local ffmpeg (see
+ * videoTranscode.ts) before giving up and handing back the original alongside
+ * `playable: false`. Kept as one shared step for all four setBlockVideo/setLayoutBlockVideo/
+ * addVideoBlockToPage/addVideoBlockToLayout entry points, so a converted file only ever gets
+ * probed and stored once rather than each of them re-implementing the same fallback chain. */
+async function resolvePlayableVideo(file: File): Promise<{ file: File; aspect: number } & VideoUploadResult> {
+  const probe = await probeVideo(file);
+  if (probe.playable) return { file, ...probe, ffmpegAttempted: false };
+  const ffmpegFound = await isFfmpegAvailable();
+  if (!ffmpegFound) return { file, ...probe, ffmpegAttempted: false };
+  try {
+    const converted = await transcodeToH264(file);
+    const reprobe = await probeVideo(converted);
+    return { file: converted, aspect: reprobe.aspect, playable: reprobe.playable, ffmpegAttempted: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Video-Konvertierung fehlgeschlagen:", message);
+    return { file, ...probe, ffmpegAttempted: true, error: message };
+  }
+}
+
+/** A media file's own pixel aspect ratio, translated through the module's stage aspect ratio
+ * into the width%/height% ratio a block needs to render that file edge-to-edge (percent axes
+ * aren't equal-scale unless the stage itself is square, so this isn't just the file's raw
+ * ratio). */
+function percentRatioForAspect(mediaAspect: number): number {
   const stageAspect = ASPECT_RATIO_NUMERIC[useDocumentStore.getState().doc.content.aspectRatio];
-  return imageAspect / stageAspect;
+  return mediaAspect / stageAspect;
 }
 
 function clampPercent(value: number, min: number, max: number): number {
@@ -332,11 +456,11 @@ function clampPercent(value: number, min: number, max: number): number {
 }
 
 /** Reshapes a block's rect to a given width%/height% ratio, keeping the same center and roughly
- * the same footprint (area), clamped to the stage - so a newly picked/dropped image renders
- * edge-to-edge in its selection box instead of letterboxed inside an unrelated rectangle.
- * Duplicated in spirit from clampMove in features/editor/blocks/resizeMath.ts rather than
- * imported, so core/ doesn't reach into features/. */
-function fitImageToAspect(position: BlockPosition, percentRatio: number): BlockPosition {
+ * the same footprint (area), clamped to the stage - so a newly picked/dropped image or video
+ * renders edge-to-edge in its selection box instead of letterboxed inside an unrelated
+ * rectangle. Duplicated in spirit from clampMove in features/editor/blocks/resizeMath.ts rather
+ * than imported, so core/ doesn't reach into features/. */
+function fitToAspect(position: BlockPosition, percentRatio: number): BlockPosition {
   const area = position.width * position.height;
   let width = Math.sqrt(area * percentRatio);
   let height = width / percentRatio;
@@ -346,6 +470,7 @@ function fitImageToAspect(position: BlockPosition, percentRatio: number): BlockP
   const centerX = position.x + position.width / 2;
   const centerY = position.y + position.height / 2;
   return {
+    ...position,
     x: clampPercent(centerX - width / 2, 0, 100 - width),
     y: clampPercent(centerY - height / 2, 0, 100 - height),
     width,
@@ -356,15 +481,30 @@ function fitImageToAspect(position: BlockPosition, percentRatio: number): BlockP
 export async function setBlockImage(pageId: string, blockId: string, file: File) {
   const assetId = createId();
   useAssetStore.getState().setAsset(assetId, file);
-  const percentRatio = await percentRatioForImage(file);
+  const percentRatio = percentRatioForAspect(await imageAspectRatio(file));
   edit("Bild setzen", (m) => {
     m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
     const block = m.pages[pageId]?.blocks.find((b) => b.id === blockId);
     if (block && block.kind === "image") {
       block.assetId = assetId;
-      block.position = fitImageToAspect(block.position, percentRatio);
+      block.position = fitToAspect(block.position, percentRatio);
     }
   });
+}
+
+export async function setBlockVideo(pageId: string, blockId: string, file: File): Promise<VideoUploadResult> {
+  const resolved = await resolvePlayableVideo(file);
+  const assetId = createId();
+  useAssetStore.getState().setAsset(assetId, resolved.file);
+  edit("Video setzen", (m) => {
+    m.assets.push({ id: assetId, fileName: resolved.file.name, mimeType: resolved.file.type || "video/mp4" });
+    const block = m.pages[pageId]?.blocks.find((b) => b.id === blockId);
+    if (block && block.kind === "video") {
+      block.assetId = assetId;
+      block.position = fitToAspect(block.position, percentRatioForAspect(resolved.aspect));
+    }
+  });
+  return { playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error };
 }
 
 export function updateLayoutBlock(layoutId: string, blockId: string, patch: Partial<Block>) {
@@ -384,30 +524,45 @@ export function removeLayoutBlock(layoutId: string, blockId: string) {
 export async function setLayoutBlockImage(layoutId: string, blockId: string, file: File) {
   const assetId = createId();
   useAssetStore.getState().setAsset(assetId, file);
-  const percentRatio = await percentRatioForImage(file);
+  const percentRatio = percentRatioForAspect(await imageAspectRatio(file));
   edit("Bild setzen", (m) => {
     m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
     const block = m.layouts[layoutId]?.blocks.find((b) => b.id === blockId);
     if (block && block.kind === "image") {
       block.assetId = assetId;
-      block.position = fitImageToAspect(block.position, percentRatio);
+      block.position = fitToAspect(block.position, percentRatio);
     }
   });
+}
+
+export async function setLayoutBlockVideo(layoutId: string, blockId: string, file: File): Promise<VideoUploadResult> {
+  const resolved = await resolvePlayableVideo(file);
+  const assetId = createId();
+  useAssetStore.getState().setAsset(assetId, resolved.file);
+  edit("Video setzen", (m) => {
+    m.assets.push({ id: assetId, fileName: resolved.file.name, mimeType: resolved.file.type || "video/mp4" });
+    const block = m.layouts[layoutId]?.blocks.find((b) => b.id === blockId);
+    if (block && block.kind === "video") {
+      block.assetId = assetId;
+      block.position = fitToAspect(block.position, percentRatioForAspect(resolved.aspect));
+    }
+  });
+  return { playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error };
 }
 
 /** Drops a new image block onto a page/layout in one step, already carrying the file - used by
  * dragging an image in from the Finder (see Canvas.tsx), where there's no existing block to
  * attach it to yet the way setBlockImage/setLayoutBlockImage's picker flow has. `position` is
  * treated as a starting footprint (its area and center are kept) and reshaped to the image's own
- * aspect ratio - see fitImageToAspect. */
+ * aspect ratio - see fitToAspect. */
 export async function addImageBlockToPage(pageId: string, file: File, position: BlockPosition) {
   const assetId = createId();
   const blockId = createId();
   useAssetStore.getState().setAsset(assetId, file);
-  const percentRatio = await percentRatioForImage(file);
+  const percentRatio = percentRatioForAspect(await imageAspectRatio(file));
   edit("Bild hinzufügen", (m) => {
     m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
-    m.pages[pageId]?.blocks.push({ id: blockId, kind: "image", position: fitImageToAspect(position, percentRatio), assetId, alt: "" });
+    m.pages[pageId]?.blocks.push({ id: blockId, kind: "image", position: fitToAspect(position, percentRatio), assetId, alt: "" });
   });
   return blockId;
 }
@@ -416,12 +571,64 @@ export async function addImageBlockToLayout(layoutId: string, file: File, positi
   const assetId = createId();
   const blockId = createId();
   useAssetStore.getState().setAsset(assetId, file);
-  const percentRatio = await percentRatioForImage(file);
+  const percentRatio = percentRatioForAspect(await imageAspectRatio(file));
   edit("Bild hinzufügen", (m) => {
     m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
-    m.layouts[layoutId]?.blocks.push({ id: blockId, kind: "image", position: fitImageToAspect(position, percentRatio), assetId, alt: "" });
+    m.layouts[layoutId]?.blocks.push({ id: blockId, kind: "image", position: fitToAspect(position, percentRatio), assetId, alt: "" });
   });
   return blockId;
+}
+
+/** Drops a new video block onto a page/layout in one step - see addImageBlockToPage above, same
+ * shape, just for a dropped video file. */
+export async function addVideoBlockToPage(
+  pageId: string,
+  file: File,
+  position: BlockPosition,
+): Promise<{ blockId: string } & VideoUploadResult> {
+  const resolved = await resolvePlayableVideo(file);
+  const assetId = createId();
+  const blockId = createId();
+  useAssetStore.getState().setAsset(assetId, resolved.file);
+  edit("Video hinzufügen", (m) => {
+    m.assets.push({ id: assetId, fileName: resolved.file.name, mimeType: resolved.file.type || "video/mp4" });
+    m.pages[pageId]?.blocks.push({
+      id: blockId,
+      kind: "video",
+      position: fitToAspect(position, percentRatioForAspect(resolved.aspect)),
+      assetId,
+      autoplay: false,
+      loop: false,
+      muted: false,
+      controls: true,
+    });
+  });
+  return { blockId, playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error };
+}
+
+export async function addVideoBlockToLayout(
+  layoutId: string,
+  file: File,
+  position: BlockPosition,
+): Promise<{ blockId: string } & VideoUploadResult> {
+  const resolved = await resolvePlayableVideo(file);
+  const assetId = createId();
+  const blockId = createId();
+  useAssetStore.getState().setAsset(assetId, resolved.file);
+  edit("Video hinzufügen", (m) => {
+    m.assets.push({ id: assetId, fileName: resolved.file.name, mimeType: resolved.file.type || "video/mp4" });
+    m.layouts[layoutId]?.blocks.push({
+      id: blockId,
+      kind: "video",
+      position: fitToAspect(position, percentRatioForAspect(resolved.aspect)),
+      assetId,
+      autoplay: false,
+      loop: false,
+      muted: false,
+      controls: true,
+    });
+  });
+  return { blockId, playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error };
 }
 
 // ---- Copy / paste (Cmd/Ctrl+C / +V - see features/editor/useCopyPaste.ts) -------------------

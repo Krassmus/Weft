@@ -1,4 +1,11 @@
-import { setBlockImage, setLayoutBlockImage, updateBlock, updateLayoutBlock } from "../../core/document/actions";
+import {
+  setBlockImage,
+  setBlockVideo,
+  setLayoutBlockImage,
+  setLayoutBlockVideo,
+  updateBlock,
+  updateLayoutBlock,
+} from "../../core/document/actions";
 import { useDocumentStore } from "../../core/document/store";
 import { BlockPanel } from "./panels/BlockPanel";
 import { LayoutPanel } from "./panels/LayoutPanel";
@@ -60,6 +67,7 @@ function InspectorBody({
         block={block}
         onUpdate={(patch) => updateBlock(page.id, block.id, patch)}
         onSetImage={(file) => setBlockImage(page.id, block.id, file)}
+        onSetVideo={(file) => setBlockVideo(page.id, block.id, file)}
       />
     );
   }
@@ -72,6 +80,7 @@ function InspectorBody({
       block={block}
       onUpdate={(patch) => updateLayoutBlock(layout.id, block.id, patch)}
       onSetImage={(file) => setLayoutBlockImage(layout.id, block.id, file)}
+      onSetVideo={(file) => setLayoutBlockVideo(layout.id, block.id, file)}
     />
   );
 }

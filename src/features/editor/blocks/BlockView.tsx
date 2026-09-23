@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import QRCode from "qrcode";
+// A generic "this is a video" indicator for the (non-interactive, see below) editor canvas -
+// deliberately not play.svg, which would look clickable even though clicking does nothing here;
+// see player.runtime.js/.css for the real, playable preview/export instead.
+import video2IconSvg from "../../../../mockups/icons/video2.svg?raw";
 import { useAssetStore } from "../../../core/assets/assetStore";
 import type { Block, BlockPosition, IframeBlock, TextBlock } from "../../../core/types";
 import { registerActiveEditable, saveSelection } from "./richText";
 import type { CornerHandleId, HandleId } from "./resizeMath";
-import { clampMove, CORNER_HANDLES, distanceToEdge, HANDLES, resizeCornerLocked, resizeFromHandle } from "./resizeMath";
+import { clampMove, CORNER_HANDLES, distanceToEdge, HANDLES, resizeCornerLocked, resizeFromHandle, unrotateDelta } from "./resizeMath";
 
-const EDGE_GRAB_PX = 8;
+const EDGE_GRAB_PX = 5;
 const DRAG_THRESHOLD_PX = 3;
 
 const RESIZE_CURSORS: Record<HandleId, string> = {
@@ -34,10 +38,17 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate }: Block
   const [liveOverride, setLiveOverride] = useState<BlockPosition | null>(null);
   const [nearEdge, setNearEdge] = useState(false);
   const position = liveOverride ?? block.position;
-  // An image has no inner content to preserve access to (unlike text/iframe/quiz), so it can be
-  // grabbed and moved from anywhere, and only makes sense to resize from a corner, proportionally
-  // - see handlePointerDownMove/handleResizeStart and the corner-only handles rendered below.
-  const isImage = block.kind === "image";
+  // An image, video, or iframe has no inner content worth preserving access to on the canvas
+  // (unlike text/quiz - and an iframe's own content is non-interactive here anyway, see
+  // .weft-edit-block-iframe-wrap iframe's pointer-events:none in App.css), so it can be grabbed
+  // and moved from anywhere - including on the very first click, before it's even selected, see
+  // handlePointerDownMove/handlePointerMoveHover below.
+  const isFreelyMovableBlock = block.kind === "image" || block.kind === "video" || block.kind === "iframe";
+  // Only an image or video has a "natural" width/height ratio worth protecting from a stretch -
+  // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
+  // given, so unlike image/video it keeps the full edge+corner handle set below instead of being
+  // limited to proportional corner-only resizing.
+  const usesProportionalResize = block.kind === "image" || block.kind === "video";
 
   const style: CSSProperties = {
     position: "absolute",
@@ -45,6 +56,7 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate }: Block
     top: `${position.y}%`,
     width: `${position.width}%`,
     height: `${position.height}%`,
+    transform: position.rotation ? `rotate(${position.rotation}deg)` : undefined,
   };
 
   function stageRect(): DOMRect | null {
@@ -57,12 +69,18 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate }: Block
   // iframe/quiz) from at all. Capping it at a fraction of the block's own size guarantees a real
   // interior for any reasonably-sized block, while leaving it unchanged for normal-sized ones.
   function edgeThreshold(rect: DOMRect): number {
-    return Math.min(EDGE_GRAB_PX, rect.width * 0.2, rect.height * 0.2);
+    return Math.min(EDGE_GRAB_PX, rect.width * 0.15, rect.height * 0.15);
   }
 
   function handlePointerDownMove(e: ReactPointerEvent) {
-    if (locked || !selected) return;
-    if (!isImage) {
+    if (locked) return;
+    // A freely-movable block can start a drag from the very first pointerdown, even before it's
+    // selected - handleMove below selects it as soon as the drag threshold is crossed. Any other
+    // kind still needs a prior click to select it first, since only then does clicking near its
+    // edge (rather than its interior, reserved for text selection/interacting with the block)
+    // mean "move", not "select".
+    if (!selected && !isFreelyMovableBlock) return;
+    if (!isFreelyMovableBlock) {
       const rect = wrapRef.current?.getBoundingClientRect();
       if (!rect || distanceToEdge(e.clientX, e.clientY, rect) > edgeThreshold(rect)) return;
     }
@@ -108,8 +126,9 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate }: Block
   }
 
   function handlePointerMoveHover(e: ReactPointerEvent) {
-    if (locked || !selected) return;
-    if (isImage) {
+    if (locked) return;
+    if (!selected && !isFreelyMovableBlock) return;
+    if (isFreelyMovableBlock) {
       setNearEdge(true);
       return;
     }
@@ -130,11 +149,16 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate }: Block
 
     function handleMove(ev: PointerEvent) {
       ev.preventDefault();
-      const dxPercent = ((ev.clientX - startClientX) / stage!.width) * 100;
-      const dyPercent = ((ev.clientY - startClientY) / stage!.height) * 100;
-      committed = isImage
+      // The handle itself is dragged in plain screen space, but a rotated block's own width/
+      // height axes aren't aligned with the screen anymore - un-rotate the raw pixel delta first
+      // so e.g. dragging straight down on a block rotated 90° still reads as "along its local x
+      // axis", matching whichever edge visually moved under the cursor (see unrotateDelta).
+      const { dx, dy } = unrotateDelta(ev.clientX - startClientX, ev.clientY - startClientY, startPosition.rotation ?? 0);
+      const dxPercent = (dx / stage!.width) * 100;
+      const dyPercent = (dy / stage!.height) * 100;
+      committed = usesProportionalResize
         ? resizeCornerLocked(handle as CornerHandleId, startPosition, stage!, dxPercent, dyPercent)
-        : resizeFromHandle(handle, startPosition, dxPercent, dyPercent);
+        : resizeFromHandle(handle, startPosition, stage!, dxPercent, dyPercent);
       setLiveOverride(committed);
     }
 
@@ -181,7 +205,7 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate }: Block
       </div>
       {selected &&
         !locked &&
-        (isImage ? CORNER_HANDLES : HANDLES).map((h) => (
+        (usesProportionalResize ? CORNER_HANDLES : HANDLES).map((h) => (
           <div
             key={h.id}
             className={`weft-resize-handle weft-resize-handle-${h.id}`}
@@ -212,12 +236,35 @@ function BlockContent({
       ) : (
         <div className="weft-edit-block-placeholder">Bild wählen …</div>
       );
+    case "video":
+      // No native controls here, regardless of the block's own setting: pointer-events: none
+      // (see App.css) already keeps them unusable, so showing them (and the "big play button"
+      // browsers draw over a paused, controllable video) would only look clickable without being
+      // clickable - the exact confusion the video2 icon overlay below replaces it with. autoPlay
+      // is deliberately left off too: actually playing (and looping, and making noise) while
+      // someone is just editing unrelated text elsewhere on the slide would be more distracting
+      // than useful - the real behavior shows in "▶ Vorschau" and Presentation mode instead,
+      // which render through the same player.runtime.js the export uses.
+      return block.assetId ? (
+        <div className="weft-edit-block-video-wrap">
+          <video
+            src={getObjectUrl(block.assetId)}
+            loop={block.loop}
+            muted={block.muted}
+            playsInline
+            className="weft-edit-block-video"
+          />
+          <div className="weft-edit-block-video-icon" dangerouslySetInnerHTML={{ __html: video2IconSvg }} />
+        </div>
+      ) : (
+        <div className="weft-edit-block-placeholder">Video wählen …</div>
+      );
     case "iframe":
       return block.qrCode ? (
         <QrGatePreview block={block} />
       ) : (
         <div className="weft-edit-block-iframe-wrap">
-          <iframe src={block.url} sandbox={block.sandbox.join(" ")} title="Eingebetteter Inhalt" />
+          <IframeFrame block={block} />
           <div className="weft-edit-block-iframe-overlay" />
         </div>
       );
@@ -241,6 +288,38 @@ function BlockContent({
         </div>
       );
   }
+}
+
+/**
+ * Renders the actual embedded page. Without forcedViewportWidth, it's just a plain iframe filling
+ * the block (today's original behavior). With one, the iframe is given that fixed pixel width
+ * (so the embedded page's own media queries/JS see a constant "window" width no matter how large
+ * the module itself is displayed) - its height is DERIVED, not separately configured, from the
+ * wrap's own aspect ratio (100cqh/100cqw, both container query units resolving to its rendered
+ * pixel size) times that width, so the virtual viewport always has exactly the block's own shape
+ * and the scaled result fills it edge to edge with no letterboxing. The scale itself is then
+ * purely `100cqw / <forced width>` - all computed live in CSS with no JS measurement/
+ * ResizeObserver, so it stays correct across any resize automatically.
+ */
+function IframeFrame({ block }: { block: IframeBlock }) {
+  if (!block.forcedViewportWidth) {
+    return <iframe src={block.url} sandbox={block.sandbox.join(" ")} title="Eingebetteter Inhalt" />;
+  }
+  const width = block.forcedViewportWidth;
+  return (
+    <div className="weft-edit-block-iframe-viewport-wrap">
+      <iframe
+        src={block.url}
+        sandbox={block.sandbox.join(" ")}
+        title="Eingebetteter Inhalt"
+        style={{
+          width: `${width}px`,
+          height: `calc(${width}px * (100cqh / 100cqw))`,
+          transform: `scale(calc(100cqw / ${width}px))`,
+        }}
+      />
+    </div>
+  );
 }
 
 /**

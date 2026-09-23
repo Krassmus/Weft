@@ -145,6 +145,79 @@ body {
   cursor: default;
 }
 
+.weft-video-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-video-el {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* A big, centered "tap to play" button over the video - see player.runtime.js's video branch for
+   when it shows/hides. currentColor below lets it share the same play-icon markup the editor
+   canvas's own (differently-colored, non-interactive) video watermark uses. */
+.weft-video-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 15%;
+  min-width: 36px;
+  max-width: 72px;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 45%);
+  color: #fff;
+  cursor: pointer;
+  padding: 0;
+}
+
+.weft-video-play svg {
+  display: block;
+  width: 55%;
+  height: 55%;
+  /* The triangle's own shape sits left of center in its square viewBox - nudge it over so the
+     button reads as optically centered instead. */
+  margin-left: 8%;
+}
+
+.weft-video-play svg [fill] {
+  fill: currentColor;
+}
+
+.weft-video-play.is-hidden {
+  display: none;
+}
+
+/* Forced-viewport iframe (see iframeEl in player.runtime.js) - container-type: size (not just
+   inline-size, unlike .weft-stage's own cqw usage) so 100cqh resolves too, which the iframe's own
+   inline height/transform styles need to derive its virtual viewport height from this wrap's
+   aspect ratio. flex centering is a belt-and-braces fallback for float rounding - the derived
+   height means the scaled result should already fill the wrap exactly. Matches BlockView.tsx's
+   .weft-edit-block-iframe-viewport-wrap in the editor exactly. */
+.weft-iframe-viewport-wrap {
+  container-type: size;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.weft-iframe-viewport-wrap iframe {
+  flex: none;
+}
+
 .weft-qr-gate {
   width: 100%;
   height: 100%;

@@ -3,7 +3,16 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useDocumentStore } from "../../core/document/store";
 import { useCustomFontRegistration } from "../../core/fonts/registerCustomFonts";
-import { exportAsHtmlModule, isTauri, openDocument, saveDocumentAs, saveDocumentToPath } from "../../core/io/fileIO";
+import { useSyncMenuLanguage } from "../../core/i18n/useSyncMenuLanguage";
+import { useTranslation } from "../../core/i18n/useTranslation";
+import {
+  exportAsHtmlModule,
+  isTauri,
+  openDocument,
+  openDocumentAtPath,
+  saveDocumentAs,
+  saveDocumentToPath,
+} from "../../core/io/fileIO";
 import { enterFullscreenPreview, watchFullscreenExit } from "../../core/window/fullscreen";
 import { Canvas } from "./Canvas";
 import { Inspector } from "./Inspector";
@@ -16,11 +25,44 @@ const SIDEBAR_WIDTH_MIN = 220;
 const SIDEBAR_WIDTH_MAX = 560;
 const SIDEBAR_WIDTH_DEFAULT = 260;
 
+// Which module to silently re-open on the next launch - just a path string, so plain
+// localStorage rather than anything in the document/undo model itself; it's a UI convenience,
+// not part of any module's own content. Wrapped in try/catch everywhere it's touched since
+// localStorage can throw in a locked-down webview context (private mode et al elsewhere), and
+// "can't remember the last file" should never be why the app fails to start.
+const LAST_PATH_KEY = "weft:lastOpenedPath";
+
+function rememberLastPath(path: string | null) {
+  try {
+    if (path) localStorage.setItem(LAST_PATH_KEY, path);
+  } catch {
+    // Not fatal - just means next launch starts on a blank document instead.
+  }
+}
+
+function forgetLastPath() {
+  try {
+    localStorage.removeItem(LAST_PATH_KEY);
+  } catch {
+    // Already unreadable/unwritable, so there's nothing to clear anyway.
+  }
+}
+
+function readLastPath(): string | null {
+  try {
+    return localStorage.getItem(LAST_PATH_KEY);
+  } catch {
+    return null;
+  }
+}
+
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
 export function EditorShell() {
+  const { t } = useTranslation();
+  useSyncMenuLanguage();
   const doc = useDocumentStore((s) => s.doc);
   const filePath = useDocumentStore((s) => s.filePath);
   const undo = useDocumentStore((s) => s.undo);
@@ -68,6 +110,29 @@ export function EditorShell() {
   useDeleteSelection(!presenting);
   useCustomFontRegistration();
 
+  // Whichever file Öffnen/Speichern most recently pointed at - not "Exportieren", which never
+  // touches filePath at all, matching that an export is a delivery artifact, not "the module
+  // you're working on". Re-saving the same reference on every render would be harmless but
+  // pointless, so this only fires when filePath itself actually changes.
+  useEffect(() => rememberLastPath(filePath), [filePath]);
+
+  // Silently re-opens whatever was last open, once, on launch - only in Tauri (see
+  // openDocumentAtPath) and only if nothing has already loaded a real document in the meantime
+  // (the empty check guards against the - currently impossible, but cheap to guard anyway -
+  // case of a user managing to open something else before this async read resolves). A path
+  // that's since been moved/renamed/deleted just falls back to the normal blank document rather
+  // than greeting a returning user with an error dialog for something that isn't their fault
+  // right now; it also forgets that path so this doesn't keep silently failing every launch.
+  useEffect(() => {
+    const lastPath = readLastPath();
+    if (!lastPath) return;
+    void openDocumentAtPath(lastPath)
+      .then((doc) => {
+        if (doc && useDocumentStore.getState().filePath === null) loadDocument(doc, lastPath);
+      })
+      .catch(() => forgetLastPath());
+  }, []);
+
   // "Öffnen"/"Speichern" in the native "Datei" menu (see src-tauri/src/lib.rs, which owns the
   // Cmd/Ctrl+O and Cmd/Ctrl+S accelerators) just emit an event - refs, not a dependency array,
   // so this one-time subscription always calls whichever handleOpen/handleSave closure is
@@ -78,6 +143,26 @@ export function EditorShell() {
   const handleOpenRef = useRef<() => void>(() => {});
   const presentingRef = useRef(presenting);
   presentingRef.current = presenting;
+  // "Undo"/"Redo" in the native "Edit" menu (see src-tauri/src/lib.rs, which owns the
+  // Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z accelerators) - replacing the platform default Edit menu,
+  // whose Undo/Redo instead drove the focused WKWebView's own contentEditable undo stack, out of
+  // sync with (and confusingly different from) the toolbar buttons below. undo/redo themselves
+  // are stable Zustand action references, so - unlike handleSave/handleOpen above - no ref
+  // indirection is needed to keep this subscription from going stale.
+  useEffect(() => {
+    if (!isTauri()) return;
+    const unlistenUndo = listen("weft://menu-undo", () => {
+      if (!presentingRef.current) undo();
+    });
+    const unlistenRedo = listen("weft://menu-redo", () => {
+      if (!presentingRef.current) redo();
+    });
+    return () => {
+      void unlistenUndo.then((fn) => fn());
+      void unlistenRedo.then((fn) => fn());
+    };
+  }, [undo, redo]);
+
   useEffect(() => {
     if (!isTauri()) return;
     const unlistenSave = listen("weft://menu-save", () => {
@@ -105,7 +190,7 @@ export function EditorShell() {
   // from a prior save or from "Öffnen", Speichern/Cmd+S silently overwrites that same file,
   // matching how Save works in most other apps.
   async function handleSave() {
-    setBusy("Speichern …");
+    setBusy(t("toolbar.saving"));
     try {
       if (filePath) {
         await saveDocumentToPath(doc, filePath);
@@ -114,7 +199,7 @@ export function EditorShell() {
         if (path) useDocumentStore.setState({ filePath: path });
       }
     } catch (err) {
-      alert(`Speichern fehlgeschlagen:\n${errorMessage(err)}`);
+      alert(`${t("toolbar.saveFailed")}\n${errorMessage(err)}`);
     } finally {
       setBusy(null);
     }
@@ -122,23 +207,23 @@ export function EditorShell() {
   handleSaveRef.current = handleSave;
 
   async function handleExport() {
-    setBusy("Exportieren …");
+    setBusy(t("toolbar.exporting"));
     try {
       await exportAsHtmlModule(doc);
     } catch (err) {
-      alert(`Exportieren fehlgeschlagen:\n${errorMessage(err)}`);
+      alert(`${t("toolbar.exportFailed")}\n${errorMessage(err)}`);
     } finally {
       setBusy(null);
     }
   }
 
   async function handleOpen() {
-    setBusy("Öffnen …");
+    setBusy(t("toolbar.opening"));
     try {
       const result = await openDocument();
       if (result) loadDocument(result.doc, result.path);
     } catch (err) {
-      alert(`Öffnen fehlgeschlagen:\n${errorMessage(err)}`);
+      alert(`${t("toolbar.openFailed")}\n${errorMessage(err)}`);
     } finally {
       setBusy(null);
     }
@@ -152,7 +237,7 @@ export function EditorShell() {
         <span className="weft-toolbar-divider" />
         <span className="weft-doc-title">
           {doc.content.title}
-          {!filePath && <span className="weft-doc-title-unsaved"> • nicht gespeichert</span>}
+          {!filePath && <span className="weft-doc-title-unsaved"> • {t("toolbar.unsaved")}</span>}
         </span>
 
         <div className="weft-toolbar-spacer" />
@@ -160,28 +245,28 @@ export function EditorShell() {
         {busy && <span className="weft-busy">{busy}</span>}
 
         <div className="weft-toolbar-group">
-          <button type="button" className="weft-icon-button" onClick={undo} disabled={!canUndo} title="Rückgängig">
+          <button type="button" className="weft-icon-button" onClick={undo} disabled={!canUndo} title={t("toolbar.undo")}>
             ↶
           </button>
-          <button type="button" className="weft-icon-button" onClick={redo} disabled={!canRedo} title="Wiederholen">
+          <button type="button" className="weft-icon-button" onClick={redo} disabled={!canRedo} title={t("toolbar.redo")}>
             ↷
           </button>
         </div>
 
         <button type="button" className="weft-ghost-button" onClick={handleOpen}>
-          Öffnen
+          {t("toolbar.open")}
         </button>
         <button type="button" className="weft-ghost-button" onClick={handleSave}>
-          Speichern
+          {t("toolbar.save")}
         </button>
         <button type="button" className="weft-primary-button" onClick={handleExport}>
-          ⬆ Exportieren
+          {t("toolbar.export")}
         </button>
       </header>
 
       <div className="weft-body" style={{ gridTemplateColumns: `${sidebarWidth}px 6px 1fr 300px` }}>
         <Sidebar />
-        <div className="weft-resizer" onPointerDown={handleResizerPointerDown} title="Breite der Seitenleiste ziehen" />
+        <div className="weft-resizer" onPointerDown={handleResizerPointerDown} title={t("toolbar.resizerTitle")} />
         <Canvas onPresent={handlePresent} />
         <Inspector />
       </div>

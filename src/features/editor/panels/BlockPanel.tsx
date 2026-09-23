@@ -1,69 +1,112 @@
 import { createId } from "../../../core/id";
 import { addCustomFont } from "../../../core/document/actions";
+import type { VideoUploadResult } from "../../../core/document/actions";
 import { useDocumentStore } from "../../../core/document/store";
 import { CURATED_FONT_FAMILIES } from "../../../core/fonts/curatedFonts";
 import { DEFAULT_FONT_FAMILY } from "../../../core/fonts/fontFaceCss";
-import type { Block, ButtonBlock, IframeBlock, ImageBlock, QuizBlock, VariableEffect } from "../../../core/types";
+import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
+import { useTranslation } from "../../../core/i18n/useTranslation";
+import { pickFontFile, warnUnplayableVideo } from "../../../core/io/fileIO";
+import { useTranscodeStatus } from "../../../core/io/videoTranscode";
+import type { Block, ButtonBlock, IframeBlock, ImageBlock, QuizBlock, VariableEffect, VideoBlock } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
 import { applyFontSize, applyFormat, useFormatSnapshot } from "../blocks/richText";
 import type { TriState } from "../blocks/richText";
+import { FontSelect } from "./FontSelect";
+import type { FontSelectGroup } from "./FontSelect";
 
 const SANDBOX_FLAGS = ["allow-scripts", "allow-same-origin", "allow-popups", "allow-forms"];
-const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
-  text: "Text",
-  image: "Bild",
-  iframe: "Iframe",
-  button: "Button",
-  quiz: "Quiz",
-};
+const UPLOAD_FONT_VALUE = "__upload__";
 
 interface BlockPanelProps {
   block: Block;
   onUpdate: (patch: Partial<Block>) => void;
   onSetImage: (file: File) => void;
+  onSetVideo: (file: File) => Promise<VideoUploadResult>;
 }
 
-export function BlockPanel({ block, onUpdate, onSetImage }: BlockPanelProps) {
+export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo }: BlockPanelProps) {
   return (
     <>
-      <Collapsible title={`Element · ${BLOCK_KIND_LABELS[block.kind]}`}>
-        <PositionEditor block={block} onUpdate={onUpdate} />
-      </Collapsible>
       {block.kind === "text" && <TextEditor />}
       {block.kind === "image" && <ImageEditor block={block} onUpdate={onUpdate} onSetImage={onSetImage} />}
+      {block.kind === "video" && <VideoEditor block={block} onUpdate={onUpdate} onSetVideo={onSetVideo} />}
       {block.kind === "iframe" && <IframeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "button" && <ButtonEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "quiz" && <QuizEditor block={block} onUpdate={onUpdate} />}
+      {/* Least important thing here, since it's rarely worth fiddling with numerically instead of
+          just dragging the block on the canvas - always last regardless of block kind, rather
+          than leading with a wall of coordinate fields before anything content-related. */}
+      <PositionCollapsible block={block} onUpdate={onUpdate} />
     </>
   );
 }
 
-function PositionEditor({ block, onUpdate }: { block: Block; onUpdate: BlockPanelProps["onUpdate"] }) {
-  const { x, y, width, height } = block.position;
+function PositionCollapsible({ block, onUpdate }: { block: Block; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const { t } = useTranslation();
   return (
-    <div className="weft-position-grid">
+    <Collapsible title={`${t("panel.element")} · ${t(BLOCK_KIND_KEYS[block.kind])}`}>
+      <PositionEditor block={block} onUpdate={onUpdate} />
+    </Collapsible>
+  );
+}
+
+// Drag math already rounds x/y/width/height to 3 decimals at the source (see resizeMath.ts), but
+// a document saved before that existed - or edited by typing a long value into one of these
+// fields directly - can still carry a raw float; rounding again here just for display (and for
+// the width/height this function derives below) keeps things readable without touching what's
+// actually stored until a field is edited.
+function round3(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+function PositionEditor({ block, onUpdate }: { block: Block; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const { x, y, width, height, rotation } = block.position;
+  // Matches the canvas: image/video blocks only ever get corner handles there (see
+  // isFreelyMovableBlock in BlockView.tsx), which always resize proportionally - width and height
+  // typed here should keep the same ratio for the same reason, rather than letting the sidebar
+  // silently stretch/squish what dragging a corner never could.
+  const lockAspect = block.kind === "image" || block.kind === "video";
+
+  function updateWidth(nextWidth: number) {
+    const patch = lockAspect && width > 0 ? { width: nextWidth, height: round3(nextWidth * (height / width)) } : { width: nextWidth };
+    onUpdate({ position: { ...block.position, ...patch } });
+  }
+
+  function updateHeight(nextHeight: number) {
+    const patch = lockAspect && height > 0 ? { height: nextHeight, width: round3(nextHeight * (width / height)) } : { height: nextHeight };
+    onUpdate({ position: { ...block.position, ...patch } });
+  }
+
+  return (
+    <div className="weft-field-grid">
       <label>
-        x
-        <input type="number" value={x} onChange={(e) => onUpdate({ position: { ...block.position, x: Number(e.target.value) } })} />
+        <span>x</span>
+        <input type="number" value={round3(x)} onChange={(e) => onUpdate({ position: { ...block.position, x: Number(e.target.value) } })} />
       </label>
       <label>
-        y
-        <input type="number" value={y} onChange={(e) => onUpdate({ position: { ...block.position, y: Number(e.target.value) } })} />
+        <span>y</span>
+        <input type="number" value={round3(y)} onChange={(e) => onUpdate({ position: { ...block.position, y: Number(e.target.value) } })} />
       </label>
       <label>
-        Breite
+        <span>Breite</span>
+        <input type="number" value={round3(width)} onChange={(e) => updateWidth(Number(e.target.value))} />
+      </label>
+      <label>
+        <span>Höhe</span>
+        <input type="number" value={round3(height)} onChange={(e) => updateHeight(Number(e.target.value))} />
+      </label>
+      <label className="weft-field-grid-full">
+        <span>Drehung °</span>
         <input
           type="number"
-          value={width}
-          onChange={(e) => onUpdate({ position: { ...block.position, width: Number(e.target.value) } })}
-        />
-      </label>
-      <label>
-        Höhe
-        <input
-          type="number"
-          value={height}
-          onChange={(e) => onUpdate({ position: { ...block.position, height: Number(e.target.value) } })}
+          min={0}
+          max={360}
+          value={round3(rotation ?? 0)}
+          onChange={(e) => {
+            const clamped = Math.min(360, Math.max(0, Number(e.target.value)));
+            onUpdate({ position: { ...block.position, rotation: clamped } });
+          }}
         />
       </label>
     </div>
@@ -99,6 +142,22 @@ function TextEditor() {
   // selection actually moved to different formatting, never while the user is still typing here.
   const fontSizeKey = snapshot.fontSizePx === "mixed" ? "mixed" : String(snapshot.fontSizePx ?? "");
   const colorKey = snapshot.color === "mixed" ? "mixed" : snapshot.color;
+  const fontGroups: FontSelectGroup[] = [
+    { options: [{ value: DEFAULT_FONT_FAMILY, label: DEFAULT_FONT_FAMILY, previewFamily: DEFAULT_FONT_FAMILY }] },
+    ...(customFonts.length > 0
+      ? [
+          {
+            label: "Eigene Schriften",
+            options: customFonts.map((font) => ({ value: font.family, label: font.family, previewFamily: font.family })),
+          },
+        ]
+      : []),
+    {
+      label: "Schriften (im Export enthalten)",
+      options: sortedOtherFonts.map((family) => ({ value: family, label: family, previewFamily: family })),
+    },
+    { options: [{ value: UPLOAD_FONT_VALUE, label: "Eigene Schriftart hochladen …" }] },
+  ];
 
   return (
     <Collapsible title="Inhalt">
@@ -164,54 +223,19 @@ function TextEditor() {
 
         <label className="weft-field">
           <span>Schriftart</span>
-          <select
-            value={snapshot.fontFamily === "mixed" ? "mixed" : snapshot.fontFamily || DEFAULT_FONT_FAMILY}
-            onChange={(e) => {
-              if (e.target.value) applyFormat("fontName", e.target.value);
-            }}
-          >
-            {snapshot.fontFamily === "mixed" && (
-              <option value="mixed" disabled>
-                Verschiedene …
-              </option>
-            )}
-            <option value={DEFAULT_FONT_FAMILY}>{DEFAULT_FONT_FAMILY}</option>
-            {customFonts.length > 0 && (
-              <optgroup label="Eigene Schriften">
-                {customFonts.map((font) => (
-                  <option key={font.id} value={font.family}>
-                    {font.family}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            <optgroup label="Schriften (im Export enthalten)">
-              {sortedOtherFonts.map((family) => (
-                <option key={family} value={family}>
-                  {family}
-                </option>
-              ))}
-            </optgroup>
-          </select>
-        </label>
-
-        {/* Its own <label>, not sharing one with the select above or anything else interactive -
-            nesting another control inside a <label> makes clicking it also forward a click to
-            the label's own input (see the same fix in SettingsTab.tsx), popping the file picker
-            open unexpectedly. Uploading here is a shortcut: the font is still stored globally
-            (doc.content.customFonts, the same list Einstellungen manages) and just also gets
-            applied to the current selection immediately, since that's the point of reaching for
-            it while formatting text rather than in Einstellungen. */}
-        <label className="weft-field">
-          <span>Eigene Schriftart hochladen</span>
-          <input
-            type="file"
-            accept=".woff2,.woff,.ttf,.otf"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              e.target.value = "";
-              if (!file) return;
-              const { family } = addCustomFont(file);
+          <FontSelect
+            value={snapshot.fontFamily === "mixed" ? "" : snapshot.fontFamily || DEFAULT_FONT_FAMILY}
+            isMixed={snapshot.fontFamily === "mixed"}
+            groups={fontGroups}
+            onPick={(family) => {
+              if (family === UPLOAD_FONT_VALUE) {
+                void pickFontFile().then((file) => {
+                  if (!file) return;
+                  const { family: uploadedFamily } = addCustomFont(file);
+                  applyFormat("fontName", uploadedFamily);
+                });
+                return;
+              }
               applyFormat("fontName", family);
             }}
           />
@@ -219,19 +243,45 @@ function TextEditor() {
 
         <div className="weft-format-row">
           <label className="weft-field">
-            <span>Schriftgröße (px)</span>
-            <input
-              key={fontSizeKey}
-              type="number"
-              min={8}
-              max={300}
-              defaultValue={fontSizeKey === "mixed" ? "" : fontSizeKey}
-              placeholder={snapshot.fontSizePx === "mixed" ? "Verschiedene" : "z. B. 24"}
-              onBlur={(e) => {
-                const px = Number(e.target.value);
-                if (px > 0) applyFontSize(px);
-              }}
-            />
+            <span>Schriftgröße</span>
+            <div className="weft-stepper">
+              <button
+                type="button"
+                className="weft-format-button"
+                title="Kleiner"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  const current = typeof snapshot.fontSizePx === "number" ? snapshot.fontSizePx : 16;
+                  applyFontSize(Math.max(8, current - 1));
+                }}
+              >
+                −
+              </button>
+              <input
+                key={fontSizeKey}
+                type="number"
+                min={8}
+                max={300}
+                defaultValue={fontSizeKey === "mixed" ? "" : fontSizeKey}
+                placeholder={snapshot.fontSizePx === "mixed" ? "Verschiedene" : "24"}
+                onBlur={(e) => {
+                  const px = Number(e.target.value);
+                  if (px > 0) applyFontSize(px);
+                }}
+              />
+              <button
+                type="button"
+                className="weft-format-button"
+                title="Größer"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  const current = typeof snapshot.fontSizePx === "number" ? snapshot.fontSizePx : 16;
+                  applyFontSize(Math.min(300, current + 1));
+                }}
+              >
+                +
+              </button>
+            </div>
           </label>
           <label className="weft-field">
             <span>Farbe</span>
@@ -278,13 +328,119 @@ function ImageEditor({
   );
 }
 
+function VideoEditor({
+  block,
+  onUpdate,
+  onSetVideo,
+}: {
+  block: VideoBlock;
+  onUpdate: BlockPanelProps["onUpdate"];
+  onSetVideo: BlockPanelProps["onSetVideo"];
+}) {
+  const transcode = useTranscodeStatus();
+  return (
+    <Collapsible title="Inhalt">
+      <label className="weft-field">
+        <span>Videodatei</span>
+        <input
+          type="file"
+          accept="video/*"
+          disabled={transcode.active}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            void onSetVideo(file).then((result) => {
+              if (!result.playable) {
+                void warnUnplayableVideo([{ fileName: file.name, ffmpegAttempted: result.ffmpegAttempted, error: result.error }]);
+              }
+            });
+          }}
+        />
+      </label>
+      {transcode.active && (
+        <p className="weft-hint">
+          „{transcode.fileName}“ wird nach H.264 konvertiert
+          {transcode.progress !== null ? ` … ${Math.round(transcode.progress * 100)}%` : " …"}
+        </p>
+      )}
+      <p className="weft-hint">
+        Am besten MP4 (H.264/AAC) verwenden. Ein Video in einem anderen Format oder Codec (z. B. HEVC/H.265 aus
+        einem iPhone-Export) wird automatisch nach H.264 konvertiert, sofern ffmpeg installiert ist - sonst
+        erscheint ein Hinweis mit Installationsanleitung.
+      </p>
+
+      <label className="weft-field weft-field-inline">
+        <input type="checkbox" checked={block.controls} onChange={(e) => onUpdate({ controls: e.target.checked })} />
+        <span>Steuerelemente anzeigen</span>
+      </label>
+      <label className="weft-field weft-field-inline">
+        <input type="checkbox" checked={block.loop} onChange={(e) => onUpdate({ loop: e.target.checked })} />
+        <span>Endlosschleife</span>
+      </label>
+      <label className="weft-field weft-field-inline">
+        <input
+          type="checkbox"
+          checked={block.muted}
+          disabled={block.autoplay}
+          onChange={(e) => onUpdate({ muted: e.target.checked })}
+        />
+        <span>Stumm</span>
+      </label>
+      <label className="weft-field weft-field-inline">
+        <input
+          type="checkbox"
+          checked={block.autoplay}
+          onChange={(e) => {
+            const autoplay = e.target.checked;
+            // Every browser's autoplay policy refuses to autoplay with sound - coupling the two
+            // here means that's never a silent trap where autoplay is switched on but quietly
+            // never actually plays.
+            onUpdate(autoplay ? { autoplay, muted: true } : { autoplay });
+          }}
+        />
+        <span>Automatisch abspielen (nur stumm möglich)</span>
+      </label>
+    </Collapsible>
+  );
+}
+
+const DEFAULT_VIEWPORT_WIDTH = 768;
+
 function IframeEditor({ block, onUpdate }: { block: IframeBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const forcedViewportWidth = block.forcedViewportWidth;
   return (
     <Collapsible title="Inhalt">
       <label className="weft-field">
         <span>URL (z. B. YouTube-Embed oder ein anderes interaktives Tool)</span>
         <input value={block.url} onChange={(e) => onUpdate({ url: e.target.value })} />
       </label>
+      <label className="weft-field weft-field-inline">
+        <input
+          type="checkbox"
+          checked={!!forcedViewportWidth}
+          onChange={(e) => onUpdate({ forcedViewportWidth: e.target.checked ? DEFAULT_VIEWPORT_WIDTH : undefined })}
+        />
+        <span>Feste Bildschirmgröße erzwingen (z. B. um die mobile Ansicht der Seite zu zeigen)</span>
+      </label>
+      {forcedViewportWidth && (
+        <>
+          <label className="weft-field">
+            <span>Virtuelle Breite (px)</span>
+            <input
+              type="number"
+              min={1}
+              value={forcedViewportWidth}
+              onChange={(e) => onUpdate({ forcedViewportWidth: Math.max(1, Number(e.target.value)) })}
+            />
+          </label>
+          <p className="weft-hint">
+            Die Seite wird immer so dargestellt, als wäre das Browserfenster genau {forcedViewportWidth} Pixel breit –
+            unabhängig davon, wie groß das Lernmodul selbst angezeigt wird. Die Höhe ergibt sich automatisch aus der Höhe
+            des Blocks hier im Editor, sodass die Seite den Block immer exakt (ohne Verzerrung) ausfüllt.
+          </p>
+        </>
+      )}
+
       <span className="weft-subgroup-label">Sandbox-Rechte</span>
       {SANDBOX_FLAGS.map((flag) => (
         <label key={flag} className="weft-field weft-field-inline">

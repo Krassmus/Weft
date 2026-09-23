@@ -1,9 +1,18 @@
 import { useEffect, useState } from "react";
 import type { DragEvent as ReactDragEvent } from "react";
 import { ASPECT_RATIO_CSS } from "../../core/aspectRatio";
-import { addImageBlockToLayout, addImageBlockToPage, updateBlock, updateLayoutBlock } from "../../core/document/actions";
+import {
+  addImageBlockToLayout,
+  addImageBlockToPage,
+  addVideoBlockToLayout,
+  addVideoBlockToPage,
+  updateBlock,
+  updateLayoutBlock,
+} from "../../core/document/actions";
+import type { VideoUploadResult } from "../../core/document/actions";
 import { useDocumentStore } from "../../core/document/store";
 import type { BlockContainerRef } from "../../core/document/store";
+import { warnUnplayableVideo } from "../../core/io/fileIO";
 import type { BlockPosition, Layout, Page, WeftDocument } from "../../core/types";
 import { BlockView } from "./blocks/BlockView";
 import { clampMove } from "./blocks/resizeMath";
@@ -11,12 +20,13 @@ import { clampMove } from "./blocks/resizeMath";
 const ARROW_STEP_PERCENT = 1;
 const ARROW_STEP_PERCENT_FAST = 5;
 
-// Dropped images land at this size, centered on the cursor - object-fit: contain (both here and
-// in the exported player) means the block's own aspect ratio doesn't need to match the image's
-// for it to display correctly, so a fixed default is simplest.
-const DROP_IMAGE_WIDTH = 40;
-const DROP_IMAGE_HEIGHT = 30;
-// Dropping several images at once cascades each further one a bit, so they don't land in one
+// Starting footprint for a dropped image or video, centered on the cursor - addImageBlockToPage/
+// addVideoBlockToPage (etc.) immediately reshape it to the file's own aspect ratio (see
+// fitToAspect in core/document/actions.ts), so this only sets the initial area, not the final
+// proportions.
+const DROP_MEDIA_WIDTH = 40;
+const DROP_MEDIA_HEIGHT = 30;
+// Dropping several files at once cascades each further one a bit, so they don't land in one
 // exact pile - same idea as the paste offset in core/document/actions.ts.
 const DROP_CASCADE_PERCENT = 4;
 
@@ -29,10 +39,10 @@ function dropPosition(clientX: number, clientY: number, stageRect: DOMRect, casc
   const centerY = ((clientY - stageRect.top) / stageRect.height) * 100;
   const offset = cascadeIndex * DROP_CASCADE_PERCENT;
   return {
-    x: clampAxis(centerX - DROP_IMAGE_WIDTH / 2 + offset, DROP_IMAGE_WIDTH),
-    y: clampAxis(centerY - DROP_IMAGE_HEIGHT / 2 + offset, DROP_IMAGE_HEIGHT),
-    width: DROP_IMAGE_WIDTH,
-    height: DROP_IMAGE_HEIGHT,
+    x: clampAxis(centerX - DROP_MEDIA_WIDTH / 2 + offset, DROP_MEDIA_WIDTH),
+    y: clampAxis(centerY - DROP_MEDIA_HEIGHT / 2 + offset, DROP_MEDIA_HEIGHT),
+    width: DROP_MEDIA_WIDTH,
+    height: DROP_MEDIA_HEIGHT,
   };
 }
 
@@ -136,24 +146,34 @@ export function Canvas({ onPresent }: { onPresent: () => void }) {
     setDragOver(true);
   }
 
-  async function handleImageDrop(
+  async function handleMediaDrop(
     e: ReactDragEvent<HTMLDivElement>,
     container: BlockContainerRef,
     addImage: (file: File, position: BlockPosition) => Promise<string>,
+    addVideo: (file: File, position: BlockPosition) => Promise<{ blockId: string } & VideoUploadResult>,
   ) {
     e.preventDefault();
     setDragOver(false);
     const rect = e.currentTarget.getBoundingClientRect();
-    const imageFiles = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
-    // Sequential, not Promise.all - addImage reads the image's own dimensions before editing the
-    // document, and each edit() call is its own undo step, so keeping them in drop order keeps
-    // undo order sane too.
+    const mediaFiles = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
+    // Sequential, not Promise.all - addImage/addVideo reads the file's own dimensions before
+    // editing the document, and each edit() call is its own undo step, so keeping them in drop
+    // order keeps undo order sane too.
     let lastBlockId: string | null = null;
-    for (const [index, file] of imageFiles.entries()) {
-      lastBlockId = await addImage(file, dropPosition(e.clientX, e.clientY, rect, index));
+    const unplayable: { fileName: string; ffmpegAttempted: boolean; error?: string }[] = [];
+    for (const [index, file] of mediaFiles.entries()) {
+      const position = dropPosition(e.clientX, e.clientY, rect, index);
+      if (file.type.startsWith("video/")) {
+        const result = await addVideo(file, position);
+        lastBlockId = result.blockId;
+        if (!result.playable) unplayable.push({ fileName: file.name, ffmpegAttempted: result.ffmpegAttempted, error: result.error });
+      } else {
+        lastBlockId = await addImage(file, position);
+      }
     }
     // Select whichever landed last, mirroring how pasting a block selects the new copy.
     if (lastBlockId) select({ type: "block", container, blockId: lastBlockId });
+    if (unplayable.length > 0) void warnUnplayableVideo(unplayable);
   }
 
   return (
@@ -176,8 +196,11 @@ export function Canvas({ onPresent }: { onPresent: () => void }) {
             onDragOver={handleDragOver}
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) =>
-              handleImageDrop(e, { kind: "layout", layoutId: target.layout.id }, (file, position) =>
-                addImageBlockToLayout(target.layout.id, file, position),
+              handleMediaDrop(
+                e,
+                { kind: "layout", layoutId: target.layout.id },
+                (file, position) => addImageBlockToLayout(target.layout.id, file, position),
+                (file, position) => addVideoBlockToLayout(target.layout.id, file, position),
               )
             }
           >
@@ -207,8 +230,11 @@ export function Canvas({ onPresent }: { onPresent: () => void }) {
             onDragOver={handleDragOver}
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) =>
-              handleImageDrop(e, { kind: "page", pageId: target.page.id }, (file, position) =>
-                addImageBlockToPage(target.page.id, file, position),
+              handleMediaDrop(
+                e,
+                { kind: "page", pageId: target.page.id },
+                (file, position) => addImageBlockToPage(target.page.id, file, position),
+                (file, position) => addVideoBlockToPage(target.page.id, file, position),
               )
             }
           >

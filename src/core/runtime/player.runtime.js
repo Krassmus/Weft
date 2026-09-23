@@ -258,6 +258,12 @@
     return node;
   }
 
+  // Same icon set as the editor canvas's video2 watermark (see BlockView.tsx) - play, not video2,
+  // because unlike there, clicking this genuinely starts playback. Inlined rather than fetched:
+  // this file has to keep working as a single self-contained script once exported (see the file
+  // header), with no separate icon file shipped alongside it.
+  var PLAY_ICON_SVG = '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 54 54"><path fill="#28497c" d="m14.99 44.91 27.01-18-27-18z"/></svg>';
+
   function positionStyle(position) {
     return (
       "position:absolute;left:" +
@@ -268,11 +274,31 @@
       position.width +
       "%;height:" +
       position.height +
-      "%;"
+      "%;" +
+      (position.rotation ? "transform:rotate(" + position.rotation + "deg);" : "")
     );
   }
 
+  // Without forcedViewportWidth: a plain iframe filling the block, as before. With one, the
+  // embedded page is given exactly that fixed CSS-pixel width (so it sees a constant "window"
+  // width no matter how large the module itself is displayed) - height is DERIVED from the
+  // wrap's own aspect ratio (100cqh/100cqw, container query units resolving to its rendered
+  // pixel size) times that width, so the virtual viewport always has exactly the block's own
+  // shape and the scaled result fills it edge to edge with no letterboxing. The scale itself is
+  // then purely 100cqw / <forced width>, all live CSS with no JS measurement needed. Matches
+  // BlockView.tsx's IframeFrame in the editor exactly.
   function iframeEl(block, src) {
+    if (block.forcedViewportWidth) {
+      var w = block.forcedViewportWidth;
+      var frame = el("iframe", {
+        src: src,
+        sandbox: (block.sandbox || []).join(" "),
+        allow: block.allow || "",
+        style:
+          "width:" + w + "px;height:calc(" + w + "px * (100cqh / 100cqw));border:0;transform:scale(calc(100cqw / " + w + "px));",
+      }, []);
+      return el("div", { class: "weft-iframe-viewport-wrap" }, [frame]);
+    }
     return el("iframe", {
       src: src,
       sandbox: (block.sandbox || []).join(" "),
@@ -308,6 +334,45 @@
       wrap.innerHTML = block.html;
     } else if (block.kind === "image") {
       wrap.appendChild(el("img", { src: assetSrc(block.assetId), alt: block.alt, style: "width:100%;height:100%;object-fit:contain;" }, []));
+    } else if (block.kind === "video") {
+      var videoWrap = el("div", { class: "weft-video-wrap" }, []);
+      var videoEl = el("video", {
+        src: assetSrc(block.assetId),
+        class: "weft-video-el",
+        playsinline: "",
+        controls: block.controls ? "" : undefined,
+        loop: block.loop ? "" : undefined,
+      }, []);
+      // Set as live properties, not just attributes: the `muted` content attribute only seeds
+      // defaultMuted, not the actual playback-affecting `muted` property, and browsers only
+      // honor autoplay at all when that live property is already true at play() time - so
+      // setting the attribute alone (as el()'s other boolean attrs do above) would silently
+      // leave audible autoplay blocked.
+      videoEl.muted = !!block.muted;
+      videoEl.autoplay = !!block.autoplay;
+
+      // A big, obviously-clickable play button over the video - shown until playback actually
+      // starts (by a click here or, once it lands, a successful autoplay), then hidden again on
+      // pause/end so it doesn't sit on top of the video's own controls bar (if block.controls
+      // enabled one) fighting over the same "play" affordance while it's already playing.
+      var playButton = el("button", { type: "button", class: "weft-video-play", "aria-label": "Abspielen" }, []);
+      playButton.innerHTML = PLAY_ICON_SVG;
+      playButton.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        // play() rejects if the element is torn down (slide navigation) before it resolves -
+        // nothing to recover from there, just avoid an unhandled-rejection console error over it.
+        videoEl.play().catch(function () {});
+      });
+      videoEl.addEventListener("play", function () {
+        playButton.classList.add("is-hidden");
+      });
+      videoEl.addEventListener("pause", function () {
+        playButton.classList.remove("is-hidden");
+      });
+
+      videoWrap.appendChild(videoEl);
+      videoWrap.appendChild(playButton);
+      wrap.appendChild(videoWrap);
     } else if (block.kind === "iframe") {
       if (block.qrCode) {
         renderIframeGate(wrap, block);

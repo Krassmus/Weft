@@ -1,32 +1,28 @@
 import { addBlockToLayout, removeLayoutBlock, renameLayout } from "../../../core/document/actions";
 import { useDocumentStore } from "../../../core/document/store";
+import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
+import { useTranslation } from "../../../core/i18n/useTranslation";
 import type { Layout, StaticBlock } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
 
-const STATIC_BLOCK_LABELS: Record<StaticBlock["kind"], string> = {
-  text: "Text",
-  image: "Bild",
-  iframe: "Iframe",
-  button: "Button",
-};
+const STATIC_BLOCK_KINDS = Object.keys(BLOCK_KIND_KEYS).filter((kind) => kind !== "quiz") as StaticBlock["kind"][];
 
 export function LayoutPanel({ layout }: { layout: Layout }) {
+  const { t } = useTranslation();
   const selection = useDocumentStore((s) => s.selection);
   const select = useDocumentStore((s) => s.select);
 
   return (
     <>
-      <Collapsible title="Layout">
-        <p className="weft-hint">
-          Ein Layout ist wie eine Folie, aber ohne interaktive Elemente – es dient als Vorlage für Folien.
-        </p>
+      <Collapsible title={t("panel.layout")}>
+        <p className="weft-hint">{t("panel.layout.hint")}</p>
         <label className="weft-field">
-          <span>Name</span>
+          <span>{t("panel.layout.name")}</span>
           <input value={layout.name} onChange={(e) => renameLayout(layout.id, e.target.value)} />
         </label>
       </Collapsible>
 
-      <Collapsible title={`Elemente (${layout.blocks.length})`}>
+      <Collapsible title={`${t("panel.elements")} (${layout.blocks.length})`}>
         <ul className="weft-block-list">
           {layout.blocks.map((block) => (
             <li key={block.id}>
@@ -42,13 +38,13 @@ export function LayoutPanel({ layout }: { layout: Layout }) {
                 }
                 onClick={() => select({ type: "block", container: { kind: "layout", layoutId: layout.id }, blockId: block.id })}
               >
-                {STATIC_BLOCK_LABELS[block.kind]}
+                {t(BLOCK_KIND_KEYS[block.kind])}
               </button>
               <button
                 type="button"
                 className="weft-icon-button"
                 onClick={() => removeLayoutBlock(layout.id, block.id)}
-                title="Entfernen"
+                title={t("panel.remove")}
               >
                 ×
               </button>
@@ -56,9 +52,9 @@ export function LayoutPanel({ layout }: { layout: Layout }) {
           ))}
         </ul>
         <div className="weft-add-block-row">
-          {(Object.keys(STATIC_BLOCK_LABELS) as StaticBlock["kind"][]).map((kind) => (
+          {STATIC_BLOCK_KINDS.map((kind) => (
             <button key={kind} type="button" onClick={() => addBlockToLayout(layout.id, kind)}>
-              + {STATIC_BLOCK_LABELS[kind]}
+              + {t(BLOCK_KIND_KEYS[kind])}
             </button>
           ))}
         </div>

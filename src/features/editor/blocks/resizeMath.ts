@@ -26,33 +26,117 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), Math.max(min, max));
 }
 
+// Drag math (mouse pixels -> percent of stage) produces long float tails like
+// 3.4902141003460208 that are meaningless past the first few digits at any real stage size -
+// round every committed x/y/width/height to this many decimals so the position fields in the
+// sidebar (see BlockPanel.tsx's PositionEditor) stay short without a separate display-only
+// rounding step drifting out of sync with what's actually stored.
+const POSITION_DECIMALS = 3;
+
+function round(value: number): number {
+  const factor = 10 ** POSITION_DECIMALS;
+  return Math.round(value * factor) / factor;
+}
+
 export function clampMove(start: BlockPosition, dxPercent: number, dyPercent: number): BlockPosition {
-  const x = clamp(start.x + dxPercent, 0, 100 - start.width);
-  const y = clamp(start.y + dyPercent, 0, 100 - start.height);
+  const x = round(clamp(start.x + dxPercent, 0, 100 - start.width));
+  const y = round(clamp(start.y + dyPercent, 0, 100 - start.height));
   return { ...start, x, y };
 }
 
-export function resizeFromHandle(handle: HandleId, start: BlockPosition, dxPercent: number, dyPercent: number): BlockPosition {
+/**
+ * Where a fractional anchor point (fx/fy, each -0.5..0.5 of width/height from the block's own
+ * center - e.g. (0.5, 0.5) is the se corner, (0.5, 0) the e edge's midpoint) ends up on the stage
+ * once the box is rotated around ITS OWN center, in real stage pixels.
+ */
+function anchorWorldPx(
+  centerXPx: number,
+  centerYPx: number,
+  widthPx: number,
+  heightPx: number,
+  fx: number,
+  fy: number,
+  cos: number,
+  sin: number,
+): { x: number; y: number } {
+  const lx = fx * widthPx;
+  const ly = fy * heightPx;
+  return { x: centerXPx + lx * cos - ly * sin, y: centerYPx + lx * sin + ly * cos };
+}
+
+/**
+ * Resizing a rotated block by keeping one LOCAL edge/corner's unrotated x/y fixed (as plain,
+ * unrotated resizing does) isn't enough once the block is actually rotated: CSS rotates the box
+ * around its own center, and changing width/height moves that center - so the "fixed" local point
+ * still drifts on screen unless the rotation is accounted for too. This instead keeps a chosen
+ * anchor point (fx/fy - see anchorWorldPx) at the same screen position across the resize: it
+ * finds where that anchor currently sits on the stage, then works out the new x/y (unrotated,
+ * top-left) that puts the SAME anchor back at that exact spot once the box has its new
+ * width/height. With rotation 0 this reduces to plain axis-aligned anchoring.
+ */
+function anchorResize(
+  start: BlockPosition,
+  fx: number,
+  fy: number,
+  newWidthPercent: number,
+  newHeightPercent: number,
+  stagePx: { width: number; height: number },
+): { x: number; y: number } {
+  const rad = ((start.rotation ?? 0) * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+
+  const w0 = (start.width / 100) * stagePx.width;
+  const h0 = (start.height / 100) * stagePx.height;
+  const cx0 = ((start.x + start.width / 2) / 100) * stagePx.width;
+  const cy0 = ((start.y + start.height / 2) / 100) * stagePx.height;
+  const anchor = anchorWorldPx(cx0, cy0, w0, h0, fx, fy, cos, sin);
+
+  const w1 = (newWidthPercent / 100) * stagePx.width;
+  const h1 = (newHeightPercent / 100) * stagePx.height;
+  // The anchor's offset from the (still unknown) new center, at the new size - subtracting it
+  // from the anchor's fixed world position below is what solves for that new center.
+  const offset = anchorWorldPx(0, 0, w1, h1, fx, fy, cos, sin);
+  const cx1 = anchor.x - offset.x;
+  const cy1 = anchor.y - offset.y;
+
+  return {
+    x: ((cx1 - w1 / 2) / stagePx.width) * 100,
+    y: ((cy1 - h1 / 2) / stagePx.height) * 100,
+  };
+}
+
+export function resizeFromHandle(
+  handle: HandleId,
+  start: BlockPosition,
+  stagePx: { width: number; height: number },
+  dxPercent: number,
+  dyPercent: number,
+): BlockPosition {
   const edges = HANDLES.find((h) => h.id === handle)!.edges;
-  let { x, y, width, height } = start;
+  let width = start.width;
+  let height = start.height;
 
   if (edges.left) {
-    const rightEdge = start.x + start.width;
-    x = clamp(start.x + dxPercent, 0, rightEdge - MIN_SIZE_PERCENT);
-    width = rightEdge - x;
+    width = clamp(start.width - dxPercent, MIN_SIZE_PERCENT, start.x + start.width);
   } else if (edges.right) {
     width = clamp(start.width + dxPercent, MIN_SIZE_PERCENT, 100 - start.x);
   }
 
   if (edges.top) {
-    const bottomEdge = start.y + start.height;
-    y = clamp(start.y + dyPercent, 0, bottomEdge - MIN_SIZE_PERCENT);
-    height = bottomEdge - y;
+    height = clamp(start.height - dyPercent, MIN_SIZE_PERCENT, start.y + start.height);
   } else if (edges.bottom) {
     height = clamp(start.height + dyPercent, MIN_SIZE_PERCENT, 100 - start.y);
   }
 
-  return { x, y, width, height };
+  // The anchor is whichever edge/corner is opposite the one being dragged - e.g. dragging the
+  // right edge (only) anchors the left edge's midpoint (fx negative, fy 0, since height doesn't
+  // change); dragging a corner anchors the opposite corner (both fx and fy set).
+  const fx = edges.left ? 0.5 : edges.right ? -0.5 : 0;
+  const fy = edges.top ? 0.5 : edges.bottom ? -0.5 : 0;
+  const { x, y } = anchorResize(start, fx, fy, width, height, stagePx);
+
+  return { ...start, x: round(x), y: round(y), width: round(width), height: round(height) };
 }
 
 /**
@@ -98,12 +182,27 @@ export function resizeCornerLocked(
 
   const width = start.width * scale;
   const height = start.height * scale;
-  return {
-    x: signX === 1 ? fixedX : fixedX - width,
-    y: signY === 1 ? fixedY : fixedY - height,
-    width,
-    height,
-  };
+  const { x, y } = anchorResize(start, -signX * 0.5, -signY * 0.5, width, height, stagePx);
+
+  return { ...start, x: round(x), y: round(y), width: round(width), height: round(height) };
+}
+
+/**
+ * A resize handle on a rotated block is still dragged in plain screen space, but
+ * resizeFromHandle/resizeCornerLocked expect a delta along the block's own local width/height
+ * axes (as if it weren't rotated at all) - this rotates a raw screen-pixel mouse delta backwards
+ * by the block's own rotation to convert one into the other, so e.g. dragging straight down on a
+ * block rotated 90° correctly reads as "along its local x axis", matching which edge visually
+ * moved under the cursor. Done in real pixels, before any percent-of-stage conversion: percent of
+ * stage width and percent of stage height are different units whenever the stage itself isn't
+ * square, and rotating a vector only makes sense in a single, isotropic unit.
+ */
+export function unrotateDelta(dxPx: number, dyPx: number, rotationDeg: number): { dx: number; dy: number } {
+  if (!rotationDeg) return { dx: dxPx, dy: dyPx };
+  const rad = (rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  return { dx: dxPx * cos + dyPx * sin, dy: dyPx * cos - dxPx * sin };
 }
 
 /** Distance in px from a point to the nearest edge of a rect - negative if the point is outside the rect. */

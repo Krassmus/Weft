@@ -10,6 +10,8 @@ struct MenuStrings {
     file: &'static str,
     open: &'static str,
     save: &'static str,
+    save_as: &'static str,
+    export: &'static str,
     settings: &'static str,
     edit: &'static str,
     undo: &'static str,
@@ -22,6 +24,8 @@ fn menu_strings(lang: &str) -> MenuStrings {
             file: "Datei",
             open: "Öffnen…",
             save: "Speichern",
+            save_as: "Speichern unter…",
+            export: "Exportieren…",
             settings: "Einstellungen…",
             edit: "Bearbeiten",
             undo: "Rückgängig",
@@ -32,6 +36,8 @@ fn menu_strings(lang: &str) -> MenuStrings {
             file: "File",
             open: "Open…",
             save: "Save",
+            save_as: "Save As…",
+            export: "Export…",
             settings: "Settings…",
             edit: "Edit",
             undo: "Undo",
@@ -75,15 +81,23 @@ fn build_menu(app_handle: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
     file_menu.set_text(strings.file)?;
     let open_item = MenuItem::with_id(app_handle, "weft-open", strings.open, true, Some("CmdOrCtrl+O"))?;
     let save_item = MenuItem::with_id(app_handle, "weft-save", strings.save, true, Some("CmdOrCtrl+S"))?;
-    file_menu.prepend_items(&[&open_item, &save_item, &PredefinedMenuItem::separator(app_handle)?])?;
+    let save_as_item = MenuItem::with_id(app_handle, "weft-save-as", strings.save_as, true, Some("CmdOrCtrl+Shift+S"))?;
+    let export_item = MenuItem::with_id(app_handle, "weft-export", strings.export, true, Some("CmdOrCtrl+E"))?;
+    file_menu.prepend_items(&[
+        &open_item,
+        &save_item,
+        &save_as_item,
+        &export_item,
+        &PredefinedMenuItem::separator(app_handle)?,
+    ])?;
 
     // The platform default Edit menu's Undo/Redo drive the focused WKWebView's own
-    // contentEditable undo stack, not the app's own document-level undo/redo (the toolbar
-    // buttons, backed by the Zustand store's patch history) - the two can drift apart, which is
-    // exactly the mismatch this replaces. Cut/Copy/Paste/Select All are left as the native
-    // predefined items; only Undo/Redo specifically get swapped for ones that emit back to the
-    // frontend (see EditorShell.tsx's "weft://menu-undo"/"weft://menu-redo" listeners), so
-    // Cmd+Z/Shift+Cmd+Z end up doing exactly what clicking the toolbar buttons does.
+    // contentEditable undo stack, not the app's own document-level undo/redo (backed by the
+    // Zustand store's patch history) - the two can drift apart, which is exactly the mismatch
+    // this replaces. Cut/Copy/Paste/Select All are left as the native predefined items; only
+    // Undo/Redo specifically get swapped for ones that emit back to the frontend (see
+    // EditorShell.tsx's "weft://menu-undo"/"weft://menu-redo" listeners), so Cmd+Z/Shift+Cmd+Z
+    // end up doing exactly what the document's own undo/redo does.
     edit_menu.set_text(strings.edit)?;
     let stale_undo_redo: Vec<_> = edit_menu
         .items()?
@@ -158,6 +172,12 @@ pub fn run() {
                 }
                 "weft-save" => {
                     let _ = app_handle.emit("weft://menu-save", ());
+                }
+                "weft-save-as" => {
+                    let _ = app_handle.emit("weft://menu-save-as", ());
+                }
+                "weft-export" => {
+                    let _ = app_handle.emit("weft://menu-export", ());
                 }
                 "weft-undo" => {
                     let _ = app_handle.emit("weft://menu-undo", ());

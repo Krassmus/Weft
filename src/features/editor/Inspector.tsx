@@ -8,6 +8,7 @@ import {
 } from "../../core/document/actions";
 import { useDocumentStore } from "../../core/document/store";
 import { BlockPanel } from "./panels/BlockPanel";
+import { EventPanel } from "./panels/EventPanel";
 import { LayoutPanel } from "./panels/LayoutPanel";
 import { LogicBlockPanel } from "./panels/LogicBlockPanel";
 import { PagePanel } from "./panels/PagePanel";
@@ -58,6 +59,11 @@ function InspectorBody({
     return layout ? <LayoutPanel layout={layout} /> : <EmptyState />;
   }
 
+  if (selection.type === "event") {
+    const page = doc.content.pages[selection.pageId];
+    return page ? <EventPanel page={page} nodeId={selection.nodeId} /> : <EmptyState />;
+  }
+
   if (selection.container.kind === "page") {
     const page = doc.content.pages[selection.container.pageId];
     const block = page?.blocks.find((b) => b.id === selection.blockId);
@@ -65,6 +71,7 @@ function InspectorBody({
     return (
       <BlockPanel
         block={block}
+        page={page}
         onUpdate={(patch) => updateBlock(page.id, block.id, patch)}
         onSetImage={(file) => setBlockImage(page.id, block.id, file)}
         onSetVideo={(file) => setBlockVideo(page.id, block.id, file)}

@@ -8,6 +8,8 @@ import type {
   WeftDocument,
   WeftModule,
 } from "../types";
+import { defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
+import { createDefaultPageTimeline, syncPageTimelineEvents } from "./pageTimeline";
 
 /**
  * Builds a small but complete demo module (title, content, one branch, one ending slide)
@@ -25,6 +27,8 @@ export function createEmptyDocument(): WeftDocument {
         kind: "text",
         position: { x: 5, y: 5, width: 90, height: 15 },
         html: "<h1>Titel der Folie</h1>",
+        entranceEffect: defaultEntranceEffect(),
+        exitEffect: defaultExitEffect(),
       },
     ],
   };
@@ -40,8 +44,12 @@ export function createEmptyDocument(): WeftDocument {
         kind: "text",
         position: { x: 5, y: 25, width: 90, height: 50 },
         html: "<p>Willkommen in eurem neuen Lernmodul. Bearbeite diese Folie oder füge weitere hinzu.</p>",
+        entranceEffect: defaultEntranceEffect(),
+        exitEffect: defaultExitEffect(),
       },
     ],
+    transition: { type: "none", durationMs: 500 },
+    timeline: createDefaultPageTimeline(),
   };
 
   const branchAId = createId();
@@ -55,19 +63,26 @@ export function createEmptyDocument(): WeftDocument {
         id: createId(),
         kind: "quiz",
         position: { x: 5, y: 25, width: 90, height: 50 },
-        question: "Ist Weft plattformübergreifend?",
+        questionHtml: "<p>Ist Weft plattformübergreifend?</p>",
         options: [
-          { id: quizOptionYes, text: "Ja" },
-          { id: quizOptionNo, text: "Nein" },
+          { id: quizOptionYes, html: "Ja" },
+          { id: quizOptionNo, html: "Nein" },
         ],
         correctOptionIds: [quizOptionYes],
         onCorrect: [{ variableId: scoreVariableId, op: "add", value: 1 }],
         onIncorrect: [],
         advanceOnCorrect: false,
         advanceOnIncorrect: false,
+        entranceEffect: defaultEntranceEffect(),
+        exitEffect: defaultExitEffect(),
       },
     ],
+    transition: { type: "none", durationMs: 500 },
+    timeline: createDefaultPageTimeline(),
   };
+  // This demo page's quiz block is built as a raw literal above rather than via addBlockToPage,
+  // so it bypasses that action's own sync call - do it here instead (see syncPageTimelineEvents).
+  syncPageTimelineEvents(branchAPage);
 
   const branchBPage: Page = {
     id: createId(),
@@ -78,8 +93,12 @@ export function createEmptyDocument(): WeftDocument {
         kind: "text",
         position: { x: 5, y: 25, width: 90, height: 50 },
         html: "<p>Das ist der zweite Zweig – lege hier den alternativen Lernpfad an.</p>",
+        entranceEffect: defaultEntranceEffect(),
+        exitEffect: defaultExitEffect(),
       },
     ],
+    transition: { type: "none", durationMs: 500 },
+    timeline: createDefaultPageTimeline(),
   };
 
   const branches: Branch[] = [
@@ -107,8 +126,12 @@ export function createEmptyDocument(): WeftDocument {
         kind: "text",
         position: { x: 5, y: 25, width: 90, height: 50 },
         html: "<p>Geschafft! Hier landen alle Zweige wieder.</p>",
+        entranceEffect: defaultEntranceEffect(),
+        exitEffect: defaultExitEffect(),
       },
     ],
+    transition: { type: "none", durationMs: 500 },
+    timeline: createDefaultPageTimeline(),
   };
 
   const pages: Record<string, Page> = {
@@ -138,6 +161,7 @@ export function createEmptyDocument(): WeftDocument {
     assets: [],
     customFonts: [],
     lms: { enabled: false, allowedOrigins: [] },
+    keyboardNavigationEnabled: true,
   };
 
   return {

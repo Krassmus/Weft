@@ -43,7 +43,16 @@ export function LayoutPanel({ layout }: { layout: Layout }) {
               <button
                 type="button"
                 className="weft-icon-button"
-                onClick={() => removeLayoutBlock(layout.id, block.id)}
+                onClick={() => {
+                  removeLayoutBlock(layout.id, block.id);
+                  if (
+                    selection?.type === "block" &&
+                    selection.container.kind === "layout" &&
+                    selection.blockId === block.id
+                  ) {
+                    select({ type: "layout", layoutId: layout.id });
+                  }
+                }}
                 title={t("panel.remove")}
               >
                 ×

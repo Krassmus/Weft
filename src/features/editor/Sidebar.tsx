@@ -5,12 +5,13 @@ import {
   addLogicBlockToSequence,
   addPageToBranch,
   addPageToSequence,
-  moveBranchPage,
+  movePageTo,
   moveSequenceNode,
   removeBranch,
   removePageFromBranch,
   removeSequenceNodeAt,
 } from "../../core/document/actions";
+import type { PageContainerRef } from "../../core/document/actions";
 import { useDocumentStore } from "../../core/document/store";
 import { useTranslation } from "../../core/i18n/useTranslation";
 import type { LogicBlock } from "../../core/types";
@@ -27,6 +28,14 @@ function firstLayoutId(): string | null {
   const layouts = useDocumentStore.getState().doc.content.layouts;
   const first = Object.keys(layouts)[0];
   return first ?? null;
+}
+
+/** The inverse of the containerId strings bind() below hands to useDragReorder - "top", or
+ * "branch:<logicBlockId>:<branchId>" - back into the shape movePageTo expects. */
+function parsePageContainerId(containerId: string): PageContainerRef {
+  if (containerId === "top") return { kind: "top" };
+  const [, logicBlockId, branchId] = containerId.split(":");
+  return { kind: "branch", logicBlockId, branchId };
 }
 
 const TABS = [
@@ -73,10 +82,16 @@ function SequenceTree({ openMenu, bind }: { openMenu: ReturnType<typeof useConte
   const selection = useDocumentStore((s) => s.selection);
   const select = useDocumentStore((s) => s.select);
   const { sequence, logicBlocks } = doc.content;
-  // The page a selected block lives on - a block selection means the page itself isn't the
-  // active sidebar entry anymore, but it's still useful to see at a glance which page's canvas
-  // you're looking at, so its row gets a weaker version of the same highlight (see PageRow).
-  const currentPageId = selection?.type === "block" && selection.container.kind === "page" ? selection.container.pageId : null;
+  // The page a selected block (or an event on its own timeline - see Timeline.tsx) lives on -
+  // either kind of selection means the page itself isn't the active sidebar entry anymore, but
+  // it's still useful to see at a glance which page's canvas you're looking at, so its row gets a
+  // weaker version of the same highlight (see PageRow).
+  const currentPageId =
+    selection?.type === "block" && selection.container.kind === "page"
+      ? selection.container.pageId
+      : selection?.type === "event"
+        ? selection.pageId
+        : null;
 
   if (sequence.length === 0) {
     return (
@@ -107,7 +122,9 @@ function SequenceTree({ openMenu, bind }: { openMenu: ReturnType<typeof useConte
               active={selection?.type === "page" && selection.pageId === node.pageId}
               isCurrent={currentPageId === node.pageId}
               onSelect={() => select({ type: "page", pageId: node.pageId })}
-              dragProps={bind("top", index, (from, to) => moveSequenceNode(from, to))}
+              dragProps={bind("page", "top", index, (targetContainerId, targetIndex) =>
+                movePageTo(node.pageId, parsePageContainerId(targetContainerId), targetIndex),
+              )}
               onContextMenu={(e) =>
                 openMenu(e, [
                   { label: "Folie darunter einfügen", onClick: () => addPageToSequence(index, firstLayoutId()) },
@@ -125,7 +142,7 @@ function SequenceTree({ openMenu, bind }: { openMenu: ReturnType<typeof useConte
               onSelect={() => select({ type: "logic", logicBlockId: node.logicBlockId })}
               openMenu={openMenu}
               bind={bind}
-              dragProps={bind("top", index, (from, to) => moveSequenceNode(from, to))}
+              dragProps={bind("logic", "top", index, (_targetContainerId, targetIndex) => moveSequenceNode(index, targetIndex))}
               onContextMenu={(e) =>
                 openMenu(e, [
                   { label: "Folie darunter einfügen", onClick: () => addPageToSequence(index, firstLayoutId()) },
@@ -204,7 +221,12 @@ function LogicBlockRow({
 }) {
   const selection = useDocumentStore((s) => s.selection);
   const select = useDocumentStore((s) => s.select);
-  const currentPageId = selection?.type === "block" && selection.container.kind === "page" ? selection.container.pageId : null;
+  const currentPageId =
+    selection?.type === "block" && selection.container.kind === "page"
+      ? selection.container.pageId
+      : selection?.type === "event"
+        ? selection.pageId
+        : null;
   const { dragClassName, ...dragAttrs } = dragProps;
   if (!logicBlock) return null;
 
@@ -239,6 +261,7 @@ function LogicBlockRow({
               <span>{branch.label}</span>
             </div>
             <div className="weft-branch-pages">
+              {branch.pageIds.length === 0 && <EmptyBranchDropZone bind={bind} logicBlockId={logicBlock.id} branchId={branch.id} />}
               {branch.pageIds.map((pageId, pageIndex) => (
                 <PageRow
                   key={pageId}
@@ -247,8 +270,8 @@ function LogicBlockRow({
                   active={selection?.type === "page" && selection.pageId === pageId}
                   isCurrent={currentPageId === pageId}
                   onSelect={() => select({ type: "page", pageId })}
-                  dragProps={bind(`branch:${logicBlock.id}:${branch.id}`, pageIndex, (from, to) =>
-                    moveBranchPage(logicBlock.id, branch.id, from, to),
+                  dragProps={bind("page", `branch:${logicBlock.id}:${branch.id}`, pageIndex, (targetContainerId, targetIndex) =>
+                    movePageTo(pageId, parsePageContainerId(targetContainerId), targetIndex),
                   )}
                   onContextMenu={(e) =>
                     openMenu(e, [
@@ -270,6 +293,30 @@ function LogicBlockRow({
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * An empty branch has no PageRow to drag a page onto (moving its last page out, e.g. to the main
+ * sequence or another branch, is exactly what would empty it - see movePageTo), so without this
+ * it would have no drop target at all, making it a dead end you could empty but never refill by
+ * dragging. Not itself draggable (there's no page here to drag), just a drop target: bound at
+ * index 0 the same way a real PageRow would be, but only the data-drag-container/index/
+ * dragClassName bind() hands back, not onPointerDown.
+ */
+function EmptyBranchDropZone({ bind, logicBlockId, branchId }: { bind: DragBind; logicBlockId: string; branchId: string }) {
+  // onMove is unreachable here - reading the destructured result below never includes
+  // onPointerDown, so a drag can never actually START from this placeholder to finish() into it.
+  const { dragClassName, "data-drag-container": dragContainer, "data-drag-index": dragIndex } = bind(
+    "page",
+    `branch:${logicBlockId}:${branchId}`,
+    0,
+    () => {},
+  );
+  return (
+    <div className={"weft-branch-empty-drop" + dragClassName} data-drag-container={dragContainer} data-drag-index={dragIndex}>
+      Folie hierher ziehen
     </div>
   );
 }

@@ -11,11 +11,14 @@ import type {
   Layout,
   Page,
   StaticBlock,
+  TransitionType,
   VariableCondition,
   VariableDef,
   VariableType,
   WeftModule,
 } from "../types";
+import { defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
+import { createDefaultPageTimeline, syncPageTimelineEvents } from "./pageTimeline";
 import { useDocumentStore } from "./store";
 
 function edit(label: string, recipe: (draft: WeftModule) => void) {
@@ -23,7 +26,13 @@ function edit(label: string, recipe: (draft: WeftModule) => void) {
 }
 
 function emptyPage(layoutId: string | null): Page {
-  return { id: createId(), layoutId, blocks: [] };
+  return {
+    id: createId(),
+    layoutId,
+    blocks: [],
+    transition: { type: "none", durationMs: 500 },
+    timeline: createDefaultPageTimeline(),
+  };
 }
 
 // ---- Module settings -------------------------------------------------
@@ -49,6 +58,12 @@ export function setLmsEnabled(enabled: boolean) {
 export function setLmsAllowedOrigins(origins: string[]) {
   edit("Erlaubte LMS-Origins ändern", (m) => {
     m.lms.allowedOrigins = origins;
+  });
+}
+
+export function setKeyboardNavigationEnabled(enabled: boolean) {
+  edit("Tastatur-Navigation umschalten", (m) => {
+    m.keyboardNavigationEnabled = enabled;
   });
 }
 
@@ -144,6 +159,20 @@ export function setPageLayout(pageId: string, layoutId: string | null) {
   });
 }
 
+export function setPageTransition(pageId: string, type: TransitionType) {
+  edit("Übergang ändern", (m) => {
+    const page = m.pages[pageId];
+    if (page) page.transition.type = type;
+  });
+}
+
+export function setPageTransitionDuration(pageId: string, durationMs: number) {
+  edit("Übergangsdauer ändern", (m) => {
+    const page = m.pages[pageId];
+    if (page) page.transition.durationMs = durationMs;
+  });
+}
+
 export function addLayout(name: string) {
   const layout: Layout = { id: createId(), name, blocks: [] };
   edit("Layout hinzufügen", (m) => {
@@ -229,16 +258,6 @@ export function addPageToBranch(logicBlockId: string, branchId: string, layoutId
   return page.id;
 }
 
-export function moveBranchPage(logicBlockId: string, branchId: string, from: number, to: number) {
-  if (from === to) return;
-  edit("Reihenfolge im Zweig ändern", (m) => {
-    const branch = m.logicBlocks[logicBlockId]?.branches.find((b) => b.id === branchId);
-    if (!branch) return;
-    const [pageId] = branch.pageIds.splice(from, 1);
-    branch.pageIds.splice(to, 0, pageId);
-  });
-}
-
 export function removePageFromBranch(logicBlockId: string, branchId: string, pageId: string) {
   edit("Folie aus Zweig entfernen", (m) => {
     const branch = m.logicBlocks[logicBlockId]?.branches.find((b) => b.id === branchId);
@@ -246,30 +265,63 @@ export function removePageFromBranch(logicBlockId: string, branchId: string, pag
   });
 }
 
+/** Where a page reference can live: the top-level sequence, or a specific branch's page list. */
+export type PageContainerRef = { kind: "top" } | { kind: "branch"; logicBlockId: string; branchId: string };
+
+/**
+ * Moves a page reference from wherever it currently lives (top-level sequence or any branch,
+ * found via locatePage - same lookup removePage uses) to a position in `target`, which may be a
+ * different container than the one it started in (e.g. dragging a branch page out to the main
+ * sequence, or into another branch) or the same one (a plain reorder). The Page object itself
+ * never moves - pages always live in the flat m.pages dictionary regardless of which list of ids
+ * points at them - so this only ever touches the reference arrays (m.sequence / a branch's
+ * pageIds), same as removePage/addPageToBranch do individually. Used by the Sidebar's drag-reorder
+ * (see useDragReorder.ts), which no longer restricts a drag to the container it started in.
+ *
+ * `toIndex` is where to splice the page back in *after* it's already been removed from its
+ * origin - the same convention moveSequenceNode's own `to` uses - not its raw pre-removal
+ * position. useDragReorder's finish() already does that arithmetic once (it has to, to also
+ * serve moveSequenceNode); redoing it here for the same-container case double-adjusted and
+ * silently turned some same-container drags (moving an earlier row later) into a no-op.
+ */
+export function movePageTo(pageId: string, target: PageContainerRef, toIndex: number) {
+  edit("Folie verschieben", (m) => {
+    const from = locatePage(m, pageId);
+    if (!from) return;
+
+    if (from.kind === "top") m.sequence.splice(from.index, 1);
+    else m.logicBlocks[from.logicBlockId]?.branches.find((b) => b.id === from.branchId)?.pageIds.splice(from.index, 1);
+
+    if (target.kind === "top") m.sequence.splice(toIndex, 0, { kind: "page", pageId });
+    else m.logicBlocks[target.logicBlockId]?.branches.find((b) => b.id === target.branchId)?.pageIds.splice(toIndex, 0, pageId);
+  });
+}
+
 // ---- Blocks ----------------------------------------------------------------
 
 function defaultBlockFor(kind: Block["kind"]): Block {
   const position = { x: 10, y: 40, width: 80, height: 20 };
+  const base = { id: createId(), entranceEffect: defaultEntranceEffect(), exitEffect: defaultExitEffect() };
   switch (kind) {
     case "text":
-      return { id: createId(), kind, position, html: "<p>Neuer Text</p>" };
+      return { ...base, kind, position, html: "<p>Neuer Text</p>" };
     case "image":
-      return { id: createId(), kind, position, assetId: null, alt: "" };
+      return { ...base, kind, position, assetId: null, alt: "" };
     case "video":
-      return { id: createId(), kind, position, assetId: null, autoplay: false, loop: false, muted: false, controls: true };
+      return { ...base, kind, position, assetId: null, autoplay: false, loop: false, muted: false, controls: true, stopPoints: [] };
     case "iframe":
-      return { id: createId(), kind, position, url: "https://www.youtube.com/embed/", sandbox: ["allow-scripts"], qrCode: false };
+      return { ...base, kind, position, url: "https://www.youtube.com/embed/", sandbox: ["allow-scripts"], qrCode: false };
     case "button":
-      return { id: createId(), kind, position: { x: 35, y: 82, width: 30, height: 10 }, text: "Weiter", action: "next" };
+      return { ...base, kind, position: { x: 35, y: 82, width: 30, height: 10 }, text: "Weiter", action: "next" };
     case "quiz":
       return {
-        id: createId(),
+        ...base,
         kind,
         position,
-        question: "Neue Frage",
+        questionHtml: "<p>Neue Frage</p>",
         options: [
-          { id: createId(), text: "Option A" },
-          { id: createId(), text: "Option B" },
+          { id: createId(), html: "Option A" },
+          { id: createId(), html: "Option B" },
         ],
         correctOptionIds: [],
         onCorrect: [],
@@ -283,7 +335,10 @@ function defaultBlockFor(kind: Block["kind"]): Block {
 export function addBlockToPage(pageId: string, kind: Block["kind"]) {
   const block = defaultBlockFor(kind);
   edit("Block hinzufügen", (m) => {
-    m.pages[pageId]?.blocks.push(block);
+    const page = m.pages[pageId];
+    if (!page) return;
+    page.blocks.push(block);
+    syncPageTimelineEvents(page);
   });
   return block.id;
 }
@@ -298,15 +353,23 @@ export function addBlockToLayout(layoutId: string, kind: StaticBlock["kind"]) {
 
 export function updateBlock(pageId: string, blockId: string, patch: Partial<Block>) {
   edit("Block bearbeiten", (m) => {
-    const block = m.pages[pageId]?.blocks.find((b) => b.id === blockId);
-    if (block) Object.assign(block, patch);
+    const page = m.pages[pageId];
+    const block = page?.blocks.find((b) => b.id === blockId);
+    if (!block) return;
+    Object.assign(block, patch);
+    // Only a quiz's/video's own timeline-relevant fields can change what the timeline should
+    // show, so skip the (cheap but pointless) resync for every other block's edits, e.g. a
+    // position drag.
+    if (page && (block.kind === "quiz" || block.kind === "video")) syncPageTimelineEvents(page);
   });
 }
 
 export function removeBlock(pageId: string, blockId: string) {
   edit("Block entfernen", (m) => {
     const page = m.pages[pageId];
-    if (page) page.blocks = page.blocks.filter((b) => b.id !== blockId);
+    if (!page) return;
+    page.blocks = page.blocks.filter((b) => b.id !== blockId);
+    syncPageTimelineEvents(page);
   });
 }
 
@@ -562,7 +625,15 @@ export async function addImageBlockToPage(pageId: string, file: File, position: 
   const percentRatio = percentRatioForAspect(await imageAspectRatio(file));
   edit("Bild hinzufügen", (m) => {
     m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
-    m.pages[pageId]?.blocks.push({ id: blockId, kind: "image", position: fitToAspect(position, percentRatio), assetId, alt: "" });
+    m.pages[pageId]?.blocks.push({
+      id: blockId,
+      kind: "image",
+      position: fitToAspect(position, percentRatio),
+      assetId,
+      alt: "",
+      entranceEffect: defaultEntranceEffect(),
+      exitEffect: defaultExitEffect(),
+    });
   });
   return blockId;
 }
@@ -574,7 +645,15 @@ export async function addImageBlockToLayout(layoutId: string, file: File, positi
   const percentRatio = percentRatioForAspect(await imageAspectRatio(file));
   edit("Bild hinzufügen", (m) => {
     m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
-    m.layouts[layoutId]?.blocks.push({ id: blockId, kind: "image", position: fitToAspect(position, percentRatio), assetId, alt: "" });
+    m.layouts[layoutId]?.blocks.push({
+      id: blockId,
+      kind: "image",
+      position: fitToAspect(position, percentRatio),
+      assetId,
+      alt: "",
+      entranceEffect: defaultEntranceEffect(),
+      exitEffect: defaultExitEffect(),
+    });
   });
   return blockId;
 }
@@ -592,7 +671,9 @@ export async function addVideoBlockToPage(
   useAssetStore.getState().setAsset(assetId, resolved.file);
   edit("Video hinzufügen", (m) => {
     m.assets.push({ id: assetId, fileName: resolved.file.name, mimeType: resolved.file.type || "video/mp4" });
-    m.pages[pageId]?.blocks.push({
+    const page = m.pages[pageId];
+    if (!page) return;
+    page.blocks.push({
       id: blockId,
       kind: "video",
       position: fitToAspect(position, percentRatioForAspect(resolved.aspect)),
@@ -601,7 +682,11 @@ export async function addVideoBlockToPage(
       loop: false,
       muted: false,
       controls: true,
+      stopPoints: [],
+      entranceEffect: defaultEntranceEffect(),
+      exitEffect: defaultExitEffect(),
     });
+    syncPageTimelineEvents(page);
   });
   return { blockId, playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error };
 }
@@ -626,6 +711,9 @@ export async function addVideoBlockToLayout(
       loop: false,
       muted: false,
       controls: true,
+      stopPoints: [],
+      entranceEffect: defaultEntranceEffect(),
+      exitEffect: defaultExitEffect(),
     });
   });
   return { blockId, playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error };
@@ -681,7 +769,12 @@ export function pastePageAfter(afterPageId: string, sourcePage: Page): string | 
       id: newPageId,
       layoutId: sourcePage.layoutId,
       blocks: sourcePage.blocks.map(cloneBlockWithNewId),
+      transition: sourcePage.transition,
+      // Deep-cloned first so any future extra lanes survive the copy untouched, then rebuilt below
+      // since its quiz/video-event nodes still pointed at the *old* block ids.
+      timeline: structuredClone(sourcePage.timeline),
     };
+    syncPageTimelineEvents(newPage);
     m.pages[newPageId] = newPage;
     if (location.kind === "top") {
       m.sequence.splice(location.index + 1, 0, { kind: "page", pageId: newPageId });
@@ -712,6 +805,7 @@ export function pasteBlockInto(
       const page = m.pages[target.pageId];
       if (!page) return;
       page.blocks.push(newBlock);
+      syncPageTimelineEvents(page);
     } else {
       const layout = m.layouts[target.layoutId];
       if (!layout) return;

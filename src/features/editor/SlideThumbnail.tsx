@@ -8,6 +8,9 @@ import type { Block } from "../../core/types";
 import video2IconSvg from "../../../mockups/icons/video2.svg?raw";
 import globeIconSvg from "../../../mockups/icons/globe.svg?raw";
 import qrIconSvg from "../../../mockups/icons/code-qr.svg?raw";
+import checkboxCheckedSvg from "../../../mockups/icons/checkbox-checked.svg?raw";
+import checkboxUncheckedSvg from "../../../mockups/icons/checkbox-unchecked.svg?raw";
+import acceptSvg from "../../../mockups/icons/accept.svg?raw";
 
 /**
  * A small, inert preview of a block list (a page's layout+own blocks combined, or just a
@@ -77,16 +80,32 @@ function ThumbBlock({ block }: { block: Block }) {
     );
   }
   if (block.kind === "quiz") {
+    // Same card layout, em-for-em, as the editor canvas (BlockView.tsx's .weft-edit-block-quiz*)
+    // and the real player (player.runtime.js/.css's .weft-quiz*) - all three share the same
+    // 1.7cqw block base size, so keeping the numbers in sync here too is what makes a quiz take
+    // up the same proportion of its box everywhere, not just a smaller/blurrier version of a
+    // differently-laid-out preview.
     return (
       <div className="weft-thumb-block weft-thumb-block-quiz" style={style}>
-        <strong>{block.question || "(Frage)"}</strong>
-        <ul>
-          {block.options.map((opt) => (
-            <li key={opt.id} className={block.correctOptionIds.includes(opt.id) ? "is-correct" : ""}>
-              {opt.text}
-            </li>
-          ))}
-        </ul>
+        <div className="weft-thumb-block-quiz-question" dangerouslySetInnerHTML={{ __html: block.questionHtml }} />
+        <div className="weft-thumb-block-quiz-options">
+          {block.options.map((opt) => {
+            const isCorrect = block.correctOptionIds.includes(opt.id);
+            return (
+              <div key={opt.id} className={"weft-thumb-block-quiz-option" + (isCorrect ? " is-correct" : "")}>
+                <span
+                  className="weft-thumb-block-quiz-option-checkbox"
+                  dangerouslySetInnerHTML={{ __html: isCorrect ? checkboxCheckedSvg : checkboxUncheckedSvg }}
+                />
+                <span className="weft-thumb-block-quiz-option-text" dangerouslySetInnerHTML={{ __html: opt.html }} />
+              </div>
+            );
+          })}
+        </div>
+        <div className="weft-thumb-block-quiz-submit">
+          <span className="weft-thumb-block-quiz-submit-icon" dangerouslySetInnerHTML={{ __html: acceptSvg }} />
+          Abschicken
+        </div>
       </div>
     );
   }

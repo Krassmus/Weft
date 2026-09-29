@@ -7,22 +7,13 @@ import type { Block } from "../types";
  * missing or misspelled key in either language is a build error rather than a silently-blank
  * label at runtime.
  *
- * This first pass covers the toolbar, sidebar, the elements/layout panel, and the new settings
- * window - the chrome you can't avoid seeing - rather than the full app: every panel's field
- * labels, hints, and dialog text is still German-only. Extending coverage just means adding more
- * keys here and swapping the hardcoded strings at their call sites for t("...").
+ * This first pass covers the sidebar, the elements/layout panel, error alerts, and the new
+ * settings window - the chrome you can't avoid seeing - rather than the full app: every panel's
+ * field labels, hints, and dialog text is still German-only. Extending coverage just means adding
+ * more keys here and swapping the hardcoded strings at their call sites for t("...").
  */
 
 const en = {
-  "toolbar.open": "Open",
-  "toolbar.save": "Save",
-  "toolbar.export": "⬆ Export",
-  "toolbar.undo": "Undo",
-  "toolbar.redo": "Redo",
-  "toolbar.unsaved": "unsaved",
-  "toolbar.opening": "Opening …",
-  "toolbar.saving": "Saving …",
-  "toolbar.exporting": "Exporting …",
   "toolbar.openFailed": "Opening failed:",
   "toolbar.saveFailed": "Saving failed:",
   "toolbar.exportFailed": "Exporting failed:",
@@ -55,15 +46,6 @@ const en = {
 } as const;
 
 const de: Record<keyof typeof en, string> = {
-  "toolbar.open": "Öffnen",
-  "toolbar.save": "Speichern",
-  "toolbar.export": "⬆ Exportieren",
-  "toolbar.undo": "Rückgängig",
-  "toolbar.redo": "Wiederholen",
-  "toolbar.unsaved": "nicht gespeichert",
-  "toolbar.opening": "Öffnen …",
-  "toolbar.saving": "Speichern …",
-  "toolbar.exporting": "Exportieren …",
   "toolbar.openFailed": "Öffnen fehlgeschlagen:",
   "toolbar.saveFailed": "Speichern fehlgeschlagen:",
   "toolbar.exportFailed": "Exportieren fehlgeschlagen:",

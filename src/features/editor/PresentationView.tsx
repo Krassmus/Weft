@@ -8,7 +8,16 @@ import { PreviewFrame } from "./PreviewFrame";
  * sidebar, inspector or editing controls - Escape (or the small corner button, for touch
  * devices with no Escape key) is the only way out.
  */
-export function PresentationView({ onExit }: { onExit: () => void }) {
+export function PresentationView({
+  startPageId,
+  onExit,
+}: {
+  /** Which page to open on - whatever was selected when "Abspielen" was clicked (see
+   * Canvas.tsx/EditorShell.tsx), or null to start from the module's actual beginning like a real
+   * learner would. */
+  startPageId: string | null;
+  onExit: () => void;
+}) {
   const content = useDocumentStore((s) => s.doc.content);
 
   useEffect(() => {
@@ -40,7 +49,7 @@ export function PresentationView({ onExit }: { onExit: () => void }) {
       <button type="button" className="weft-presentation-exit" onClick={() => void handleExit()} title="Vorschau beenden (Esc)">
         ✕
       </button>
-      <PreviewFrame module={content} />
+      <PreviewFrame module={content} startPageId={startPageId} />
     </div>
   );
 }

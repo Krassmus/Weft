@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore } from "../../core/document/store";
 import { useCustomFontRegistration } from "../../core/fonts/registerCustomFonts";
 import { useSyncMenuLanguage } from "../../core/i18n/useSyncMenuLanguage";
@@ -67,11 +68,12 @@ export function EditorShell() {
   const filePath = useDocumentStore((s) => s.filePath);
   const undo = useDocumentStore((s) => s.undo);
   const redo = useDocumentStore((s) => s.redo);
-  const canUndo = useDocumentStore((s) => s.doc.undoIndex >= 0);
-  const canRedo = useDocumentStore((s) => s.doc.undoIndex < s.doc.undoHistory.length - 1);
   const loadDocument = useDocumentStore((s) => s.loadDocument);
-  const [busy, setBusy] = useState<string | null>(null);
   const [presenting, setPresenting] = useState(false);
+  // Which page "Abspielen" should open on - captured once when it's clicked (see Canvas.tsx,
+  // which resolves it from whatever's currently selected), not read live while presenting, since
+  // there's no selection UI to keep it in sync with once PresentationView has taken over anyway.
+  const [presentStartPageId, setPresentStartPageId] = useState<string | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_WIDTH_DEFAULT);
 
   // Dragging the splitter only ever changes the sidebar's own width - the canvas column is "1fr"
@@ -110,6 +112,23 @@ export function EditorShell() {
   useDeleteSelection(!presenting);
   useCustomFontRegistration();
 
+  // Keeps the native title bar (next to the traffic-light buttons) showing which module is
+  // open instead of a static "Weft" - EditorShell is only ever the main window (the settings
+  // window renders SettingsWindow instead, see App.tsx's isSettingsWindow()), so this never
+  // fights over the title with anything else.
+  useEffect(() => {
+    if (!isTauri()) return;
+    const title = doc.content.title.trim();
+    // Needs its own explicit "core:window:allow-set-title" capability grant (see
+    // src-tauri/capabilities/default.json) - Tauri 2's default core permissions don't include
+    // it, so without that this call is silently denied and the title bar just never updates,
+    // with nothing surfaced to the user. Logged (not alert()ed) if it ever happens again for
+    // some other reason - a stale title bar isn't worth interrupting anyone over.
+    getCurrentWindow()
+      .setTitle(title ? `Weft - ${title}` : "Weft")
+      .catch((err: unknown) => console.error("Failed to update window title:", err));
+  }, [doc.content.title]);
+
   // Whichever file Öffnen/Speichern most recently pointed at - not "Exportieren", which never
   // touches filePath at all, matching that an export is a delivery artifact, not "the module
   // you're working on". Re-saving the same reference on every render would be harmless but
@@ -133,21 +152,23 @@ export function EditorShell() {
       .catch(() => forgetLastPath());
   }, []);
 
-  // "Öffnen"/"Speichern" in the native "Datei" menu (see src-tauri/src/lib.rs, which owns the
-  // Cmd/Ctrl+O and Cmd/Ctrl+S accelerators) just emit an event - refs, not a dependency array,
-  // so this one-time subscription always calls whichever handleOpen/handleSave closure is
-  // current instead of the one captured on mount. presentingRef guards against calling a stale
-  // handler while presenting - handleSave/handleOpen stop being reassigned past the early return
+  // "Öffnen"/"Speichern"/"Speichern unter"/"Exportieren" in the native "Datei" menu (see
+  // src-tauri/src/lib.rs, which owns the Cmd/Ctrl+O, +S, +Shift+S and +E accelerators) just emit
+  // an event - refs, not a dependency array, so this one-time subscription always calls whichever
+  // handler closure is current instead of the one captured on mount. presentingRef guards against
+  // calling a stale handler while presenting - these stop being reassigned past the early return
   // below, and a save dialog popping up over a live presentation would be unwelcome anyway.
   const handleSaveRef = useRef<() => void>(() => {});
+  const handleSaveAsRef = useRef<() => void>(() => {});
+  const handleExportRef = useRef<() => void>(() => {});
   const handleOpenRef = useRef<() => void>(() => {});
   const presentingRef = useRef(presenting);
   presentingRef.current = presenting;
   // "Undo"/"Redo" in the native "Edit" menu (see src-tauri/src/lib.rs, which owns the
   // Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z accelerators) - replacing the platform default Edit menu,
   // whose Undo/Redo instead drove the focused WKWebView's own contentEditable undo stack, out of
-  // sync with (and confusingly different from) the toolbar buttons below. undo/redo themselves
-  // are stable Zustand action references, so - unlike handleSave/handleOpen above - no ref
+  // sync with (and confusingly different from) the app's own document-level undo/redo. undo/redo
+  // themselves are stable Zustand action references, so - unlike the handlers below - no ref
   // indirection is needed to keep this subscription from going stale.
   useEffect(() => {
     if (!isTauri()) return;
@@ -168,29 +189,37 @@ export function EditorShell() {
     const unlistenSave = listen("weft://menu-save", () => {
       if (!presentingRef.current) handleSaveRef.current();
     });
+    const unlistenSaveAs = listen("weft://menu-save-as", () => {
+      if (!presentingRef.current) handleSaveAsRef.current();
+    });
+    const unlistenExport = listen("weft://menu-export", () => {
+      if (!presentingRef.current) handleExportRef.current();
+    });
     const unlistenOpen = listen("weft://menu-open", () => {
       if (!presentingRef.current) handleOpenRef.current();
     });
     return () => {
       void unlistenSave.then((fn) => fn());
+      void unlistenSaveAs.then((fn) => fn());
+      void unlistenExport.then((fn) => fn());
       void unlistenOpen.then((fn) => fn());
     };
   }, []);
 
-  function handlePresent() {
+  function handlePresent(startPageId: string | null) {
+    setPresentStartPageId(startPageId);
     setPresenting(true);
     void enterFullscreenPreview();
   }
 
   if (presenting) {
-    return <PresentationView onExit={() => setPresenting(false)} />;
+    return <PresentationView startPageId={presentStartPageId} onExit={() => setPresenting(false)} />;
   }
 
   // Only a brand-new document (no filePath yet) asks where to save - once it has one, whether
   // from a prior save or from "Öffnen", Speichern/Cmd+S silently overwrites that same file,
   // matching how Save works in most other apps.
   async function handleSave() {
-    setBusy(t("toolbar.saving"));
     try {
       if (filePath) {
         await saveDocumentToPath(doc, filePath);
@@ -200,70 +229,45 @@ export function EditorShell() {
       }
     } catch (err) {
       alert(`${t("toolbar.saveFailed")}\n${errorMessage(err)}`);
-    } finally {
-      setBusy(null);
     }
   }
   handleSaveRef.current = handleSave;
 
+  // Unlike handleSave, always asks where to save - even once the document already has a
+  // filePath - and then adopts whatever path was chosen as the document's own going forward
+  // (like most apps' Save As: this becomes the file Speichern/Cmd+S now silently overwrites,
+  // not the one it was opened from or last saved to).
+  async function handleSaveAs() {
+    try {
+      const path = await saveDocumentAs(doc);
+      if (path) useDocumentStore.setState({ filePath: path });
+    } catch (err) {
+      alert(`${t("toolbar.saveFailed")}\n${errorMessage(err)}`);
+    }
+  }
+  handleSaveAsRef.current = handleSaveAs;
+
   async function handleExport() {
-    setBusy(t("toolbar.exporting"));
     try {
       await exportAsHtmlModule(doc);
     } catch (err) {
       alert(`${t("toolbar.exportFailed")}\n${errorMessage(err)}`);
-    } finally {
-      setBusy(null);
     }
   }
+  handleExportRef.current = handleExport;
 
   async function handleOpen() {
-    setBusy(t("toolbar.opening"));
     try {
       const result = await openDocument();
       if (result) loadDocument(result.doc, result.path);
     } catch (err) {
       alert(`${t("toolbar.openFailed")}\n${errorMessage(err)}`);
-    } finally {
-      setBusy(null);
     }
   }
   handleOpenRef.current = handleOpen;
 
   return (
     <div className="weft-shell">
-      <header className="weft-toolbar">
-        <span className="weft-app-name">Weft</span>
-        <span className="weft-toolbar-divider" />
-        <span className="weft-doc-title">
-          {doc.content.title}
-          {!filePath && <span className="weft-doc-title-unsaved"> • {t("toolbar.unsaved")}</span>}
-        </span>
-
-        <div className="weft-toolbar-spacer" />
-
-        {busy && <span className="weft-busy">{busy}</span>}
-
-        <div className="weft-toolbar-group">
-          <button type="button" className="weft-icon-button" onClick={undo} disabled={!canUndo} title={t("toolbar.undo")}>
-            ↶
-          </button>
-          <button type="button" className="weft-icon-button" onClick={redo} disabled={!canRedo} title={t("toolbar.redo")}>
-            ↷
-          </button>
-        </div>
-
-        <button type="button" className="weft-ghost-button" onClick={handleOpen}>
-          {t("toolbar.open")}
-        </button>
-        <button type="button" className="weft-ghost-button" onClick={handleSave}>
-          {t("toolbar.save")}
-        </button>
-        <button type="button" className="weft-primary-button" onClick={handleExport}>
-          {t("toolbar.export")}
-        </button>
-      </header>
-
       <div className="weft-body" style={{ gridTemplateColumns: `${sidebarWidth}px 6px 1fr 300px` }}>
         <Sidebar />
         <div className="weft-resizer" onPointerDown={handleResizerPointerDown} title={t("toolbar.resizerTitle")} />

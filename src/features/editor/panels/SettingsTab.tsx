@@ -3,6 +3,7 @@ import {
   addCustomFont,
   removeCustomFont,
   setAspectRatio,
+  setKeyboardNavigationEnabled,
   setLmsAllowedOrigins,
   setLmsEnabled,
   setModuleTitle,
@@ -30,6 +31,21 @@ export function SettingsTab() {
           ))}
         </select>
       </label>
+
+      <div className="weft-divider" />
+
+      <label className="weft-field weft-field-inline">
+        <input
+          type="checkbox"
+          checked={content.keyboardNavigationEnabled}
+          onChange={(e) => setKeyboardNavigationEnabled(e.target.checked)}
+        />
+        <span>Navigation per Tastatur (Leertaste, Pfeiltasten)</span>
+      </label>
+      <p className="weft-hint">
+        Ausgeschaltet können Lernende nur noch über Buttons oder eine Quiz-Auswertung weiterblättern - vor allem
+        nicht mehr zurück, um ein bereits beantwortetes Quiz erneut zu versuchen.
+      </p>
 
       <div className="weft-divider" />
 

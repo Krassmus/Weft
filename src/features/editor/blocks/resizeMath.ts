@@ -33,15 +33,167 @@ function clamp(value: number, min: number, max: number): number {
 // rounding step drifting out of sync with what's actually stored.
 const POSITION_DECIMALS = 3;
 
-function round(value: number): number {
+export function round(value: number): number {
   const factor = 10 ** POSITION_DECIMALS;
   return Math.round(value * factor) / factor;
 }
 
+// How far past the slide's own edge a move-drag can push a block, in percent of the stage's own
+// width/height - like Keynote/PowerPoint's own pasteboard area around the slide, this is deliberately
+// generous rather than unbounded, mostly so a stray drag can't push a block so far away it's
+// effectively lost (it's always still reachable through its exact x/y in the sidebar either way,
+// but "scroll and/or zoom out until you spot it again" should stay realistic). Resizing is NOT
+// given the same allowance (resizeFromHandle/resizeCornerLocked still clamp to the slide itself) -
+// only a plain move does, per the feature this was added for.
+const OFF_STAGE_MARGIN_PERCENT = 100;
+
+function moveBounds(sizePercent: number): { min: number; max: number } {
+  return { min: -OFF_STAGE_MARGIN_PERCENT, max: 100 + OFF_STAGE_MARGIN_PERCENT - sizePercent };
+}
+
 export function clampMove(start: BlockPosition, dxPercent: number, dyPercent: number): BlockPosition {
-  const x = round(clamp(start.x + dxPercent, 0, 100 - start.width));
-  const y = round(clamp(start.y + dyPercent, 0, 100 - start.height));
+  const xBounds = moveBounds(start.width);
+  const yBounds = moveBounds(start.height);
+  const x = round(clamp(start.x + dxPercent, xBounds.min, xBounds.max));
+  const y = round(clamp(start.y + dyPercent, yBounds.min, yBounds.max));
   return { ...start, x, y };
+}
+
+/** How close (in real screen pixels, converted to percent per axis below) a dragged edge/center
+ * has to get to a candidate line before it snaps - small enough to stay out of the way until the
+ * user is clearly lining something up, per Keynote's own "smart guides" feel. */
+const SNAP_PX = 6;
+
+export interface SnapResult {
+  position: BlockPosition;
+  /** Percent-of-stage position of the matched vertical/horizontal guide line, or null if that
+   * axis didn't snap to anything this move - BlockView draws a line at exactly this position. */
+  guideX: number | null;
+  guideY: number | null;
+}
+
+/** The single closest candidate (if any, within `threshold`) among every point/candidate pair -
+ * only one snap per axis, so two nearby candidates can't fight over the same edge. */
+function closestSnap(points: number[], candidates: number[], threshold: number): { delta: number; candidate: number } | null {
+  let best: { delta: number; candidate: number } | null = null;
+  for (const point of points) {
+    for (const candidate of candidates) {
+      const delta = candidate - point;
+      if (Math.abs(delta) <= threshold && (!best || Math.abs(delta) < Math.abs(best.delta))) {
+        best = { delta, candidate };
+      }
+    }
+  }
+  return best;
+}
+
+/** Every line worth snapping to on each axis - the stage's own center/edges, plus the left/
+ * center/right (and top/middle/bottom) of every other block on the slide. Shared by move and
+ * resize snapping alike. */
+function snapCandidates(siblings: BlockPosition[]): { x: number[]; y: number[] } {
+  const x = [0, 50, 100];
+  const y = [0, 50, 100];
+  for (const s of siblings) {
+    x.push(s.x, s.x + s.width / 2, s.x + s.width);
+    y.push(s.y, s.y + s.height / 2, s.y + s.height);
+  }
+  return { x, y };
+}
+
+/**
+ * Keynote-style "smart guides" for a plain move (not resize, and not attempted at all for a
+ * rotated block - see the caller) - snaps the dragged block's left/center/right (and top/middle/
+ * bottom) toward the stage's own center/edges and toward the same three lines on every other
+ * block on the slide (siblings), whichever single candidate per axis is closest and within
+ * SNAP_PX. Operates in the same percent-of-stage space clampMove already produced `committed` in,
+ * so this is meant to run right after it, not instead of it.
+ */
+export function snapMove(committed: BlockPosition, siblings: BlockPosition[], stagePx: { width: number; height: number }): SnapResult {
+  const thresholdX = (SNAP_PX / stagePx.width) * 100;
+  const thresholdY = (SNAP_PX / stagePx.height) * 100;
+
+  const xPoints = [committed.x, committed.x + committed.width / 2, committed.x + committed.width];
+  const yPoints = [committed.y, committed.y + committed.height / 2, committed.y + committed.height];
+  const { x: xCandidates, y: yCandidates } = snapCandidates(siblings);
+
+  const snapX = closestSnap(xPoints, xCandidates, thresholdX);
+  const snapY = closestSnap(yPoints, yCandidates, thresholdY);
+
+  // Same bounds as clampMove (not the plain 0/100 stage edge) - otherwise snapping a block that's
+  // already off-stage back onto some candidate line would also silently yank it back on-stage.
+  const xBounds = moveBounds(committed.width);
+  const yBounds = moveBounds(committed.height);
+  const x = snapX ? clamp(round(committed.x + snapX.delta), xBounds.min, xBounds.max) : committed.x;
+  const y = snapY ? clamp(round(committed.y + snapY.delta), yBounds.min, yBounds.max) : committed.y;
+
+  return {
+    position: { ...committed, x, y },
+    guideX: snapX ? snapX.candidate : null,
+    guideY: snapY ? snapY.candidate : null,
+  };
+}
+
+/**
+ * The same smart guides for a free (non-aspect-locked) resize - not attempted for a rotated block,
+ * same reasoning as snapMove. Only the edge(s) the handle actually drags get a chance to snap (an
+ * "e" handle only ever moves the right edge, a corner handle both its edges); the opposite edge(s)
+ * stay exactly where resizeFromHandle already anchored them, growing/shrinking the width or height
+ * to match whatever the snapped edge lands on. Meant to run right after resizeFromHandle, on its
+ * result.
+ */
+export function snapResize(
+  committed: BlockPosition,
+  edges: { top?: true; right?: true; bottom?: true; left?: true },
+  siblings: BlockPosition[],
+  stagePx: { width: number; height: number },
+): SnapResult {
+  const thresholdX = (SNAP_PX / stagePx.width) * 100;
+  const thresholdY = (SNAP_PX / stagePx.height) * 100;
+  const { x: xCandidates, y: yCandidates } = snapCandidates(siblings);
+
+  let x = committed.x;
+  let width = committed.width;
+  let guideX: number | null = null;
+  if (edges.left) {
+    const snap = closestSnap([committed.x], xCandidates, thresholdX);
+    if (snap) {
+      const right = committed.x + committed.width;
+      x = clamp(round(snap.candidate), 0, right - MIN_SIZE_PERCENT);
+      width = round(right - x);
+      guideX = snap.candidate;
+    }
+  } else if (edges.right) {
+    const right = committed.x + committed.width;
+    const snap = closestSnap([right], xCandidates, thresholdX);
+    if (snap) {
+      const newRight = clamp(round(snap.candidate), committed.x + MIN_SIZE_PERCENT, 100);
+      width = round(newRight - committed.x);
+      guideX = snap.candidate;
+    }
+  }
+
+  let y = committed.y;
+  let height = committed.height;
+  let guideY: number | null = null;
+  if (edges.top) {
+    const snap = closestSnap([committed.y], yCandidates, thresholdY);
+    if (snap) {
+      const bottom = committed.y + committed.height;
+      y = clamp(round(snap.candidate), 0, bottom - MIN_SIZE_PERCENT);
+      height = round(bottom - y);
+      guideY = snap.candidate;
+    }
+  } else if (edges.bottom) {
+    const bottom = committed.y + committed.height;
+    const snap = closestSnap([bottom], yCandidates, thresholdY);
+    if (snap) {
+      const newBottom = clamp(round(snap.candidate), committed.y + MIN_SIZE_PERCENT, 100);
+      height = round(newBottom - committed.y);
+      guideY = snap.candidate;
+    }
+  }
+
+  return { position: { ...committed, x, y, width, height }, guideX, guideY };
 }
 
 /**
@@ -139,6 +291,37 @@ export function resizeFromHandle(
   return { ...start, x: round(x), y: round(y), width: round(width), height: round(height) };
 }
 
+/** How far a corner-locked resize's single scale factor is allowed to range, given which corner
+ * is being dragged and where the opposite (fixed) corner sits - shared by resizeCornerLocked and
+ * snapCornerResize so a snapped scale is clamped exactly the same way an unsnapped one is. */
+function cornerScaleBounds(
+  start: BlockPosition,
+  signX: 1 | -1,
+  signY: 1 | -1,
+): { minScale: number; maxScale: number; fixedX: number; fixedY: number } {
+  const fixedX = signX === 1 ? start.x : start.x + start.width;
+  const fixedY = signY === 1 ? start.y : start.y + start.height;
+  const maxWidthPercent = signX === 1 ? 100 - fixedX : fixedX;
+  const maxHeightPercent = signY === 1 ? 100 - fixedY : fixedY;
+
+  const minScale = Math.max(MIN_SIZE_PERCENT / start.width, MIN_SIZE_PERCENT / start.height);
+  const maxScale = Math.min(maxWidthPercent / start.width, maxHeightPercent / start.height);
+  return { minScale, maxScale, fixedX, fixedY };
+}
+
+function applyCornerScale(
+  start: BlockPosition,
+  signX: 1 | -1,
+  signY: 1 | -1,
+  scale: number,
+  stagePx: { width: number; height: number },
+): BlockPosition {
+  const width = start.width * scale;
+  const height = start.height * scale;
+  const { x, y } = anchorResize(start, -signX * 0.5, -signY * 0.5, width, height, stagePx);
+  return { ...start, x: round(x), y: round(y), width: round(width), height: round(height) };
+}
+
 /**
  * Corner-only resize that keeps the block's width/height ratio fixed - used for image blocks,
  * where free n/e/s/w edge resizing would stretch/squish the picture (see resizeFromHandle for
@@ -171,20 +354,60 @@ export function resizeCornerLocked(
   const movedAlongDiagonal = signX * dxPx * unitX + signY * dyPx * unitY;
   const rawScale = (diagonalPx + movedAlongDiagonal) / diagonalPx;
 
-  const fixedX = signX === 1 ? start.x : start.x + start.width;
-  const fixedY = signY === 1 ? start.y : start.y + start.height;
-  const maxWidthPercent = signX === 1 ? 100 - fixedX : fixedX;
-  const maxHeightPercent = signY === 1 ? 100 - fixedY : fixedY;
-
-  const minScale = Math.max(MIN_SIZE_PERCENT / start.width, MIN_SIZE_PERCENT / start.height);
-  const maxScale = Math.min(maxWidthPercent / start.width, maxHeightPercent / start.height);
+  const { minScale, maxScale } = cornerScaleBounds(start, signX, signY);
   const scale = clamp(rawScale, minScale, maxScale);
 
-  const width = start.width * scale;
-  const height = start.height * scale;
-  const { x, y } = anchorResize(start, -signX * 0.5, -signY * 0.5, width, height, stagePx);
+  return applyCornerScale(start, signX, signY, scale, stagePx);
+}
 
-  return { ...start, x: round(x), y: round(y), width: round(width), height: round(height) };
+/**
+ * Smart guides for a corner-locked resize (image/video) - unlike snapResize, the two dragged
+ * edges can't move independently (the aspect ratio has to stay fixed), so only ONE axis's snap
+ * can actually apply. Whichever of the dragged corner's x/y is closer to a candidate (compared in
+ * real pixels, since a percent of stage width and a percent of stage height aren't the same
+ * distance unless the stage is square) wins, and the single scale factor it implies is applied
+ * through the exact same path (and clamping) as an unsnapped drag - so the other axis just rides
+ * along at the same ratio, the way a locked-aspect resize always works. Not attempted for a
+ * rotated block, same reasoning as snapMove/snapResize.
+ */
+export function snapCornerResize(
+  committed: BlockPosition,
+  start: BlockPosition,
+  handle: CornerHandleId,
+  siblings: BlockPosition[],
+  stagePx: { width: number; height: number },
+): SnapResult {
+  const signX = handle === "ne" || handle === "se" ? 1 : -1;
+  const signY = handle === "sw" || handle === "se" ? 1 : -1;
+  const { minScale, maxScale, fixedX, fixedY } = cornerScaleBounds(start, signX, signY);
+
+  const thresholdX = (SNAP_PX / stagePx.width) * 100;
+  const thresholdY = (SNAP_PX / stagePx.height) * 100;
+  const { x: xCandidates, y: yCandidates } = snapCandidates(siblings);
+
+  const cornerX = signX === 1 ? committed.x + committed.width : committed.x;
+  const cornerY = signY === 1 ? committed.y + committed.height : committed.y;
+  const snapX = closestSnap([cornerX], xCandidates, thresholdX);
+  const snapY = closestSnap([cornerY], yCandidates, thresholdY);
+  if (!snapX && !snapY) return { position: committed, guideX: null, guideY: null };
+
+  const xDeltaPx = snapX ? Math.abs(snapX.delta) * (stagePx.width / 100) : Infinity;
+  const yDeltaPx = snapY ? Math.abs(snapY.delta) * (stagePx.height / 100) : Infinity;
+
+  let scale: number;
+  let guideX: number | null = null;
+  let guideY: number | null = null;
+  if (xDeltaPx <= yDeltaPx) {
+    const newWidth = signX === 1 ? snapX!.candidate - fixedX : fixedX - snapX!.candidate;
+    scale = newWidth / start.width;
+    guideX = snapX!.candidate;
+  } else {
+    const newHeight = signY === 1 ? snapY!.candidate - fixedY : fixedY - snapY!.candidate;
+    scale = newHeight / start.height;
+    guideY = snapY!.candidate;
+  }
+
+  return { position: applyCornerScale(start, signX, signY, clamp(scale, minScale, maxScale), stagePx), guideX, guideY };
 }
 
 /**

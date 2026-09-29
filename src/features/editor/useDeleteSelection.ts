@@ -26,18 +26,29 @@ export function useDeleteSelection(enabled: boolean) {
       if (!selection) return;
 
       if (selection.type === "block") {
-        if (selection.container.kind === "page") removeBlock(selection.container.pageId, selection.blockId);
-        else removeLayoutBlock(selection.container.layoutId, selection.blockId);
+        // Re-select the block's own page/layout, not null - Canvas.tsx's resolveEditTarget falls
+        // back to the module's very first slide once selection is null (there's no other way for
+        // it to know which slide you were even on), which used to make deleting an object jump
+        // you clear back to slide 1 instead of just leaving you on the same, now object-less,
+        // slide.
+        if (selection.container.kind === "page") {
+          removeBlock(selection.container.pageId, selection.blockId);
+          select({ type: "page", pageId: selection.container.pageId });
+        } else {
+          removeLayoutBlock(selection.container.layoutId, selection.blockId);
+          select({ type: "layout", layoutId: selection.container.layoutId });
+        }
       } else if (selection.type === "page") {
         removePage(selection.pageId);
+        select(null);
       } else if (selection.type === "logic") {
         removeLogicBlock(selection.logicBlockId);
+        select(null);
       } else {
         return; // "layout" selection: layouts aren't individually deletable anywhere in the UI
       }
 
       e.preventDefault();
-      select(null);
     }
 
     window.addEventListener("keydown", onKeyDown);

@@ -37,7 +37,16 @@ export function PagePanel({ page }: { page: Page }) {
               <button
                 type="button"
                 className="weft-icon-button"
-                onClick={() => removeBlock(page.id, block.id)}
+                onClick={() => {
+                  removeBlock(page.id, block.id);
+                  // Otherwise selection keeps pointing at this now-gone block - harmless here
+                  // (Canvas.tsx still resolves the same page from selection.container.pageId
+                  // alone), but the Inspector would show its empty state until something else
+                  // gets clicked, instead of immediately falling back to the page itself.
+                  if (selection?.type === "block" && selection.blockId === block.id) {
+                    select({ type: "page", pageId: page.id });
+                  }
+                }}
                 title={t("panel.remove")}
               >
                 ×

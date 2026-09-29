@@ -27,6 +27,15 @@ body,
 #root {
   height: 100%;
   margin: 0;
+  /* This is a fixed app shell (.weft-shell below is pinned to 100vh), not a scrollable page -
+     any panel that needs to scroll has its own overflow:auto (the sidebar tabs, the canvas, the
+     inspector, ...). Without this, the OS still lets a scroll/trackpad gesture anywhere - even
+     sideways, where nothing ever scrolls - rubber-band the whole window, which reads as a web
+     page rather than a native app. overflow:hidden stops it from having anywhere to go;
+     overscroll-behavior:none additionally stops the bounce gesture itself, which some WebKit
+     versions still show even with nothing to scroll. */
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
@@ -54,7 +63,7 @@ textarea {
   background: var(--weft-input-bg);
 }
 
-/* ---- Shell / Toolbar ---- */
+/* ---- Shell ---- */
 
 .weft-shell {
   display: flex;
@@ -62,53 +71,12 @@ textarea {
   height: 100vh;
 }
 
-.weft-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 14px;
-  height: 52px;
-  flex-shrink: 0;
-  background: var(--weft-panel);
-  border-bottom: 1px solid var(--weft-border-subtle);
-}
-
-.weft-app-name {
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: 0.2px;
-}
-
-.weft-toolbar-divider {
-  width: 1px;
-  height: 20px;
-  background: var(--weft-border);
-}
-
-.weft-doc-title {
-  font-size: 13px;
-  color: var(--weft-text-muted);
-}
-
-.weft-doc-title-unsaved {
-  color: var(--weft-text-faint);
-}
-
-.weft-toolbar-spacer {
-  flex: 1;
-}
-
-.weft-busy {
-  color: var(--weft-text-faint);
-  font-size: 12px;
-  margin-right: 4px;
-}
-
-.weft-toolbar-group {
-  display: flex;
-  gap: 2px;
-  margin-right: 4px;
-}
+/* ---- Shared buttons ----
+   No longer just "toolbar" buttons - the top toolbar these were introduced for (app name,
+   document title, undo/redo, Öffnen/Speichern/Exportieren) is gone (all of it now lives in the
+   native menu bar/title bar instead, see src-tauri/src/lib.rs and EditorShell.tsx's window-title
+   effect), but .weft-icon-button/.weft-ghost-button/.weft-primary-button/.weft-full-width are
+   still used throughout the sidebar and inspector panels. */
 
 .weft-icon-button {
   display: inline-flex;
@@ -233,6 +201,9 @@ textarea {
 .weft-sidebar-content {
   flex: 1;
   overflow-y: auto;
+  /* Stops scrolling past this panel's own top/bottom from chaining up into the (otherwise
+     non-scrolling, see html/body above) window behind it. */
+  overscroll-behavior: contain;
   padding: 10px;
 }
 
@@ -464,26 +435,92 @@ img.weft-thumb-block {
   fill: currentColor;
 }
 
+/* Same card layout, em-for-em, as the editor canvas (App.css's .weft-edit-block-quiz*) and the
+   real player (player.runtime.css's .weft-quiz*) - see SlideThumbnail.tsx's own comment. No own
+   font-size override here either (there used to be one, 2cqw instead of the shared 1.7cqw base)
+   for the same reason as .weft-edit-block-quiz's: it has to match, or the same quiz content takes
+   up a visibly different proportion of the box than everywhere else this same block renders. */
 .weft-thumb-block-quiz {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
   background: #ffffff;
   box-shadow: inset 0 0 0 1px #e4e4e7;
   overflow: hidden;
   padding: 3px 4px;
-  font-size: 5px;
-  font-size: 2cqw;
 }
 
-.weft-thumb-block-quiz strong {
+.weft-thumb-block-quiz-question {
+  font-size: 1.25em;
+}
+
+.weft-thumb-block-quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+}
+
+.weft-thumb-block-quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.4em 0.6em;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.weft-thumb-block-quiz-option.is-correct {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.weft-thumb-block-quiz-option-checkbox {
+  flex: 0 0 auto;
+  width: 1em;
+  height: 1em;
+  color: #a1a1aa;
+}
+
+.weft-thumb-block-quiz-option.is-correct .weft-thumb-block-quiz-option-checkbox {
+  color: #3b82f6;
+}
+
+.weft-thumb-block-quiz-option-checkbox svg,
+.weft-thumb-block-quiz-submit-icon svg {
   display: block;
+  width: 100%;
+  height: 100%;
 }
 
-.weft-thumb-block-quiz ul {
-  margin: 2px 0 0;
-  padding-left: 12px;
+.weft-thumb-block-quiz-option-checkbox svg,
+.weft-thumb-block-quiz-option-checkbox svg [fill],
+.weft-thumb-block-quiz-submit-icon svg,
+.weft-thumb-block-quiz-submit-icon svg [fill] {
+  fill: currentColor;
 }
 
-.weft-thumb-block-quiz li.is-correct {
-  color: #16a34a;
+.weft-thumb-block-quiz-option-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.weft-thumb-block-quiz-submit {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.4em 1em;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: #fff;
+  font-weight: 600;
+}
+
+.weft-thumb-block-quiz-submit-icon {
+  width: 0.85em;
+  height: 0.85em;
+  color: #fff;
 }
 
 /* ---- Layout picker (Inspector) ---- */
@@ -601,6 +638,30 @@ img.weft-thumb-block {
   gap: 4px;
 }
 
+/* Shown instead of any PageRow once a branch's last page has been dragged out of it (to the main
+   sequence or another branch - see movePageTo) - without this an emptied branch would have
+   nowhere to drop a page back into, since dragging only ever hit-tests existing rows. Not itself
+   draggable (see EmptyBranchDropZone in Sidebar.tsx), only ever a drop target. */
+.weft-branch-empty-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  border: 1px dashed var(--weft-border);
+  border-radius: var(--weft-radius);
+  padding: 6px;
+  font-size: 10px;
+  color: var(--weft-text-faint);
+  text-align: center;
+}
+
+.weft-branch-empty-drop.is-drop-before,
+.weft-branch-empty-drop.is-drop-after {
+  border-style: solid;
+  border-color: var(--weft-accent);
+  color: var(--weft-accent);
+}
+
 /* Branch columns run narrower than the main slide list, so give each page row inside one
    less padding to leave more room for the thumbnail itself. */
 .weft-branch .weft-node {
@@ -658,6 +719,88 @@ img.weft-thumb-block {
   margin: 4px 2px;
 }
 
+/* ---- Modal (currently just VideoStopPointDialog in panels/BlockPanel.tsx) ---- */
+
+.weft-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.weft-modal {
+  width: min(720px, 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--weft-panel-raised);
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-lg);
+  box-shadow: var(--weft-shadow);
+}
+
+.weft-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.weft-modal-header h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.weft-stop-point-video {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  background: #000;
+  border-radius: var(--weft-radius-sm);
+}
+
+/* The mini-timeline under the video in VideoStopPointDialog - a plain horizontal rule (not the
+   page-level Timeline.tsx's graph) with each stop point positioned by time/duration percentage
+   (set inline per marker) rather than laid out by flex, since these aren't discrete steps but
+   points along a continuous scrubber. */
+.weft-stop-point-track {
+  position: relative;
+  height: 26px;
+  margin: 16px 13px 4px;
+  border-top: 1px solid var(--weft-border);
+}
+
+/* Reuses .weft-timeline-node-icon for the same circle-with-icon look as the page timeline's own
+   event markers (see Timeline.tsx) - just absolutely positioned along the track above instead of
+   laid out in a flex row. .is-selected (also shared with Timeline.tsx) marks whichever one the
+   settings section below (.weft-stop-point-settings) currently belongs to. */
+.weft-stop-point-marker {
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, -50%);
+}
+
+/* Settings for whichever stop point is currently selected (see VideoStopPointDialog) - appears
+   below the mini-timeline once a marker's been clicked, rather than every stop point showing its
+   own inline controls at once. */
+.weft-stop-point-settings {
+  margin-top: 20px;
+  padding: 10px 12px;
+  background: var(--weft-panel);
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+}
+
+.weft-stop-point-settings-title {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--weft-text);
+}
+
 /* ---- Canvas ---- */
 
 .weft-canvas {
@@ -692,6 +835,29 @@ img.weft-thumb-block {
   color: var(--weft-text);
 }
 
+.weft-canvas-play-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.weft-canvas-play-icon {
+  display: flex;
+  width: 13px;
+  height: 13px;
+}
+
+.weft-canvas-play-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-canvas-play-icon svg,
+.weft-canvas-play-icon svg [fill] {
+  fill: currentColor;
+}
+
 .weft-canvas-context {
   margin-left: 8px;
   padding: 5px 0;
@@ -699,13 +865,20 @@ img.weft-thumb-block {
   font-size: 12px;
 }
 
+.weft-canvas-zoom-reset {
+  margin-left: auto;
+}
+
 .weft-canvas-stage-wrap {
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 28px;
   overflow: auto;
+  /* Same reasoning as .weft-sidebar-content above. */
+  overscroll-behavior: contain;
+}
+
+.weft-canvas-empty {
+  margin: auto;
 }
 
 .weft-canvas-empty,
@@ -714,14 +887,36 @@ img.weft-thumb-block {
   font-size: 13px;
 }
 
+/* Wraps .weft-stage and carries the "shrink to fit, cap at 920px, center" sizing that used to
+   live on .weft-stage itself, now scaled by --zoom (see Canvas.tsx's wheel+ctrlKey handler for
+   trackpad pinch-to-zoom). This used to be done with flex centering directly on
+   .weft-canvas-stage-wrap, but flexbox's own centered alignment famously can't be scrolled to
+   reach the far side of an overflowing centered child in every engine (a long-standing,
+   inconsistently-fixed cross-browser quirk) - once zooming in made .weft-stage bigger than the
+   wrap, that made some edges of the slide simply unreachable. margin: auto block-level centering
+   has no such limit, so it took over the job here instead. Sizing this wrapper (not .weft-stage
+   itself) by the zoomed width, in plain CSS with no JS measurement, is also what lets .weft-stage
+   stay a plain `width: 100%` - its content already scales with that via the cqw units block
+   rendering uses throughout (see .weft-stage's own comment), so zooming in genuinely enlarges
+   text/icons, not just the picture of them. */
+.weft-canvas-stage-zoom {
+  width: calc(min(100%, 920px) * var(--zoom, 1));
+  margin: auto;
+}
+
 .weft-stage {
   position: relative;
   width: 100%;
-  max-width: 920px;
   background: #ffffff;
   color: #18181b;
   box-shadow: var(--weft-shadow);
-  overflow: hidden;
+  /* Unlike the real player (player.runtime.css's own .weft-stage, which clips at the slide edge -
+     that's what a learner actually sees), the EDITING canvas leaves this visible: a block can now
+     be dragged past the edge (see clampMove's OFF_STAGE_MARGIN_PERCENT) to park it there, Keynote/
+     PowerPoint-pasteboard style, and this is what lets it still be seen (and grabbed back) rather
+     than just vanishing the moment it crosses the border. The surrounding .weft-canvas-stage-wrap
+     still clips/scrolls at ITS OWN edge, so this can't bleed into the sidebar or inspector. */
+  overflow: visible;
   /* See the matching comment in player.runtime.css - cqw here scales block text with the
      slide's own rendered width instead of the app window's. */
   container-type: inline-size;
@@ -736,6 +931,220 @@ img.weft-thumb-block {
   outline: 2px dashed var(--weft-accent);
   outline-offset: -2px;
   background: var(--weft-accent-soft);
+}
+
+/* Per-slide timeline/event graph (see Timeline.tsx, PageTimeline in core/types.ts, and
+   mockups/timeline.png) - renders page.timeline's lanes; the base version every page still has
+   today is just a start point and the transition to whatever comes next, joined by one dashed
+   line. Sits below the stage as a strip that grows with however many lanes a page's blocks add
+   (.weft-canvas is a flex column; the stage-wrap's own flex:1 is what makes this NOT also grow to
+   fill leftover space) - but only up to half of .weft-canvas's own height, a lane at a time
+   growing the whole graph rather than shrinking the stage down to nothing. max-height: 50%
+   resolves against .weft-canvas because that's a flex column with a definite height of its own
+   (chained up from the app's own 100vh); overflow-y: auto is what turns "more lanes than that"
+   into an internal scrollbar instead of literally exceeding the cap. */
+.weft-timeline {
+  flex-shrink: 0;
+  max-height: 50%;
+  overflow-y: auto;
+  padding: 14px 24px 16px;
+  border-top: 1px solid var(--weft-border-subtle);
+  background: var(--weft-panel);
+}
+
+/* A lane is its own track+labels row; independent (non-causally-related) events get a whole
+   extra lane rather than sharing one, so lanes stack with a little breathing room between them -
+   a fork group (see .weft-timeline-fork-group below) counts as one such item too, so its rows
+   stay just as evenly spaced from whatever comes before/after the group as ordinary lanes are
+   from each other. */
+.weft-timeline-lane:not(:last-child),
+.weft-timeline-fork-group:not(:last-child) {
+  margin-bottom: 10px;
+}
+
+/* Several lanes that all start at the same node (a quiz's "richtig"/"falsch" outcomes both
+   starting at "Ausfüllen" - see groupForkedLanes in Timeline.tsx) render as one visual fork
+   instead of repeating that shared node once per lane: the first lane keeps it for real, every
+   later one skips it entirely and starts instead with a blank .weft-timeline-fork-lead sized to
+   land its own line right under .weft-timeline-fork-spine - a single vertical line from the real
+   icon down to the last lane's own first (visible) node, positioned in JS via
+   getBoundingClientRect since a label can wrap to a different number of lines and throw off any
+   fixed pixel math. position: relative anchors that line's absolute left/top/height. */
+.weft-timeline-fork-group {
+  position: relative;
+}
+
+/* Dashed to match every other not-yet-scheduled edge (see .weft-timeline-line in App.css and
+   TimelineEdgeKind "unknown" in core/types.ts) - a fork not being drawn as an "end"-reaching edge
+   with its own real TimelineEdge, it's purely visual, but it should still read the same way. */
+.weft-timeline-fork-spine {
+  position: absolute;
+  width: 0;
+  border-left: 1px dashed var(--weft-accent);
+  pointer-events: none;
+}
+
+/* A fork branch's stand-in for the shared node it isn't repeating (see .weft-timeline-fork-group
+   above) - its width is set inline per render, in JS, to exactly where the spine lands, so the
+   branch's own line starts there instead of whatever position a normal .weft-timeline-lead-gap
+   would put it at. Pre-measurement (width: 0) it's simply not there yet - same one-frame gap
+   .weft-timeline-fork-spine itself tolerates, resolved before paint via useLayoutEffect. */
+.weft-timeline-fork-lead {
+  flex: 0 0 0;
+}
+
+/* align-items: flex-start (not center) because a node is now icon+label stacked, taller than the
+   bare connecting line - the line gets its own top margin below to line up with icon centers
+   instead (see .weft-timeline-line). */
+.weft-timeline-track {
+  display: flex;
+  align-items: flex-start;
+}
+
+/* A lane with no anchor at either end (see Timeline.tsx's `isIndependent`) - e.g. a video's own
+   "Start/Ende des Videos" - reads as its own free-floating mini-timeline rather than a path to/
+   from the page's start or end, so its events space themselves evenly across the full row instead
+   of sitting compactly near the left (see .weft-timeline-distribute-gap/.weft-timeline-line.
+   is-distributed below). overflow-x: auto is what makes "evenly spaced, but never closer together
+   than the line's own min-width" resolve to a horizontal scrollbar instead of cramming once there
+   are enough events that even the minimum no longer fits. */
+.weft-timeline-track.is-distributed {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+/* Icon and its own label stacked together, so a label always stays under its own icon regardless
+   of how long the line before/after it is (a bare `justify-content: space-between` across two
+   separate rows broke down as soon as lanes stopped being uniform - see "is-detached" below).
+   Fixed at exactly the icon's own width (not wider, to fit a longer label) so a connecting line
+   can butt directly against the icon circle with zero gap (see .weft-timeline-line) - the label
+   below is free to overflow past this box's edges since nothing here clips it. */
+.weft-timeline-node {
+  flex: 0 0 26px;
+  width: 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Both the (inert) start marker and the (clickable) end node share this - a button vs. a plain
+   span only for the latter, both purely visual otherwise. */
+.weft-timeline-node-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  /* Lighter than the usual var(--weft-border) on purpose - this ring is the only thing marking a
+     node's own clickable boundary against the same panel background the whole timeline sits on,
+     so it needs more contrast than an ordinary divider/input border does. */
+  border: 1px solid #333a52;
+  border-radius: 50%;
+  background: var(--weft-panel-raised);
+  color: var(--weft-text-muted);
+  padding: 0;
+}
+
+.weft-timeline-node-icon svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+}
+
+.weft-timeline-node-icon svg,
+.weft-timeline-node-icon svg [fill] {
+  fill: currentColor;
+}
+
+button.weft-timeline-node-icon {
+  cursor: pointer;
+}
+
+button.weft-timeline-node-icon:hover {
+  border-color: var(--weft-accent);
+  color: var(--weft-accent);
+}
+
+.weft-timeline-node-icon.is-selected {
+  border-color: var(--weft-accent);
+  background: var(--weft-accent-soft);
+  color: var(--weft-accent);
+}
+
+/* Wider than the 26px icon it sits under (see .weft-timeline-node) and free to overflow past it
+   both ways, since nothing here clips it - keeps a longer label (e.g. "Quiz abgeschickt
+   (richtig)") from forcing the icons themselves further apart. Kept narrow enough, together with
+   .weft-timeline-line.is-detached's own width below, that two adjacent labels on a short
+   (detached) line don't run into each other. */
+.weft-timeline-node-label {
+  margin-top: 6px;
+  width: 70px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--weft-text-muted);
+  text-align: center;
+}
+
+.weft-timeline-label-detail {
+  color: var(--weft-text-faint);
+}
+
+/* Dashed by default: TimelineEdgeKind "unknown" - causally after the previous node, but on no
+   fixed schedule. .is-timed switches to solid for kind "timed" - happens automatically after a
+   fixed delay. See TimelineEdge in core/types.ts. No horizontal margin - it butts directly against
+   the icon circles on either side, no gap. margin-top centers it on the 26px icon above, since
+   align-items on the track is flex-start (see .weft-timeline-track). */
+.weft-timeline-line {
+  margin: 13px 0 0;
+  height: 0;
+  border-top: 1px dashed var(--weft-accent);
+}
+
+.weft-timeline-line.is-timed {
+  border-top-style: solid;
+}
+
+/* Only a line that actually reaches "end" stretches to fill the row - keeps every lane's "end"
+   aligned in one column on the right. A line that dead-ends at an event with no further
+   connection (e.g. a quiz whose outcome isn't wired to auto-advance yet) stays a short, fixed-
+   width stub instead, so it visually reads as "goes nowhere yet" rather than implying a
+   connection to "end" that isn't actually there. */
+.weft-timeline-line.is-to-end {
+  flex: 1;
+}
+
+.weft-timeline-line.is-detached {
+  flex: 0 0 48px;
+}
+
+/* An independent lane's own connecting line (see .weft-timeline-track.is-distributed above) grows
+   like .weft-timeline-distribute-gap on either side of it - same flex-basis/grow/shrink - so every
+   gap in the row (before the first event, between events, after the last) ends up the same width:
+   an imaginary event at each end of the row, the real ones between them equally spaced, exactly
+   like .weft-timeline-distribute-gap's own comment describes. flex-shrink: 0 is what turns "no
+   more room to grow" into "the row scrolls" instead of "the gaps get cramped" once there isn't
+   enough width left for every gap to keep its 32px minimum. */
+.weft-timeline-line.is-distributed {
+  flex: 1 0 32px;
+}
+
+/* Blank space before a lane whose first node isn't "start" (see Timeline.tsx) - keeps that first
+   icon from ever landing directly under "Start der Folie", which would wrongly suggest it begins
+   the moment the slide does, rather than at some unspecified point during it. */
+.weft-timeline-lead-gap {
+  flex: 0 0 56px;
+}
+
+/* One of these sits before the first event and after the last in an independent lane (see
+   .weft-timeline-track.is-distributed) - standing in for the "imaginary event" the author
+   described at each end of the row, so the real events between them divide the row evenly rather
+   than clustering near the left like a lane anchored to "start" would. Same flex sizing as
+   .weft-timeline-line.is-distributed, which is what makes every gap - this one included - grow to
+   the same width. */
+.weft-timeline-distribute-gap {
+  flex: 1 0 32px;
+  align-self: stretch;
 }
 
 .weft-preview-frame {
@@ -882,6 +1291,30 @@ img.weft-thumb-block {
   cursor: nesw-resize;
 }
 
+/* Keynote-style "smart guide" shown while dragging a block, wherever its left/center/right (or
+   top/middle/bottom) has snapped to the stage's own center/edges or to the same line on another
+   block - portaled straight into .weft-stage by BlockView.tsx, so this spans the whole slide
+   rather than just the dragged block's own box. */
+.weft-snap-guide {
+  position: absolute;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.weft-snap-guide-v {
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1.5px dashed #ffcc00;
+}
+
+.weft-snap-guide-h {
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1.5px dashed #ffcc00;
+}
+
 .weft-edit-block-image {
   width: 100%;
   height: 100%;
@@ -981,13 +1414,13 @@ img.weft-thumb-block {
   pointer-events: none;
 }
 
-/* Forced-viewport iframe (see IframeFrame in BlockView.tsx) - container-type: size (not just
-   inline-size, unlike most cqw usage elsewhere in this file) so 100cqh resolves too, which the
-   iframe's own inline height/transform styles need to derive its virtual viewport height from
-   this wrap's aspect ratio. flex centering is a belt-and-braces fallback for float rounding -
-   the derived height means the scaled result should already fill the wrap exactly. */
+/* Forced-viewport iframe (see IframeFrame in BlockView.tsx) - the iframe's own inline width/
+   height are a literal pixel size and its transform: scale() a plain number, both computed in JS
+   (not derived from this wrap's rendered size via CSS container queries - see IframeFrame's own
+   comment for why), so no container-type is needed here at all any more. flex centering is a
+   belt-and-braces fallback for float rounding - the computed height/scale mean the result should
+   already fill the wrap exactly. */
 .weft-edit-block-iframe-viewport-wrap {
-  container-type: size;
   overflow: hidden;
   width: 100%;
   height: 100%;
@@ -1068,13 +1501,138 @@ img.weft-thumb-block {
 }
 
 .weft-edit-block-quiz {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
   padding: 4px;
-  font-size: 14px;
-  font-size: 1.45cqw;
+  /* Deliberately no own font-size override (there used to be one, smaller than the block default)
+     - it needs to match .weft-block's base size in player.runtime.css exactly, em-for-em, or the
+     same question/options/submit content ends up taking up a visibly different amount of the
+     block's box between the editor and the real player/preview. */
 }
 
-.weft-edit-block-quiz .is-correct {
-  color: #16a34a;
+.weft-edit-block-quiz-question {
+  /* Not font-weight here (even 600, not just "bold") - browsers treat inherited/ambient bold as
+     "already bold" for execCommand("bold")'s own state check, so selecting text in a container
+     styled that way and clicking the sidebar's Bold button would toggle it OFF (an explicit
+     font-weight:normal override) instead of on. Size alone still reads as a heading - and
+     player.runtime.css's .weft-quiz-question deliberately matches that (no font-weight of its
+     own either), so a question looks exactly as bold here as it does in the real player: only
+     ever from an actual <b>/<strong> the user applied, never from ambient CSS either side. Size
+     itself (1.25em) has to match there em-for-em too, same reasoning as .weft-edit-block-quiz's
+     own comment about the block's base size. */
+  font-size: 1.25em;
+  outline: none;
+}
+
+.weft-edit-block-quiz-question > :first-child,
+.weft-edit-block-quiz-option-text > :first-child {
+  margin-top: 0;
+}
+
+.weft-edit-block-quiz-question > :last-child,
+.weft-edit-block-quiz-option-text > :last-child {
+  margin-bottom: 0;
+}
+
+.weft-edit-block-quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+}
+
+/* Card-style option row (see mockups/quiz.png) - the checkbox and trash-can buttons let the
+   author toggle "correct" and remove a row right here, not just from the sidebar's own QuizEditor
+   (see BlockView.tsx's QuizBlockCanvas), showing the AUTHOR's own ground truth (which option(s)
+   are marked correct), not a learner's in-progress answer. The real, functional, initially-all-
+   unchecked version is player.runtime.js/.css's .weft-quiz-option. */
+.weft-edit-block-quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.4em 0.6em;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.weft-edit-block-quiz-option.is-correct {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+/* Real, clickable buttons now (not a static SVG) - reset to plain glyphs so neither looks like a
+   default browser button. */
+.weft-edit-block-quiz-option-checkbox,
+.weft-edit-block-quiz-option-delete {
+  flex: 0 0 auto;
+  width: 1em;
+  height: 1em;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: #a1a1aa;
+}
+
+.weft-edit-block-quiz-option.is-correct .weft-edit-block-quiz-option-checkbox {
+  color: #3b82f6;
+}
+
+.weft-edit-block-quiz-option-delete:hover {
+  color: #dc2626;
+}
+
+.weft-edit-block-quiz-option-checkbox svg,
+.weft-edit-block-quiz-option-delete svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-edit-block-quiz-option-checkbox svg,
+.weft-edit-block-quiz-option-checkbox svg [fill],
+.weft-edit-block-quiz-option-delete svg,
+.weft-edit-block-quiz-option-delete svg [fill] {
+  fill: currentColor;
+}
+
+.weft-edit-block-quiz-option-text {
+  flex: 1;
+  min-width: 0;
+  outline: none;
+}
+
+/* Static preview of the player's submit button - see player.runtime.css's .weft-quiz-submit for
+   the real, clickable one. Never disabled/hidden here: there's no "already submitted" state to
+   preview in the editor, only the button's own resting appearance. */
+.weft-edit-block-quiz-submit {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.4em 1em;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: #fff;
+  font-weight: 600;
+}
+
+.weft-edit-block-quiz-submit-icon {
+  width: 0.85em;
+  height: 0.85em;
+  color: #fff;
+}
+
+.weft-edit-block-quiz-submit-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-edit-block-quiz-submit-icon svg,
+.weft-edit-block-quiz-submit-icon svg [fill] {
+  fill: currentColor;
 }
 
 /* ---- Inspector ---- */
@@ -1097,6 +1655,8 @@ img.weft-thumb-block {
 .weft-inspector-body {
   flex: 1;
   overflow-y: auto;
+  /* Same reasoning as .weft-sidebar-content above. */
+  overscroll-behavior: contain;
   padding: 10px 12px;
 }
 
@@ -1105,6 +1665,62 @@ img.weft-thumb-block {
   font-size: 12.5px;
   padding: 8px 2px;
   line-height: 1.5;
+}
+
+/* ---- EventPanel (an Event-Graph node's own sidebar view, not a block's) ---- */
+
+.weft-event-heading {
+  padding: 2px 2px 12px;
+}
+
+.weft-event-heading-kind {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--weft-text-faint);
+}
+
+.weft-event-heading-title {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--weft-text);
+}
+
+.weft-event-trigger-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.weft-event-trigger-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: transparent;
+  color: var(--weft-text);
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.weft-event-trigger-row:hover {
+  background: var(--weft-panel-raised);
+  border-color: var(--weft-text-faint);
+}
+
+.weft-event-trigger-via {
+  color: var(--weft-text-muted);
+  font-size: 11px;
 }
 
 /* ---- Collapsible sections ---- */
@@ -1245,6 +1861,8 @@ img.weft-thumb-block {
   z-index: 1000;
   max-height: 320px;
   overflow-y: auto;
+  /* Same reasoning as .weft-sidebar-content above. */
+  overscroll-behavior: contain;
   padding: 4px;
   background: var(--weft-panel-raised);
   border: 1px solid var(--weft-border);
@@ -1472,8 +2090,7 @@ img.weft-thumb-block {
 .weft-effect-row input,
 .weft-effect-row select,
 .weft-condition-row input,
-.weft-condition-row select,
-.weft-quiz-option-row input:not([type="checkbox"]) {
+.weft-condition-row select {
   padding: 6px 8px;
   border: 1px solid var(--weft-border);
   background: var(--weft-input-bg);
@@ -1481,6 +2098,19 @@ img.weft-thumb-block {
   flex: 1;
   min-width: 0;
   font-size: 12px;
+}
+
+/* A read-only preview of the option's text (stripped of any formatting) - the option itself is
+   edited on the canvas now, like a text block's own content (see BlockPanel.tsx's QuizEditor),
+   this just lets the sidebar's list of options still be told apart. */
+.weft-quiz-option-row-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--weft-text-muted);
 }
 
 .weft-block-list {

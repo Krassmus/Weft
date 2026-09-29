@@ -20,6 +20,20 @@ body {
   overflow: hidden;
 }
 
+/* Its own explicit viewport-filling size (not left to collapse to whatever its children's normal
+   flow happens to give it) plus overflow: hidden - both needed only for the moment a Fade/Move
+   animation is running (see animateTransition in player.runtime.js), when the outgoing and
+   incoming .weft-stage-wrap are both position: absolute at once (see below), which would
+   otherwise leave nothing in normal flow to size this box, and let a Move's sliding wrap flash
+   into view outside the viewport for a frame before its own transform starts. */
+#weft-root {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
 /* Fills the whole viewport (the OS screen in fullscreen presentation, or the LMS iframe's own
    viewport when embedded) and centers the stage in it - any leftover space left over top/bottom
    or left/right, once the stage below is fit to the larger dimension, shows through as black. */
@@ -31,6 +45,22 @@ body {
   align-items: center;
   justify-content: center;
   background: #000;
+}
+
+/* Applied only while animateTransition() is running (see player.runtime.js) - stacks the outgoing
+   and incoming .weft-stage-wrap exactly on top of each other so a Fade can cross-fade between
+   them, or a Move can slide one out while the other slides into the same spot. */
+.weft-stage-wrap.is-transition-old,
+.weft-stage-wrap.is-transition-new {
+  position: absolute;
+  inset: 0;
+}
+
+/* The outgoing wrap stays visually on top for a Fade (so it's what visibly fades away, revealing
+   the incoming one underneath, per animateTransition's "fade" branch) - doesn't matter for a Move,
+   where the two never occupy the same pixels at once, but keeping one consistent rule is simplest. */
+.weft-stage-wrap.is-transition-old {
+  z-index: 1;
 }
 
 /* Sized to the *largest* box of the module's own aspect ratio (--ar-w / --ar-h, set inline per
@@ -101,25 +131,204 @@ body {
   margin-bottom: 0;
 }
 
+/* Every size/spacing value below is kept in sync by hand, em-for-em, with BlockView.tsx's static
+   editor-canvas preview (.weft-edit-block-quiz* in App.css) and SlideThumbnail.tsx's own version
+   (.weft-thumb-block-quiz* in App.css) - all three share the same 1.7cqw block base font-size, so
+   matching the numbers here is what makes the same quiz content take up the same proportion of
+   the block's box in the editor, the thumbnail, and this, the real player/preview. */
 .weft-quiz {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.6em;
   height: 100%;
   overflow: auto;
 }
 
+.weft-quiz-question {
+  /* No font-weight here on purpose, even though this one isn't itself editable - the editor
+     canvas's version can't safely be bold (see its own comment in App.css: ambient bold there
+     would break the sidebar's Bold button), so this stays plain too, for the same WYSIWYG-parity
+     reason as every other number in this block: a question only ever looks bold here because the
+     user actually bolded it, matching exactly what they saw while editing it. */
+  font-size: 1.25em;
+}
+
+.weft-quiz-question > :first-child {
+  margin-top: 0;
+}
+
+.weft-quiz-question > :last-child {
+  margin-bottom: 0;
+}
+
+.weft-quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+}
+
+/* The whole card is the <label> (see renderQuizBlock in player.runtime.js), so it's clickable
+   anywhere, not just on the small checkbox - :has() picks up the highlight straight from the
+   checkbox's own checked/disabled state, with no separate "selected" class to keep in sync. */
 .weft-quiz-option {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.5em;
+  padding: 0.4em 0.6em;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.weft-quiz-option:has(input:checked) {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.weft-quiz-option:has(input:disabled) {
+  cursor: default;
+}
+
+/* A real, focusable/keyboard-operable checkbox - it's kept, just made invisible and sized/
+   positioned exactly over the icon pair below (see .weft-quiz-option-checkbox), so it still
+   works exactly like a native checkbox without ever showing the OS's own checkbox chrome. */
+.weft-quiz-option-checkbox {
+  position: relative;
+  flex: 0 0 auto;
+  width: 1em;
+  height: 1em;
+}
+
+.weft-quiz-option-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.weft-quiz-option-checkbox-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: #a1a1aa;
+}
+
+.weft-quiz-option-checkbox-icon-checked {
+  display: none;
+  color: #3b82f6;
+}
+
+.weft-quiz-option:has(input:checked) .weft-quiz-option-checkbox-icon-unchecked {
+  display: none;
+}
+
+.weft-quiz-option:has(input:checked) .weft-quiz-option-checkbox-icon-checked {
+  display: block;
+}
+
+.weft-quiz-option-checkbox-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-quiz-option-checkbox-icon svg,
+.weft-quiz-option-checkbox-icon svg [fill] {
+  fill: currentColor;
+}
+
+.weft-quiz-option-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.weft-quiz-option-text > :first-child {
+  margin-top: 0;
+}
+
+.weft-quiz-option-text > :last-child {
+  margin-bottom: 0;
+}
+
+.weft-quiz-submit {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.4em 1em;
+  border: none;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Without this, the button's own `display: flex` above beats the browser's default `[hidden] {
+   display: none }` rule - author styles always win over user-agent ones regardless of selector
+   specificity, so setting `hidden` (see the submit handler in player.runtime.js) would otherwise
+   silently do nothing and leave the button visible right on top of the feedback replacing it. */
+.weft-quiz-submit[hidden] {
+  display: none;
+}
+
+.weft-quiz-submit:hover {
+  background: #2563eb;
+}
+
+.weft-quiz-submit-icon {
+  width: 0.85em;
+  height: 0.85em;
+  color: #fff;
+}
+
+.weft-quiz-submit-icon svg,
+.weft-quiz-feedback-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-quiz-submit-icon svg,
+.weft-quiz-submit-icon svg [fill],
+.weft-quiz-feedback-icon svg,
+.weft-quiz-feedback-icon svg [fill] {
+  fill: currentColor;
+}
+
+.weft-quiz-feedback {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.4em 0.6em;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+/* Same reasoning as .weft-quiz-submit[hidden] above - without this, this box's own `display:
+   flex` would beat the browser's default `[hidden] { display: none }`, showing an empty
+   (colorless, textless, but space-taking) box before the quiz is ever submitted. */
+.weft-quiz-feedback[hidden] {
+  display: none;
+}
+
+.weft-quiz-feedback-icon {
+  flex: 0 0 auto;
+  width: 1.4em;
+  height: 1.4em;
 }
 
 .weft-quiz-feedback.is-correct {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
   color: #16a34a;
 }
 
 .weft-quiz-feedback.is-incorrect {
+  background: #fef2f2;
+  border-color: #fecaca;
   color: #dc2626;
 }
 
@@ -198,14 +407,14 @@ body {
   display: none;
 }
 
-/* Forced-viewport iframe (see iframeEl in player.runtime.js) - container-type: size (not just
-   inline-size, unlike .weft-stage's own cqw usage) so 100cqh resolves too, which the iframe's own
-   inline height/transform styles need to derive its virtual viewport height from this wrap's
-   aspect ratio. flex centering is a belt-and-braces fallback for float rounding - the derived
-   height means the scaled result should already fill the wrap exactly. Matches BlockView.tsx's
-   .weft-edit-block-iframe-viewport-wrap in the editor exactly. */
+/* Forced-viewport iframe (see iframeEl in player.runtime.js) - the iframe's own inline width/
+   height are a literal pixel size and its transform: scale() a plain number, both computed in JS
+   (not derived from this wrap's rendered size via CSS container queries - see iframeEl's own
+   comment for why), so no container-type is needed here at all any more. flex centering is a
+   belt-and-braces fallback for float rounding - the computed height/scale mean the result should
+   already fill the wrap exactly. Matches BlockView.tsx's .weft-edit-block-iframe-viewport-wrap in
+   the editor exactly. */
 .weft-iframe-viewport-wrap {
-  container-type: size;
   overflow: hidden;
   width: 100%;
   height: 100%;

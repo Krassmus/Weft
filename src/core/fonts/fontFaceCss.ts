@@ -8,12 +8,24 @@ import type { CuratedFont } from "./curatedFonts";
  * explicitly sets a font would silently lose its default in export. */
 export const DEFAULT_FONT_FAMILY = "Open Sans";
 
-/** All text block HTML in the module, pages and layouts alike - where a font-family/font-face
- * value applied via richText.ts's applyFormat would show up. */
+/** All rich-HTML in the module carrying a font-family/font-face value applied via richText.ts's
+ * applyFormat - text block HTML (pages and layouts alike), plus a quiz block's question and its
+ * options (quiz blocks only ever live on pages, never layouts - see StaticBlock/Block in
+ * types.ts). Missing the quiz case here used to mean a curated font used only inside a quiz
+ * question/option was never detected as "used" and so never got bundled into the preview/export
+ * @font-face CSS - it still rendered correctly on the editor CANVAS, which loads every curated
+ * font unconditionally (see fonts.css), so the gap only showed up once you actually previewed or
+ * exported. */
 function allTextHtml(module: WeftModule): string {
   const html: string[] = [];
   for (const page of Object.values(module.pages)) {
-    for (const block of page.blocks) if (block.kind === "text") html.push(block.html);
+    for (const block of page.blocks) {
+      if (block.kind === "text") html.push(block.html);
+      else if (block.kind === "quiz") {
+        html.push(block.questionHtml);
+        for (const option of block.options) html.push(option.html);
+      }
+    }
   }
   for (const layout of Object.values(module.layouts)) {
     for (const block of layout.blocks) if (block.kind === "text") html.push(block.html);

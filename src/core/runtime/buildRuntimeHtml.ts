@@ -10,11 +10,19 @@ import type { IframeBlock, WeftModule } from "../types";
  * since a sandboxed srcDoc iframe has an opaque origin and can't reach the app's blob: URLs).
  * fontFaceCss is built the same asymmetric way - see core/fonts/fontFaceCss.ts and its two
  * callers (pack.ts for export, buildPreviewFontUrls.ts for preview).
+ *
+ * startPageId is preview-only (pack.ts's own export call never passes one, so a real exported
+ * module always starts from its actual beginning like a real learner would) - it's the page
+ * "Abspielen" should open directly on, e.g. whichever slide was selected in the editor (see
+ * Canvas.tsx/PresentationView.tsx). Kept out of the `module` object itself (a plain sibling
+ * script tag instead, same as assetUrls/qrCodeSvgs) since it's a preview-session detail, not
+ * document content - it has no business being part of WeftModule's own persisted shape.
  */
 export async function buildRuntimeHtml(
   module: WeftModule,
   assetUrls: Record<string, string> = {},
   fontFaceCss = "",
+  startPageId: string | null = null,
 ): Promise<string> {
   const qrCodeSvgs = await buildQrCodeSvgs(module);
 
@@ -23,6 +31,7 @@ export async function buildRuntimeHtml(
   const moduleJson = JSON.stringify(module).replace(/</g, "\\u003c");
   const assetUrlsJson = JSON.stringify(assetUrls).replace(/</g, "\\u003c");
   const qrCodeSvgsJson = JSON.stringify(qrCodeSvgs).replace(/</g, "\\u003c");
+  const startPageIdJson = JSON.stringify(startPageId).replace(/</g, "\\u003c");
 
   return `<!doctype html>
 <html lang="de">
@@ -38,6 +47,7 @@ export async function buildRuntimeHtml(
 <script id="weft-data" type="application/json">${moduleJson}</script>
 <script id="weft-asset-urls" type="application/json">${assetUrlsJson}</script>
 <script id="weft-qr-codes" type="application/json">${qrCodeSvgsJson}</script>
+<script id="weft-start-page" type="application/json">${startPageIdJson}</script>
 <script>${playerRuntimeSource}</script>
 </body>
 </html>

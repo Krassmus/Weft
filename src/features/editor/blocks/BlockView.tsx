@@ -1,15 +1,37 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import QRCode from "qrcode";
 // A generic "this is a video" indicator for the (non-interactive, see below) editor canvas -
 // deliberately not play.svg, which would look clickable even though clicking does nothing here;
 // see player.runtime.js/.css for the real, playable preview/export instead.
 import video2IconSvg from "../../../../mockups/icons/video2.svg?raw";
+import checkboxCheckedSvg from "../../../../mockups/icons/checkbox-checked.svg?raw";
+import checkboxUncheckedSvg from "../../../../mockups/icons/checkbox-unchecked.svg?raw";
+import acceptSvg from "../../../../mockups/icons/accept.svg?raw";
+import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
+import { ASPECT_RATIO_NUMERIC } from "../../../core/aspectRatio";
 import { useAssetStore } from "../../../core/assets/assetStore";
-import type { Block, BlockPosition, IframeBlock, TextBlock } from "../../../core/types";
+import { useDocumentStore } from "../../../core/document/store";
+import { createId } from "../../../core/id";
+import { confirmDestructive } from "../../../core/io/fileIO";
+import type { Block, BlockPosition, IframeBlock, QuizBlock } from "../../../core/types";
+import { ContextMenu, useContextMenu } from "../ContextMenu";
+import type { ContextMenuItem } from "../ContextMenu";
 import { registerActiveEditable, saveSelection } from "./richText";
 import type { CornerHandleId, HandleId } from "./resizeMath";
-import { clampMove, CORNER_HANDLES, distanceToEdge, HANDLES, resizeCornerLocked, resizeFromHandle, unrotateDelta } from "./resizeMath";
+import {
+  clampMove,
+  CORNER_HANDLES,
+  distanceToEdge,
+  HANDLES,
+  resizeCornerLocked,
+  resizeFromHandle,
+  snapCornerResize,
+  snapMove,
+  snapResize,
+  unrotateDelta,
+} from "./resizeMath";
 
 const EDGE_GRAB_PX = 5;
 const DRAG_THRESHOLD_PX = 3;
@@ -31,12 +53,25 @@ interface BlockViewProps {
   locked: boolean;
   onSelect?: () => void;
   onUpdate?: (patch: Partial<Block>) => void;
+  /** Removes this block outright - wired to a right-click "Löschen" (see the context menu below),
+   * the one reliable way to delete a block that isn't image/video/iframe: those can be grabbed
+   * and dragged from anywhere (see isFreelyMovableBlock), so an edge is always free for the Delete
+   * key's own edge-click-to-select-then-delete flow, but a text/quiz block's whole interior is
+   * contentEditable - Delete there just removes a character, never the block, and there was no
+   * other on-canvas way to remove one at all. */
+  onDelete?: () => void;
+  /** Every other block sharing this slide (page blocks plus the layout blocks showing through
+   * underneath, or the other blocks in the same layout when editing a layout directly) - the
+   * candidate edges/centers a move-drag can snap to. See handlePointerDownMove. */
+  siblingPositions?: BlockPosition[];
 }
 
-export function BlockView({ block, selected, locked, onSelect, onUpdate }: BlockViewProps) {
+export function BlockView({ block, selected, locked, onSelect, onUpdate, onDelete, siblingPositions = [] }: BlockViewProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [liveOverride, setLiveOverride] = useState<BlockPosition | null>(null);
   const [nearEdge, setNearEdge] = useState(false);
+  const [snapGuides, setSnapGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
+  const contextMenu = useContextMenu();
   const position = liveOverride ?? block.position;
   // An image, video, or iframe has no inner content worth preserving access to on the canvas
   // (unlike text/quiz - and an iframe's own content is non-interactive here anyway, see
@@ -74,6 +109,12 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate }: Block
 
   function handlePointerDownMove(e: ReactPointerEvent) {
     if (locked) return;
+    // Right-click (button 2, e.g. to open the context menu below) and middle-click both fire a
+    // pointerdown same as a real drag would - without this a right-click on a freely-movable
+    // block (image/video/iframe, draggable from anywhere, see isFreelyMovableBlock) shoved it
+    // around under the cursor on the way to opening the menu, since nothing here checked which
+    // button was actually held.
+    if (e.button !== 0) return;
     // A freely-movable block can start a drag from the very first pointerdown, even before it's
     // selected - handleMove below selects it as soon as the drag threshold is crossed. Any other
     // kind still needs a prior click to select it first, since only then does clicking near its
@@ -108,6 +149,14 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate }: Block
       const dxPercent = ((ev.clientX - startClientX) / stage!.width) * 100;
       const dyPercent = ((ev.clientY - startClientY) / stage!.height) * 100;
       committed = clampMove(startPosition, dxPercent, dyPercent);
+      // Smart guides only make sense against the block's own un-rotated box - once it's rotated,
+      // CSS spins it around its center and the edges this math would snap no longer line up with
+      // what's actually drawn on screen, so skip it rather than show a guide in the wrong place.
+      if (!startPosition.rotation) {
+        const snap = snapMove(committed, siblingPositions, stage!);
+        committed = snap.position;
+        setSnapGuides({ x: snap.guideX, y: snap.guideY });
+      }
       setLiveOverride(committed);
     }
 
@@ -118,6 +167,7 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate }: Block
       document.body.classList.remove("weft-dragging");
       if (started) onUpdate?.({ position: committed });
       setLiveOverride(null);
+      setSnapGuides({ x: null, y: null });
     }
 
     window.addEventListener("pointermove", handleMove);
@@ -138,6 +188,7 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate }: Block
   }
 
   function handleResizeStart(handle: HandleId, e: ReactPointerEvent) {
+    if (e.button !== 0) return;
     e.stopPropagation();
     e.preventDefault();
     const startPosition = block.position;
@@ -159,6 +210,16 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate }: Block
       committed = usesProportionalResize
         ? resizeCornerLocked(handle as CornerHandleId, startPosition, stage!, dxPercent, dyPercent)
         : resizeFromHandle(handle, startPosition, stage!, dxPercent, dyPercent);
+      // Same reasoning as the move-drag's own snapping (see handlePointerDownMove): a rotated
+      // block's dragged edge no longer lines up with its unrotated x/y/width/height, so skip it
+      // rather than snap - and show a guide - somewhere that doesn't match what's on screen.
+      if (!startPosition.rotation) {
+        const snap = usesProportionalResize
+          ? snapCornerResize(committed, startPosition, handle as CornerHandleId, siblingPositions, stage!)
+          : snapResize(committed, HANDLES.find((h) => h.id === handle)!.edges, siblingPositions, stage!);
+        committed = snap.position;
+        setSnapGuides({ x: snap.guideX, y: snap.guideY });
+      }
       setLiveOverride(committed);
     }
 
@@ -170,6 +231,7 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate }: Block
       document.body.style.cursor = "";
       onUpdate?.({ position: committed });
       setLiveOverride(null);
+      setSnapGuides({ x: null, y: null });
     }
 
     // Fix the cursor to this handle's resize direction for the whole drag - otherwise a fast
@@ -181,38 +243,67 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate }: Block
     window.addEventListener("pointercancel", finish);
   }
 
+  // Portaled straight into the stage element (this block's own DOM parent) rather than rendered
+  // as a normal child here - a guide has to span the whole slide and stay fixed at the matched
+  // candidate's position, not move along with (or be clipped by) this block's own, currently-
+  // dragged, absolutely-positioned box.
+  const stageEl = wrapRef.current?.parentElement ?? null;
+  const guides =
+    stageEl &&
+    (snapGuides.x !== null || snapGuides.y !== null) &&
+    createPortal(
+      <>
+        {snapGuides.x !== null && <div className="weft-snap-guide weft-snap-guide-v" style={{ left: `${snapGuides.x}%` }} />}
+        {snapGuides.y !== null && <div className="weft-snap-guide weft-snap-guide-h" style={{ top: `${snapGuides.y}%` }} />}
+      </>,
+      stageEl,
+    );
+
   return (
-    <div
-      ref={wrapRef}
-      className={
-        "weft-edit-block" +
-        (selected ? " is-selected" : "") +
-        (locked ? " is-locked" : "") +
-        (nearEdge ? " is-near-edge" : "")
-      }
-      style={style}
-      onClick={(event) => {
-        if (locked) return;
-        event.stopPropagation();
-        onSelect?.();
-      }}
-      onPointerDown={handlePointerDownMove}
-      onPointerMove={handlePointerMoveHover}
-      onPointerLeave={() => setNearEdge(false)}
-    >
-      <div className="weft-edit-block-inner">
-        <BlockContent block={block} selected={selected} onUpdate={onUpdate} />
+    <>
+      <div
+        ref={wrapRef}
+        className={
+          "weft-edit-block" +
+          (selected ? " is-selected" : "") +
+          (locked ? " is-locked" : "") +
+          (nearEdge ? " is-near-edge" : "")
+        }
+        style={style}
+        onClick={(event) => {
+          if (locked) return;
+          event.stopPropagation();
+          onSelect?.();
+        }}
+        onContextMenu={(event) => {
+          if (locked || !onDelete) return;
+          // A quiz block's own question/options area opens its own, more specific menu instead
+          // (see QuizBlockCanvas) - stopPropagation there keeps this one from also firing, so this
+          // only ever fires for the parts of a quiz block outside that (its padding, the submit-
+          // button preview) or for any other kind of block, where it's the only menu there is.
+          onSelect?.();
+          contextMenu.open(event, [{ label: "Löschen", danger: true, onClick: onDelete }]);
+        }}
+        onPointerDown={handlePointerDownMove}
+        onPointerMove={handlePointerMoveHover}
+        onPointerLeave={() => setNearEdge(false)}
+      >
+        <div className="weft-edit-block-inner">
+          <BlockContent block={block} selected={selected} onUpdate={onUpdate} onDelete={onDelete} />
+        </div>
+        {selected &&
+          !locked &&
+          (usesProportionalResize ? CORNER_HANDLES : HANDLES).map((h) => (
+            <div
+              key={h.id}
+              className={`weft-resize-handle weft-resize-handle-${h.id}`}
+              onPointerDown={(e) => handleResizeStart(h.id, e)}
+            />
+          ))}
       </div>
-      {selected &&
-        !locked &&
-        (usesProportionalResize ? CORNER_HANDLES : HANDLES).map((h) => (
-          <div
-            key={h.id}
-            className={`weft-resize-handle weft-resize-handle-${h.id}`}
-            onPointerDown={(e) => handleResizeStart(h.id, e)}
-          />
-        ))}
-    </div>
+      {guides}
+      <ContextMenu menu={contextMenu.menu} onClose={contextMenu.close} />
+    </>
   );
 }
 
@@ -220,16 +311,25 @@ function BlockContent({
   block,
   selected,
   onUpdate,
+  onDelete,
 }: {
   block: Block;
   selected: boolean;
   onUpdate?: (patch: Partial<Block>) => void;
+  onDelete?: () => void;
 }) {
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
 
   switch (block.kind) {
     case "text":
-      return <EditableText block={block} selected={selected} onUpdate={onUpdate} />;
+      return (
+        <EditableRichText
+          className="weft-edit-block-text"
+          html={block.html}
+          editable={selected}
+          onCommit={(html) => onUpdate?.({ html })}
+        />
+      );
     case "image":
       return block.assetId ? (
         <img src={getObjectUrl(block.assetId)} alt={block.alt} className="weft-edit-block-image" draggable={false} />
@@ -275,47 +375,189 @@ function BlockContent({
         </button>
       );
     case "quiz":
-      return (
-        <div className="weft-edit-block-quiz">
-          <strong>{block.question || "(Frage)"}</strong>
-          <ul>
-            {block.options.map((opt) => (
-              <li key={opt.id} className={block.correctOptionIds.includes(opt.id) ? "is-correct" : ""}>
-                {opt.text}
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
+      return <QuizBlockCanvas block={block} selected={selected} onUpdate={onUpdate} onDelete={onDelete} />;
   }
 }
 
 /**
- * Renders the actual embedded page. Without forcedViewportWidth, it's just a plain iframe filling
- * the block (today's original behavior). With one, the iframe is given that fixed pixel width
- * (so the embedded page's own media queries/JS see a constant "window" width no matter how large
- * the module itself is displayed) - its height is DERIVED, not separately configured, from the
- * wrap's own aspect ratio (100cqh/100cqw, both container query units resolving to its rendered
- * pixel size) times that width, so the virtual viewport always has exactly the block's own shape
- * and the scaled result fills it edge to edge with no letterboxing. The scale itself is then
- * purely `100cqw / <forced width>` - all computed live in CSS with no JS measurement/
- * ResizeObserver, so it stays correct across any resize automatically.
+ * The quiz question/options, directly editable and manageable right on the canvas - unlike the
+ * sidebar's own QuizEditor (BlockPanel.tsx, still there for the same actions from a fixed spot),
+ * this is where an author actually looks while laying a question out, so it gets its own
+ * interactions instead of forcing a trip to the sidebar for every tweak:
+ *  - the "checkbox" is a real button now, toggling whether that option counts as correct;
+ *  - a trash icon at each row's right edge deletes it, after a short confirmation (unlike the
+ *    sidebar's own "×", which is already tucked away enough not to need one - this sits in the
+ *    open, right next to text you might click while just reading it);
+ *  - right-clicking anywhere on the block (or right on a row, for an extra "delete this one") add
+ *    a new option via the app's regular context menu, mirroring how the slide list already
+ *    handles add/remove (see Sidebar.tsx).
  */
-function IframeFrame({ block }: { block: IframeBlock }) {
-  if (!block.forcedViewportWidth) {
-    return <iframe src={block.url} sandbox={block.sandbox.join(" ")} title="Eingebetteter Inhalt" />;
+function QuizBlockCanvas({
+  block,
+  selected,
+  onUpdate,
+  onDelete,
+}: {
+  block: QuizBlock;
+  selected: boolean;
+  onUpdate?: (patch: Partial<Block>) => void;
+  onDelete?: () => void;
+}) {
+  const contextMenu = useContextMenu();
+  // Right-clicking anywhere on a quiz block opens ITS OWN, more specific menu (option add/
+  // remove) instead of letting the click bubble up to BlockView's generic "Löschen" one - so
+  // deleting the whole block has to be offered here too, tacked onto both of this component's own
+  // menus, or a quiz block would have no on-canvas way to remove itself at all.
+  const deleteBlockItems: ContextMenuItem[] = onDelete ? [{ separator: true }, { label: "Objekt löschen", danger: true, onClick: onDelete }] : [];
+
+  function addOption() {
+    onUpdate?.({ options: [...block.options, { id: createId(), html: "Neue Option" }] });
   }
-  const width = block.forcedViewportWidth;
+
+  function removeOption(optionId: string) {
+    onUpdate?.({
+      options: block.options.filter((o) => o.id !== optionId),
+      correctOptionIds: block.correctOptionIds.filter((id) => id !== optionId),
+    });
+  }
+
+  async function removeOptionWithConfirm(optionId: string) {
+    if (await confirmDestructive("Wirklich löschen?", "Antwortoption löschen")) removeOption(optionId);
+  }
+
   return (
-    <div className="weft-edit-block-iframe-viewport-wrap">
+    <div
+      className="weft-edit-block-quiz"
+      onContextMenu={(e) => contextMenu.open(e, [{ label: "+ Antwortoption hinzufügen", onClick: addOption }, ...deleteBlockItems])}
+    >
+      <EditableRichText
+        className="weft-edit-block-quiz-question"
+        html={block.questionHtml}
+        editable={selected}
+        autoFocus={false}
+        onCommit={(html) => onUpdate?.({ questionHtml: html })}
+      />
+      <div className="weft-edit-block-quiz-options">
+        {block.options.map((opt) => {
+          // The editor shows the AUTHOR's own ground truth (which option(s) are marked correct)
+          // as an authoring aid - unlike the player, which starts every option unchecked since
+          // the learner hasn't answered yet (see player.runtime.js).
+          const isCorrect = block.correctOptionIds.includes(opt.id);
+          return (
+            <div
+              key={opt.id}
+              className={"weft-edit-block-quiz-option" + (isCorrect ? " is-correct" : "")}
+              onContextMenu={(e) =>
+                contextMenu.open(e, [
+                  { label: "+ Antwortoption hinzufügen", onClick: addOption },
+                  { separator: true },
+                  { label: "Antwortoption löschen", danger: true, onClick: () => removeOption(opt.id) },
+                  ...deleteBlockItems,
+                ])
+              }
+            >
+              <button
+                type="button"
+                className="weft-edit-block-quiz-option-checkbox"
+                title={isCorrect ? "Als falsch markieren" : "Als richtig markieren"}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  const correctOptionIds = isCorrect
+                    ? block.correctOptionIds.filter((id) => id !== opt.id)
+                    : [...block.correctOptionIds, opt.id];
+                  onUpdate?.({ correctOptionIds });
+                }}
+                dangerouslySetInnerHTML={{ __html: isCorrect ? checkboxCheckedSvg : checkboxUncheckedSvg }}
+              />
+              <EditableRichText
+                className="weft-edit-block-quiz-option-text"
+                html={opt.html}
+                editable={selected}
+                autoFocus={false}
+                onCommit={(html) =>
+                  onUpdate?.({ options: block.options.map((o) => (o.id === opt.id ? { ...o, html } : o)) })
+                }
+              />
+              <button
+                type="button"
+                className="weft-edit-block-quiz-option-delete"
+                title="Antwortoption löschen"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => void removeOptionWithConfirm(opt.id)}
+                dangerouslySetInnerHTML={{ __html: trashIconSvg }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="weft-edit-block-quiz-submit">
+        <span className="weft-edit-block-quiz-submit-icon" dangerouslySetInnerHTML={{ __html: acceptSvg }} />
+        Abschicken
+      </div>
+      <ContextMenu menu={contextMenu.menu} onClose={contextMenu.close} />
+    </div>
+  );
+}
+
+/**
+ * Renders the actual embedded page - always at a virtual, fixed pixel WIDTH (so the embedded
+ * page's own media queries/JS see a constant "window" width no matter how large the module itself
+ * is displayed, e.g. to force its mobile layout), never just "whatever size the block happens to
+ * render at" (there'd be no way to predict what the embedded page looks like, since it'd reflow
+ * differently depending on how the module is displayed). Height is DERIVED, not separately
+ * configured, from the wrap's own aspect ratio times that width, so the virtual viewport always
+ * has exactly the block's own shape and the scaled result fills it edge to edge with no
+ * letterboxing.
+ *
+ * Both the derived height AND the scale factor that fits the fixed-width iframe into the wrap
+ * used to be computed live in CSS via container query units (`100cqh / 100cqw` for the height,
+ * `100cqw / <width>` for the scale) - that worked in Chromium/WebKit but isn't portable: Firefox
+ * rejects a `calc()` that divides one length by another as an invalid value outright, for *both*
+ * of those (confirmed via its DevTools: "Ungültiger Wert für Eigenschaft" on each), silently
+ * dropping the whole declaration. `width`, a plain literal, still applied - so the iframe rendered
+ * at exactly the right width but fell back to the browser's default ~150px height and a 1:1
+ * (unscaled) transform, exactly the "correctly wide, much too short" bug this was fixed for. The
+ * height is derived in JS now instead (the block's width/height percentages and the module's own
+ * aspect ratio are already known data here, no container query needed for it at all); the scale
+ * factor still genuinely needs the wrap's own rendered pixel width, which isn't known until
+ * layout, so that's measured via ResizeObserver instead of computed via calc().
+ */
+// Kept in sync by hand with BlockPanel.tsx's DEFAULT_VIEWPORT_WIDTH and player.runtime.js's own
+// copy (a module saved before this field existed has no forcedViewportWidth at all, and unlike
+// most such fallbacks this one can't just mean "off" - a virtual viewport is always in effect
+// now, see IframeEditor's comment for why - so it needs an actual width to fall back to).
+const DEFAULT_VIEWPORT_WIDTH = 768;
+
+function IframeFrame({ block }: { block: IframeBlock }) {
+  const aspectRatio = useDocumentStore((s) => s.doc.content.aspectRatio);
+  const width = block.forcedViewportWidth ?? DEFAULT_VIEWPORT_WIDTH;
+  const stageHeightOverWidth = 1 / ASPECT_RATIO_NUMERIC[aspectRatio];
+  const wrapHeightOverWidth = stageHeightOverWidth * (block.position.height / block.position.width);
+  const height = width * wrapHeightOverWidth;
+
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const observer = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (rect) setScale(rect.width / width);
+    });
+    observer.observe(wrap);
+    return () => observer.disconnect();
+  }, [width]);
+
+  return (
+    <div className="weft-edit-block-iframe-viewport-wrap" ref={wrapRef}>
       <iframe
         src={block.url}
         sandbox={block.sandbox.join(" ")}
         title="Eingebetteter Inhalt"
         style={{
           width: `${width}px`,
-          height: `calc(${width}px * (100cqh / 100cqw))`,
-          transform: `scale(calc(100cqw / ${width}px))`,
+          height: `${height}px`,
+          transform: `scale(${scale})`,
         }}
       />
     </div>
@@ -323,60 +565,70 @@ function IframeFrame({ block }: { block: IframeBlock }) {
 }
 
 /**
- * Directly editable on the canvas (true WYSIWYG) - contentEditable while selected, so a click
- * that selects the block also drops a cursor into it, ready to type. Its own DOM is left alone
- * by React while focused (uncontrolled) so the browser's native editing/cursor state doesn't
- * fight React's re-renders; block.html is only re-applied when it changed for a reason other
- * than this component's own last commit - undo/redo, another instance, first mount - tracked via
+ * Directly editable on the canvas (true WYSIWYG) - contentEditable while `editable`, so a click
+ * that selects the block also drops a cursor into it, ready to type. Its own DOM is left alone by
+ * React while focused (uncontrolled) so the browser's native editing/cursor state doesn't fight
+ * React's re-renders; `html` is only re-applied when it changed for a reason other than this
+ * component's own last commit - undo/redo, another instance, first mount - tracked via
  * lastKnownHtml rather than just "not focused", since focus can outlast an edit (the toolbar's
  * controls restore it, and nothing forces a blur just because the user clicked Undo), and
  * skipping the resync there would let a later blur re-commit that stale, already-undone content,
- * silently undoing the undo. Written back to the document on blur or via richText.ts's
- * applyFormat (the sidebar's formatting buttons never actually take focus away from here - see
- * BlockPanel.tsx).
+ * silently undoing the undo. Written back via onCommit on blur or via richText.ts's applyFormat
+ * (the sidebar's formatting buttons never actually take focus away from here - see
+ * BlockPanel.tsx). One instance is one editable region: a TextBlock has exactly one filling the
+ * whole block, but a QuizBlock has several side by side (the question, each option) - richText.ts
+ * itself doesn't care, since "the active editable" is just whichever instance last got focus.
  */
-function EditableText({
-  block,
-  selected,
-  onUpdate,
+function EditableRichText({
+  className,
+  html,
+  editable,
+  autoFocus = true,
+  onCommit,
 }: {
-  block: TextBlock;
-  selected: boolean;
-  onUpdate?: (patch: Partial<Block>) => void;
+  className: string;
+  html: string;
+  editable: boolean;
+  /** Focus this region the moment it becomes editable - right for a TextBlock (its one region
+   * IS the whole block, so selecting the block should drop you straight into typing) but wrong
+   * once several regions share a block (QuizBlock) - autofocusing all of them at once would just
+   * mean whichever rendered last silently wins, so those instead wait for an explicit click. */
+  autoFocus?: boolean;
+  onCommit: (html: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   // null (never a real value once committed/synced) so the very first effect run below always
-  // syncs the initial content into the DOM, instead of comparing block.html to itself and
-  // concluding there's nothing to do.
+  // syncs the initial content into the DOM, instead of comparing html to itself and concluding
+  // there's nothing to do.
   const lastKnownHtml = useRef<string | null>(null);
 
   useEffect(() => {
-    if (ref.current && block.html !== lastKnownHtml.current) {
-      ref.current.innerHTML = block.html;
-      lastKnownHtml.current = block.html;
+    if (ref.current && html !== lastKnownHtml.current) {
+      ref.current.innerHTML = html;
+      lastKnownHtml.current = html;
     }
-  }, [block.html]);
+  }, [html]);
 
   useEffect(() => {
-    if (selected) ref.current?.focus();
-  }, [selected]);
+    if (editable && autoFocus) ref.current?.focus();
+  }, [editable, autoFocus]);
 
-  function commit(html: string) {
+  function commit(nextHtml: string) {
     // Guard explicitly rather than relying on edit()'s own no-op detection upstream - blur fires
     // on every click into the sidebar toolbar (each control hands focus back afterwards), so
     // without this an unrelated formatting action, or even just clicking into the text and back
     // out without typing, would commit identical content as a spurious extra undo step - which
     // then falls in front of the real edit being undone, making Undo look like it did nothing.
-    if (html === lastKnownHtml.current) return;
-    lastKnownHtml.current = html;
-    onUpdate?.({ html });
+    if (nextHtml === lastKnownHtml.current) return;
+    lastKnownHtml.current = nextHtml;
+    onCommit(nextHtml);
   }
 
   return (
     <div
       ref={ref}
-      className="weft-edit-block-text"
-      contentEditable={selected}
+      className={className}
+      contentEditable={editable}
       suppressContentEditableWarning
       onFocus={() => ref.current && registerActiveEditable({ el: ref.current, commit })}
       onBlur={(e) => {

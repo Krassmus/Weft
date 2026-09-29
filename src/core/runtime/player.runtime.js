@@ -14,6 +14,9 @@
   var qrCodeSvgsEl = document.getElementById("weft-qr-codes");
   var qrCodeSvgs = qrCodeSvgsEl ? JSON.parse(qrCodeSvgsEl.textContent || "{}") : {};
 
+  var startPageIdEl = document.getElementById("weft-start-page");
+  var startPageId = startPageIdEl ? JSON.parse(startPageIdEl.textContent || "null") : null;
+
   var lmsEnabled = !!(module.lms && module.lms.enabled) && window.parent !== window;
 
   // ---- variable state (runtime-only; never written back into the document) ----
@@ -48,6 +51,34 @@
   var cursor = { topIndex: 0, branch: null };
   var history = [];
   var pos = -1;
+
+  // Finds where a page lives in the top-level sequence/branch structure - a page inside a branch
+  // is pointed at directly (not by evaluating that branch's own condition, which would need
+  // variable state nothing has produced yet at startup) so "Abspielen" opens on exactly the
+  // slide that was selected, not whichever branch the module would naturally have taken.
+  function findStartCursor(pageId) {
+    for (var i = 0; i < module.sequence.length; i++) {
+      var node = module.sequence[i];
+      if (node.kind === "page") {
+        if (node.pageId === pageId) return { topIndex: i, branch: null };
+        continue;
+      }
+      var logicBlock = module.logicBlocks[node.logicBlockId];
+      for (var b = 0; b < logicBlock.branches.length; b++) {
+        var branch = logicBlock.branches[b];
+        var branchPos = branch.pageIds.indexOf(pageId);
+        if (branchPos !== -1) {
+          return { topIndex: i, branch: { logicBlockId: logicBlock.id, branchId: branch.id, pages: branch.pageIds, pos: branchPos } };
+        }
+      }
+    }
+    return null;
+  }
+
+  if (startPageId) {
+    var startCursor = findStartCursor(startPageId);
+    if (startCursor) cursor = startCursor;
+  }
 
   function evalCondition(cond) {
     var v = variables[cond.variableId];
@@ -109,23 +140,34 @@
     cursor.topIndex++;
   }
 
+  function pageTransition(pageId) {
+    var page = pageId && module.pages[pageId];
+    return (page && page.transition) || { type: "none", durationMs: 500 };
+  }
+
   function goNext() {
+    // Captured before `pos` moves - this is the page being left, whose own transition (see
+    // TransitionPanel.tsx) animates the swap to whatever renders next, in every branch below.
+    // Still correct for pos === -1 (no page shown yet, e.g. the very first goNext() call at
+    // startup) - pageTransition(null) falls back to "none", and render() only ever animates when
+    // there's also already a rendered stage to animate away from (see animateTransition).
+    var outgoing = pos >= 0 && pos < history.length ? history[pos] : null;
     if (pos < history.length - 1) {
       pos++;
-      render();
+      render(pageTransition(outgoing));
       return;
     }
     if (history.length > 0) advanceCursor();
     var node = resolveCurrentNode();
     if (node.type === "end") {
       pos = history.length; // one past the last page: the "finished" state
-      render();
+      render(pageTransition(outgoing));
       sendCompleted();
       return;
     }
     history.push(node.pageId);
     pos = history.length - 1;
-    render();
+    render(pageTransition(outgoing));
   }
 
   function goPrev() {
@@ -217,6 +259,11 @@
     var isRight = e.key === "ArrowRight";
     var isLeft = e.key === "ArrowLeft";
     if (!isSpace && !isRight && !isLeft) return;
+    // Explicit === false (not just falsy) so a module exported before this setting existed -
+    // its embedded JSON simply won't have the field at all, and can't be migrated after the
+    // fact like a re-opened .weft.zip can - keeps behaving exactly as it always did instead of
+    // suddenly losing keyboard navigation nobody asked to turn off.
+    if (module.keyboardNavigationEnabled === false) return;
     if (blocksGlobalKeyNav(document.activeElement, isSpace)) return;
     e.preventDefault();
     if (isLeft) goPrev();
@@ -258,6 +305,92 @@
     return node;
   }
 
+  // ---- page-timeline event bus (drives BlockEffect.triggerEventId - see BlockEffectEditor in
+  // panels/BlockPanel.tsx) ----
+  // A block's own Aufbau/Abbau is triggered by one of these ids, in exactly the same string shape
+  // the editor's own graph (see pageTimeline.ts's *NodeId functions) uses to name them - kept in
+  // sync by hand across the two files, the same way DEFAULT_VIEWPORT_WIDTH etc. already are,
+  // since this file can't import from there (see the file header: no imports, no build step).
+  // Reset per renderStage() call (a fresh page's blocks need fresh listeners, and any stale ones
+  // left over from the previous page's now-detached elements should never fire again).
+  var eventListeners = {};
+  function onGraphEvent(eventId, callback) {
+    if (!eventId) return;
+    (eventListeners[eventId] = eventListeners[eventId] || []).push(callback);
+  }
+  function fireGraphEvent(eventId) {
+    (eventListeners[eventId] || []).forEach(function (callback) {
+      callback();
+    });
+  }
+  function quizFillEventId(blockId) {
+    return "quiz-fill:" + blockId;
+  }
+  function quizSubmitEventId(blockId) {
+    return "quiz-submit:" + blockId;
+  }
+  function videoStartEventId(blockId) {
+    return "video-start:" + blockId;
+  }
+  function videoStopEventId(blockId, stopPointId) {
+    return "video-stop:" + blockId + ":" + stopPointId;
+  }
+  function videoEndEventId(blockId) {
+    return "video-end:" + blockId;
+  }
+
+  /**
+   * Wires up one block's own Aufbau/Abbau (see BaseBlock.entranceEffect/exitEffect in
+   * core/types.ts) - called once per block, right after it's built, from renderBlock. The block
+   * starts hidden (visibility, not display: none, so it never needs a reflow to reveal) and is
+   * only ever shown once its entrance's trigger event actually fires, after its own delay -
+   * "none" as the effect type still means exactly that, it just reveals instantly instead of
+   * animating; the default entrance (trigger "start", 0ms delay, type "none") reveals in the same
+   * synchronous pass that builds the stage, before the browser ever paints, so a block with no
+   * effects configured looks exactly like it always did: just there from the start. Abbau mirrors
+   * this the other way, and simply never runs at all when its own triggerEventId is null (the
+   * default - see defaultExitEffect in document/blockEffects.ts).
+   */
+  function applyBlockEffects(wrap, block) {
+    var entrance = block.entranceEffect || { type: "none", triggerEventId: "start", durationMs: 500, delayMs: 0 };
+    var exit = block.exitEffect || { type: "none", triggerEventId: null, durationMs: 500, delayMs: 0 };
+
+    wrap.style.visibility = "hidden";
+    onGraphEvent(entrance.triggerEventId, function () {
+      setTimeout(function () {
+        wrap.style.visibility = "";
+        if (entrance.type === "fade") {
+          wrap.animate([{ opacity: 0 }, { opacity: 1 }], { duration: entrance.durationMs || 500, easing: "ease" });
+        } else if (entrance.type === "move") {
+          wrap.animate([{ transform: "translateX(100%)" }, { transform: "translateX(0)" }], {
+            duration: entrance.durationMs || 500,
+            easing: "ease",
+          });
+        }
+      }, entrance.delayMs || 0);
+    });
+
+    if (exit.triggerEventId) {
+      onGraphEvent(exit.triggerEventId, function () {
+        setTimeout(function () {
+          function hide() {
+            wrap.style.visibility = "hidden";
+          }
+          if (exit.type === "fade") {
+            wrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: exit.durationMs || 500, easing: "ease" }).onfinish = hide;
+          } else if (exit.type === "move") {
+            wrap.animate([{ transform: "translateX(0)" }, { transform: "translateX(100%)" }], {
+              duration: exit.durationMs || 500,
+              easing: "ease",
+            }).onfinish = hide;
+          } else {
+            hide();
+          }
+        }, exit.delayMs || 0);
+      });
+    }
+  }
+
   // Same icon set as the editor canvas's video2 watermark (see BlockView.tsx) - play, not video2,
   // because unlike there, clicking this genuinely starts playback. Inlined rather than fetched:
   // this file has to keep working as a single self-contained script once exported (see the file
@@ -279,32 +412,48 @@
     );
   }
 
-  // Without forcedViewportWidth: a plain iframe filling the block, as before. With one, the
-  // embedded page is given exactly that fixed CSS-pixel width (so it sees a constant "window"
-  // width no matter how large the module itself is displayed) - height is DERIVED from the
-  // wrap's own aspect ratio (100cqh/100cqw, container query units resolving to its rendered
-  // pixel size) times that width, so the virtual viewport always has exactly the block's own
-  // shape and the scaled result fills it edge to edge with no letterboxing. The scale itself is
-  // then purely 100cqw / <forced width>, all live CSS with no JS measurement needed. Matches
+  // Kept in sync by hand with BlockPanel.tsx's DEFAULT_VIEWPORT_WIDTH and BlockView.tsx's own
+  // copy - a module saved before forcedViewportWidth existed has no value for it at all, and a
+  // virtual viewport is always in effect now (see IframeEditor's comment for why), so this needs
+  // an actual width to fall back to rather than just meaning "off".
+  var DEFAULT_VIEWPORT_WIDTH = 768;
+
+  // The embedded page is always given exactly this fixed CSS-pixel WIDTH (so it sees a constant
+  // "window" width no matter how large the module itself is displayed, e.g. to force its mobile
+  // layout) - height is DERIVED from the wrap's own aspect ratio times that width, so the virtual
+  // viewport always has exactly the block's own shape and the scaled result fills it edge to edge
+  // with no letterboxing.
+  //
+  // Both that derived height AND the scale factor that fits the fixed-width iframe into the wrap
+  // used to be computed live in CSS via container query units (100cqh / 100cqw for the height,
+  // 100cqw / <width> for the scale) - that worked in Chromium/WebKit but isn't portable: Firefox
+  // rejects a calc() that divides one length by another as an invalid value outright, for *both*
+  // of those, silently dropping the whole declaration - width, a plain literal, still applied, so
+  // the iframe rendered at exactly the right width but fell back to the browser's default ~150px
+  // height and a 1:1 (unscaled) transform. The height is derived in JS now instead (block.position
+  // and module.aspectRatio are already known data here, no container query needed for it at all);
+  // the scale factor still genuinely needs the wrap's own rendered pixel width, which isn't known
+  // until layout, so that's measured via ResizeObserver instead of computed via calc(). Matches
   // BlockView.tsx's IframeFrame in the editor exactly.
   function iframeEl(block, src) {
-    if (block.forcedViewportWidth) {
-      var w = block.forcedViewportWidth;
-      var frame = el("iframe", {
-        src: src,
-        sandbox: (block.sandbox || []).join(" "),
-        allow: block.allow || "",
-        style:
-          "width:" + w + "px;height:calc(" + w + "px * (100cqh / 100cqw));border:0;transform:scale(calc(100cqw / " + w + "px));",
-      }, []);
-      return el("div", { class: "weft-iframe-viewport-wrap" }, [frame]);
-    }
-    return el("iframe", {
+    var w = block.forcedViewportWidth || DEFAULT_VIEWPORT_WIDTH;
+    var ratio = ASPECT_MAP[module.aspectRatio] || ASPECT_MAP["16:9"];
+    var stageHeightOverWidth = ratio[1] / ratio[0];
+    var wrapHeightOverWidth = stageHeightOverWidth * (block.position.height / block.position.width);
+    var h = w * wrapHeightOverWidth;
+    var frame = el("iframe", {
       src: src,
       sandbox: (block.sandbox || []).join(" "),
       allow: block.allow || "",
-      style: "width:100%;height:100%;border:0;",
+      style: "width:" + w + "px;height:" + h + "px;border:0;",
     }, []);
+    var wrap = el("div", { class: "weft-iframe-viewport-wrap" }, [frame]);
+    var observer = new ResizeObserver(function (entries) {
+      var rect = entries[0] && entries[0].contentRect;
+      if (rect) frame.style.transform = "scale(" + rect.width / w + ")";
+    });
+    observer.observe(wrap);
+    return wrap;
   }
 
   function fillWithIframe(wrap, block, src) {
@@ -351,6 +500,33 @@
       videoEl.muted = !!block.muted;
       videoEl.autoplay = !!block.autoplay;
 
+      // Fires each stop point's own event (see videoStopEventId - a block elsewhere can use it as
+      // an Aufbau/Abbau trigger, see BlockEffectEditor) the moment playback reaches it, and pauses
+      // too if any of the ones crossed this tick has stopsVideo true (see VideoStopPointDialog in
+      // BlockPanel.tsx) - detected as "crossed since the last tick" rather than "currentTime ===
+      // timeSeconds" (timeupdate doesn't fire every frame, so an exact match could easily be
+      // skipped over). lastStopCheckTime starts at -1, not 0, so a stop point placed at the very
+      // start (time 0) still fires on the first tick instead of being treated as already-passed.
+      // Doesn't force currentTime back to the stop point itself on pause - it only pauses wherever
+      // playback happens to be when the check catches it, so scrubbing past one on purpose doesn't
+      // get yanked back.
+      if (block.stopPoints && block.stopPoints.length > 0) {
+        var lastStopCheckTime = -1;
+        videoEl.addEventListener("timeupdate", function () {
+          var current = videoEl.currentTime;
+          var shouldPause = false;
+          for (var i = 0; i < block.stopPoints.length; i++) {
+            var stopPoint = block.stopPoints[i];
+            if (lastStopCheckTime < stopPoint.timeSeconds && current >= stopPoint.timeSeconds) {
+              fireGraphEvent(videoStopEventId(block.id, stopPoint.id));
+              if (stopPoint.stopsVideo) shouldPause = true;
+            }
+          }
+          if (shouldPause) videoEl.pause();
+          lastStopCheckTime = current;
+        });
+      }
+
       // A big, obviously-clickable play button over the video - shown until playback actually
       // starts (by a click here or, once it lands, a successful autoplay), then hidden again on
       // pause/end so it doesn't sit on top of the video's own controls bar (if block.controls
@@ -363,8 +539,21 @@
         // nothing to recover from there, just avoid an unhandled-rejection console error over it.
         videoEl.play().catch(function () {});
       });
+      // hasFiredStart guards against "video-start" refiring on every resume-after-pause - native
+      // <video> fires "play" each time playback (re)starts, but the event should only mean the
+      // *first* time, matching what "Start des Videos" actually shows in the editor's own graph.
+      var hasFiredStart = false;
       videoEl.addEventListener("play", function () {
         playButton.classList.add("is-hidden");
+        if (!hasFiredStart) {
+          hasFiredStart = true;
+          fireGraphEvent(videoStartEventId(block.id));
+        }
+      });
+      // Never fires at all for a looping video (the loop attribute pre-empts "ended" natively) -
+      // matches "video-end-loop"/the ∞ icon's own meaning of "doesn't really end" exactly.
+      videoEl.addEventListener("ended", function () {
+        fireGraphEvent(videoEndEventId(block.id));
       });
       videoEl.addEventListener("pause", function () {
         playButton.classList.remove("is-hidden");
@@ -400,22 +589,82 @@
     return wrap;
   }
 
+  // Same icon set as the editor canvas's own quiz preview (see BlockView.tsx) - accept for the
+  // submit button, check-circle/remove-circle-full for the two feedback states, and the same
+  // checkbox-checked/checkbox-unchecked pair the editor uses too, so the checkbox itself looks
+  // pixel-identical here as there instead of falling back to whatever the OS/browser draws for a
+  // native checkbox (see the option-row markup below for how the real, still-functional
+  // <input type="checkbox"> is kept but visually replaced by these two icons).
+  var QUIZ_SUBMIT_ICON_SVG =
+    '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 54 54"><path fill="#28497c" d="m50.98 16.77-8.41-8.42L22.12 28.8 11.41 18.1l-8.4 8.41 19.12 19.12z"/></svg>';
+  var QUIZ_CORRECT_ICON_SVG =
+    '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 54 54"><path d="M40.84 21.11 36 16.25 24.18 28 18 21.87l-4.84 4.85 11 11ZM27 8A19 19 0 1 1 8 27 19 19 0 0 1 27 8m0-5a24 24 0 1 0 24 24A24 24 0 0 0 27 3" fill="#28497c"/></svg>';
+  var QUIZ_INCORRECT_ICON_SVG =
+    '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 54 54"><path d="M40.63 30.41v-6.82H13.24v6.82ZM27 8A19 19 0 1 1 8 27 19 19 0 0 1 27 8m0-5a24 24 0 1 0 24 24A24 24 0 0 0 27 3" fill="#28497c"/></svg>';
+  var QUIZ_CHECKBOX_UNCHECKED_SVG =
+    '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="geometricPrecision" fill="#28497c"><path d="M14.5 1.5v13h-13v-13zM16 0H0v16h16z"/></svg>';
+  var QUIZ_CHECKBOX_CHECKED_SVG =
+    '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="geometricPrecision" fill="#28497c"><path d="M13.055 5.848 11.28 4.073 6.972 8.379 4.715 6.127 2.946 7.899l4.027 4.026z"/><path d="M14.5 1.5v13h-13v-13zM16 0H0v16h16z"/></svg>';
+
   function renderQuizBlock(block) {
     var wrap = el("div", { class: "weft-block weft-block-quiz", style: positionStyle(block.position) });
     var form = el("form", { class: "weft-quiz" }, []);
-    form.appendChild(el("p", { class: "weft-quiz-question" }, [document.createTextNode(block.question)]));
-    var feedback = el("p", { class: "weft-quiz-feedback" }, []);
 
+    var question = el("div", { class: "weft-quiz-question" }, []);
+    question.innerHTML = block.questionHtml;
+    form.appendChild(question);
+
+    var optionsWrap = el("div", { class: "weft-quiz-options" }, []);
     block.options.forEach(function (opt) {
-      var label = el("label", { class: "weft-quiz-option" }, []);
-      var input = el("input", { type: "checkbox", name: "opt-" + block.id, value: opt.id }, []);
-      label.appendChild(input);
-      label.appendChild(document.createTextNode(" " + opt.text));
-      form.appendChild(label);
+      // The whole card is the <label> (not just a small checkbox) so clicking anywhere on an
+      // option selects it, and .weft-quiz-option:has(input:checked) in the stylesheet picks up
+      // both the card highlight and which of the two icons below shows - no separate "selected"
+      // class to keep in sync. The checkbox itself stays a real, focusable/keyboard-operable
+      // <input> - it's just visually hidden (opacity:0, sized/positioned exactly over the icon
+      // pair) rather than removed, so clicking or tabbing to it still works exactly like a native
+      // checkbox, it just never shows the OS's own checkbox chrome.
+      var optionLabel = el("label", { class: "weft-quiz-option" }, []);
+      var checkboxWrap = el("span", { class: "weft-quiz-option-checkbox" }, []);
+      var input = el("input", { type: "checkbox", name: "opt-" + block.id, value: opt.id, class: "weft-quiz-option-input" }, []);
+      var uncheckedIcon = el("span", { class: "weft-quiz-option-checkbox-icon weft-quiz-option-checkbox-icon-unchecked" }, []);
+      uncheckedIcon.innerHTML = QUIZ_CHECKBOX_UNCHECKED_SVG;
+      var checkedIcon = el("span", { class: "weft-quiz-option-checkbox-icon weft-quiz-option-checkbox-icon-checked" }, []);
+      checkedIcon.innerHTML = QUIZ_CHECKBOX_CHECKED_SVG;
+      checkboxWrap.appendChild(input);
+      checkboxWrap.appendChild(uncheckedIcon);
+      checkboxWrap.appendChild(checkedIcon);
+      var text = el("span", { class: "weft-quiz-option-text" }, []);
+      text.innerHTML = opt.html;
+      optionLabel.appendChild(checkboxWrap);
+      optionLabel.appendChild(text);
+      optionsWrap.appendChild(optionLabel);
+    });
+    form.appendChild(optionsWrap);
+
+    // Fires once, the moment the learner picks a first option - matches "Ausfüllen" in the
+    // editor's own graph exactly (see quizFillNodeId in pageTimeline.ts), which is likewise about
+    // the first pick, not every subsequent one.
+    var hasFiredFill = false;
+    optionsWrap.addEventListener("change", function () {
+      if (hasFiredFill) return;
+      hasFiredFill = true;
+      fireGraphEvent(quizFillEventId(block.id));
     });
 
-    var submit = el("button", { type: "submit" }, [document.createTextNode("Antworten")]);
+    var submit = el("button", { type: "submit", class: "weft-quiz-submit" }, []);
+    var submitIcon = el("span", { class: "weft-quiz-submit-icon" }, []);
+    submitIcon.innerHTML = QUIZ_SUBMIT_ICON_SVG;
+    submit.appendChild(submitIcon);
+    submit.appendChild(document.createTextNode("Abschicken"));
     form.appendChild(submit);
+
+    // Hidden until submitted, and takes the submit button's place rather than sitting next to it
+    // (see the submit handler) - there's nothing left to submit once it's showing.
+    var feedback = el("div", { class: "weft-quiz-feedback", hidden: "" }, []);
+    var feedbackIcon = el("span", { class: "weft-quiz-feedback-icon" }, []);
+    var feedbackTitle = el("strong", { class: "weft-quiz-feedback-title" }, []);
+    feedback.appendChild(feedbackIcon);
+    feedback.appendChild(feedbackTitle);
     form.appendChild(feedback);
 
     form.addEventListener("submit", function (event) {
@@ -431,8 +680,22 @@
           return block.correctOptionIds.indexOf(id) !== -1;
         });
       (correct ? block.onCorrect : block.onIncorrect).forEach(applyEffect);
-      feedback.textContent = correct ? "Richtig!" : "Leider nicht richtig.";
+      // One shared event regardless of correct/incorrect - matches quizSubmitNodeId in
+      // pageTimeline.ts, which is likewise the same id for both outcome lanes (only the label/icon
+      // shown for it differ there, not the underlying event).
+      fireGraphEvent(quizSubmitEventId(block.id));
+
+      // Replaces the submit button rather than joining it (see the feedback element above), and
+      // locks the options in place - both so a learner can't submit twice, and so the answer
+      // shown as "correct"/"incorrect" can't silently change after the fact by re-checking boxes.
+      submit.hidden = true;
+      Array.prototype.slice.call(form.querySelectorAll(".weft-quiz-option-input")).forEach(function (input) {
+        input.disabled = true;
+      });
+      feedbackIcon.innerHTML = correct ? QUIZ_CORRECT_ICON_SVG : QUIZ_INCORRECT_ICON_SVG;
+      feedbackTitle.textContent = correct ? "Das war richtig!" : "Das war leider nicht richtig.";
       feedback.className = "weft-quiz-feedback " + (correct ? "is-correct" : "is-incorrect");
+      feedback.hidden = false;
 
       if (correct ? block.advanceOnCorrect : block.advanceOnIncorrect) {
         var posAtAnswer = pos;
@@ -451,17 +714,24 @@
   }
 
   function renderBlock(block) {
-    if (block.kind === "quiz") return renderQuizBlock(block);
-    if (block.kind === "button") return renderButtonBlock(block);
-    return renderStaticBlock(block);
+    var wrap = block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : renderStaticBlock(block);
+    applyBlockEffects(wrap, block);
+    return wrap;
   }
 
   function renderStage(pageId) {
+    // Fresh listeners for a fresh page - see eventListeners's own comment above for why stale
+    // ones from whatever page was showing before must never carry over.
+    eventListeners = {};
     var page = module.pages[pageId];
     var stage = el("div", { class: "weft-stage", style: stageStyle() }, []);
     var layout = page.layoutId ? module.layouts[page.layoutId] : null;
     if (layout) layout.blocks.forEach(function (b) { stage.appendChild(renderBlock(b)); });
     page.blocks.forEach(function (b) { stage.appendChild(renderBlock(b)); });
+    // Every block's own entrance/exit listener is registered synchronously above, by the time
+    // renderBlock returns for it - so firing "start" here, still before this stage is even
+    // returned to be appended to the DOM, reaches all of them before the browser ever paints.
+    fireGraphEvent("start");
     return stage;
   }
 
@@ -469,10 +739,7 @@
   // blocks (see renderButtonBlock). The one dead end that leaves is the synthetic "done" screen,
   // which isn't a real page and so can't carry an author-placed button - it gets its own restart
   // button for exactly that reason.
-  function render() {
-    var root = document.getElementById("weft-root");
-    root.innerHTML = "";
-
+  function buildStageWrap() {
     var wrap = el("div", { class: "weft-stage-wrap" }, []);
 
     if (pos >= history.length) {
@@ -488,8 +755,48 @@
     } else {
       wrap.appendChild(renderStage(history[pos]));
     }
+    return wrap;
+  }
 
-    root.appendChild(wrap);
+  // Animates the outgoing .weft-stage-wrap out and/or the incoming one in, per `transition.type`
+  // (see Transition in core/types.ts and the matching .is-transition-old/-new rules in
+  // player.runtime.css), then swaps them for real once the animation finishes. "fade": only the
+  // outgoing one animates (opacity 1 -> 0), revealing the incoming one underneath, already at
+  // full opacity - matches how it was designed in the editor's Timeline/TransitionPanel. "move":
+  // the outgoing one slides a full width to the left while the incoming one slides in from a full
+  // width to the right, in lockstep.
+  function animateTransition(root, oldWrap, newWrap, transition) {
+    var duration = transition.durationMs || 500;
+    oldWrap.classList.add("is-transition-old");
+    newWrap.classList.add("is-transition-new");
+    root.appendChild(newWrap);
+
+    function finish() {
+      if (oldWrap.parentNode === root) root.removeChild(oldWrap);
+      newWrap.classList.remove("is-transition-new");
+    }
+
+    if (transition.type === "fade") {
+      oldWrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: duration, easing: "ease" }).onfinish = finish;
+    } else if (transition.type === "move") {
+      oldWrap.animate([{ transform: "translateX(0)" }, { transform: "translateX(-100%)" }], { duration: duration, easing: "ease" });
+      newWrap.animate([{ transform: "translateX(100%)" }, { transform: "translateX(0)" }], { duration: duration, easing: "ease" }).onfinish = finish;
+    } else {
+      finish(); // an unrecognized/future type - fall back to an instant cut rather than getting stuck mid-transition
+    }
+  }
+
+  function render(outgoingTransition) {
+    var root = document.getElementById("weft-root");
+    var oldWrap = root.firstElementChild;
+    var newWrap = buildStageWrap();
+
+    if (oldWrap && outgoingTransition && outgoingTransition.type !== "none") {
+      animateTransition(root, oldWrap, newWrap, outgoingTransition);
+    } else {
+      root.innerHTML = "";
+      root.appendChild(newWrap);
+    }
 
     sendProgress();
     if (lmsEnabled) postToLms({ type: "resize", height: document.documentElement.scrollHeight });

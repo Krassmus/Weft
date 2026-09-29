@@ -10,20 +10,20 @@ import type { WeftModule } from "../../core/types";
  * into a sandboxed iframe. No `allow-same-origin`, so the module genuinely cannot reach the
  * editor's window even though it runs in-process.
  */
-export function PreviewFrame({ module }: { module: WeftModule }) {
+export function PreviewFrame({ module, startPageId = null }: { module: WeftModule; startPageId?: string | null }) {
   const [srcDoc, setSrcDoc] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     Promise.all([buildPreviewAssetUrls(module), buildPreviewFontFaceCss(module)])
-      .then(([assetUrls, fontFaceCss]) => buildRuntimeHtml(module, assetUrls, fontFaceCss))
+      .then(([assetUrls, fontFaceCss]) => buildRuntimeHtml(module, assetUrls, fontFaceCss, startPageId))
       .then((html) => {
         if (!cancelled) setSrcDoc(html);
       });
     return () => {
       cancelled = true;
     };
-  }, [module]);
+  }, [module, startPageId]);
 
   if (!srcDoc) return <div className="weft-preview-loading">Vorschau wird geladen …</div>;
 

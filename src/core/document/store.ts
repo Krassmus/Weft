@@ -12,7 +12,15 @@ export type SelectionRef =
   | { type: "page"; pageId: string }
   | { type: "logic"; logicBlockId: string }
   | { type: "layout"; layoutId: string }
-  | { type: "block"; container: BlockContainerRef; blockId: string };
+  | { type: "block"; container: BlockContainerRef; blockId: string }
+  /** A node in a page's own timeline/event graph (see Timeline.tsx and PageTimeline in
+   * core/types.ts) - "start", "end" (a specific lane's "Nächste Folie" - see
+   * syncQuizTimelineEvents's own end-node ids, unique per quiz outcome even though several can
+   * share the same "Nächste Folie" label/look), or a block-contributed "event" node. Routes the
+   * Inspector to EventPanel.tsx, deliberately never to a content/position editor - see its own
+   * doc comment for why clicking an event is its own kind of selection, not a shortcut for
+   * selecting whatever block happens to be behind it. */
+  | { type: "event"; pageId: string; nodeId: string };
 
 interface DocumentState {
   doc: WeftDocument;

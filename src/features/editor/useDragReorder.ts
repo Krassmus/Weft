@@ -1,33 +1,42 @@
 import { useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
+/** "page" rows can be dropped into any container (the top-level sequence or any branch) - "logic"
+ * rows (a logic block itself, never held by a branch - see Branch's own comment in types.ts) stay
+ * restricted to reordering within their own container, which for a logic block is always "top". */
+type DragKind = "page" | "logic";
+
 interface DragOverState {
-  containerId: string;
+  sourceContainerId: string;
   sourceIndex: number;
+  targetContainerId: string;
   overIndex: number;
   position: "before" | "after";
 }
 
-type ReorderFn = (from: number, to: number) => void;
+type MoveFn = (targetContainerId: string, targetIndex: number) => void;
 
 /**
  * Pointer-events based drag reordering (not native HTML5 DnD, which is inconsistent in
  * WebKit/Tauri and doesn't unify with touch): each draggable row carries data-drag-container /
  * data-drag-index attributes, and elementFromPoint() during pointermove finds the row under the
- * cursor without every row needing its own DOM ref. `containerId` scopes a drag to one list
- * (the top-level sequence, or a single branch's pages) - dragging never crosses container ids.
+ * cursor without every row needing its own DOM ref. `containerId` scopes which list a row belongs
+ * to (the top-level sequence, or a single branch's pages) - a "page" drag can land in ANY
+ * container (moving the page there), a "logic" drag only within its own ("top" is the only one a
+ * logic block ever has).
  */
 export function useDragReorder() {
   const [over, setOver] = useState<DragOverState | null>(null);
   const overRef = useRef<DragOverState | null>(null);
   const startRef = useRef<{ x: number; y: number } | null>(null);
   const startedRef = useRef(false);
+  const kindRef = useRef<DragKind | null>(null);
   const containerRef = useRef<string | null>(null);
   const sourceIndexRef = useRef<number | null>(null);
-  const commitRef = useRef<ReorderFn | null>(null);
+  const onMoveRef = useRef<MoveFn | null>(null);
 
   function handleMove(e: PointerEvent) {
-    if (!startRef.current || containerRef.current === null || sourceIndexRef.current === null) return;
+    if (!startRef.current || !kindRef.current || containerRef.current === null || sourceIndexRef.current === null) return;
     const dx = e.clientX - startRef.current.x;
     const dy = e.clientY - startRef.current.y;
     if (!startedRef.current) {
@@ -39,12 +48,22 @@ export function useDragReorder() {
 
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const row = el instanceof Element ? el.closest<HTMLElement>("[data-drag-container]") : null;
-    if (!row || row.dataset.dragContainer !== containerRef.current) return;
+    if (!row) return;
+    const rowContainer = row.dataset.dragContainer!;
+    // A "logic" drag may only reorder within the container it started in (always "top"); a
+    // "page" drag may land in any container, including a different one than it started in.
+    if (kindRef.current === "logic" && rowContainer !== containerRef.current) return;
 
     const index = Number(row.dataset.dragIndex);
     const rect = row.getBoundingClientRect();
     const position: "before" | "after" = e.clientY < rect.top + rect.height / 2 ? "before" : "after";
-    const next: DragOverState = { containerId: containerRef.current, sourceIndex: sourceIndexRef.current, overIndex: index, position };
+    const next: DragOverState = {
+      sourceContainerId: containerRef.current,
+      sourceIndex: sourceIndexRef.current,
+      targetContainerId: rowContainer,
+      overIndex: index,
+      position,
+    };
     overRef.current = next;
     setOver(next);
   }
@@ -55,23 +74,28 @@ export function useDragReorder() {
     window.removeEventListener("pointercancel", finish);
     document.body.classList.remove("weft-dragging");
 
-    if (startedRef.current && overRef.current && commitRef.current) {
-      const { sourceIndex, overIndex, position } = overRef.current;
-      const adjusted = overIndex > sourceIndex ? overIndex - 1 : overIndex;
+    if (startedRef.current && overRef.current && onMoveRef.current) {
+      const { sourceContainerId, sourceIndex, targetContainerId, overIndex, position } = overRef.current;
+      const sameContainer = targetContainerId === sourceContainerId;
+      // Removing the source item from THIS SAME container first shifts every later index in it
+      // down by one - irrelevant when the drop target is a different container, since removing
+      // from one list never affects indices in another.
+      const adjusted = sameContainer && overIndex > sourceIndex ? overIndex - 1 : overIndex;
       const to = position === "after" ? adjusted + 1 : adjusted;
-      if (to !== sourceIndex) commitRef.current(sourceIndex, to);
+      if (!(sameContainer && to === sourceIndex)) onMoveRef.current(targetContainerId, to);
     }
 
     startRef.current = null;
     startedRef.current = false;
+    kindRef.current = null;
     containerRef.current = null;
     sourceIndexRef.current = null;
-    commitRef.current = null;
+    onMoveRef.current = null;
     overRef.current = null;
     setOver(null);
   }
 
-  function bind(containerId: string, index: number, onReorder: ReorderFn) {
+  function bind(kind: DragKind, containerId: string, index: number, onMove: MoveFn) {
     return {
       "data-drag-container": containerId,
       "data-drag-index": index,
@@ -79,17 +103,20 @@ export function useDragReorder() {
         if (e.button !== 0) return;
         startRef.current = { x: e.clientX, y: e.clientY };
         startedRef.current = false;
+        kindRef.current = kind;
         containerRef.current = containerId;
         sourceIndexRef.current = index;
-        commitRef.current = onReorder;
+        onMoveRef.current = onMove;
         window.addEventListener("pointermove", handleMove);
         window.addEventListener("pointerup", finish);
         window.addEventListener("pointercancel", finish);
       },
       dragClassName:
-        over?.containerId === containerId && over.sourceIndex === index
+        over?.sourceContainerId === containerId && over.sourceIndex === index
           ? " is-dragging"
-          : over?.containerId === containerId && over.overIndex === index && over.sourceIndex !== index
+          : over?.targetContainerId === containerId &&
+              over.overIndex === index &&
+              !(over.sourceContainerId === containerId && over.sourceIndex === index)
             ? over.position === "before"
               ? " is-drop-before"
               : " is-drop-after"

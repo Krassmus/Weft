@@ -1193,6 +1193,22 @@ button.weft-timeline-node-icon.is-animated:hover {
   border-top-style: solid;
 }
 
+/* "advance" (Weiter-triggered) - dotted, so it reads apart from both the solid "timed" line and
+   the default dashed "unknown" one at a glance, in the same accent-hover blue the canvas already
+   uses for a few other "this is the live/active one" treatments (e.g. BlockView's own
+   .is-group-selected outline). */
+.weft-timeline-line.is-advance {
+  border-top-style: dotted;
+  border-top-color: var(--weft-accent-hover);
+}
+
+/* No edge at all between two adjacent nodes (currently only "Nächste Folie" set to "Gar nicht" -
+   see Timeline.tsx's own TimelineLaneRow) - invisible, but still occupies the same flex space a
+   real line would, so the gap it provides doesn't collapse and run the two nodes together. */
+.weft-timeline-line.is-none {
+  border-top-color: transparent;
+}
+
 /* Only a line that actually reaches "end" stretches to fill the row - keeps every lane's "end"
    aligned in one column on the right. A line that dead-ends at an event with no further
    connection (e.g. a quiz whose outcome isn't wired to auto-advance yet) stays a short, fixed-

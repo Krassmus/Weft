@@ -11,7 +11,7 @@ import visibilityVisibleIconSvg from "../../../mockups/icons/visibility-visible.
 import visibilityInvisibleIconSvg from "../../../mockups/icons/visibility-invisible.svg?raw";
 import { isTriggerableNode, listAllNodes } from "../../core/document/pageTimeline";
 import { useDocumentStore } from "../../core/document/store";
-import type { Page, TimelineEventType, TimelineLane, TimelineNode, TransitionType } from "../../core/types";
+import type { Page, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode, TransitionType } from "../../core/types";
 
 const TRANSITION_LABELS: Record<TransitionType, string> = {
   none: "",
@@ -60,6 +60,13 @@ const EVENT_ICONS: Record<TimelineEventType, string> = {
 /** Exported for BlockEffectEditor in panels/BlockPanel.tsx, which lists these same nodes (minus
  * "end" - see BlockEffect.triggerEventId in core/types.ts) as trigger options for a block's own
  * Aufbau/Abbau, and wants them to read exactly the same as they do here. */
+/** The extra class an edge's own line gets for its `kind` - "timed" (solid) and "advance" (dashed,
+ * accent-colored - see App.css) each get one; plain "unknown" edges keep the bare dashed default,
+ * no extra class needed. */
+function edgeKindClass(kind: TimelineEdgeKind): string {
+  return kind === "timed" ? " is-timed" : kind === "advance" ? " is-advance" : "";
+}
+
 export function nodeLabel(node: TimelineNode): string {
   if (node.label) return node.label;
   if (node.kind === "start") return "Start der Folie";
@@ -299,7 +306,7 @@ function TimelineLaneRow({
           <div className="weft-timeline-fork-lead" style={{ flex: `0 0 ${leadOverride.width ?? 0}px` }} />
           {leadEdge && (
             <div
-              className={"weft-timeline-line" + (leadEdge.kind === "timed" ? " is-timed" : "")}
+              className={"weft-timeline-line" + edgeKindClass(leadEdge.kind)}
               style={{ flex: `0 0 ${leadOverride.lineWidth ?? 48}px` }}
             />
           )}
@@ -350,12 +357,18 @@ function TimelineLaneRow({
                 </div>
               )}
             </div>
-            {edge && (
+            {nextNode && (
+              // Still rendered (just invisible - see .is-none in App.css) even with no edge at
+              // all between two adjacent nodes in the same lane - "Nächste Folie" set to "Gar
+              // nicht" is the one case where that happens (see syncPageTimelineEvents in
+              // document/pageTimeline.ts, which then leaves the bypass lane's own edge out
+              // entirely) - so the gap this div's own flex sizing provides doesn't collapse and
+              // run the two nodes' labels into each other.
               <div
                 className={
                   "weft-timeline-line" +
-                  (edge.kind === "timed" ? " is-timed" : "") +
-                  (isIndependent ? " is-distributed" : nextNode?.kind === "end" ? " is-to-end" : " is-detached")
+                  (edge ? edgeKindClass(edge.kind) : " is-none") +
+                  (isIndependent ? " is-distributed" : nextNode.kind === "end" ? " is-to-end" : " is-detached")
                 }
               />
             )}

@@ -266,8 +266,13 @@
     if (module.keyboardNavigationEnabled === false) return;
     if (blocksGlobalKeyNav(document.activeElement, isSpace)) return;
     e.preventDefault();
+    // The "done" screen isn't a real page (see buildStageWrap) - nothing wired its own Weiter
+    // queue for it, so Weiter here always means "start over", exactly like the "Neu starten"
+    // button it shows, same as the ternary every other Weiter-ish control (the button block,
+    // quiz auto-advance) already uses.
     if (isLeft) goPrev();
-    else (pos >= history.length ? restart : goNext)();
+    else if (pos >= history.length) restart();
+    else advanceOne();
   });
 
   // ---- rendering ----
@@ -346,6 +351,45 @@
     firedTriggerableEvents[eventId] = true;
     fireGraphEvent(eventId);
   }
+
+  // ---- "Weiter" (advance) queue - drives every kind:"advance" trigger edge, see
+  // TimelineEdgeKind's own doc comment in core/types.ts ----
+  // Ordered list of callbacks that are READY (their own `from` node has already fired) but
+  // haven't actually run yet - each one only runs once the learner presses Weiter again (see
+  // advanceOne), never the moment it becomes ready, unlike a plain graph event. Reset alongside
+  // eventListeners/firedTriggerableEvents in renderStage() - a fresh page starts its own queue
+  // from scratch.
+  var advanceQueue = [];
+  // Registers `cb` to become ready (queued, not run) the moment `fromEventId`'s own normal graph
+  // event fires - whether that's "start" firing synchronously at page load, a timed block effect
+  // firing after its delay, or another advance-step's own completion event firing once *it's*
+  // actually been stepped (see advanceOne) - chaining falls straight out of the existing event bus
+  // with no separate "chain" data structure needed.
+  function onAdvance(fromEventId, cb) {
+    onGraphEvent(fromEventId, function () {
+      advanceQueue.push(cb);
+    });
+  }
+  // The one function that actually consumes a single Weiter-press (Space/→, or a button block
+  // whose action is "advance") - runs the next ready step if there is one; does nothing at all if
+  // the queue is empty (in particular: if "Nächste Folie" was set to "Gar nicht", nothing ever
+  // enqueues the actual page-leave, so Weiter can never leave this page on its own - see
+  // wireEndTrigger below). The degenerate case (no block uses Weiter) still matches today's exact
+  // behavior: "end" alone is queued, ready the instant "start" fires, so the very first press
+  // already leaves the page.
+  function advanceOne() {
+    if (advanceQueue.length) advanceQueue.shift()();
+  }
+  // Wires "Nächste Folie"'s own trigger (see resolveEndTrigger) into the SAME queue as every
+  // block's own Weiter-triggered Aufbau/Abbau - called once per renderStage(), so leaving the page
+  // is just the last link in the same chain rather than a separate mechanism.
+  function wireEndTrigger(page) {
+    var trigger = resolveEndTrigger(page);
+    if (!trigger) return;
+    onAdvance(trigger.from, function () {
+      (pos >= history.length ? restart : goNext)();
+    });
+  }
   function quizFillEventId(blockId) {
     return "quiz-fill:" + blockId;
   }
@@ -371,8 +415,8 @@
   }
 
   // ---- trigger resolution (mirrors document/pageTimeline.ts's own getBlockEntranceTrigger/
-  // getBlockExitTrigger/getVideoStartTrigger by hand - see this file's header for why it can't
-  // just import them) ----
+  // getBlockExitTrigger/getVideoStartTrigger/getEndTrigger/computeAdvanceChainTail by hand - see
+  // this file's header for why it can't just import them) ----
   function findTriggerEdge(page, targetNodeId) {
     var edges = (page.timeline && page.timeline.triggerEdges) || [];
     for (var i = 0; i < edges.length; i++) {
@@ -380,35 +424,132 @@
     }
     return null;
   }
-  function resolveEntranceTrigger(page, block) {
-    var edge = findTriggerEdge(page, blockEffectEventId(block.id, "entrance"));
-    return edge ? { from: edge.from, delayMs: edge.delayMs || 0 } : { from: "start", delayMs: 0 };
+  // { kind: "timed", from, delayMs } or { kind: "advance", from } - see TimelineEdgeKind's own
+  // doc comment in core/types.ts.
+  function resolvedTriggerFromEdge(edge) {
+    return edge.kind === "advance" ? { kind: "advance", from: edge.from } : { kind: "timed", from: edge.from, delayMs: edge.delayMs || 0 };
   }
+  function isPageBlock(page, blockId) {
+    for (var i = 0; i < page.blocks.length; i++) {
+      if (page.blocks[i].id === blockId) return true;
+    }
+    return false;
+  }
+  // The end of whatever's EXPLICITLY chained onto "Weiter" via a real triggerEdges entry - "start"
+  // if nothing's explicitly chained. Doesn't know about any block still sitting at its own
+  // implicit default (see computeImplicitEntranceChain) - only computeAdvanceChainTail (below) is
+  // safe to use as "the" current tail; this half exists only because
+  // computeImplicitEntranceChain needs this same explicit-only answer as ITS OWN starting point.
+  function computeExplicitAdvanceChainTail(page, excludeNodeId) {
+    var edges = (page.timeline && page.timeline.triggerEdges) || [];
+    var advanceEdges = [];
+    var froms = {};
+    for (var i = 0; i < edges.length; i++) {
+      if (edges[i].kind === "advance" && edges[i].to !== excludeNodeId) {
+        advanceEdges.push(edges[i]);
+        froms[edges[i].from] = true;
+      }
+    }
+    for (var j = 0; j < advanceEdges.length; j++) {
+      if (!froms[advanceEdges[j].to]) return advanceEdges[j].to;
+    }
+    return "start";
+  }
+  // Where every page block with no EXPLICIT entrance edge of its own currently sits in the Weiter
+  // queue, keyed by block id - two blocks both still at their own untouched default have to end up
+  // queued one after another (in page.blocks array order), not both racing to be "right after
+  // Start der Folie" independently.
+  function computeImplicitEntranceChain(page) {
+    var tail = computeExplicitAdvanceChainTail(page, null);
+    var result = {};
+    for (var i = 0; i < page.blocks.length; i++) {
+      var block = page.blocks[i];
+      if (block.entranceEffect.type === "off") continue; // no Aufbau at all - never part of the queue
+      var nodeId = blockEffectEventId(block.id, "entrance");
+      if (findTriggerEdge(page, nodeId)) continue;
+      result[block.id] = tail;
+      tail = nodeId;
+    }
+    return result;
+  }
+  // The current true end of this page's whole Weiter queue, explicit edges and every
+  // still-at-its-own-implicit-default block both accounted for - "start" if the queue is entirely
+  // empty. `excludeNodeId` leaves one node out of consideration entirely (pass null to not
+  // exclude anything).
+  function computeAdvanceChainTail(page, excludeNodeId) {
+    var tail = computeExplicitAdvanceChainTail(page, excludeNodeId);
+    for (var i = 0; i < page.blocks.length; i++) {
+      if (page.blocks[i].entranceEffect.type === "off") continue; // no Aufbau at all
+      var nodeId = blockEffectEventId(page.blocks[i].id, "entrance");
+      if (nodeId === excludeNodeId || findTriggerEdge(page, nodeId)) continue;
+      tail = nodeId;
+    }
+    return tail;
+  }
+  // null means no Aufbau at all (entranceEffect.type "off" - see BlockEffectType's own doc
+  // comment in core/types.ts) - short-circuits here regardless of whatever trigger edge might
+  // still be stored, so toggling back to "none"/"fade"/"move" later picks up where it left off.
+  function resolveEntranceTrigger(page, block) {
+    if (block.entranceEffect.type === "off") return null;
+    var edge = findTriggerEdge(page, blockEffectEventId(block.id, "entrance"));
+    if (edge) return resolvedTriggerFromEdge(edge);
+    // A block merged in from the page's own layout keeps the old unconditional default - see
+    // getBlockEntranceTrigger's own doc comment in document/pageTimeline.ts for why.
+    if (!isPageBlock(page, block.id)) return { kind: "timed", from: "start", delayMs: 0 };
+    var chain = computeImplicitEntranceChain(page);
+    var from = chain[block.id];
+    return { kind: "advance", from: from === undefined ? "start" : from };
+  }
+  // null for "off" (no Abbau at all - same short-circuit as entrance) or a layout block (can
+  // never durably persist a per-page trigger anyway). With an actual Abbau configured and no
+  // explicit trigger edge yet, defaults to "Weiter" too, same as entrance - a freshly chosen
+  // "Fade" Abbau needs a real trigger to mean anything.
   function resolveExitTrigger(page, block) {
+    if (block.exitEffect.type === "off") return null;
     var edge = findTriggerEdge(page, blockEffectEventId(block.id, "exit"));
-    return edge ? { from: edge.from, delayMs: edge.delayMs || 0 } : null;
+    if (edge) return resolvedTriggerFromEdge(edge);
+    if (!isPageBlock(page, block.id)) return null;
+    var nodeId = blockEffectEventId(block.id, "exit");
+    return { kind: "advance", from: computeAdvanceChainTail(page, nodeId) };
   }
   function resolveVideoStartTrigger(page, block) {
     var edge = findTriggerEdge(page, videoStartEventId(block.id));
-    if (edge) return { from: edge.from, delayMs: edge.delayMs || 0 };
-    return block.autoplay ? { from: "start", delayMs: 0 } : null;
+    if (edge) return resolvedTriggerFromEdge(edge);
+    return block.autoplay ? { kind: "timed", from: "start", delayMs: 0 } : null;
+  }
+  // "Nächste Folie"'s own trigger - always kind "advance" when non-null (see getEndTrigger's own
+  // doc comment in document/pageTimeline.ts: "end" only ever offers "Weiter" or "Gar nicht", never
+  // an arbitrary timed source). null means the page can only be left some other way (a button
+  // block, a quiz's own auto-advance). With no explicit edge, dynamically defaults to "Weiter,
+  // appended after everything else already queued" - the same dynamic default a block's own
+  // unconfigured Aufbau gets, so "end" keeps sliding to the back of the queue as blocks are added
+  // instead of firing too early.
+  function resolveEndTrigger(page) {
+    var edge = findTriggerEdge(page, "end");
+    if (!edge) return { kind: "advance", from: computeAdvanceChainTail(page, "end") };
+    return edge.kind === "advance" ? { kind: "advance", from: edge.from } : null;
   }
 
   /**
    * Wires up one block's own Aufbau/Abbau (see BaseBlock.entranceEffect/exitEffect in
-   * core/types.ts, and PageTimeline.triggerEdges for who triggers it and after what delay) -
-   * called once per block, right after it's built, from renderBlock. The block starts hidden
-   * (visibility, not display: none, so it never needs a reflow to reveal) and is only ever shown
-   * once its entrance's trigger event actually fires, after its own delay - "none" as the effect
-   * type still means exactly that, it just reveals instantly instead of animating; the default
-   * entrance (trigger "start", 0ms delay, type "none") reveals in the same synchronous pass that
-   * builds the stage, before the browser ever paints, so a block with no effects configured looks
-   * exactly like it always did: just there from the start. Abbau mirrors this the other way, and
-   * simply never runs at all when resolveExitTrigger returns null (the default - see
-   * defaultExitEffect in document/blockEffects.ts). Once each has actually happened, it fires its
-   * own synthetic graph event (see blockEffectEventId) so something ELSE can in turn be triggered
-   * by this block's own Aufbau/Abbau, exactly like any other event on the page (see
-   * TRIGGERABLE_EVENT_TYPES in document/pageTimeline.ts).
+   * core/types.ts, and PageTimeline.triggerEdges for who triggers it and after what delay, or
+   * whether it's Weiter-triggered instead - see resolveEntranceTrigger/resolveExitTrigger) -
+   * called once per block, right after it's built, from renderBlock. With an actual Aufbau
+   * configured (resolveEntranceTrigger non-null), the block starts hidden (visibility, not
+   * display: none, so it never needs a reflow to reveal) and is only ever shown once its
+   * entrance's trigger event actually fires (after its own delay for a timed trigger, or on the
+   * next Weiter press for an advance one - see onAdvance) - "none" as the effect type still means
+   * exactly that, it just reveals instantly instead of animating. With NO Aufbau at all
+   * (entranceEffect.type "off", the default - see BlockEffectType's own doc comment in
+   * core/types.ts - or a layout block, which can never durably carry its own per-page trigger
+   * either way), resolveEntranceTrigger returns null and the block is simply left at its natural
+   * visibility from the very start: no hiding, no wiring, exactly how every block behaved before
+   * entrance/exit effects existed at all. Abbau mirrors this the other way, and simply never runs
+   * at all when resolveExitTrigger returns null (the default). Once either actually happens, it
+   * fires its own synthetic graph event (see blockEffectEventId) so something ELSE can in turn be
+   * triggered by this block's own Aufbau/Abbau, exactly like any other event on the page (see
+   * TRIGGERABLE_EVENT_TYPES in document/pageTimeline.ts) - including another Weiter-triggered one,
+   * continuing the chain.
    */
   function applyBlockEffects(wrap, block, page) {
     var entrance = block.entranceEffect || { type: "none", durationMs: 500 };
@@ -416,9 +557,9 @@
     var entranceTrigger = resolveEntranceTrigger(page, block);
     var exitTrigger = resolveExitTrigger(page, block);
 
-    wrap.style.visibility = "hidden";
-    onGraphEvent(entranceTrigger.from, function () {
-      setTimeout(function () {
+    if (entranceTrigger) {
+      wrap.style.visibility = "hidden";
+      var showEntrance = function () {
         wrap.style.visibility = "";
         var done = function () {
           fireTriggerableEventOnce(blockEffectEventId(block.id, "entrance"));
@@ -433,28 +574,43 @@
         } else {
           done();
         }
-      }, entranceTrigger.delayMs || 0);
-    });
+      };
+      if (entranceTrigger.kind === "advance") {
+        onAdvance(entranceTrigger.from, showEntrance);
+      } else {
+        onGraphEvent(entranceTrigger.from, function () {
+          setTimeout(showEntrance, entranceTrigger.delayMs || 0);
+        });
+      }
+    }
+    // else: no Aufbau at all ("off") - stays at its natural visibility (visible), no wiring, no
+    // synthetic entrance event ever fires for it either - nothing could legitimately chain off an
+    // "off" block's entrance anyway (see syncPageTimelineEvents: it never gets a node at all).
 
     if (exitTrigger) {
-      onGraphEvent(exitTrigger.from, function () {
-        setTimeout(function () {
-          function hide() {
-            wrap.style.visibility = "hidden";
-            fireTriggerableEventOnce(blockEffectEventId(block.id, "exit"));
-          }
-          if (exit.type === "fade") {
-            wrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: exit.durationMs || 500, easing: "ease" }).onfinish = hide;
-          } else if (exit.type === "move") {
-            wrap.animate([{ transform: "translateX(0)" }, { transform: "translateX(100%)" }], {
-              duration: exit.durationMs || 500,
-              easing: "ease",
-            }).onfinish = hide;
-          } else {
-            hide();
-          }
-        }, exitTrigger.delayMs || 0);
-      });
+      function hideExit() {
+        wrap.style.visibility = "hidden";
+        fireTriggerableEventOnce(blockEffectEventId(block.id, "exit"));
+      }
+      var runExit = function () {
+        if (exit.type === "fade") {
+          wrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: exit.durationMs || 500, easing: "ease" }).onfinish = hideExit;
+        } else if (exit.type === "move") {
+          wrap.animate([{ transform: "translateX(0)" }, { transform: "translateX(100%)" }], {
+            duration: exit.durationMs || 500,
+            easing: "ease",
+          }).onfinish = hideExit;
+        } else {
+          hideExit();
+        }
+      };
+      if (exitTrigger.kind === "advance") {
+        onAdvance(exitTrigger.from, runExit);
+      } else {
+        onGraphEvent(exitTrigger.from, function () {
+          setTimeout(runExit, exitTrigger.delayMs || 0);
+        });
+      }
     }
   }
 
@@ -802,11 +958,16 @@
       // videoStartEventId regardless of what caused play() to be called, so nothing else about
       // how a video's own start propagates further needs to know or care which path started it.
       if (startTrigger && hasExplicitStartTrigger) {
-        onGraphEvent(startTrigger.from, function () {
-          setTimeout(function () {
-            videoEl.play().catch(function () {});
-          }, startTrigger.delayMs || 0);
-        });
+        var playVideo = function () {
+          videoEl.play().catch(function () {});
+        };
+        if (startTrigger.kind === "advance") {
+          onAdvance(startTrigger.from, playVideo);
+        } else {
+          onGraphEvent(startTrigger.from, function () {
+            setTimeout(playVideo, startTrigger.delayMs || 0);
+          });
+        }
       }
       // Never fires at all for a looping video (the loop attribute pre-empts "ended" natively) -
       // matches "video-end-loop"/the ∞ icon's own meaning of "doesn't really end" exactly.
@@ -840,9 +1001,15 @@
     if (block.action === "prev") {
       button.disabled = pos <= 0;
       button.addEventListener("click", goPrev);
+    } else if (block.action === "advance") {
+      // Steps the same Weiter queue Space/→ does - reveals the next queued build if there is
+      // one, only actually leaving the page once it's empty (see advanceOne). Once the module has
+      // ended, restarts instead, same as every other Weiter-ish control.
+      button.addEventListener("click", pos >= history.length ? restart : advanceOne);
     } else {
-      // Mirrors the built-in "Weiter" control exactly: once the module has ended, the same
-      // action restarts it instead of doing nothing.
+      // "Nächste Folie" - always an unconditional, immediate jump, regardless of any pending
+      // Weiter-triggered builds still queued on the current page. Once the module has ended, the
+      // same action restarts it instead of doing nothing.
       button.addEventListener("click", pos >= history.length ? restart : goNext);
     }
     wrap.appendChild(button);
@@ -986,16 +1153,21 @@
   }
 
   function renderStage(pageId) {
-    // Fresh listeners (and fresh once-only guards) for a fresh page - see eventListeners's own
-    // comment above for why stale ones from whatever page was showing before must never carry
-    // over.
+    // Fresh listeners (and fresh once-only guards, and a fresh Weiter queue) for a fresh page -
+    // see eventListeners's own comment above for why stale ones from whatever page was showing
+    // before must never carry over. In particular this means every page's own Weiter-build
+    // progress always restarts from the top on a fresh render of it - including navigating back to
+    // a page you'd already stepped through once - exactly how every other entrance/exit effect
+    // already behaves (nothing here is "remembered" across a re-render, same as always).
     eventListeners = {};
     firedTriggerableEvents = {};
+    advanceQueue = [];
     var page = module.pages[pageId];
     var stage = el("div", { class: "weft-stage", style: stageStyle() }, []);
     var layout = page.layoutId ? module.layouts[page.layoutId] : null;
     if (layout) layout.blocks.forEach(function (b) { stage.appendChild(renderBlock(b, page)); });
     page.blocks.forEach(function (b) { stage.appendChild(renderBlock(b, page)); });
+    wireEndTrigger(page);
     // Every block's own entrance/exit listener is registered synchronously above, by the time
     // renderBlock returns for it - so firing "start" here, still before this stage is even
     // returned to be appended to the DOM, reaches all of them before the browser ever paints.

@@ -13,6 +13,7 @@ import type {
   Layout,
   Page,
   StaticBlock,
+  TimelineEdgeKind,
   TransitionType,
   UUID,
   VariableCondition,
@@ -318,7 +319,7 @@ function defaultBlockFor(kind: Block["kind"]): Block {
     case "iframe":
       return { ...base, kind, position, url: "https://www.youtube.com/embed/", sandbox: ["allow-scripts"], qrCode: false };
     case "button":
-      return { ...base, kind, position: { x: 35, y: 82, width: 30, height: 10 }, text: "Weiter", action: "next" };
+      return { ...base, kind, position: { x: 35, y: 82, width: 30, height: 10 }, text: "Weiter", action: "advance" };
     case "shape":
       return {
         ...base,
@@ -410,17 +411,25 @@ export function updateBlock(pageId: string, blockId: string, patch: Partial<Bloc
 
 /**
  * The one write path for every trigger edge on a page - a block's own Aufbau/Abbau (see
- * BlockEffectEditor in panels/BlockPanel.tsx), a video's own start (see EventPanel.tsx), or a
- * free-standing "event X also fires event Y" link created directly in EventPanel.tsx - see
- * PageTimeline.triggerEdges' own doc comment for why these all share this one mechanism.
- * `targetNodeId` must name a node in TRIGGERABLE_EVENT_TYPES (document/pageTimeline.ts); `from`
- * null removes whatever edge currently targets it (see withTriggerEdge).
+ * BlockEffectEditor in panels/BlockPanel.tsx), a video's own start, "Nächste Folie"'s own
+ * (TriggerPicker.tsx/EventPanel.tsx), or a free-standing "event X also fires event Y" link created
+ * directly in EventPanel.tsx - see PageTimeline.triggerEdges' own doc comment for why these all
+ * share this one mechanism. `targetNodeId` must name a node in TRIGGERABLE_EVENT_TYPES
+ * (document/pageTimeline.ts) or be "end"; `from` null removes whatever edge currently targets it
+ * (see withTriggerEdge). `kind` defaults to "timed" (every pre-existing call site) - pass
+ * "advance" for a Weiter-triggered edge, in which case `delayMs` is ignored.
  */
-export function setEventTrigger(pageId: string, targetNodeId: string, from: string | null, delayMs: number) {
+export function setEventTrigger(
+  pageId: string,
+  targetNodeId: string,
+  from: string | null,
+  delayMs: number,
+  kind: TimelineEdgeKind = "timed",
+) {
   edit("Auslöser bearbeiten", (m) => {
     const page = m.pages[pageId];
     if (!page) return;
-    page.timeline.triggerEdges = withTriggerEdge(page.timeline.triggerEdges, targetNodeId, from, delayMs);
+    page.timeline.triggerEdges = withTriggerEdge(page.timeline.triggerEdges, targetNodeId, from, delayMs, kind);
     syncPageTimelineEvents(page);
   });
 }
@@ -591,12 +600,13 @@ export function setGroupEventTrigger(
   phase: "entrance" | "exit",
   from: string | null,
   delayMs: number,
+  kind: TimelineEdgeKind = "timed",
 ) {
   edit("Auslöser bearbeiten", (m) => {
     const page = m.pages[pageId];
     if (!page) return;
     for (const blockId of blockIds) {
-      page.timeline.triggerEdges = withTriggerEdge(page.timeline.triggerEdges, blockEffectNodeId(blockId, phase), from, delayMs);
+      page.timeline.triggerEdges = withTriggerEdge(page.timeline.triggerEdges, blockEffectNodeId(blockId, phase), from, delayMs, kind);
     }
     syncPageTimelineEvents(page);
   });

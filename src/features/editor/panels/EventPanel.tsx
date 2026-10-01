@@ -1,5 +1,13 @@
 import { setEventTrigger } from "../../../core/document/actions";
-import { findNode, getBlockEntranceTrigger, getBlockExitTrigger, getVideoStartTrigger, isTriggerableNode } from "../../../core/document/pageTimeline";
+import {
+  computeAdvanceChainTail,
+  findNode,
+  getBlockEntranceTrigger,
+  getBlockExitTrigger,
+  getEndTrigger,
+  getVideoStartTrigger,
+  isTriggerableNode,
+} from "../../../core/document/pageTimeline";
 import { useDocumentStore } from "../../../core/document/store";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
@@ -7,6 +15,7 @@ import type { Page, TimelineEdge, TimelineEventType, TimelineNode, VideoBlock } 
 import { Collapsible } from "../Collapsible";
 import { listPageTriggerEvents, listTriggerableNodes, nodeLabel } from "../Timeline";
 import { TransitionPanel } from "./TransitionPanel";
+import { TriggerPicker } from "./TriggerPicker";
 
 // Purely descriptive, for every event that ISN'T in TRIGGERABLE_EVENT_TYPES (document/
 // pageTimeline.ts) and so gets no editable "Ausgelöst durch" of its own (see TriggerSection
@@ -80,6 +89,7 @@ export function EventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
       )}
 
       {node.kind === "end" && <TransitionPanel page={page} />}
+      {node.kind === "end" && <EndTriggerSection page={page} />}
 
       <TriggerSection page={page} node={node} />
       <OutgoingTriggersSection page={page} node={node} />
@@ -124,32 +134,64 @@ function TriggerSection({ page, node }: { page: Page; node: TimelineNode }) {
 
   return (
     <div className="weft-event-section">
+      <TriggerPicker
+        page={page}
+        targetNodeId={node.id}
+        trigger={trigger}
+        options={options}
+        allowNoTrigger={allowNoTrigger}
+        noTriggerLabel={noTriggerLabel}
+        onChange={(from, delayMs, kind) => setEventTrigger(page.id, node.id, from, delayMs, kind)}
+      />
+    </div>
+  );
+}
+
+/**
+ * "Ausgelöst durch" for "Nächste Folie" specifically - deliberately narrower than TriggerSection's
+ * general TriggerPicker: "end" only ever offers "Weiter" (the default - one more Weiter press
+ * after whatever else is queued leaves the page) or "Gar nicht" (the page can then only be left
+ * some other way - a button block, a quiz's own auto-advance), never an arbitrary timed source
+ * (see getEndTrigger's own doc comment for why). Reuses just the "nach welchem Ereignis"
+ * sub-picker pattern for reordering where in the Weiter queue this slots in.
+ */
+function EndTriggerSection({ page }: { page: Page }) {
+  const trigger = getEndTrigger(page);
+  const options = listPageTriggerEvents(page);
+
+  return (
+    <div className="weft-event-section">
       <label className="weft-field">
         <span>Ausgelöst durch</span>
-        <select value={trigger?.from ?? ""} onChange={(e) => setEventTrigger(page.id, node.id, e.target.value || null, trigger?.delayMs ?? 0)}>
-          {allowNoTrigger && <option value="">{noTriggerLabel}</option>}
-          {options.map((event) => (
-            <option key={event.id} value={event.id}>
-              {event.label}
-            </option>
-          ))}
+        <select
+          value={trigger ? "weiter" : ""}
+          onChange={(e) =>
+            e.target.value === "weiter"
+              ? setEventTrigger(page.id, "end", computeAdvanceChainTail(page, "end"), 0, "advance")
+              : // "Gar nicht" has to be an explicit, stored edge, not the ABSENCE of one - an
+                // absent edge is exactly what a page that's never been configured at all also
+                // looks like (see getEndTrigger's own doc comment), which defaults to "Weiter".
+                // Any non-"advance" kind reads back as "Gar nicht" there; "unknown" is simplest,
+                // since nothing else ever writes that kind for "end".
+                setEventTrigger(page.id, "end", "start", 0, "unknown")
+          }
+        >
+          <option value="">Gar nicht</option>
+          <option value="weiter">Weiter</option>
         </select>
       </label>
-      <label className="weft-field">
-        <span>Verzögerung (Sekunden)</span>
-        <input
-          type="number"
-          min={0}
-          step={0.1}
-          disabled={!trigger}
-          value={(trigger?.delayMs ?? 0) / 1000}
-          onChange={(e) => {
-            const seconds = Number(e.target.value);
-            if (!Number.isFinite(seconds) || seconds < 0 || !trigger) return;
-            setEventTrigger(page.id, node.id, trigger.from, Math.round(seconds * 1000));
-          }}
-        />
-      </label>
+      {trigger && (
+        <label className="weft-field">
+          <span>Nach welchem Ereignis</span>
+          <select value={trigger.from} onChange={(e) => setEventTrigger(page.id, "end", e.target.value, 0, "advance")}>
+            {options.map((event) => (
+              <option key={event.id} value={event.id}>
+                {event.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
     </div>
   );
 }

@@ -173,6 +173,53 @@ function migrateMissingGroups(doc: WeftDocument) {
   }
 }
 
+// Older saves predate both "Weiter" (advance) as a trigger (see TimelineEdgeKind in types.ts) AND
+// "off" as a BlockEffectType (see its own doc comment in types.ts - "there's no Aufbau/Abbau here
+// at all", distinct from "none"/"Keine Animation", which still has a real trigger, just no visual
+// transition). Back in that world, "Nächste Folie" had no trigger of its own at all (advancing was
+// hardcoded in the player), and a block's own entranceEffect.type "none" meant EITHER "never
+// configured, just appears instantly" (by far the common case) OR "deliberately instant, but with
+// some custom trigger/delay" (rarer, but genuinely supported, and already frozen into an explicit
+// edge by migrateBlockEffectTriggers above if the author ever actually used it). Both of those old
+// meanings are about to change (getEndTrigger/getBlockEntranceTrigger in document/pageTimeline.ts
+// now default to "Weiter" for a page/block with no edge) - so every *already-saved* page gets its
+// old behavior frozen here, once, before the defaults it stood in for mean something different:
+// - "end": an explicit {from:"start",kind:"advance"} edge, same as always (nothing else changed).
+// - a block's entrance with NO edge of its own (migrateBlockEffectTriggers already turned a
+//   genuinely custom one into an edge, so "still none" here only ever means "never configured"):
+//   "none" becomes "off" outright (that IS what "off" means now, no edge needed at all);
+//   anything else (a real, deliberately configured "fade"/"move") gets the old "start, 0ms"
+//   default frozen into an explicit edge instead, so it keeps firing exactly where it always did.
+// - a block's exit with type "none" (its own only possible unconfigured state, given Abbau never
+//   had an implicit non-null trigger in the first place) becomes "off" too, purely so it DISPLAYS
+//   consistently with a freshly created block's own default - no edge or behavior to preserve.
+// A page/block that gets its first-ever edge/effect-type >after< this point (a brand-new page, or
+// a block added to one) is correctly left alone - its "off"/"no edge yet" genuinely means "never
+// configured", and should pick up the new defaults exactly as intended. Layout blocks are
+// deliberately not touched here (see getBlockEntranceTrigger's own doc comment - their trigger can
+// never durably persist per-page anyway, migrating them would be pointless).
+function migrateMissingAdvanceTriggers(doc: WeftDocument) {
+  for (const page of Object.values(doc.content.pages)) {
+    if (!page.timeline.triggerEdges.some((e) => e.to === "end")) {
+      page.timeline.triggerEdges.push({ from: "start", to: "end", kind: "advance" });
+    }
+    for (const block of page.blocks) {
+      const entranceId = blockEffectNodeId(block.id, "entrance");
+      if (!page.timeline.triggerEdges.some((e) => e.to === entranceId)) {
+        if (block.entranceEffect.type === "none") {
+          block.entranceEffect.type = "off";
+        } else {
+          page.timeline.triggerEdges.push({ from: "start", to: entranceId, kind: "timed", delayMs: 0 });
+        }
+      }
+      const exitId = blockEffectNodeId(block.id, "exit");
+      if (block.exitEffect.type === "none" && !page.timeline.triggerEdges.some((e) => e.to === exitId)) {
+        block.exitEffect.type = "off";
+      }
+    }
+  }
+}
+
 export function unpackDocument(zipBytes: Uint8Array): WeftDocument {
   const files = unzipSync(zipBytes);
 
@@ -193,6 +240,7 @@ export function unpackDocument(zipBytes: Uint8Array): WeftDocument {
   migrateBlockEffectTriggers(doc);
   migrateLegacyShapeCornerRadius(doc);
   migrateMissingGroups(doc);
+  migrateMissingAdvanceTriggers(doc);
   syncAllPageTimelineEvents(doc);
 
   const setAsset = useAssetStore.getState().setAsset;

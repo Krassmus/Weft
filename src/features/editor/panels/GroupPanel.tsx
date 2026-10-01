@@ -33,21 +33,23 @@ export function GroupPanel({ page, group }: { page: Page; group: BlockGroup }) {
       </button>
       <BlockEffectEditor
         title="Aufbau"
+        page={page}
+        targetNodeId={blockEffectNodeId(firstMember.id, "entrance")}
         effect={firstMember.entranceEffect}
         trigger={getBlockEntranceTrigger(page, firstMember)}
         events={triggerEvents}
-        allowNoTrigger={false}
         onEffectChange={(effect) => setGroupEffect(page.id, group.blockIds, "entrance", effect)}
-        onTriggerChange={(from, delayMs) => setGroupEventTrigger(page.id, group.blockIds, "entrance", from, delayMs)}
+        onTriggerChange={(from, delayMs, kind) => setGroupEventTrigger(page.id, group.blockIds, "entrance", from, delayMs, kind)}
       />
       <BlockEffectEditor
         title="Abbau"
+        page={page}
+        targetNodeId={blockEffectNodeId(firstMember.id, "exit")}
         effect={firstMember.exitEffect}
         trigger={getBlockExitTrigger(page, firstMember)}
         events={triggerEvents}
-        allowNoTrigger={true}
         onEffectChange={(effect) => setGroupEffect(page.id, group.blockIds, "exit", effect)}
-        onTriggerChange={(from, delayMs) => setGroupEventTrigger(page.id, group.blockIds, "exit", from, delayMs)}
+        onTriggerChange={(from, delayMs, kind) => setGroupEventTrigger(page.id, group.blockIds, "exit", from, delayMs, kind)}
       />
     </div>
   );

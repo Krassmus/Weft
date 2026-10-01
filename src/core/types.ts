@@ -34,9 +34,15 @@ export type BlockPosition = {
 };
 
 /** Every kind of appear/disappear animation a block can use for its own Aufbau (entrance) or
- * Abbau (exit) - "none" is an instant show/hide, not "no effect at all" (see BlockEffect.
- * triggerEventId for what actually turns the whole thing off for exit). */
-export type BlockEffectType = "none" | "fade" | "move";
+ * Abbau (exit) - plus "off", which isn't an animation at all. "off": there's no Aufbau/Abbau
+ * here in the first place - the block is simply always there from the moment the slide is (for
+ * entrance) or never auto-removed (for exit); never gets a trigger of any kind (see
+ * getBlockEntranceTrigger/getBlockExitTrigger in document/pageTimeline.ts, both of which
+ * short-circuit to `null` for it), and never shows up in the page's own event graph - there's
+ * nothing there to configure or point at. "none" is a DIFFERENT thing: a real Aufbau/Abbau DOES
+ * exist, it just shows/hides instantly rather than animating - still has its own trigger (default
+ * "Weiter" for entrance), still shows up in the graph, same as "fade"/"move" do. */
+export type BlockEffectType = "off" | "none" | "fade" | "move";
 
 /** A block's own Aufbau or Abbau (see BaseBlock.entranceEffect/exitEffect below, and
  * BlockEffectEditor in features/editor/panels/BlockPanel.tsx) - independent of the page-level
@@ -46,24 +52,25 @@ export type BlockEffectType = "none" | "fade" | "move";
  * as a TimelineEdge in PageTimeline.triggerEdges instead (see getBlockEntranceTrigger/
  * getBlockExitTrigger in document/pageTimeline.ts), the same single mechanism every other kind
  * of trigger on the page uses - so this type doesn't need its own separate notion of "which
- * event" alongside it. */
+ * event" alongside it, except for "off" (see BlockEffectType's own doc comment), which bypasses
+ * that mechanism entirely regardless of whatever trigger edge might still be stored (switching
+ * back to "none"/"fade"/"move" later picks it back up unchanged). */
 export interface BlockEffect {
   type: BlockEffectType;
-  /** Only meaningful when `type` isn't "none". */
+  /** Only meaningful when `type` is "fade" or "move". */
   durationMs: number;
 }
 
 interface BaseBlock {
   id: UUID;
   position: BlockPosition;
-  /** How this block appears - defaults to instant and immediate (type "none", and - see
-   * getBlockEntranceTrigger in document/pageTimeline.ts - implicitly triggered by "start" with no
-   * delay whenever PageTimeline.triggerEdges has no explicit edge overriding that), i.e. exactly
-   * how every block behaved before this field existed: just there from the moment the slide is. */
+  /** How this block appears - defaults to "off" (see BlockEffectType's own doc comment): just
+   * there from the moment the slide is, i.e. exactly how every block behaved before this field
+   * existed. */
   entranceEffect: BlockEffect;
-  /** How this block disappears *before* the slide itself does - defaults to never happening at
-   * all (see getBlockExitTrigger: no explicit edge means no automatic Abbau at all), i.e. exactly
-   * how every block behaved before this field existed: it simply stays until the slide changes. */
+  /** How this block disappears *before* the slide itself does - defaults to "off": never happens
+   * at all, i.e. exactly how every block behaved before this field existed - it simply stays
+   * until the slide changes. */
   exitEffect: BlockEffect;
 }
 
@@ -148,9 +155,14 @@ export interface QuizBlock extends BaseBlock {
 export interface ButtonBlock extends BaseBlock {
   kind: "button";
   text: string;
-  /** "prev" is disabled on the first slide; "next" turns into a restart once the module ended -
-   * both mirror the player's own built-in Zurück/Weiter controls exactly. */
-  action: "next" | "prev";
+  /** "prev" is disabled on the first slide; "next"/"advance" both turn into a restart once the
+   * module ended. "next" always jumps straight to the next page, regardless of any pending
+   * "Weiter"-triggered builds still queued on the current one (see player.runtime.js's
+   * advanceQueue) - the unconditional "skip ahead" action. "advance" instead steps that same
+   * queue one "Weiter" press at a time, exactly like Space/→ - reveals the next queued build if
+   * there is one, only actually leaving the page once the queue is empty (see
+   * player.runtime.js's advanceOne). */
+  action: "next" | "prev" | "advance";
 }
 
 /** The basic PowerPoint/Keynote-style shapes ShapeBlock supports - "polygon" is any regular n-gon
@@ -281,8 +293,12 @@ export interface Transition {
 /** How an edge's timing is known: "unknown" - the "to" node happens sometime causally after the
  * "from" node, but not on any fixed schedule (e.g. it's waiting on a click) - rendered as a
  * dashed line. "timed" - it happens automatically, a fixed delay after "from" (see `delayMs`) -
- * rendered as a solid line. See Timeline.tsx. */
-export type TimelineEdgeKind = "unknown" | "timed";
+ * rendered as a solid line. "advance" - it happens on the learner's NEXT "Weiter" input (Space/→,
+ * or a button block whose action is "advance") after "from" has already fired - never on a timer,
+ * and never automatic the way "unknown" quiz/video events are either (those happen because the
+ * learner did something specific; this happens on the very next advance *regardless* of what the
+ * learner does) - see player.runtime.js's advanceQueue/onAdvance. See Timeline.tsx. */
+export type TimelineEdgeKind = "unknown" | "timed" | "advance";
 
 export interface TimelineEdge {
   from: string;

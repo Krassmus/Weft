@@ -5,6 +5,7 @@ import { createId } from "../../../core/id";
 import { addCustomFont, setEventTrigger } from "../../../core/document/actions";
 import type { VideoUploadResult } from "../../../core/document/actions";
 import { blockEffectNodeId, getBlockEntranceTrigger, getBlockExitTrigger } from "../../../core/document/pageTimeline";
+import type { ResolvedTrigger } from "../../../core/document/pageTimeline";
 import { useAssetStore } from "../../../core/assets/assetStore";
 import { formatTimeMMSS } from "../../../core/formatTime";
 import { useDocumentStore } from "../../../core/document/store";
@@ -31,6 +32,7 @@ import type {
   ShapeKind,
   ShapeShadow,
   ShapeStroke,
+  TimelineEdgeKind,
   VariableEffect,
   VideoBlock,
   VideoStopPoint,
@@ -41,6 +43,7 @@ import type { TriState } from "../blocks/richText";
 import { listPageTriggerEvents } from "../Timeline";
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
+import { TriggerPicker } from "./TriggerPicker";
 
 const SANDBOX_FLAGS = ["allow-scripts", "allow-same-origin", "allow-popups", "allow-forms"];
 const UPLOAD_FONT_VALUE = "__upload__";
@@ -87,21 +90,25 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, page }: Bl
         <>
           <BlockEffectEditor
             title="Aufbau"
+            page={page}
+            targetNodeId={blockEffectNodeId(block.id, "entrance")}
             effect={block.entranceEffect}
             trigger={getBlockEntranceTrigger(page, block)}
             events={triggerEvents}
-            allowNoTrigger={false}
             onEffectChange={(entranceEffect) => onUpdate({ entranceEffect })}
-            onTriggerChange={(from, delayMs) => setEventTrigger(page.id, blockEffectNodeId(block.id, "entrance"), from, delayMs)}
+            onTriggerChange={(from, delayMs, kind) =>
+              setEventTrigger(page.id, blockEffectNodeId(block.id, "entrance"), from, delayMs, kind)
+            }
           />
           <BlockEffectEditor
             title="Abbau"
+            page={page}
+            targetNodeId={blockEffectNodeId(block.id, "exit")}
             effect={block.exitEffect}
             trigger={getBlockExitTrigger(page, block)}
             events={triggerEvents}
-            allowNoTrigger={true}
             onEffectChange={(exitEffect) => onUpdate({ exitEffect })}
-            onTriggerChange={(from, delayMs) => setEventTrigger(page.id, blockEffectNodeId(block.id, "exit"), from, delayMs)}
+            onTriggerChange={(from, delayMs, kind) => setEventTrigger(page.id, blockEffectNodeId(block.id, "exit"), from, delayMs, kind)}
           />
         </>
       )}
@@ -113,9 +120,9 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, page }: Bl
   );
 }
 
-const BLOCK_EFFECT_TYPES: BlockEffectType[] = ["none", "fade", "move"];
+const BLOCK_EFFECT_TYPES: BlockEffectType[] = ["off", "none", "fade", "move"];
 
-const BLOCK_EFFECT_LABELS: Record<BlockEffectType, string> = {
+const BLOCK_EFFECT_LABELS: Record<Exclude<BlockEffectType, "off">, string> = {
   none: "Keine Animation",
   fade: "Fade",
   move: "Move",
@@ -123,32 +130,39 @@ const BLOCK_EFFECT_LABELS: Record<BlockEffectType, string> = {
 
 /**
  * Editor for one block's Aufbau or Abbau - the animation itself (BaseBlock.entranceEffect/
- * exitEffect, `effect`/`onEffectChange`) plus who triggers it and after what delay (`trigger`/
- * `onTriggerChange`, backed by a PageTimeline.triggerEdges entry - see setEventTrigger in
- * document/actions.ts - not by the effect object itself, see BlockEffect's own doc comment in
- * core/types.ts). Type/duration mirror TransitionPanel.tsx's own radio group exactly (same three
- * options, same "hide duration while there's nothing to time" rule). `allowNoTrigger` adds a
- * leading "no trigger at all" option (`trigger` null) - only for Abbau, since a block always has
- * to appear *somehow*, but never disappearing early (staying until the page itself does) is the
- * sensible default for Abbau specifically (see getBlockExitTrigger).
+ * exitEffect, `effect`/`onEffectChange`) plus, for anything other than "off", who triggers it and
+ * after what delay (`trigger`/`onTriggerChange`, backed by a PageTimeline.triggerEdges entry - see
+ * setEventTrigger in document/actions.ts - not by the effect object itself, see BlockEffect's own
+ * doc comment in core/types.ts). "off" ("Kein Aufbau"/"Kein Abbau", the default - see
+ * BlockEffectType's own doc comment) means there's no Aufbau/Abbau here at all: the block is just
+ * always there/never auto-removed, with no trigger, no duration, and no node of its own in the
+ * event graph - picking it hides both of those fields entirely, since there's nothing to
+ * configure. Any other choice (even "Keine Animation" - a real Aufbau/Abbau that just doesn't
+ * animate) always has a real trigger (`trigger` is only ever null while "off" is selected - see
+ * getBlockEntranceTrigger/getBlockExitTrigger), so the trigger picker has no separate "none"
+ * option of its own to offer any more. Type/duration mirror TransitionPanel.tsx's own radio group
+ * otherwise (same "hide duration while there's nothing to time" rule).
  */
 export function BlockEffectEditor({
   title,
+  page,
+  targetNodeId,
   effect,
   trigger,
   events,
-  allowNoTrigger,
   onEffectChange,
   onTriggerChange,
 }: {
   title: string;
+  page: Page;
+  targetNodeId: string;
   effect: BlockEffect;
-  trigger: { from: string; delayMs: number } | null;
+  trigger: ResolvedTrigger | null;
   events: { id: string; label: string }[];
-  allowNoTrigger: boolean;
   onEffectChange: (effect: BlockEffect) => void;
-  onTriggerChange: (from: string | null, delayMs: number) => void;
+  onTriggerChange: (from: string | null, delayMs: number, kind: TimelineEdgeKind) => void;
 }) {
+  const offLabel = title === "Aufbau" ? "Kein Aufbau" : "Kein Abbau";
   return (
     <Collapsible title={title} defaultOpen={false}>
       {BLOCK_EFFECT_TYPES.map((type) => (
@@ -159,54 +173,38 @@ export function BlockEffectEditor({
             checked={effect.type === type}
             onChange={() => onEffectChange({ ...effect, type })}
           />
-          <span>{BLOCK_EFFECT_LABELS[type]}</span>
+          <span>{type === "off" ? offLabel : BLOCK_EFFECT_LABELS[type]}</span>
         </label>
       ))}
-      {effect.type !== "none" && (
-        <label className="weft-field">
-          <span>Dauer (Sekunden)</span>
-          <input
-            type="number"
-            min={0.1}
-            step={0.1}
-            value={effect.durationMs / 1000}
-            onChange={(e) => {
-              const seconds = Number(e.target.value);
-              if (!Number.isFinite(seconds) || seconds <= 0) return;
-              onEffectChange({ ...effect, durationMs: Math.round(seconds * 1000) });
-            }}
+      {effect.type !== "off" && (
+        <>
+          {effect.type !== "none" && (
+            <label className="weft-field">
+              <span>Dauer (Sekunden)</span>
+              <input
+                type="number"
+                min={0.1}
+                step={0.1}
+                value={effect.durationMs / 1000}
+                onChange={(e) => {
+                  const seconds = Number(e.target.value);
+                  if (!Number.isFinite(seconds) || seconds <= 0) return;
+                  onEffectChange({ ...effect, durationMs: Math.round(seconds * 1000) });
+                }}
+              />
+            </label>
+          )}
+          <TriggerPicker
+            page={page}
+            targetNodeId={targetNodeId}
+            trigger={trigger}
+            options={events}
+            allowNoTrigger={false}
+            noTriggerLabel=""
+            onChange={onTriggerChange}
           />
-        </label>
+        </>
       )}
-      <label className="weft-field">
-        <span>Ausgelöst durch</span>
-        <select
-          value={trigger?.from ?? ""}
-          onChange={(e) => onTriggerChange(e.target.value || null, trigger?.delayMs ?? 0)}
-        >
-          {allowNoTrigger && <option value="">Kein automatischer Abbau</option>}
-          {events.map((event) => (
-            <option key={event.id} value={event.id}>
-              {event.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="weft-field">
-        <span>Verzögerung (Sekunden)</span>
-        <input
-          type="number"
-          min={0}
-          step={0.1}
-          disabled={trigger === null}
-          value={(trigger?.delayMs ?? 0) / 1000}
-          onChange={(e) => {
-            const seconds = Number(e.target.value);
-            if (!Number.isFinite(seconds) || seconds < 0 || !trigger) return;
-            onTriggerChange(trigger.from, Math.round(seconds * 1000));
-          }}
-        />
-      </label>
     </Collapsible>
   );
 }
@@ -818,10 +816,20 @@ function ButtonEditor({ block, onUpdate }: { block: ButtonBlock; onUpdate: Block
       <label className="weft-field">
         <span>Aktion</span>
         <select value={block.action} onChange={(e) => onUpdate({ action: e.target.value as ButtonBlock["action"] })}>
+          <option value="advance">Weiter</option>
           <option value="next">Nächste Folie</option>
           <option value="prev">Vorherige Folie</option>
         </select>
       </label>
+      {block.action === "advance" && (
+        <p className="weft-hint">
+          Zeigt zuerst noch wartende, auf „Weiter" wartende Aufbauten dieser Folie - erst wenn keine mehr warten,
+          geht es zur nächsten Folie. Genau wie Leertaste/Pfeil rechts.
+        </p>
+      )}
+      {block.action === "next" && (
+        <p className="weft-hint">Springt sofort zur nächsten Folie, unabhängig von noch wartenden Aufbauten.</p>
+      )}
       {block.action === "prev" && (
         <p className="weft-hint">
           Auf der ersten Folie automatisch deaktiviert – der Player merkt sich dazu den bisherigen Lernpfad.

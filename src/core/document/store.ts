@@ -13,6 +13,29 @@ export type SelectionRef =
   | { type: "logic"; logicBlockId: string }
   | { type: "layout"; layoutId: string }
   | { type: "block"; container: BlockContainerRef; blockId: string }
+  /** A transient, pre-group multi-selection (Shift+Click or a marquee drag on the canvas - see
+   * Canvas.tsx) - never persisted anywhere, it only ever exists in this one field until the user
+   * either groups it (document/actions.ts's groupBlocks, which replaces this with a `"group"`
+   * selection of the newly-formed group) or selects something else. Shift-clicking a block that's
+   * already part of an existing BlockGroup adds that whole group's own blockIds here, not just
+   * the one clicked block - see Canvas.tsx's own shift-click handler - so this can hold a mix of
+   * loose block ids and whole existing groups' members, and `groupBlocks` dissolves any of those
+   * existing groups when forming the new one from the full set. Always page-only in practice
+   * (grouping itself is page-only, see BlockGroup's own doc comment in core/types.ts), but typed
+   * with the full BlockContainerRef for consistency with the plain `"block"` variant above.
+   * Collapses to a plain `{type:"block"}` selection the moment it's down to one id, and clears
+   * entirely at zero - a multi-selection of fewer than two blocks isn't meaningfully different
+   * from (and should behave exactly like) an ordinary single-block/no selection. */
+  | { type: "blocks"; container: BlockContainerRef; blockIds: string[] }
+  /** A BlockGroup (core/types.ts), selected as a whole - the result of actually grouping a
+   * `"blocks"` multi-selection, or of clicking any one of a group's members on the canvas (which
+   * selects the whole group, not just that member - see Canvas.tsx's isGroupMember handling) or
+   * its header row in the sidebar (PagePanel.tsx). Double-clicking a member "enters" the group
+   * instead (Canvas.tsx's own enteredGroupId, not stored here at all - it's transient canvas-only
+   * UI state, not a kind of selection in its own right) so that member can be selected directly
+   * as a plain `{type:"block"}` for individual editing/resizing, same as the sidebar's own
+   * indented member rows already allow. */
+  | { type: "group"; pageId: string; groupId: string }
   /** A node in a page's own timeline/event graph (see Timeline.tsx and PageTimeline in
    * core/types.ts) - "start", "end" (a specific lane's "Nächste Folie" - see
    * syncQuizTimelineEvents's own end-node ids, unique per quiz outcome even though several can

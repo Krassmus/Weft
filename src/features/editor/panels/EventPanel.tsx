@@ -1,46 +1,27 @@
+import { setEventTrigger } from "../../../core/document/actions";
+import { findNode, getBlockEntranceTrigger, getBlockExitTrigger, getVideoStartTrigger, isTriggerableNode } from "../../../core/document/pageTimeline";
 import { useDocumentStore } from "../../../core/document/store";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
-import type { Block, Page, TimelineEventType, TimelineNode } from "../../../core/types";
+import type { Page, TimelineEdge, TimelineEventType, TimelineNode, VideoBlock } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
-import { nodeLabel } from "../Timeline";
+import { listPageTriggerEvents, listTriggerableNodes, nodeLabel } from "../Timeline";
 import { TransitionPanel } from "./TransitionPanel";
 
-function findNode(page: Page, nodeId: string): TimelineNode | undefined {
-  for (const lane of page.timeline.lanes) {
-    const found = lane.nodes.find((n) => n.id === nodeId);
-    if (found) return found;
-  }
-  return undefined;
-}
-
-// Purely descriptive - none of these are configurable here (yet); each event's own trigger
-// condition is inherent to what the block that contributes it actually does, not a setting of
-// its own. "end" isn't listed - TransitionPanel (rendered below for it instead) already explains
-// itself, and a "start" node's hint is written inline since it has no TimelineEventType at all.
+// Purely descriptive, for every event that ISN'T in TRIGGERABLE_EVENT_TYPES (document/
+// pageTimeline.ts) and so gets no editable "Ausgelöst durch" of its own (see TriggerSection
+// below) - each only ever happens through genuine learner interaction or real playback time that
+// nothing could fake, so there's nothing here to edit, just to explain. "block-entrance"/"-exit"/
+// "video-start-*" aren't listed - those ARE triggerable, see TriggerSection.
 const EVENT_HINTS: Partial<Record<TimelineEventType, string>> = {
   "quiz-fill-start": "Passiert, sobald die Lernperson eine erste Antwortoption auswählt.",
   "quiz-submit": "Passiert, sobald das Quiz abgeschickt wird.",
   "quiz-submit-correct": "Passiert, sobald das Quiz mit einer richtigen Antwort abgeschickt wird.",
   "quiz-submit-incorrect": "Passiert, sobald das Quiz mit einer falschen Antwort abgeschickt wird.",
-  "video-start-auto": "Passiert automatisch, sobald das Video zu spielen beginnt.",
-  "video-start-manual": "Passiert, sobald die Lernperson das Video startet.",
   "video-stop-point": "Passiert, sobald die Wiedergabe diesen Zeitpunkt im Video erreicht.",
   "video-end-loop": "Passiert nie - das Video läuft in einer Endlosschleife und endet nicht.",
   "video-end-stop": "Passiert, sobald das Video zu Ende ist.",
 };
-
-/** Every page block whose own Aufbau or Abbau (see BaseBlock.entranceEffect/exitEffect in
- * core/types.ts) fires on `nodeId` - only ever page blocks, since a Layout block has no Aufbau/
- * Abbau UI at all (see BlockPanel's own `page` prop). */
-function triggeredBlocks(page: Page, nodeId: string): { block: Block; via: "Aufbau" | "Abbau" }[] {
-  const results: { block: Block; via: "Aufbau" | "Abbau" }[] = [];
-  for (const block of page.blocks) {
-    if (block.entranceEffect.triggerEventId === nodeId) results.push({ block, via: "Aufbau" });
-    if (block.exitEffect.triggerEventId === nodeId) results.push({ block, via: "Abbau" });
-  }
-  return results;
-}
 
 /**
  * Shown instead of BlockPanel when the current selection is a node in a page's own timeline/event
@@ -48,20 +29,20 @@ function triggeredBlocks(page: Page, nodeId: string): { block: Block; via: "Aufb
  * canvas - clicking an event is its own kind of selection now, deliberately never a shortcut for
  * selecting whatever block happens to contribute it (see Timeline.tsx's own selectFor). On
  * purpose, nothing content-related ever shows up here - no quiz question, no block position -
- * only how this event relates to the rest of the page: what triggers it (still mostly just
- * descriptive today - see EVENT_HINTS - except "end", which gets the page's own real transition
- * editor, TransitionPanel, since that's the one animation an event itself can actually own right
- * now) and what it in turn triggers (every block whose Aufbau/Abbau names this event, listed
- * below, each a shortcut to select that block for the rest of that editing). Exactly what belongs
- * here is still being worked out - this is deliberately a rough first cut of the categories, not
- * a final layout.
+ * only how this event relates to the rest of the page: which object it belongs to ("Gehört zu"),
+ * what triggers it ("Ausgelöst durch" - TriggerSection, editable for TRIGGERABLE_EVENT_TYPES,
+ * otherwise just EVENT_HINTS' own descriptive sentence), and what it in turn triggers ("Löst aus"
+ * - OutgoingTriggersSection). "start" gets no "Ausgelöst durch" (it's the one event that isn't
+ * caused by anything else on the page); "end" gets no "Löst aus" (the slide is already gone by
+ * the time it fires) - it gets the page's own real transition editor, TransitionPanel, instead,
+ * since that's the one animation "end" itself can actually own.
  */
 export function EventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
   const select = useDocumentStore((s) => s.select);
   const { t } = useTranslation();
-  const node = findNode(page, nodeId);
+  const rawNode = findNode(page, nodeId);
 
-  if (!node) {
+  if (!rawNode) {
     return (
       <div className="weft-inspector-empty">
         <p>Dieses Ereignis gibt es nicht mehr.</p>
@@ -69,44 +50,194 @@ export function EventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
     );
   }
 
-  const hint =
-    node.kind === "start"
-      ? "Passiert automatisch, sobald diese Folie angezeigt wird."
-      : node.kind === "event" && node.eventType
-        ? EVENT_HINTS[node.eventType]
-        : undefined;
-  const triggered = triggeredBlocks(page, nodeId);
+  // A non-stopping stop point showing its one child inline (see TimelineNode.inlineChild's own
+  // doc comment and Timeline.tsx's matching display swap) is selected by its own real id (that's
+  // what's actually rendered at that graph position), but everything below should describe and
+  // edit the CHILD it stands in for - matching what the graph itself visually shows there.
+  const node = rawNode.inlineChild && rawNode.children?.length === 1 ? rawNode.children[0].node : rawNode;
+
+  const sourceBlock = node.sourceBlockId ? page.blocks.find((b) => b.id === node.sourceBlockId) : undefined;
 
   return (
     <>
       <div className="weft-event-heading">
         <span className="weft-event-heading-kind">Ereignis</span>
         <p className="weft-event-heading-title">{nodeLabel(node)}</p>
-        {hint && <p className="weft-hint">{hint}</p>}
+        {node.kind === "start" && <p className="weft-hint">Passiert automatisch, sobald diese Folie angezeigt wird.</p>}
       </div>
+
+      {sourceBlock && (
+        <div className="weft-event-source">
+          <span className="weft-hint">Gehört zu</span>
+          <button
+            type="button"
+            className="weft-event-trigger-row"
+            onClick={() => select({ type: "block", container: { kind: "page", pageId: page.id }, blockId: sourceBlock.id })}
+          >
+            <span>{t(BLOCK_KIND_KEYS[sourceBlock.kind])}</span>
+          </button>
+        </div>
+      )}
 
       {node.kind === "end" && <TransitionPanel page={page} />}
 
-      <Collapsible title="Löst aus" defaultOpen={triggered.length > 0}>
-        {triggered.length === 0 ? (
-          <p className="weft-hint">Noch kein Element hat sein Aufbau oder Abbau hierauf gelegt.</p>
-        ) : (
-          <ul className="weft-event-trigger-list">
-            {triggered.map(({ block, via }, i) => (
-              <li key={block.id + via + i}>
+      <TriggerSection page={page} node={node} />
+      <OutgoingTriggersSection page={page} node={node} />
+    </>
+  );
+}
+
+/** "Ausgelöst durch": editable (a real source-event picker + delay, backed by
+ * page.timeline.triggerEdges - see setEventTrigger in document/actions.ts) for a triggerable node
+ * (see TRIGGERABLE_EVENT_TYPES), a plain descriptive sentence (EVENT_HINTS) for anything else, and
+ * nothing at all for "start"/"end" (see this file's own module doc comment for why). */
+function TriggerSection({ page, node }: { page: Page; node: TimelineNode }) {
+  if (node.kind !== "event" || !node.eventType) return null;
+
+  if (!isTriggerableNode(node)) {
+    return (
+      <div className="weft-event-section">
+        <span className="weft-hint-label">Ausgelöst durch</span>
+        <p className="weft-hint">{EVENT_HINTS[node.eventType] ?? "Passiert durch Interaktion der Lernperson."}</p>
+      </div>
+    );
+  }
+
+  const sourceBlock = node.sourceBlockId ? page.blocks.find((b) => b.id === node.sourceBlockId) : undefined;
+  const trigger =
+    node.eventType === "block-entrance" && sourceBlock
+      ? getBlockEntranceTrigger(page, sourceBlock)
+      : node.eventType === "block-exit" && sourceBlock
+        ? getBlockExitTrigger(page, sourceBlock)
+        : sourceBlock
+          ? getVideoStartTrigger(page, sourceBlock as VideoBlock)
+          : null;
+  // Entrance always has SOME trigger (a block has to appear somehow) - no "none" option for it.
+  // Exit and a video's own start both have a sensible "nothing scripted" default of their own
+  // (never automatically disappearing; starting only on the learner's own click) - see
+  // getBlockExitTrigger/getVideoStartTrigger.
+  const allowNoTrigger = node.eventType !== "block-entrance";
+  const noTriggerLabel = node.eventType === "block-exit" ? "Kein automatischer Abbau" : "Manueller Klick (kein automatischer Start)";
+  // Never itself, and never anything IT already triggers below (see OutgoingTriggersSection) -
+  // both would just be a node pointing at its own not-yet-fired self by another route.
+  const options = listPageTriggerEvents(page).filter((e) => e.id !== node.id);
+
+  return (
+    <div className="weft-event-section">
+      <label className="weft-field">
+        <span>Ausgelöst durch</span>
+        <select value={trigger?.from ?? ""} onChange={(e) => setEventTrigger(page.id, node.id, e.target.value || null, trigger?.delayMs ?? 0)}>
+          {allowNoTrigger && <option value="">{noTriggerLabel}</option>}
+          {options.map((event) => (
+            <option key={event.id} value={event.id}>
+              {event.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="weft-field">
+        <span>Verzögerung (Sekunden)</span>
+        <input
+          type="number"
+          min={0}
+          step={0.1}
+          disabled={!trigger}
+          value={(trigger?.delayMs ?? 0) / 1000}
+          onChange={(e) => {
+            const seconds = Number(e.target.value);
+            if (!Number.isFinite(seconds) || seconds < 0 || !trigger) return;
+            setEventTrigger(page.id, node.id, trigger.from, Math.round(seconds * 1000));
+          }}
+        />
+      </label>
+    </div>
+  );
+}
+
+function outgoingTriggers(page: Page, nodeId: string): { edge: TimelineEdge; targetNode: TimelineNode }[] {
+  const results: { edge: TimelineEdge; targetNode: TimelineNode }[] = [];
+  for (const edge of page.timeline.triggerEdges) {
+    if (edge.from !== nodeId) continue;
+    const targetNode = findNode(page, edge.to);
+    if (targetNode) results.push({ edge, targetNode });
+  }
+  return results;
+}
+
+/** "Löst aus": every trigger edge FROM this node (see outgoingTriggers) - each with its own delay,
+ * editable in place, and a way to remove it - plus, when there's anything left to pick, a way to
+ * add a new one (see TRIGGERABLE_EVENT_TYPES for what may ever be a target at all). Not shown for
+ * "end" - the slide is already gone by the time it fires, so it can't still trigger anything on
+ * this page (see this file's own module doc comment). */
+function OutgoingTriggersSection({ page, node }: { page: Page; node: TimelineNode }) {
+  const select = useDocumentStore((s) => s.select);
+  const { t } = useTranslation();
+  if (node.kind === "end") return null;
+
+  const outgoing = outgoingTriggers(page, node.id);
+  const targetedIds = new Set(outgoing.map((o) => o.targetNode.id));
+  const addableTargets = listTriggerableNodes(page).filter((target) => target.id !== node.id && !targetedIds.has(target.id));
+
+  return (
+    <Collapsible title="Löst aus" defaultOpen={outgoing.length > 0}>
+      {outgoing.length === 0 ? (
+        <p className="weft-hint">Löst noch nichts aus.</p>
+      ) : (
+        <ul className="weft-event-trigger-list">
+          {outgoing.map(({ edge, targetNode }) => {
+            const targetBlock = targetNode.sourceBlockId ? page.blocks.find((b) => b.id === targetNode.sourceBlockId) : undefined;
+            return (
+              <li key={targetNode.id} className="weft-event-trigger-row-wrap">
                 <button
                   type="button"
                   className="weft-event-trigger-row"
-                  onClick={() => select({ type: "block", container: { kind: "page", pageId: page.id }, blockId: block.id })}
+                  disabled={!targetBlock}
+                  onClick={() => targetBlock && select({ type: "block", container: { kind: "page", pageId: page.id }, blockId: targetBlock.id })}
                 >
-                  <span>{t(BLOCK_KIND_KEYS[block.kind])}</span>
-                  <span className="weft-event-trigger-via">{via}</span>
+                  <span>{nodeLabel(targetNode)}</span>
+                  {targetBlock && <span className="weft-event-trigger-via">{t(BLOCK_KIND_KEYS[targetBlock.kind])}</span>}
+                </button>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  className="weft-event-trigger-delay"
+                  title="Verzögerung (Sekunden)"
+                  value={(edge.delayMs ?? 0) / 1000}
+                  onChange={(e) => {
+                    const seconds = Number(e.target.value);
+                    if (!Number.isFinite(seconds) || seconds < 0) return;
+                    setEventTrigger(page.id, targetNode.id, node.id, Math.round(seconds * 1000));
+                  }}
+                />
+                <button
+                  type="button"
+                  className="weft-event-trigger-remove"
+                  aria-label="Auslöser entfernen"
+                  onClick={() => setEventTrigger(page.id, targetNode.id, null, 0)}
+                >
+                  ×
                 </button>
               </li>
+            );
+          })}
+        </ul>
+      )}
+      {addableTargets.length > 0 && (
+        <label className="weft-field">
+          <span>Weiteres Ziel hinzufügen</span>
+          <select value="" onChange={(e) => e.target.value && setEventTrigger(page.id, e.target.value, node.id, 0)}>
+            <option value="" disabled>
+              Ereignis wählen…
+            </option>
+            {addableTargets.map((target) => (
+              <option key={target.id} value={target.id}>
+                {target.label}
+              </option>
             ))}
-          </ul>
-        )}
-      </Collapsible>
-    </>
+          </select>
+        </label>
+      )}
+    </Collapsible>
   );
 }

@@ -2,6 +2,7 @@ import { ASPECT_RATIO_CSS } from "../../core/aspectRatio";
 import { useAssetStore } from "../../core/assets/assetStore";
 import { useDocumentStore } from "../../core/document/store";
 import type { Block } from "../../core/types";
+import { ShapeSvg } from "./blocks/ShapeSvg";
 // Same "this is a video, not a button" watermark as the editor canvas (see BlockView.tsx) - kept
 // visually consistent between the two views, per the same reasoning: it's not clickable here
 // either.
@@ -43,6 +44,7 @@ function ThumbBlock({ block }: { block: Block }) {
     top: `${block.position.y}%`,
     width: `${block.position.width}%`,
     height: `${block.position.height}%`,
+    transform: block.position.rotation ? `rotate(${block.position.rotation}deg)` : undefined,
   };
 
   if (block.kind === "text") {
@@ -69,6 +71,13 @@ function ThumbBlock({ block }: { block: Block }) {
     return (
       <div className="weft-thumb-block weft-thumb-block-placeholder" style={style}>
         <span className="weft-thumb-icon" dangerouslySetInnerHTML={{ __html: block.qrCode ? qrIconSvg : globeIconSvg }} />
+      </div>
+    );
+  }
+  if (block.kind === "shape") {
+    return (
+      <div className="weft-thumb-block weft-thumb-block-shape" style={style}>
+        <ShapeSvg block={block} />
       </div>
     );
   }

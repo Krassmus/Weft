@@ -336,6 +336,12 @@ body {
   overflow: visible;
 }
 
+/* A shape's own drop-shadow (or a thick stroke's outer half) can extend past its bounding box -
+   see the matching .weft-block override for .weft-edit-block-inner-shape in App.css. */
+.weft-block-shape {
+  overflow: visible;
+}
+
 .weft-block-button-el {
   width: 100%;
   height: 100%;

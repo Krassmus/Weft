@@ -12,26 +12,31 @@ function slugify(title: string): string {
   return title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "lernmodul";
 }
 
-// Save and export both produce the exact same archive (see pack.ts), down to sharing this one
-// compound extension. Note this is a naming convention only - macOS (and Windows) resolve a
-// file's type solely by the text after the *last* dot, so a "*.weft.zip" file is, as far as the
-// OS is concerned, just a ".zip" file with an unusual name. It can't be double-click-associated
-// with Weft specifically without hijacking plain .zip files too, so opening one still goes
-// through "Öffnen" in the app rather than the OS.
-const WEFT_EXTENSION = "weft.zip";
+// Save and export both produce the exact same archive (see pack.ts) - a plain zip file underneath
+// regardless of what it's named. They differ in the extension the caller writes it under: Save
+// uses the plain ".weft" extension, so a module can be shared as a single recognizable file (e.g.
+// dropped into a WhatsApp chat) and later opened by a dedicated player app once one exists.
+// Export keeps the existing ".weft.zip" double extension. Note this is a naming convention only -
+// macOS (and Windows) resolve a file's type solely by the text after the *last* dot, so neither
+// name can be double-click-associated with Weft specifically without hijacking plain .zip files
+// too (for the exported ".weft.zip" case) - opening one still goes through "Öffnen" in the app
+// rather than the OS.
+const SAVE_EXTENSION = "weft";
+const EXPORT_EXTENSION = "weft.zip";
 
-function suggestedFileName(title: string): string {
-  return `${slugify(title)}.${WEFT_EXTENSION}`;
+function suggestedFileName(title: string, extension: string): string {
+  return `${slugify(title)}.${extension}`;
 }
 
-async function writeBytes(bytes: Uint8Array, suggestedName: string, dialogTitle: string) {
+async function writeBytes(bytes: Uint8Array, suggestedName: string, dialogTitle: string, filterExtension: string) {
   if (isTauri()) {
     const path = await save({
       title: dialogTitle,
       defaultPath: suggestedName,
-      // The dialog filter only ever matches on the final extension - "weft.zip" already ends in
-      // "zip", so this both validates correctly and won't offer plain ".zip" as a separate choice.
-      filters: [{ name: "Weft-Lernmodul", extensions: ["zip"] }],
+      // The dialog filter only ever matches on the final extension - passing that same final
+      // extension here both validates correctly and won't offer an unrelated choice (e.g. plain
+      // ".zip") alongside it.
+      filters: [{ name: "Weft-Lernmodul", extensions: [filterExtension] }],
     });
     if (!path) return null;
     await writeFile(path, bytes);
@@ -49,7 +54,7 @@ async function writeBytes(bytes: Uint8Array, suggestedName: string, dialogTitle:
 
 export async function saveDocumentAs(doc: WeftDocument): Promise<string | null> {
   const bytes = await packDocument(doc);
-  return writeBytes(bytes, suggestedFileName(doc.content.title), "Lernmodul speichern");
+  return writeBytes(bytes, suggestedFileName(doc.content.title, SAVE_EXTENSION), "Lernmodul speichern", SAVE_EXTENSION);
 }
 
 /** Overwrites a known path directly, no dialog - "Speichern" once a document already has one
@@ -61,14 +66,15 @@ export async function saveDocumentToPath(doc: WeftDocument, path: string): Promi
 
 export async function exportAsHtmlModule(doc: WeftDocument): Promise<string | null> {
   const bytes = await packDocument(doc);
-  return writeBytes(bytes, suggestedFileName(doc.content.title), "Lernmodul exportieren");
+  // The dialog filter matches only the final extension - "weft.zip" already ends in "zip", so the
+  // filter itself is just "zip" (matching EXPORT_EXTENSION's own last segment).
+  return writeBytes(bytes, suggestedFileName(doc.content.title, EXPORT_EXTENSION), "Lernmodul exportieren", "zip");
 }
 
 export async function openDocument(): Promise<{ doc: WeftDocument; path: string | null } | null> {
   if (isTauri()) {
-    // Both old standalone .weft files and the new .weft.zip / plain-export .zip are all just
-    // zip archives underneath (unpackDocument doesn't care about the name), so all three stay
-    // openable here.
+    // .weft (saved), .weft.zip / plain .zip (exported) are all just zip archives underneath
+    // (unpackDocument doesn't care about the name), so all of them stay openable here.
     const path = await open({ multiple: false, filters: [{ name: "Weft-Lernmodul", extensions: ["weft", "zip"] }] });
     if (!path || Array.isArray(path)) return null;
     const bytes = await readFile(path);

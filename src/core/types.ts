@@ -41,32 +41,29 @@ export type BlockEffectType = "none" | "fade" | "move";
 /** A block's own Aufbau or Abbau (see BaseBlock.entranceEffect/exitEffect below, and
  * BlockEffectEditor in features/editor/panels/BlockPanel.tsx) - independent of the page-level
  * Transition (core/types.ts's own Transition/TransitionType), which animates the whole slide
- * on the way to the *next* one, not one block's own appearance within the current slide. */
+ * on the way to the *next* one, not one block's own appearance within the current slide. Only
+ * the animation itself lives here - which event triggers it, and after what delay, is recorded
+ * as a TimelineEdge in PageTimeline.triggerEdges instead (see getBlockEntranceTrigger/
+ * getBlockExitTrigger in document/pageTimeline.ts), the same single mechanism every other kind
+ * of trigger on the page uses - so this type doesn't need its own separate notion of "which
+ * event" alongside it. */
 export interface BlockEffect {
   type: BlockEffectType;
   /** Only meaningful when `type` isn't "none". */
   durationMs: number;
-  /** Which event starts this effect (after `delayMs`) - "start" (Start der Folie), or an event
-   * node id from the page's own timeline graph (see PageTimeline in this file) - never "end"
-   * (Nächste Folie), since the slide is already gone by the time that fires. For an exit effect
-   * only, this can also be null: "no automatic Abbau at all", the block simply staying until the
-   * page itself does (see syncPageTimelineEvents's own doc comment on why an entrance effect
-   * has no equivalent "never" option - it always eventually has to appear somehow). */
-  triggerEventId: string | null;
-  /** Milliseconds between the trigger firing and the effect actually starting. */
-  delayMs: number;
 }
 
 interface BaseBlock {
   id: UUID;
   position: BlockPosition;
-  /** How this block appears - defaults to instant and immediate (type "none", triggered by
-   * "start" with no delay), i.e. exactly how every block behaved before this field existed: just
-   * there from the moment the slide is. */
+  /** How this block appears - defaults to instant and immediate (type "none", and - see
+   * getBlockEntranceTrigger in document/pageTimeline.ts - implicitly triggered by "start" with no
+   * delay whenever PageTimeline.triggerEdges has no explicit edge overriding that), i.e. exactly
+   * how every block behaved before this field existed: just there from the moment the slide is. */
   entranceEffect: BlockEffect;
   /** How this block disappears *before* the slide itself does - defaults to never happening at
-   * all (triggerEventId null), i.e. exactly how every block behaved before this field existed:
-   * it simply stays until the slide changes. */
+   * all (see getBlockExitTrigger: no explicit edge means no automatic Abbau at all), i.e. exactly
+   * how every block behaved before this field existed: it simply stays until the slide changes. */
   exitEffect: BlockEffect;
 }
 
@@ -156,11 +153,110 @@ export interface ButtonBlock extends BaseBlock {
   action: "next" | "prev";
 }
 
+/** The basic PowerPoint/Keynote-style shapes ShapeBlock supports - "polygon" is any regular n-gon
+ * (ShapeBlock.sides picks n), not a free-form outline; there's no path editor. */
+export type ShapeKind = "rectangle" | "ellipse" | "polygon" | "star";
+
+export type ShapeFillType = "none" | "solid" | "gradient";
+
+export type ShapeGradientKind = "linear" | "radial";
+
+export interface ShapeGradientStop {
+  id: UUID;
+  /** Percent along the gradient, 0-100. */
+  offset: number;
+  color: string;
+  opacity: number;
+}
+
+export interface ShapeGradient {
+  kind: ShapeGradientKind;
+  /** Degrees, only meaningful for "linear" - 0 points right, 90 points down, matching
+   * BlockPosition.rotation's own clockwise-from-horizontal convention. */
+  angle: number;
+  /** At least two - see GradientStopsEditor in panels/BlockPanel.tsx, which never lets the count
+   * drop below that (a one-stop gradient isn't a gradient). Not required to be sorted by offset;
+   * SVG/CSS both render stops in list order regardless of their own offset values. */
+  stops: ShapeGradientStop[];
+}
+
+/** A shape's own fill - "none" (see-through, stroke-only), a flat color, or a gradient. Only the
+ * fields matching `type` are actually read when rendering; the others still round-trip in the
+ * document so switching the fill type back and forth in the editor never loses whatever was last
+ * configured on the side that isn't currently showing. */
+export interface ShapeFill {
+  type: ShapeFillType;
+  /** Only meaningful for "solid". */
+  color: string;
+  opacity: number;
+  /** Only meaningful for "gradient". */
+  gradient: ShapeGradient;
+}
+
+export type ShapeStrokeStyle = "solid" | "dashed" | "dotted";
+
+export interface ShapeStroke {
+  enabled: boolean;
+  color: string;
+  /** cqw (percent of the slide's own rendered width - the same unit block text is sized in, see
+   * App.css's .weft-edit-block) rather than a plain pixel count, so a stroke's visual weight stays
+   * constant when this particular shape is resized (matching how a PowerPoint line weight doesn't
+   * stretch along with the shape) while still scaling along with everything else when the whole
+   * slide is displayed larger or smaller (e.g. presenting on a projector). */
+  width: number;
+  style: ShapeStrokeStyle;
+  opacity: number;
+}
+
+export interface ShapeShadow {
+  enabled: boolean;
+  color: string;
+  opacity: number;
+  /** cqw, all three - see ShapeStroke.width's own doc comment for why. */
+  blur: number;
+  offsetX: number;
+  offsetY: number;
+}
+
+/** One rounding value per corner of a "rectangle" ShapeBlock - each 0 (sharp) to 50 (fully
+ * rounded/pill-shaped at that corner), as a percent of the block's own shorter *true* on-slide
+ * side (its actual rendered width vs height, accounting for both the slide's own aspect ratio and
+ * the block's own on-slide width/height - see ShapeSvg.tsx's roundedRectPath) - not of the
+ * abstract 0-100 square every shape is drawn in before being stretched to the block's own shape.
+ * That distinction is what keeps a corner a true circular arc rather than turning elliptical the
+ * moment the block itself isn't square, matching what "rounded rectangle" means in PowerPoint/
+ * Keynote (which only ever expose one shared radius via a single handle - ShapeEditor in
+ * panels/BlockPanel.tsx additionally lets all four be set independently). */
+export interface ShapeCornerRadii {
+  topLeft: number;
+  topRight: number;
+  bottomRight: number;
+  bottomLeft: number;
+}
+
+export interface ShapeBlock extends BaseBlock {
+  kind: "shape";
+  shapeKind: ShapeKind;
+  /** Only meaningful for "rectangle". */
+  cornerRadii: ShapeCornerRadii;
+  /** Only meaningful for "polygon" - 3-20. */
+  sides: number;
+  /** Only meaningful for "star" - 3-20. */
+  starPoints: number;
+  /** Only meaningful for "star" - how far in the star's inner vertices sit, 0-100 percent of the
+   * outer radius; 100 would collapse it into a regular (starPoints*2)-gon. */
+  starInnerRadius: number;
+  fill: ShapeFill;
+  stroke: ShapeStroke;
+  shadow: ShapeShadow;
+}
+
 /** Blocks a Layout may contain. Quiz (or any future graded/interactive block) is deliberately
  * excluded here: a Layout is a page template, and templates must not carry graded state. A
- * navigation button carries no state of its own, so - unlike Quiz - it's allowed in a Layout,
- * which lets an author bake one consistent "Weiter" button into every slide of that layout. */
-export type StaticBlock = TextBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock;
+ * navigation button (or a shape, which carries no state at all) has nothing graded to exclude, so
+ * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
+ * background shape or "Weiter" button into every slide of that layout. */
+export type StaticBlock = TextBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock;
 export type Block = StaticBlock | QuizBlock;
 
 export interface Layout {
@@ -206,16 +302,23 @@ export type TimelineNodeKind = "start" | "end" | "event";
  * syncPageTimelineEvents in document/pageTimeline.ts, which is what creates all of these).
  * "quiz-fill-start": a QuizBlock's learner picked a first option. "quiz-submit": they submitted
  * their answer, with no outcome-specific auto-advance defined yet (see buildQuizLane) - "quiz-
- * submit-correct"/"quiz-submit-incorrect" are the same submit event, split so a lane built for one
- * particular outcome (advanceOnCorrect/advanceOnIncorrect) gets its own icon, making the two
- * learning paths visually distinct rather than both showing the same checkmark. "video-start-
+ * submit-correct"/"quiz-submit-incorrect" are for the very same real-world moment (there's only
+ * ever one submit), but get their own icon AND their own node id (see quizSubmitNodeId in
+ * document/pageTimeline.ts) once a lane's been built for that particular outcome
+ * (advanceOnCorrect/advanceOnIncorrect) - both so the two learning paths read as visually distinct
+ * rather than both showing the same checkmark, and so they're two genuinely separate, independently
+ * selectable/triggerable nodes rather than two different-looking labels sharing one id (which used
+ * to make selecting either one in the graph highlight both at once). "video-start-
  * auto"/"video-start-manual": a VideoBlock starts playing - split in two so Timeline.tsx can show
  * a different icon for a video that starts itself (autoplay) versus one the learner has to press
  * play on. "video-end-loop"/"video-end-stop": likewise for how it stops - looping forever, or
  * actually ending. "video-stop-point": one of that video's own VideoStopPoint entries, placed
  * between "video-start-*" and "video-end-*" in playback order (see buildVideoLane) - always the
  * same pause icon regardless of VideoStopPoint.stopsVideo, matching VideoStopPointDialog's own
- * markers, which don't distinguish that either. */
+ * markers, which don't distinguish that either. "block-entrance"/"block-exit": any page block's
+ * own Aufbau/Abbau (see BaseBlock.entranceEffect/exitEffect), once it's configured with something
+ * other than the trivial default (see buildBlockEffectLane in document/pageTimeline.ts) - lets an
+ * effect's trigger/timing show up in the graph itself, not just in that block's own panel. */
 export type TimelineEventType =
   | "quiz-fill-start"
   | "quiz-submit"
@@ -225,7 +328,9 @@ export type TimelineEventType =
   | "video-start-manual"
   | "video-stop-point"
   | "video-end-loop"
-  | "video-end-stop";
+  | "video-end-stop"
+  | "block-entrance"
+  | "block-exit";
 
 export interface TimelineNode {
   id: string;
@@ -239,6 +344,25 @@ export interface TimelineNode {
    * distinguishing a quiz's "correct answer" and "incorrect answer" outcome lanes, which would
    * otherwise both show the same generic "quiz submitted" node with nothing telling them apart. */
   label?: string;
+  /** Other events triggered directly by this one, rendered as a small vertical stack right below
+   * it (see Timeline.tsx) instead of as their own horizontal lane - used for a video's own stop
+   * points specifically (see syncPageTimelineEvents in document/pageTimeline.ts): a stop point
+   * sits in the *middle* of its video's own lane, so a horizontally forked trigger lane starting
+   * from a copy of it would make the video's timeline look like it has two of the same stop point
+   * on two different rows - confusing in a way a lane starting from "start" or a quiz's own
+   * events isn't. Always exactly one level deep in practice (only a stop point ever gets any) -
+   * the type stays self-referential mainly so a reader doesn't have to special-case it. */
+  children?: { node: TimelineNode; delayMs: number }[];
+  /** True when this node's single child (see `children`) should be shown *instead of* this
+   * node's own icon/label at this exact graph position - see Timeline.tsx's own rendering and
+   * EventPanel.tsx's own "effective node" redirect. Only ever set for a video's own non-stopping
+   * stop point (VideoStopPoint.stopsVideo false) that triggers exactly one thing (see
+   * syncPageTimelineEvents in document/pageTimeline.ts) - once there's nothing left that's
+   * independently meaningful about the stop point itself (it doesn't even pause the video),
+   * showing both it and its one child is pure clutter. This node's own id/label/eventType are
+   * deliberately left untouched even so - it's still exactly as findable, and exactly as valid a
+   * trigger *source* for anything else, as if this were false; only how it's *drawn* changes. */
+  inlineChild?: boolean;
 }
 
 /** One horizontal row in the timeline UI: a chain of nodes joined by edges. Events with no
@@ -250,17 +374,60 @@ export interface TimelineLane {
 }
 
 /** A page's timeline, stored per-page rather than computed by scanning its blocks at render
- * time: blocks are meant to insert/remove their own nodes and edges here directly as they gain
- * events/triggers to expose. Lane 0 always starts with a "start" node and ends with an "end"
- * node - see createDefaultPageTimeline() in document/pageTimeline.ts. */
+ * time. Two parts, kept deliberately separate so there's only ever one place - `triggerEdges` -
+ * that records "who fires this", instead of that living partly here and partly on whichever
+ * block happens to own the effect (see BlockEffect's own doc comment):
+ *
+ * - `lanes`: this page's own structural skeleton - the base "start"->"end" line every page has,
+ *   plus one lane per quiz outcome and one per video block - entirely recomputed from scratch by
+ *   syncPageTimelineEvents (document/pageTimeline.ts) whenever a relevant block changes. Never
+ *   written to directly by any UI - only ever replaced wholesale. Lane 0 always starts with a
+ *   "start" node and ends with an "end" node - see createDefaultPageTimeline().
+ * - `triggerEdges`: every trigger relationship the author has actually chosen, in one flat,
+ *   uniform list, regardless of what caused it to be added - a block's own Aufbau/Abbau, a
+ *   video's own non-autoplay start, or a free-standing "event X also fires event Y" link created
+ *   directly in EventPanel.tsx. At most one edge per `to` (see findTriggerEdge in
+ *   document/pageTimeline.ts) - an event has at most one thing that causes it. `to` may only ever
+ *   be a node whose eventType is in TRIGGERABLE_EVENT_TYPES (document/pageTimeline.ts) - see that
+ *   set's own doc comment for which events can actually be caused this way, and why most can't.
+ *   syncPageTimelineEvents both reads this (to know which trigger lanes to render, appended after
+ *   `lanes` above) and prunes it (dropping any edge whose `to`/`from` no longer exists).
+ */
 export interface PageTimeline {
   lanes: TimelineLane[];
+  triggerEdges: TimelineEdge[];
+}
+
+/** Several of a page's own blocks, bundled so they move (and resize, together,
+ * proportionally) as one unit on the canvas, same as a Keynote/PowerPoint group - see
+ * groupBlocks in document/actions.ts. Deliberately thin: no position/rotation/effect fields of
+ * its own. A group's own bounding box is always derived from its members' current positions
+ * (see resizeMath.ts's groupBoundingBox), and its "shared" Aufbau/Abbau (see GroupPanel.tsx) is
+ * UI sugar that writes the same entranceEffect/exitEffect/trigger to every member's own existing
+ * fields rather than a new, separate concept the timeline graph or the exported player need to
+ * know about - grouping is purely an editor/authoring convenience, invisible to player.runtime.js
+ * and to the data a member block carries on its own.
+ *
+ * `blockIds` are always kept contiguous, in this exact order, within the owning Page's own
+ * `blocks` array (see groupBlocks) - what lets the sidebar (PagePanel.tsx) render a clean
+ * indented bracket under one group header, and keeps "the group's own stacking position" (see
+ * bringGroupToFront/sendGroupToBack) well-defined even though there's no explicit z-index
+ * anywhere in this app (block array order already doubles as that, see BlockContainerRef's own
+ * doc comment in document/store.ts). Groups are page-only - a Layout has no timeline/graded state
+ * and nothing about grouping needs either, so there was no reason to extend Layout the same way.
+ */
+export interface BlockGroup {
+  id: UUID;
+  blockIds: UUID[];
 }
 
 export interface Page {
   id: UUID;
   layoutId: UUID | null;
   blocks: Block[];
+  /** This page's own groups (see BlockGroup) - empty for the vast majority of pages, which never
+   * group anything. */
+  groups: BlockGroup[];
   /** How this page animates out on the way to whatever the sequence/a branch says comes next -
    * edited by selecting the "Nächste Folie" node at the right end of this page's timeline (see
    * Timeline.tsx). Defaults to "none", which is also the only type the player actually animates

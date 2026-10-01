@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { removeBlock, removeLayoutBlock, removeLogicBlock, removePage } from "../../core/document/actions";
+import { removeBlock, removeBlocks, removeGroup, removeLayoutBlock, removeLogicBlock, removePage } from "../../core/document/actions";
 import { useDocumentStore } from "../../core/document/store";
 
 function isEditableTarget(el: Element | null): boolean {
@@ -44,6 +44,13 @@ export function useDeleteSelection(enabled: boolean) {
       } else if (selection.type === "logic") {
         removeLogicBlock(selection.logicBlockId);
         select(null);
+      } else if (selection.type === "blocks") {
+        removeBlocks(selection.container, selection.blockIds);
+        if (selection.container.kind === "page") select({ type: "page", pageId: selection.container.pageId });
+        else select({ type: "layout", layoutId: selection.container.layoutId });
+      } else if (selection.type === "group") {
+        removeGroup(selection.pageId, selection.groupId);
+        select({ type: "page", pageId: selection.pageId });
       } else {
         return; // "layout" selection: layouts aren't individually deletable anywhere in the UI
       }

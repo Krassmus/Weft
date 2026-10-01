@@ -1,0 +1,166 @@
+name: weft
+options:
+  bundleIdPrefix: com.weft.app
+  deploymentTarget:
+    iOS: 15.0
+fileGroups: [../../src]
+configs:
+  debug: debug
+  release: release
+settingGroups:
+  app:
+    base:
+      PRODUCT_NAME: Weft
+      PRODUCT_BUNDLE_IDENTIFIER: com.weft.app
+targetTemplates:
+  app:
+    type: application
+    sources:
+      - path: Sources
+    scheme:
+      environmentVariables:
+        RUST_BACKTRACE: full
+        RUST_LOG: info
+    settings:
+      groups: [app]
+targets:
+  weft_iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: Assets.xcassets
+      # NOT "- path: Externals": that recursively adds every file under
+      # Externals/{arch}/{debug,release}/ - including every libapp.a variant -
+      # as an Xcode project member, auto-classified into a Resources copy
+      # phase. Once more than one configuration's libapp.a exists on disk at
+      # once (debug AND release, as after testing both), two of those copy
+      # commands target the same bundle path -> "error: Multiple commands
+      # produce .../Weft.app/libapp.a". The library is already consumed
+      # purely at link time via LIBRARY_SEARCH_PATHS + OTHER_LDFLAGS' -lapp
+      # (see weft_iOS's settings above) - it was never meant to be a tracked
+      # source/resource.
+      - path: weft_iOS
+      - path: assets
+        buildPhase: resources
+        type: folder
+      - path: LaunchScreen.storyboard
+    info:
+      path: weft_iOS/Info.plist
+      properties:
+        LSRequiresIPhoneOS: true
+        UILaunchStoryboardName: LaunchScreen
+        UIRequiredDeviceCapabilities: [arm64, metal]
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        CFBundleShortVersionString: 0.1.0
+        CFBundleVersion: "0.1.0"
+    entitlements:
+      path: weft_iOS/weft_iOS.entitlements
+    # disableMainThreadChecker: wry's own WKWebView setup briefly touches UIKit off the main
+    # thread during its early init on iOS, which Xcode's Main Thread Checker (on by default for
+    # every Debug scheme) treats as a violation and pauses on - EXC_BREAKPOINT, no source location
+    # obviously "ours" - even though it isn't a real crash (a Release/TestFlight/App Store build
+    # never has this checker at all). Turning it off here is what actually silences it, rather
+    # than something to fix in this project's own Rust/Swift code.
+    scheme:
+      environmentVariables:
+        RUST_BACKTRACE: full
+        RUST_LOG: info
+      disableMainThreadChecker: true
+    settings:
+      base:
+        ENABLE_BITCODE: false
+        ARCHS: [arm64]
+        VALID_ARCHS: arm64 
+        LIBRARY_SEARCH_PATHS[arch=x86_64]: $(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)
+        LIBRARY_SEARCH_PATHS[arch=arm64]: $(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)
+        ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: true
+        EXCLUDED_ARCHS[sdk=iphoneos*]: x86_64
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 7GD6JHBABJ
+        # Not a `dependencies: - framework: libapp.a` entry: XcodeGen resolves a
+        # bare filename like that by globbing the whole project tree for any
+        # file named libapp.a, and once both Externals/arm64/debug/libapp.a and
+        # Externals/arm64/release/libapp.a exist on disk at once (as they now
+        # do, from testing both configurations) it creates duplicate,
+        # unqualified PBXFileReferences - two of which Xcode schedules as
+        # "copy to app bundle" resource phases for the SAME destination path,
+        # "error: Multiple commands produce .../Weft.app/libapp.a". Passing
+        # -lapp directly (resolved through LIBRARY_SEARCH_PATHS above, which is
+        # already correctly per-configuration) links the same library without
+        # XcodeGen ever having to pick one physical file among the ambiguous
+        # matches.
+        OTHER_LDFLAGS: $(inherited) -lapp
+      groups: [app]
+    dependencies:
+      - sdk: CoreGraphics.framework
+      - sdk: Metal.framework
+      - sdk: MetalKit.framework
+      - sdk: QuartzCore.framework
+      - sdk: Security.framework
+      - sdk: UIKit.framework
+      - sdk: WebKit.framework
+    preBuildScripts:
+      # Xcode runs Run Script build phases with a minimal PATH (no ~/.zprofile, no nvm/Homebrew
+      # shell setup) regardless of what's on the interactive shell's own PATH - "npm: command not
+      # found" here (as opposed to any other failure) means this, every time. Prepending the same
+      # two directories the interactive shell already resolves npm through (node@22 first, so this
+      # picks up the exact same version `npm`/`npx` resolve to at a normal terminal, not whatever
+      # `/opt/homebrew/bin/npm` happens to symlink to on its own) fixes it without needing Xcode's
+      # own per-scheme environment configured by hand.
+      - script: |
+          export PATH="/opt/homebrew/opt/node@22/bin:/opt/homebrew/bin:$HOME/.cargo/bin:$PATH"
+          npm run -- tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
+
+          # swift-rs's build.rs bundles the "Tauri" SPM package (which pulls in
+          # "SwiftRs", providing retain_object/release_object/string_from_bytes)
+          # straight into libapp.a via a `+bundle` native-lib directive, and
+          # promotes @_cdecl exports that Xcode 27's SwiftPM internalizes
+          # (nm shows local 't') back to global with llvm-objcopy so Rust can
+          # link against them - but it only globalizes the object member named
+          # after the package being linked ("Tauri.o"), never the nested
+          # "SwiftRs.o" that retain_object/release_object/string_from_bytes
+          # actually live in. That gap silently doesn't matter for Debug
+          # (Xcode's SwiftPM keeps these symbols global there without any
+          # promotion needed), but Release does internalize them, so
+          # they stay local, get skipped, and the app fails to link with
+          # "Undefined symbols: _retain_object, ...". Work around the gap by
+          # promoting them ourselves before libTauri.a's own object code gets
+          # bundled into the final libapp.a.
+          for ARCH in ${ARCHS:?}; do
+            LIBAPP="$SRCROOT/Externals/$ARCH/${CONFIGURATION}/libapp.a"
+            [ -f "$LIBAPP" ] || continue
+            /usr/bin/nm "$LIBAPP" 2>/dev/null | grep -q "T _retain_object" && continue
+            TAURI_A=$(/usr/bin/find "$SRCROOT/../../target" -path "*/out/swift-rs/Tauri/out/Products/*-iphoneos/libTauri.a" -print0 2>/dev/null \
+              | xargs -0 /usr/bin/stat -f "%m %N" 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+            if [ -z "$TAURI_A" ]; then
+              echo "warning: could not find libTauri.a to splice swift-rs runtime symbols into $LIBAPP"
+              continue
+            fi
+            OBJCOPY="$(rustc --print sysroot 2>/dev/null)/lib/rustlib/$(uname -m | sed s/arm64/aarch64/)-apple-darwin/bin/llvm-objcopy"
+            if [ -x "$OBJCOPY" ]; then
+              cp "$TAURI_A" "$TAURI_A.globalized"
+              "$OBJCOPY" --globalize-symbol=_retain_object --globalize-symbol=_release_object \
+                --globalize-symbol=_string_from_bytes --globalize-symbol=_data_from_bytes \
+                "$TAURI_A.globalized"
+              TAURI_A="$TAURI_A.globalized"
+            else
+              echo "warning: llvm-objcopy not found (rustup component add llvm-tools); swift-rs runtime symbols will stay internalized"
+            fi
+            echo "note: splicing swift-rs runtime symbols from $TAURI_A into $LIBAPP"
+            /usr/bin/libtool -static -o "$LIBAPP.spliced" "$LIBAPP" "$TAURI_A"
+            mv "$LIBAPP.spliced" "$LIBAPP"
+          done
+        name: Build Rust Code
+        basedOnDependencyAnalysis: false
+        outputFiles:
+          - $(SRCROOT)/Externals/x86_64/${CONFIGURATION}/libapp.a
+          - $(SRCROOT)/Externals/arm64/${CONFIGURATION}/libapp.a

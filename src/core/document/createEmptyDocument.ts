@@ -48,6 +48,7 @@ export function createEmptyDocument(): WeftDocument {
         exitEffect: defaultExitEffect(),
       },
     ],
+    groups: [],
     transition: { type: "none", durationMs: 500 },
     timeline: createDefaultPageTimeline(),
   };
@@ -77,6 +78,7 @@ export function createEmptyDocument(): WeftDocument {
         exitEffect: defaultExitEffect(),
       },
     ],
+    groups: [],
     transition: { type: "none", durationMs: 500 },
     timeline: createDefaultPageTimeline(),
   };
@@ -97,6 +99,7 @@ export function createEmptyDocument(): WeftDocument {
         exitEffect: defaultExitEffect(),
       },
     ],
+    groups: [],
     transition: { type: "none", durationMs: 500 },
     timeline: createDefaultPageTimeline(),
   };
@@ -130,6 +133,7 @@ export function createEmptyDocument(): WeftDocument {
         exitEffect: defaultExitEffect(),
       },
     ],
+    groups: [],
     transition: { type: "none", durationMs: 500 },
     timeline: createDefaultPageTimeline(),
   };

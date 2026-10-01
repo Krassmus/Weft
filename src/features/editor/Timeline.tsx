@@ -7,6 +7,9 @@ import hand2IconSvg from "../../../mockups/icons/hand2.svg?raw";
 import video2IconSvg from "../../../mockups/icons/video2.svg?raw";
 import stopIconSvg from "../../../mockups/icons/stop.svg?raw";
 import pauseIconSvg from "../../../mockups/icons/pause.svg?raw";
+import visibilityVisibleIconSvg from "../../../mockups/icons/visibility-visible.svg?raw";
+import visibilityInvisibleIconSvg from "../../../mockups/icons/visibility-invisible.svg?raw";
+import { isTriggerableNode, listAllNodes } from "../../core/document/pageTimeline";
 import { useDocumentStore } from "../../core/document/store";
 import type { Page, TimelineEventType, TimelineLane, TimelineNode, TransitionType } from "../../core/types";
 
@@ -32,6 +35,8 @@ const EVENT_LABELS: Record<TimelineEventType, string> = {
   "video-stop-point": "Stoppunkt",
   "video-end-loop": "Ende des Videos",
   "video-end-stop": "Ende des Videos",
+  "block-entrance": "Erscheint",
+  "block-exit": "Verschwindet",
 };
 
 // "richtig" keeps the checkmark; "falsch" gets its own (decline.svg) rather than sharing accept.svg
@@ -48,6 +53,8 @@ const EVENT_ICONS: Record<TimelineEventType, string> = {
   "video-stop-point": pauseIconSvg,
   "video-end-loop": INFINITY_ICON_SVG,
   "video-end-stop": stopIconSvg,
+  "block-entrance": visibilityVisibleIconSvg,
+  "block-exit": visibilityInvisibleIconSvg,
 };
 
 /** Exported for BlockEffectEditor in panels/BlockPanel.tsx, which lists these same nodes (minus
@@ -61,31 +68,59 @@ export function nodeLabel(node: TimelineNode): string {
   return "";
 }
 
+/** Every node on the page that could be picked as a trigger SOURCE (BlockPanel.tsx's own Aufbau/
+ * Abbau dropdowns, EventPanel.tsx's "Ausgelöst durch") - everything except "end" (Nächste Folie),
+ * which is excluded because the slide is already gone by the time it fires. Includes triggerable
+ * nodes (block-entrance/-exit, video-start) too - one block's Aufbau can chain onto another's, or
+ * onto a video's start, exactly like any other event (see syncPageTimelineEvents in
+ * document/pageTimeline.ts for how that's resolved regardless of block order). */
+export function listPageTriggerEvents(page: Page): { id: string; label: string }[] {
+  return listAllNodes(page)
+    .filter((node) => node.kind !== "end")
+    .map((node) => ({ id: node.id, label: nodeLabel(node) }));
+}
+
+/** Every node that could be picked as a trigger TARGET (see TRIGGERABLE_EVENT_TYPES in
+ * document/pageTimeline.ts) - the options EventPanel.tsx's own "Löst aus" offers when adding a
+ * new outgoing trigger. */
+export function listTriggerableNodes(page: Page): { id: string; label: string }[] {
+  return listAllNodes(page)
+    .filter(isTriggerableNode)
+    .map((node) => ({ id: node.id, label: nodeLabel(node) }));
+}
+
 type TimelineGroup = { kind: "lane"; lane: TimelineLane } | { kind: "fork"; lanes: TimelineLane[] };
 
 /**
- * Several consecutive lanes that all start at the very same node (e.g. a quiz's "Ausfüllen" -
- * both its "richtig" and "falsch" outcome lanes begin there, see buildQuizLane in
- * document/pageTimeline.ts) aren't actually independent paths - they're one shared start that
- * then forks. Grouping them here is what lets Timeline render that shared node exactly once with
- * the lanes visually splitting off it (see TimelineForkGroup), rather than repeating it once per
- * lane the way two truly unrelated lanes would.
+ * Several lanes that all start at the very same node (e.g. a quiz's "Ausfüllen" - both its
+ * "richtig" and "falsch" outcome lanes begin there, see buildQuizLane in document/pageTimeline.ts
+ * - or two different blocks whose own Aufbau both happen to trigger off the very same event, see
+ * buildBlockEffectLane) aren't actually independent paths - they're one shared start that then
+ * forks. Grouping them here is what lets Timeline render that shared node exactly once with the
+ * lanes visually splitting off it (see TimelineForkGroup), rather than repeating it once per lane
+ * the way two truly unrelated lanes would. Not limited to lanes that happen to sit next to each
+ * other in the array - a block's own Aufbau/Abbau lanes are always appended after every "intrinsic"
+ * one (see syncPageTimelineEvents), so grouping has to find a match anywhere earlier in the list,
+ * not just immediately before it. Only ever groups on a shared "event"-kind node (never "start") -
+ * a shared "start" would have to use the bypass lane's own start->end edge as the fork's "trunk",
+ * which reaches all the way to "end" and so isn't a sensible reference point for a short branch.
  */
 function groupForkedLanes(lanes: TimelineLane[]): TimelineGroup[] {
   const groups: TimelineGroup[] = [];
-  let i = 0;
-  while (i < lanes.length) {
-    const firstNode = lanes[i].nodes[0];
-    let j = i + 1;
+  const forkIndexByFirstNodeId = new Map<string, number>();
+  for (const lane of lanes) {
+    const firstNode = lane.nodes[0];
     if (firstNode?.kind === "event") {
-      while (j < lanes.length && lanes[j].nodes[0]?.id === firstNode.id) j++;
+      const existingIndex = forkIndexByFirstNodeId.get(firstNode.id);
+      if (existingIndex !== undefined) {
+        const existing = groups[existingIndex];
+        if (existing.kind === "lane") groups[existingIndex] = { kind: "fork", lanes: [existing.lane, lane] };
+        else existing.lanes.push(lane);
+        continue;
+      }
+      forkIndexByFirstNodeId.set(firstNode.id, groups.length);
     }
-    if (j - i > 1) {
-      groups.push({ kind: "fork", lanes: lanes.slice(i, j) });
-    } else {
-      groups.push({ kind: "lane", lane: lanes[i] });
-    }
-    i = j;
+    groups.push({ kind: "lane", lane });
   }
   return groups;
 }
@@ -278,14 +313,42 @@ function TimelineLaneRow({
         const i = startIndex + idx;
         const nextNode = lane.nodes[i + 1];
         const edge = nextNode ? lane.edges.find((e) => e.from === node.id && e.to === nextNode.id) : undefined;
+        // A non-stopping stop point with exactly one child shows that child's own icon/label
+        // instead of its own (see TimelineNode.inlineChild's own doc comment) - purely a display
+        // swap: clicking still selects `node` itself (its real id - see selectFor/isSelected
+        // below), so EventPanel.tsx sees the stop point and redirects to the same child from
+        // there.
+        const displayNode = node.inlineChild && node.children?.length === 1 ? node.children[0].node : node;
         return (
           <Fragment key={node.id}>
             <div className="weft-timeline-node">
-              <TimelineNodeIcon node={node} isSelected={isSelected(node)} onSelect={selectFor(node)} iconRef={iconRefs?.(i)} />
+              <TimelineNodeIcon
+                node={displayNode}
+                isSelected={isSelected(node)}
+                isAnimated={isAnimatedNode(displayNode, page)}
+                onSelect={selectFor(node)}
+                iconRef={iconRefs?.(i)}
+              />
               <span className="weft-timeline-node-label">
-                {nodeLabel(node)}
+                {nodeLabel(displayNode)}
                 {node.kind === "end" && transitionDetail && <span className="weft-timeline-label-detail"> ({transitionDetail})</span>}
               </span>
+              {!node.inlineChild && node.children && node.children.length > 0 && (
+                <div className="weft-timeline-node-children">
+                  {node.children.map(({ node: child }) => (
+                    <div className="weft-timeline-child" key={child.id}>
+                      <div className="weft-timeline-child-connector" />
+                      <TimelineNodeIcon
+                        node={child}
+                        isSelected={isSelected(child)}
+                        isAnimated={isAnimatedNode(child, page)}
+                        onSelect={selectFor(child)}
+                      />
+                      <span className="weft-timeline-node-label">{nodeLabel(child)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             {edge && (
               <div
@@ -304,19 +367,32 @@ function TimelineLaneRow({
   );
 }
 
+/** Marks a node as its own kind of animation - Aufbau, Abbau (always, regardless of whether an
+ * actual animation type is currently configured for it - the node's whole identity already is
+ * "this block's own Aufbau/Abbau"), or "Nächste Folie" specifically when the page's own outgoing
+ * Transition is actually animated (a plain cut isn't one) - see .weft-timeline-node-icon.
+ * is-animated in App.css. Every other node (quiz/video's own intrinsic events, "start") is never
+ * one - nothing about when they fire is itself an animation. */
+function isAnimatedNode(node: TimelineNode, page: Page): boolean {
+  if (node.kind === "end") return page.transition.type !== "none";
+  return node.eventType === "block-entrance" || node.eventType === "block-exit";
+}
+
 function TimelineNodeIcon({
   node,
   isSelected,
+  isAnimated,
   onSelect,
   iconRef,
 }: {
   node: TimelineNode;
   isSelected: boolean;
+  isAnimated: boolean;
   onSelect: () => void;
   iconRef?: (el: HTMLElement | null) => void;
 }) {
   const icon = node.kind === "end" ? arrowRightIconSvg : node.kind === "event" && node.eventType ? EVENT_ICONS[node.eventType] : playIconSvg;
-  const className = "weft-timeline-node-icon" + (isSelected ? " is-selected" : "");
+  const className = "weft-timeline-node-icon" + (isAnimated ? " is-animated" : "") + (isSelected ? " is-selected" : "");
   return (
     <button
       ref={iconRef}

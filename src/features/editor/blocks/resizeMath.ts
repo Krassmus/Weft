@@ -59,6 +59,57 @@ export function clampMove(start: BlockPosition, dxPercent: number, dyPercent: nu
   return { ...start, x, y };
 }
 
+/** clampMove's own per-block bounds (see moveBounds/OFF_STAGE_MARGIN_PERCENT above), generalized
+ * to clamp ONE shared delta against every member of a group at once - a group drag has to stop as
+ * soon as the tightest (least permissive) of its members would go further off-stage than
+ * clampMove ever allows a lone block to, so dragging a group can't push some of its members
+ * arbitrarily far past the single-block limit. Clamping each position's bounds in sequence onto
+ * the running delta is equivalent to intersecting every position's own allowed delta range,
+ * since clamp() is monotonic - the loop just computes that intersection one position at a time. */
+export function clampGroupMove(positions: BlockPosition[], dxPercent: number, dyPercent: number): { dx: number; dy: number } {
+  let dx = dxPercent;
+  let dy = dyPercent;
+  for (const position of positions) {
+    const xBounds = moveBounds(position.width);
+    const yBounds = moveBounds(position.height);
+    dx = clamp(position.x + dx, xBounds.min, xBounds.max) - position.x;
+    dy = clamp(position.y + dy, yBounds.min, yBounds.max) - position.y;
+  }
+  return { dx: round(dx), dy: round(dy) };
+}
+
+/** The axis-aligned union box around every member of a group - individual members' own rotation
+ * is ignored here (same approximation the group's own selection outline/resize overlay uses on
+ * the canvas; each member keeps its own rotation untouched by a group resize, only its
+ * x/y/width/height scale - see scalePositionWithinBox). Returned as a plain BlockPosition
+ * (rotation 0) so it can be fed straight into resizeFromHandle/clampMove exactly like any other
+ * block's position - no separate resize math is needed for the group's own virtual box. */
+export function groupBoundingBox(positions: BlockPosition[]): BlockPosition {
+  const left = Math.min(...positions.map((p) => p.x));
+  const top = Math.min(...positions.map((p) => p.y));
+  const right = Math.max(...positions.map((p) => p.x + p.width));
+  const bottom = Math.max(...positions.map((p) => p.y + p.height));
+  return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
+/** Re-expresses `position` as the same fraction of `newBox` that it was of `oldBox` - the
+ * proportional (Keynote-style) scaling a group resize applies to every member, driven by the
+ * group's own virtual bounding box shrinking/growing via the usual resizeFromHandle. A member's
+ * own rotation is left untouched; only its x/y/width/height move. */
+export function scalePositionWithinBox(position: BlockPosition, oldBox: BlockPosition, newBox: BlockPosition): BlockPosition {
+  const relX = oldBox.width === 0 ? 0 : (position.x - oldBox.x) / oldBox.width;
+  const relY = oldBox.height === 0 ? 0 : (position.y - oldBox.y) / oldBox.height;
+  const relWidth = oldBox.width === 0 ? 0 : position.width / oldBox.width;
+  const relHeight = oldBox.height === 0 ? 0 : position.height / oldBox.height;
+  return {
+    ...position,
+    x: round(newBox.x + relX * newBox.width),
+    y: round(newBox.y + relY * newBox.height),
+    width: round(relWidth * newBox.width),
+    height: round(relHeight * newBox.height),
+  };
+}
+
 /** How close (in real screen pixels, converted to percent per axis below) a dragged edge/center
  * has to get to a candidate line before it snaps - small enough to stay out of the way until the
  * user is clearly lining something up, per Keynote's own "smart guides" feel. */
@@ -428,9 +479,27 @@ export function unrotateDelta(dxPx: number, dyPx: number, rotationDeg: number): 
   return { dx: dxPx * cos + dyPx * sin, dy: dyPx * cos - dxPx * sin };
 }
 
-/** Distance in px from a point to the nearest edge of a rect - negative if the point is outside the rect. */
-export function distanceToEdge(clientX: number, clientY: number, rect: DOMRect): number {
-  const dxInside = Math.min(clientX - rect.left, rect.right - clientX);
-  const dyInside = Math.min(clientY - rect.top, rect.bottom - clientY);
-  return Math.min(dxInside, dyInside);
+/**
+ * Distance in px from a screen point to the nearest edge of a block's own true (unrotated) box,
+ * measured in that box's own local frame - negative once the point falls outside it. Unlike a
+ * plain getBoundingClientRect()-based check, this stays correct at any rotation:
+ * getBoundingClientRect() on a rotated element returns the *axis-aligned* box around the rotated
+ * shape - strictly larger than the shape itself except at 0/90/180/270° - so comparing a screen
+ * point against THAT box's edges increasingly stops corresponding to the block's own true,
+ * rotated outline as rotation grows; by 10-20° it barely touches the shape's own corners at all,
+ * which is exactly why the "near an edge" drag zone this feeds (see BlockView.tsx's own
+ * edgeThreshold) used to vanish almost as soon as any rotation was applied. This instead measures
+ * in the block's own local space: the pointer's position relative to the block's center, rotated
+ * backward by the block's own rotation (see unrotateDelta - exactly the same trick
+ * resizeFromHandle's own pointer math already relies on) - compared against the block's own true,
+ * never-rotated pixel width/height, derived from its position percentages and the stage's own
+ * size rather than from any post-transform DOM rect.
+ */
+export function edgeDistancePx(clientX: number, clientY: number, position: BlockPosition, stage: DOMRect): number {
+  const widthPx = (position.width / 100) * stage.width;
+  const heightPx = (position.height / 100) * stage.height;
+  const centerX = stage.left + ((position.x + position.width / 2) / 100) * stage.width;
+  const centerY = stage.top + ((position.y + position.height / 2) / 100) * stage.height;
+  const { dx: localX, dy: localY } = unrotateDelta(clientX - centerX, clientY - centerY, position.rotation ?? 0);
+  return Math.min(widthPx / 2 - Math.abs(localX), heightPx / 2 - Math.abs(localY));
 }

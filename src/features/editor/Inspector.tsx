@@ -9,8 +9,10 @@ import {
 import { useDocumentStore } from "../../core/document/store";
 import { BlockPanel } from "./panels/BlockPanel";
 import { EventPanel } from "./panels/EventPanel";
+import { GroupPanel } from "./panels/GroupPanel";
 import { LayoutPanel } from "./panels/LayoutPanel";
 import { LogicBlockPanel } from "./panels/LogicBlockPanel";
+import { MultiBlockPanel } from "./panels/MultiBlockPanel";
 import { PagePanel } from "./panels/PagePanel";
 
 function EmptyState() {
@@ -62,6 +64,16 @@ function InspectorBody({
   if (selection.type === "event") {
     const page = doc.content.pages[selection.pageId];
     return page ? <EventPanel page={page} nodeId={selection.nodeId} /> : <EmptyState />;
+  }
+
+  if (selection.type === "blocks") {
+    return <MultiBlockPanel container={selection.container} blockIds={selection.blockIds} />;
+  }
+
+  if (selection.type === "group") {
+    const page = doc.content.pages[selection.pageId];
+    const group = page?.groups.find((g) => g.id === selection.groupId);
+    return page && group ? <GroupPanel page={page} group={group} /> : <EmptyState />;
   }
 
   if (selection.container.kind === "page") {

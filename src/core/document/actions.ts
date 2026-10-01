@@ -5,6 +5,8 @@ import { isFfmpegAvailable, transcodeToH264 } from "../io/videoTranscode";
 import type {
   AspectRatio,
   Block,
+  BlockEffect,
+  BlockGroup,
   BlockPosition,
   Branch,
   CustomFont,
@@ -12,13 +14,16 @@ import type {
   Page,
   StaticBlock,
   TransitionType,
+  UUID,
   VariableCondition,
   VariableDef,
   VariableType,
   WeftModule,
 } from "../types";
 import { defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
-import { createDefaultPageTimeline, syncPageTimelineEvents } from "./pageTimeline";
+import { blockEffectNodeId, createDefaultPageTimeline, syncPageTimelineEvents, withTriggerEdge } from "./pageTimeline";
+import { defaultShapeCornerRadii, defaultShapeFill, defaultShapeShadow, defaultShapeStroke } from "./shapeDefaults";
+import type { BlockContainerRef } from "./store";
 import { useDocumentStore } from "./store";
 
 function edit(label: string, recipe: (draft: WeftModule) => void) {
@@ -30,6 +35,7 @@ function emptyPage(layoutId: string | null): Page {
     id: createId(),
     layoutId,
     blocks: [],
+    groups: [],
     transition: { type: "none", durationMs: 500 },
     timeline: createDefaultPageTimeline(),
   };
@@ -313,6 +319,20 @@ function defaultBlockFor(kind: Block["kind"]): Block {
       return { ...base, kind, position, url: "https://www.youtube.com/embed/", sandbox: ["allow-scripts"], qrCode: false };
     case "button":
       return { ...base, kind, position: { x: 35, y: 82, width: 30, height: 10 }, text: "Weiter", action: "next" };
+    case "shape":
+      return {
+        ...base,
+        kind,
+        position: { x: 30, y: 30, width: 40, height: 40 },
+        shapeKind: "rectangle",
+        cornerRadii: defaultShapeCornerRadii(),
+        sides: 6,
+        starPoints: 5,
+        starInnerRadius: 45,
+        fill: defaultShapeFill(),
+        stroke: defaultShapeStroke(),
+        shadow: defaultShapeShadow(),
+      };
     case "quiz":
       return {
         ...base,
@@ -351,16 +371,57 @@ export function addBlockToLayout(layoutId: string, kind: StaticBlock["kind"]) {
   return block.id;
 }
 
+/** Pastes OS clipboard text (see useCopyPaste.ts) as a new TextBlock carrying `html` right away -
+ * unlike addBlockToPage/addBlockToLayout's empty placeholder, which would need a second
+ * updateBlock call to fill in and so show up as two separate undo steps for what's really one
+ * paste. Unified across page/layout via BlockContainerRef like the layer-order actions above,
+ * since there's nothing page-only here beyond syncPageTimelineEvents. */
+export function pasteTextBlockInto(container: BlockContainerRef, html: string): string {
+  const block = defaultBlockFor("text") as Block & { kind: "text" };
+  block.html = html;
+  edit("Text einfügen", (m) => {
+    if (container.kind === "page") {
+      const page = m.pages[container.pageId];
+      if (!page) return;
+      page.blocks.push(block);
+      syncPageTimelineEvents(page);
+    } else {
+      m.layouts[container.layoutId]?.blocks.push(block);
+    }
+  });
+  return block.id;
+}
+
 export function updateBlock(pageId: string, blockId: string, patch: Partial<Block>) {
   edit("Block bearbeiten", (m) => {
     const page = m.pages[pageId];
     const block = page?.blocks.find((b) => b.id === blockId);
     if (!block) return;
     Object.assign(block, patch);
-    // Only a quiz's/video's own timeline-relevant fields can change what the timeline should
-    // show, so skip the (cheap but pointless) resync for every other block's edits, e.g. a
-    // position drag.
-    if (page && (block.kind === "quiz" || block.kind === "video")) syncPageTimelineEvents(page);
+    // Only a quiz's/video's own timeline-relevant fields, or any block's entrance/exit effect
+    // type (see makeBlockEffectNode's own visibility rule in pageTimeline.ts), can change what
+    // the timeline should show, so skip the (cheap but pointless) resync for every other block
+    // edit, e.g. a position drag. Who triggers an effect, and after what delay, lives in
+    // page.timeline.triggerEdges now, not on the block itself - see setEventTrigger below.
+    const touchesEffect = "entranceEffect" in patch || "exitEffect" in patch;
+    if (page && (block.kind === "quiz" || block.kind === "video" || touchesEffect)) syncPageTimelineEvents(page);
+  });
+}
+
+/**
+ * The one write path for every trigger edge on a page - a block's own Aufbau/Abbau (see
+ * BlockEffectEditor in panels/BlockPanel.tsx), a video's own start (see EventPanel.tsx), or a
+ * free-standing "event X also fires event Y" link created directly in EventPanel.tsx - see
+ * PageTimeline.triggerEdges' own doc comment for why these all share this one mechanism.
+ * `targetNodeId` must name a node in TRIGGERABLE_EVENT_TYPES (document/pageTimeline.ts); `from`
+ * null removes whatever edge currently targets it (see withTriggerEdge).
+ */
+export function setEventTrigger(pageId: string, targetNodeId: string, from: string | null, delayMs: number) {
+  edit("Auslöser bearbeiten", (m) => {
+    const page = m.pages[pageId];
+    if (!page) return;
+    page.timeline.triggerEdges = withTriggerEdge(page.timeline.triggerEdges, targetNodeId, from, delayMs);
+    syncPageTimelineEvents(page);
   });
 }
 
@@ -369,7 +430,247 @@ export function removeBlock(pageId: string, blockId: string) {
     const page = m.pages[pageId];
     if (!page) return;
     page.blocks = page.blocks.filter((b) => b.id !== blockId);
+    // A removed block can't stay a member of a group it no longer exists in; a group left with
+    // fewer than 2 members isn't a group anymore (see BlockGroup's own doc comment in types.ts).
+    for (const group of page.groups) group.blockIds = group.blockIds.filter((id) => id !== blockId);
+    page.groups = page.groups.filter((g) => g.blockIds.length >= 2);
     syncPageTimelineEvents(page);
+  });
+}
+
+// ---- Groups (page-only - see BlockGroup's own doc comment in core/types.ts) -------------------
+
+/** Removes every existing group that shares any member with `ids` - called before forming a new
+ * group from a selection that might already include whole existing groups (see SelectionRef's
+ * `"blocks"` variant in store.ts: a block can only ever belong to one group at a time, and
+ * grouping never nests - regrouping a selection that touches old groups just replaces them). */
+function dissolveGroupsTouching(page: Page, ids: UUID[]): void {
+  const idSet = new Set(ids);
+  page.groups = page.groups.filter((g) => !g.blockIds.some((id) => idSet.has(id)));
+}
+
+/** Removes `ids` from `blocks` and re-splices them back in as one contiguous run, in their
+ * original relative order, at the stacking position their previously topmost (last-rendered)
+ * member held - so forming a group doesn't silently reorder the page's visual stack. Contiguity
+ * itself is the invariant groupBlocks has to establish and then maintain (PagePanel.tsx's sidebar
+ * bracket rendering relies on every group's members sitting next to each other in page.blocks). */
+function spliceGroupToTopmostPosition(blocks: Block[], ids: UUID[]): void {
+  const idSet = new Set(ids);
+  const topmostOriginalIndex = blocks.reduce((max, b, i) => (idSet.has(b.id) ? i : max), -1);
+  if (topmostOriginalIndex === -1) return;
+  const members = blocks.filter((b) => idSet.has(b.id));
+  const rest = blocks.filter((b) => !idSet.has(b.id));
+  const insertAt = blocks.slice(0, topmostOriginalIndex).filter((b) => !idSet.has(b.id)).length;
+  const next = [...rest.slice(0, insertAt), ...members, ...rest.slice(insertAt)];
+  blocks.splice(0, blocks.length, ...next);
+}
+
+/** Moves every one of `ids` to one edge of `blocks` together, as one contiguous run in their
+ * relative order - the group equivalent of bringBlockToFront/sendBlockToBack below. */
+function moveGroupToEdge(blocks: Block[], ids: UUID[], edge: "front" | "back"): void {
+  const idSet = new Set(ids);
+  const members = blocks.filter((b) => idSet.has(b.id));
+  const rest = blocks.filter((b) => !idSet.has(b.id));
+  const next = edge === "front" ? [...rest, ...members] : [...members, ...rest];
+  blocks.splice(0, blocks.length, ...next);
+}
+
+/**
+ * Groups `blockIds` on `pageId` into one new BlockGroup, dissolving any existing group(s) that
+ * already touched them (see dissolveGroupsTouching) and making the full set contiguous in
+ * page.blocks (see spliceGroupToTopmostPosition). Returns null (and writes nothing) if fewer than
+ * two of the given ids still exist on the page - grouping a single block isn't meaningful.
+ */
+export function groupBlocks(pageId: string, blockIds: string[]): string | null {
+  const groupId = createId();
+  let created = false;
+  edit("Objekte gruppieren", (m) => {
+    const page = m.pages[pageId];
+    if (!page) return;
+    const existingIds = new Set(page.blocks.map((b) => b.id));
+    const ids = blockIds.filter((id) => existingIds.has(id));
+    if (ids.length < 2) return;
+    dissolveGroupsTouching(page, ids);
+    spliceGroupToTopmostPosition(page.blocks, ids);
+    page.groups.push({ id: groupId, blockIds: ids });
+    created = true;
+  });
+  return created ? groupId : null;
+}
+
+/** "Gruppe auflösen" - removes the group record only; its member blocks stay exactly where they
+ * are, in place and independently selectable again (unlike removeGroup, which deletes them too). */
+export function ungroupBlocks(pageId: string, groupId: string) {
+  edit("Gruppe auflösen", (m) => {
+    const page = m.pages[pageId];
+    if (!page) return;
+    page.groups = page.groups.filter((g) => g.id !== groupId);
+  });
+}
+
+/** Deletes a group and every one of its member blocks together, in one undo step - used by the
+ * Delete key and the sidebar's "×" on a group's header row (see useDeleteSelection.ts/
+ * PagePanel.tsx). */
+export function removeGroup(pageId: string, groupId: string) {
+  edit("Gruppe entfernen", (m) => {
+    const page = m.pages[pageId];
+    if (!page) return;
+    const group = page.groups.find((g) => g.id === groupId);
+    if (!group) return;
+    const idSet = new Set(group.blockIds);
+    page.blocks = page.blocks.filter((b) => !idSet.has(b.id));
+    page.groups = page.groups.filter((g) => g.id !== groupId);
+    syncPageTimelineEvents(page);
+  });
+}
+
+/** Batched version of removeBlock - deletes every block in `blockIds` from `container` together,
+ * in one undo step, used for a `"blocks"` multi-selection (see SelectionRef in store.ts). Also
+ * runs the same group-membership cleanup removeBlock does for a page target, since a
+ * multi-selection can include blocks that happen to belong to a group without the whole group
+ * being selected. */
+export function removeBlocks(container: BlockContainerRef, blockIds: string[]) {
+  edit("Elemente entfernen", (m) => {
+    const idSet = new Set(blockIds);
+    if (container.kind === "page") {
+      const page = m.pages[container.pageId];
+      if (!page) return;
+      page.blocks = page.blocks.filter((b) => !idSet.has(b.id));
+      for (const group of page.groups) group.blockIds = group.blockIds.filter((id) => !idSet.has(id));
+      page.groups = page.groups.filter((g) => g.blockIds.length >= 2);
+      syncPageTimelineEvents(page);
+    } else {
+      const layout = m.layouts[container.layoutId];
+      if (!layout) return;
+      layout.blocks = layout.blocks.filter((b) => !idSet.has(b.id));
+    }
+  });
+}
+
+/** One batched position setter for every member of a moving or resizing group (see Canvas.tsx) -
+ * both compute the final position of every member up front and commit them all here in a single
+ * undo step, rather than one updateBlock call per member. */
+export function updateBlockPositions(container: BlockContainerRef, positions: { id: string; position: BlockPosition }[]) {
+  edit("Position ändern", (m) => {
+    const byId = new Map(positions.map((p) => [p.id, p.position]));
+    const blocks = container.kind === "page" ? m.pages[container.pageId]?.blocks : m.layouts[container.layoutId]?.blocks;
+    if (!blocks) return;
+    for (const block of blocks) {
+      const next = byId.get(block.id);
+      if (next) block.position = next;
+    }
+  });
+}
+
+/** Fans a single new Aufbau/Abbau animation out to every block in `blockIds` - a group's "shared"
+ * effect is UI sugar over each member's own, otherwise-untouched entranceEffect/exitEffect field
+ * (see BlockGroup's own doc comment in types.ts: a group carries no effect of its own), just
+ * written to every member in one undo step instead of one updateBlock call each. */
+export function setGroupEffect(pageId: string, blockIds: string[], phase: "entrance" | "exit", effect: BlockEffect) {
+  edit("Animation ändern", (m) => {
+    const page = m.pages[pageId];
+    if (!page) return;
+    const idSet = new Set(blockIds);
+    let touched = false;
+    for (const block of page.blocks) {
+      if (!idSet.has(block.id)) continue;
+      if (phase === "entrance") block.entranceEffect = effect;
+      else block.exitEffect = effect;
+      touched = true;
+    }
+    if (touched) syncPageTimelineEvents(page);
+  });
+}
+
+/** Fans a single trigger out to every member of a group's own entrance/exit node - same
+ * PageTimeline.triggerEdges mechanism as the single-block setEventTrigger above, just applied to
+ * every blockId in one undo step. */
+export function setGroupEventTrigger(
+  pageId: string,
+  blockIds: string[],
+  phase: "entrance" | "exit",
+  from: string | null,
+  delayMs: number,
+) {
+  edit("Auslöser bearbeiten", (m) => {
+    const page = m.pages[pageId];
+    if (!page) return;
+    for (const blockId of blockIds) {
+      page.timeline.triggerEdges = withTriggerEdge(page.timeline.triggerEdges, blockEffectNodeId(blockId, phase), from, delayMs);
+    }
+    syncPageTimelineEvents(page);
+  });
+}
+
+/** "Ganz nach vorne" for a whole group (see bringBlockToFront below) - moves every member to the
+ * end of the page's blocks array together, preserving their relative order, so the group stays on
+ * top as one contiguous run. */
+export function bringGroupToFront(pageId: string, groupId: string) {
+  edit("Ganz nach vorne", (m) => {
+    const page = m.pages[pageId];
+    const group = page?.groups.find((g) => g.id === groupId);
+    if (!page || !group) return;
+    moveGroupToEdge(page.blocks, group.blockIds, "front");
+  });
+}
+
+/** "Ganz nach hinten" - the mirror of bringGroupToFront above. */
+export function sendGroupToBack(pageId: string, groupId: string) {
+  edit("Ganz nach hinten", (m) => {
+    const page = m.pages[pageId];
+    const group = page?.groups.find((g) => g.id === groupId);
+    if (!page || !group) return;
+    moveGroupToEdge(page.blocks, group.blockIds, "back");
+  });
+}
+
+// ---- Layer order - a page's/layout's blocks array IS its stacking order, later renders on top
+// of earlier (see BlockView.tsx: no block ever carries an explicit z-index), so "move" here always
+// means "move within that one array" - unified across both container kinds via BlockContainerRef
+// rather than page/layout getting their own separate pair of functions (like most other block
+// actions in this file do), since there's no page-only concern like syncPageTimelineEvents to keep
+// separate for these three specifically. ------------------------------------------------------
+
+function blockArray(m: WeftModule, container: BlockContainerRef): { id: UUID }[] | undefined {
+  return container.kind === "page" ? m.pages[container.pageId]?.blocks : m.layouts[container.layoutId]?.blocks;
+}
+
+/** Moves one block to `toIndex` within its own container's blocks array - used by the sidebar's
+ * drag-reorder (see useDragReorder's own "block" kind in PagePanel.tsx/LayoutPanel.tsx), which
+ * already computes the target index the same way page/logic-block reordering does. */
+export function reorderBlock(container: BlockContainerRef, blockId: string, toIndex: number) {
+  edit("Element verschieben", (m) => {
+    const blocks = blockArray(m, container);
+    if (!blocks) return;
+    const fromIndex = blocks.findIndex((b) => b.id === blockId);
+    if (fromIndex === -1) return;
+    const [block] = blocks.splice(fromIndex, 1);
+    blocks.splice(Math.min(Math.max(toIndex, 0), blocks.length), 0, block);
+  });
+}
+
+/** "Ganz nach vorne" in a block's right-click menu (see BlockView.tsx) - moves it to the very end
+ * of its container's blocks array, i.e. on top of every other block on this page/layout. */
+export function bringBlockToFront(container: BlockContainerRef, blockId: string) {
+  edit("Ganz nach vorne", (m) => {
+    const blocks = blockArray(m, container);
+    if (!blocks) return;
+    const index = blocks.findIndex((b) => b.id === blockId);
+    if (index === -1) return;
+    const [block] = blocks.splice(index, 1);
+    blocks.push(block);
+  });
+}
+
+/** "Ganz nach hinten" - the mirror of bringBlockToFront above. */
+export function sendBlockToBack(container: BlockContainerRef, blockId: string) {
+  edit("Ganz nach hinten", (m) => {
+    const blocks = blockArray(m, container);
+    if (!blocks) return;
+    const index = blocks.findIndex((b) => b.id === blockId);
+    if (index === -1) return;
+    const [block] = blocks.splice(index, 1);
+    blocks.unshift(block);
   });
 }
 
@@ -765,10 +1066,24 @@ export function pastePageAfter(afterPageId: string, sourcePage: Page): string | 
   edit("Folie einfügen", (m) => {
     const location = locatePage(m, afterPageId);
     if (!location) return;
+    // Tracked so sourcePage.groups' own blockIds (still pointing at the *old* blocks) can be
+    // remapped onto the freshly cloned ones below - a pasted page's groups need to survive the
+    // copy pointing at the right (new) blocks, exactly like its quiz/video timeline events do.
+    const idMap = new Map<UUID, UUID>();
+    const blocks = sourcePage.blocks.map((block) => {
+      const cloned = cloneBlockWithNewId(block);
+      idMap.set(block.id, cloned.id);
+      return cloned;
+    });
+    const groups: BlockGroup[] = sourcePage.groups.map((group) => ({
+      id: createId(),
+      blockIds: group.blockIds.map((id) => idMap.get(id)).filter((id): id is UUID => id !== undefined),
+    }));
     const newPage: Page = {
       id: newPageId,
       layoutId: sourcePage.layoutId,
-      blocks: sourcePage.blocks.map(cloneBlockWithNewId),
+      blocks,
+      groups,
       transition: sourcePage.transition,
       // Deep-cloned first so any future extra lanes survive the copy untouched, then rebuilt below
       // since its quiz/video-event nodes still pointed at the *old* block ids.

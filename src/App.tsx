@@ -1,4 +1,5 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { EditorShell } from "./features/editor/EditorShell";
 import { SettingsWindow } from "./features/settings/SettingsWindow";
 import "./fonts.css";
@@ -19,5 +20,5 @@ function isSettingsWindow(): boolean {
 }
 
 export default function App() {
-  return isSettingsWindow() ? <SettingsWindow /> : <EditorShell />;
+  return <ErrorBoundary>{isSettingsWindow() ? <SettingsWindow /> : <EditorShell />}</ErrorBoundary>;
 }

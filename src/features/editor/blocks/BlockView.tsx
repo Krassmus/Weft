@@ -19,11 +19,12 @@ import type { Block, BlockPosition, IframeBlock, QuizBlock } from "../../../core
 import { ContextMenu, useContextMenu } from "../ContextMenu";
 import type { ContextMenuItem } from "../ContextMenu";
 import { registerActiveEditable, saveSelection } from "./richText";
+import { ShapeSvg } from "./ShapeSvg";
 import type { CornerHandleId, HandleId } from "./resizeMath";
 import {
   clampMove,
   CORNER_HANDLES,
-  distanceToEdge,
+  edgeDistancePx,
   HANDLES,
   resizeCornerLocked,
   resizeFromHandle,
@@ -33,7 +34,7 @@ import {
   unrotateDelta,
 } from "./resizeMath";
 
-const EDGE_GRAB_PX = 5;
+const EDGE_GRAB_PX = 10;
 const DRAG_THRESHOLD_PX = 3;
 
 const RESIZE_CURSORS: Record<HandleId, string> = {
@@ -46,6 +47,27 @@ const RESIZE_CURSORS: Record<HandleId, string> = {
   ne: "nesw-resize",
   sw: "nesw-resize",
 };
+
+/** Shared by both of a block's context menus - the generic one below and QuizBlockCanvas's own -
+ * so "Ganz nach vorne"/"Ganz nach hinten"/delete read identically everywhere a block's menu shows
+ * them. Each handler's mere presence (not `locked`, already checked before either menu opens)
+ * decides whether its item appears - see BlockViewProps.onBringToFront's own doc comment for when
+ * a block has none of these at all. */
+function layerMenuItems(
+  onBringToFront: (() => void) | undefined,
+  onSendToBack: (() => void) | undefined,
+  onDelete: (() => void) | undefined,
+  deleteLabel = "Löschen",
+): ContextMenuItem[] {
+  const items: ContextMenuItem[] = [];
+  if (onBringToFront) items.push({ label: "Ganz nach vorne", onClick: onBringToFront });
+  if (onSendToBack) items.push({ label: "Ganz nach hinten", onClick: onSendToBack });
+  if (onDelete) {
+    if (items.length > 0) items.push({ separator: true });
+    items.push({ label: deleteLabel, danger: true, onClick: onDelete });
+  }
+  return items;
+}
 
 interface BlockViewProps {
   block: Block;
@@ -60,25 +82,91 @@ interface BlockViewProps {
    * contentEditable - Delete there just removes a character, never the block, and there was no
    * other on-canvas way to remove one at all. */
   onDelete?: () => void;
+  /** "Ganz nach vorne"/"Ganz nach hinten" in the right-click menu below - moves this block to the
+   * very end/start of its container's own blocks array, which IS its stacking order (see
+   * reorderBlock's own doc comment in document/actions.ts: no block ever carries an explicit
+   * z-index). Absent (rather than a no-op) wherever a block can't be reordered at all - the
+   * read-only layout preview underneath a page's own blocks (see Canvas.tsx) - same convention
+   * onDelete already uses for "not removable from here". */
+  onBringToFront?: () => void;
+  onSendToBack?: () => void;
   /** Every other block sharing this slide (page blocks plus the layout blocks showing through
    * underneath, or the other blocks in the same layout when editing a layout directly) - the
    * candidate edges/centers a move-drag can snap to. See handlePointerDownMove. */
   siblingPositions?: BlockPosition[];
+  /** Overrides block.position (and outranks this component's own in-drag liveOverride) while
+   * Canvas is live-dragging/resizing a GROUP this block belongs to - see Canvas.tsx's own group
+   * move/resize handlers, which compute every member's new position on each pointermove and feed
+   * it back down here so the block visually follows along, the same way liveOverride already does
+   * for this block's own solo drag. */
+  livePositionOverride?: BlockPosition | null;
+  /** True while this block is part of the *active* multi-block or group selection (see
+   * SelectionRef's "blocks"/"group" variants in store.ts) - shows a lighter group-selection
+   * outline instead of (never together with) the solo `selected` one, and most importantly makes
+   * handlePointerDownMove back off before its own preventDefault/stopPropagation, so the
+   * pointerdown bubbles up to Canvas's own stage-level listener, which runs the group move/resize
+   * drag instead of this block's solo one. Resize handles are hidden too - a group resizes only as
+   * a whole (see Canvas.tsx's group-resize overlay), never one member at a time, while selected
+   * this way. */
+  groupSelected?: boolean;
+  /** True while a live marquee drag (see Canvas.tsx's startMarquee) currently covers this block -
+   * previews it as "about to be selected" with the same dashed outline a plain mouse hover
+   * already gives it (see .weft-edit-block:hover in App.css), before anything is actually
+   * committed as the selection on release. Purely visual - never affects interaction. */
+  marqueeHover?: boolean;
+  /** Shift+Click - adds/removes this block (or, if it belongs to one, its whole group) to/from
+   * the in-progress multi-selection, instead of replacing the selection the way a plain onSelect
+   * click does. Absent for the read-only layout preview underneath a page, same as onSelect. */
+  onShiftSelect?: () => void;
+  /** Double-click - only wired for a block that belongs to a group: "enters" that group (see
+   * Canvas.tsx's enteredGroupId) so this one member can be selected/edited directly, same as
+   * clicking its own indented row in the sidebar already allows. */
+  onDoubleClick?: () => void;
+  /** Extra context-menu items specific to the current selection state - "Objekte gruppieren" for
+   * a multi-block selection, "Gruppe auflösen" for a group selection (see Canvas.tsx, which
+   * computes these since only it knows the full selection, not any one block in isolation).
+   * Rendered above the generic layer/delete items below, separated by a divider. */
+  extraMenuItems?: ContextMenuItem[];
+  /** Whether this block is already part of whatever the CURRENT selection is (a single block
+   * match, or a member of the active multi-block/group selection) - when true, right-clicking it
+   * opens the context menu against that existing selection as-is, instead of first collapsing it
+   * down to just this one block the way a context-menu click normally also selects its target. A
+   * right-click on an already-multi-selected/grouped block needs its menu to offer "Objekte
+   * gruppieren"/"Gruppe auflösen" against the WHOLE existing selection, not whatever selecting
+   * just this one block would narrow it down to. */
+  isPartOfCurrentSelection?: boolean;
 }
 
-export function BlockView({ block, selected, locked, onSelect, onUpdate, onDelete, siblingPositions = [] }: BlockViewProps) {
+export function BlockView({
+  block,
+  selected,
+  locked,
+  onSelect,
+  onUpdate,
+  onDelete,
+  onBringToFront,
+  onSendToBack,
+  siblingPositions = [],
+  livePositionOverride,
+  groupSelected,
+  marqueeHover,
+  onShiftSelect,
+  onDoubleClick,
+  extraMenuItems,
+  isPartOfCurrentSelection,
+}: BlockViewProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [liveOverride, setLiveOverride] = useState<BlockPosition | null>(null);
   const [nearEdge, setNearEdge] = useState(false);
   const [snapGuides, setSnapGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
   const contextMenu = useContextMenu();
-  const position = liveOverride ?? block.position;
+  const position = livePositionOverride ?? liveOverride ?? block.position;
   // An image, video, or iframe has no inner content worth preserving access to on the canvas
   // (unlike text/quiz - and an iframe's own content is non-interactive here anyway, see
   // .weft-edit-block-iframe-wrap iframe's pointer-events:none in App.css), so it can be grabbed
   // and moved from anywhere - including on the very first click, before it's even selected, see
   // handlePointerDownMove/handlePointerMoveHover below.
-  const isFreelyMovableBlock = block.kind === "image" || block.kind === "video" || block.kind === "iframe";
+  const isFreelyMovableBlock = block.kind === "image" || block.kind === "video" || block.kind === "iframe" || block.kind === "shape";
   // Only an image or video has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
   // given, so unlike image/video it keeps the full edge+corner handle set below instead of being
@@ -101,10 +189,15 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate, onDelet
   // EDGE_GRAB_PX is an absolute pixel distance, so for a block that isn't very tall (a lot of
   // text blocks - a single line is often well under 16px tall), it alone would classify the
   // entire block as "near an edge", leaving no interior to select text (or click into an
-  // iframe/quiz) from at all. Capping it at a fraction of the block's own size guarantees a real
-  // interior for any reasonably-sized block, while leaving it unchanged for normal-sized ones.
-  function edgeThreshold(rect: DOMRect): number {
-    return Math.min(EDGE_GRAB_PX, rect.width * 0.15, rect.height * 0.15);
+  // iframe/quiz) from at all. Capping it at a fraction of the block's own true (unrotated) size
+  // guarantees a real interior for any reasonably-sized block, while leaving it unchanged for
+  // normal-sized ones. Measured against the block's own true width/height (position percentages
+  // times the stage's own size), not a post-rotation DOM rect - see edgeDistancePx's own doc
+  // comment in resizeMath.ts for why that distinction matters.
+  function edgeThreshold(pos: BlockPosition, stage: DOMRect): number {
+    const widthPx = (pos.width / 100) * stage.width;
+    const heightPx = (pos.height / 100) * stage.height;
+    return Math.min(EDGE_GRAB_PX, widthPx * 0.3, heightPx * 0.3);
   }
 
   function handlePointerDownMove(e: ReactPointerEvent) {
@@ -115,6 +208,11 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate, onDelet
     // around under the cursor on the way to opening the menu, since nothing here checked which
     // button was actually held.
     if (e.button !== 0) return;
+    // While this block is part of the active group/multi-selection, dragging moves the whole
+    // selection together - back off (before preventDefault/stopPropagation below) so the
+    // pointerdown bubbles up to Canvas's own stage-level group-drag handler instead of starting
+    // this block's own solo drag.
+    if (groupSelected) return;
     // A freely-movable block can start a drag from the very first pointerdown, even before it's
     // selected - handleMove below selects it as soon as the drag threshold is crossed. Any other
     // kind still needs a prior click to select it first, since only then does clicking near its
@@ -122,8 +220,8 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate, onDelet
     // mean "move", not "select".
     if (!selected && !isFreelyMovableBlock) return;
     if (!isFreelyMovableBlock) {
-      const rect = wrapRef.current?.getBoundingClientRect();
-      if (!rect || distanceToEdge(e.clientX, e.clientY, rect) > edgeThreshold(rect)) return;
+      const stage = stageRect();
+      if (!stage || edgeDistancePx(e.clientX, e.clientY, position, stage) > edgeThreshold(position, stage)) return;
     }
 
     // Suppress native text/image drag-selection now, at pointerdown - by the time a pointermove
@@ -182,9 +280,9 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate, onDelet
       setNearEdge(true);
       return;
     }
-    const rect = wrapRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    setNearEdge(distanceToEdge(e.clientX, e.clientY, rect) <= edgeThreshold(rect));
+    const stage = stageRect();
+    if (!stage) return;
+    setNearEdge(edgeDistancePx(e.clientX, e.clientY, position, stage) <= edgeThreshold(position, stage));
   }
 
   function handleResizeStart(handle: HandleId, e: ReactPointerEvent) {
@@ -266,6 +364,8 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate, onDelet
         className={
           "weft-edit-block" +
           (selected ? " is-selected" : "") +
+          (groupSelected ? " is-group-selected" : "") +
+          (marqueeHover ? " is-marquee-hover" : "") +
           (locked ? " is-locked" : "") +
           (nearEdge ? " is-near-edge" : "")
         }
@@ -273,26 +373,50 @@ export function BlockView({ block, selected, locked, onSelect, onUpdate, onDelet
         onClick={(event) => {
           if (locked) return;
           event.stopPropagation();
-          onSelect?.();
+          if (event.shiftKey && onShiftSelect) onShiftSelect();
+          else onSelect?.();
+        }}
+        onDoubleClick={(event) => {
+          if (locked || !onDoubleClick) return;
+          event.stopPropagation();
+          onDoubleClick();
         }}
         onContextMenu={(event) => {
-          if (locked || !onDelete) return;
+          if (locked || (!onDelete && !onBringToFront && !onSendToBack && !extraMenuItems?.length)) return;
           // A quiz block's own question/options area opens its own, more specific menu instead
           // (see QuizBlockCanvas) - stopPropagation there keeps this one from also firing, so this
           // only ever fires for the parts of a quiz block outside that (its padding, the submit-
           // button preview) or for any other kind of block, where it's the only menu there is.
-          onSelect?.();
-          contextMenu.open(event, [{ label: "Löschen", danger: true, onClick: onDelete }]);
+          // Already part of the current selection (a multi-block/group one) - right-clicking it
+          // should open the menu against that WHOLE selection, not first collapse it down to just
+          // this one block the way a plain onSelect would.
+          if (!isPartOfCurrentSelection) onSelect?.();
+          const layerItems = layerMenuItems(onBringToFront, onSendToBack, onDelete);
+          const items =
+            extraMenuItems && extraMenuItems.length > 0
+              ? layerItems.length > 0
+                ? [...extraMenuItems, { separator: true } as const, ...layerItems]
+                : extraMenuItems
+              : layerItems;
+          contextMenu.open(event, items);
         }}
         onPointerDown={handlePointerDownMove}
         onPointerMove={handlePointerMoveHover}
         onPointerLeave={() => setNearEdge(false)}
       >
-        <div className="weft-edit-block-inner">
-          <BlockContent block={block} selected={selected} onUpdate={onUpdate} onDelete={onDelete} />
+        <div className={"weft-edit-block-inner" + (block.kind === "shape" ? " weft-edit-block-inner-shape" : "")}>
+          <BlockContent
+            block={block}
+            selected={selected}
+            onUpdate={onUpdate}
+            onDelete={onDelete}
+            onBringToFront={onBringToFront}
+            onSendToBack={onSendToBack}
+          />
         </div>
         {selected &&
           !locked &&
+          !groupSelected &&
           (usesProportionalResize ? CORNER_HANDLES : HANDLES).map((h) => (
             <div
               key={h.id}
@@ -312,11 +436,15 @@ function BlockContent({
   selected,
   onUpdate,
   onDelete,
+  onBringToFront,
+  onSendToBack,
 }: {
   block: Block;
   selected: boolean;
   onUpdate?: (patch: Partial<Block>) => void;
   onDelete?: () => void;
+  onBringToFront?: () => void;
+  onSendToBack?: () => void;
 }) {
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
 
@@ -375,7 +503,18 @@ function BlockContent({
         </button>
       );
     case "quiz":
-      return <QuizBlockCanvas block={block} selected={selected} onUpdate={onUpdate} onDelete={onDelete} />;
+      return (
+        <QuizBlockCanvas
+          block={block}
+          selected={selected}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+          onBringToFront={onBringToFront}
+          onSendToBack={onSendToBack}
+        />
+      );
+    case "shape":
+      return <ShapeSvg block={block} />;
   }
 }
 
@@ -397,18 +536,23 @@ function QuizBlockCanvas({
   selected,
   onUpdate,
   onDelete,
+  onBringToFront,
+  onSendToBack,
 }: {
   block: QuizBlock;
   selected: boolean;
   onUpdate?: (patch: Partial<Block>) => void;
   onDelete?: () => void;
+  onBringToFront?: () => void;
+  onSendToBack?: () => void;
 }) {
   const contextMenu = useContextMenu();
   // Right-clicking anywhere on a quiz block opens ITS OWN, more specific menu (option add/
-  // remove) instead of letting the click bubble up to BlockView's generic "Löschen" one - so
-  // deleting the whole block has to be offered here too, tacked onto both of this component's own
-  // menus, or a quiz block would have no on-canvas way to remove itself at all.
-  const deleteBlockItems: ContextMenuItem[] = onDelete ? [{ separator: true }, { label: "Objekt löschen", danger: true, onClick: onDelete }] : [];
+  // remove) instead of letting the click bubble up to BlockView's generic "Löschen"/layer-order
+  // one - so those have to be offered here too, tacked onto both of this component's own menus, or
+  // a quiz block would have no on-canvas way to remove or reorder itself at all.
+  const layerItems = layerMenuItems(onBringToFront, onSendToBack, onDelete, "Objekt löschen");
+  const deleteBlockItems: ContextMenuItem[] = layerItems.length > 0 ? [{ separator: true }, ...layerItems] : [];
 
   function addOption() {
     onUpdate?.({ options: [...block.options, { id: createId(), html: "Neue Option" }] });

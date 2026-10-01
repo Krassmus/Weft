@@ -12,6 +12,11 @@
   --weft-accent-hover: #5b95f7;
   --weft-accent-soft: rgba(59, 130, 246, 0.16);
   --weft-danger: #f87171;
+  /* Marks a timeline event node as its own kind of animation - Aufbau, Abbau, or a "Nächste
+     Folie" with an animated transition (see .weft-timeline-node-icon.is-animated in Timeline.tsx)
+     - distinct from --weft-accent, which marks selection/hover state generically everywhere else. */
+  --weft-timeline-animated: #f5b83d;
+  --weft-timeline-animated-soft: rgba(245, 184, 61, 0.16);
   --weft-radius-lg: 12px;
   --weft-radius: 8px;
   --weft-radius-sm: 6px;
@@ -136,6 +141,14 @@ textarea {
 
 .weft-full-width {
   width: 100%;
+}
+
+.weft-multi-block-panel,
+.weft-group-panel {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* ---- Body layout ---- */
@@ -278,6 +291,10 @@ body.weft-dragging {
 }
 
 body.weft-dragging .weft-node {
+  cursor: grabbing;
+}
+
+body.weft-dragging .weft-block-list button {
   cursor: grabbing;
 }
 
@@ -875,6 +892,17 @@ img.weft-thumb-block {
   overflow: auto;
   /* Same reasoning as .weft-sidebar-content above. */
   overscroll-behavior: contain;
+  /* Lets .weft-canvas-stage-zoom's own margin:auto (see its own comment) center it on BOTH axes
+     instead of only horizontally - plain block flow (the default, without this) only ever
+     auto-centers a block child left/right, never top/bottom, which is why the slide used to sit
+     stuck to this wrap's own top edge rather than feeling like it's floating in a workspace.
+     Centering is still done via the CHILD's own auto margins here, deliberately NOT via this
+     container's align-items/justify-content - that's the flex behavior the comment on
+     .weft-canvas-stage-zoom already explains breaking scroll access to the far edge of an
+     overflowing (zoomed-in) child; auto-margin centering on the item itself doesn't have that bug,
+     since the margins simply collapse to 0 (ordinary top/left-anchored overflow) once the item
+     no longer fits, rather than clipping the far side symmetrically. */
+  display: flex;
 }
 
 .weft-canvas-empty {
@@ -902,6 +930,12 @@ img.weft-thumb-block {
 .weft-canvas-stage-zoom {
   width: calc(min(100%, 920px) * var(--zoom, 1));
   margin: auto;
+  /* .weft-canvas-stage-wrap is a flex container now (see its own comment - needed so this
+     margin:auto centers on both axes, not just horizontally), and a flex item's default
+     flex-shrink:1 would otherwise silently shrink this back down to fit the wrap's own width
+     the instant --zoom pushed the explicit width above it - defeating zoom entirely, since the
+     whole point is for this to genuinely exceed the wrap's size and become scrollable. */
+  flex-shrink: 0;
 }
 
 .weft-stage {
@@ -1066,10 +1100,32 @@ button.weft-timeline-node-icon:hover {
   color: var(--weft-accent);
 }
 
+/* Aufbau, Abbau, or a "Nächste Folie" with an animated transition (see isAnimatedNode in
+   Timeline.tsx) - the icon itself is always this color, the ring around it only picks it up on
+   hover (mirroring the plain :hover rule above, just with --weft-timeline-animated instead of
+   --weft-accent) so the neutral ring still reads as "not currently focused" at rest. */
+.weft-timeline-node-icon.is-animated {
+  color: var(--weft-timeline-animated);
+}
+
+button.weft-timeline-node-icon.is-animated:hover {
+  border-color: var(--weft-timeline-animated);
+  color: var(--weft-timeline-animated);
+}
+
 .weft-timeline-node-icon.is-selected {
   border-color: var(--weft-accent);
   background: var(--weft-accent-soft);
   color: var(--weft-accent);
+}
+
+/* An animated node (see .is-animated above) keeps its own yellow, even while selected - two
+   extra classes beats .is-selected alone regardless of source order, so this doesn't need to sit
+   after it. */
+.weft-timeline-node-icon.is-animated.is-selected {
+  border-color: var(--weft-timeline-animated);
+  background: var(--weft-timeline-animated-soft);
+  color: var(--weft-timeline-animated);
 }
 
 /* Wider than the 26px icon it sits under (see .weft-timeline-node) and free to overflow past it
@@ -1088,6 +1144,38 @@ button.weft-timeline-node-icon:hover {
 
 .weft-timeline-label-detail {
   color: var(--weft-text-faint);
+}
+
+/* Events triggered directly by a node that sits in the middle of its own lane (in practice, only
+   ever a video's own stop point - see TimelineNode.children in core/types.ts) stack vertically
+   right below it instead of forking off into their own horizontal lane - a lane starting from a
+   copy of a mid-lane node would otherwise make the video's own timeline look like it has two of
+   the same stop point on two different rows. */
+.weft-timeline-node-children {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.weft-timeline-child {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.weft-timeline-child:not(:last-child) {
+  margin-bottom: 4px;
+}
+
+/* Always solid - unlike .weft-timeline-line, which can be dashed for an "unknown"-timing edge,
+   a stop point's own trigger always fires after an author-set delay (see buildBlockEffectLane's
+   own doc comment in document/pageTimeline.ts), so there's no "unknown"-timing case to style for
+   here. */
+.weft-timeline-child-connector {
+  width: 0;
+  height: 10px;
+  border-left: 1px solid var(--weft-accent);
 }
 
 /* Dashed by default: TimelineEdgeKind "unknown" - causally after the previous node, but on no
@@ -1214,7 +1302,23 @@ button.weft-timeline-node-icon:hover {
   border-radius: 2px;
 }
 
+/* A shape's own drop-shadow (see ShapeSvg.tsx) can extend past its bounding box, same as its
+   stroke's own outer half can once it's thick enough - .weft-edit-block-inner's overflow:hidden
+   above (there to keep an image/video's own object-fit overflow, e.g. a corner peeking out during
+   a resize drag, from bleeding onto neighboring blocks) would clip both instead of drawing them,
+   so a shape opts back out of it. */
+.weft-edit-block-inner-shape {
+  overflow: visible;
+}
+
 .weft-edit-block:not(.is-locked):hover {
+  outline-color: var(--weft-accent-hover);
+}
+
+/* A live marquee drag (Canvas.tsx's startMarquee) currently covers this block - previews it as
+   "about to be selected" with the exact same dashed outline a plain mouse hover already gives it,
+   before anything is actually committed as the selection on release. */
+.weft-edit-block.is-marquee-hover {
   outline-color: var(--weft-accent-hover);
 }
 
@@ -1226,8 +1330,11 @@ button.weft-timeline-node-icon:hover {
   cursor: move;
 }
 
+/* Used only for a page's own layout blocks showing through underneath it (see Canvas.tsx's
+   locked={true}) - read-only there (you edit them via "Layout bearbeiten", not by clicking
+   through a page), but shown at full opacity so the page looks the same as what actually gets
+   presented/exported, not a faded preview of it. */
 .weft-edit-block.is-locked {
-  opacity: 0.55;
   pointer-events: none;
 }
 
@@ -1313,6 +1420,38 @@ button.weft-timeline-node-icon:hover {
   right: 0;
   height: 0;
   border-top: 1.5px dashed #ffcc00;
+}
+
+/* A block that's part of the active multi-selection or group selection (SelectionRef's "blocks"/
+   "group" variants) - a lighter outline than .is-selected's, since no one member is individually
+   "the" selected block (no resize handles of its own either - see BlockView.tsx's groupSelected
+   prop). */
+.weft-edit-block.is-group-selected {
+  outline: 2px solid var(--weft-accent-hover);
+}
+
+/* The drag-select rectangle (see Canvas.tsx's startMarquee) - same dashed/translucent language as
+   the drag-over state above, portaled nowhere: it's a plain sibling of the blocks inside .weft-stage,
+   in the same percent-of-stage coordinate space their own position already uses. */
+.weft-marquee {
+  position: absolute;
+  pointer-events: none;
+  z-index: 20;
+  border: 1px dashed var(--weft-accent);
+  background: var(--weft-accent-soft);
+}
+
+/* The resize-handle box around a selected GROUP's own bounding box (Canvas.tsx's
+   GroupResizeOverlay) - reuses .weft-resize-handle's own corner/edge dots, just anchored to this
+   box instead of to one block's own wrap. */
+.weft-group-resize-overlay {
+  position: absolute;
+  outline: 2px dashed var(--weft-accent);
+  pointer-events: none;
+}
+
+.weft-group-resize-overlay .weft-resize-handle {
+  pointer-events: auto;
 }
 
 .weft-edit-block-image {
@@ -1689,11 +1828,30 @@ button.weft-timeline-node-icon:hover {
   color: var(--weft-text);
 }
 
+.weft-event-source {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 2px 12px;
+}
+
+.weft-event-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 2px 12px;
+}
+
+.weft-hint-label {
+  color: var(--weft-text-muted);
+  font-size: 11.5px;
+}
+
 .weft-event-trigger-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin: 0;
+  margin: 0 0 10px;
   padding: 0;
   list-style: none;
 }
@@ -1718,9 +1876,53 @@ button.weft-timeline-node-icon:hover {
   border-color: var(--weft-text-faint);
 }
 
+.weft-event-trigger-row:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .weft-event-trigger-via {
   color: var(--weft-text-muted);
   font-size: 11px;
+}
+
+.weft-event-trigger-row-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.weft-event-trigger-row-wrap .weft-event-trigger-row {
+  flex: 1;
+  min-width: 0;
+}
+
+.weft-event-trigger-delay {
+  width: 52px;
+  flex: 0 0 auto;
+  padding: 6px 7px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-input-bg);
+  color: var(--weft-text);
+  font-size: 12px;
+}
+
+.weft-event-trigger-remove {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: transparent;
+  color: var(--weft-text-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.weft-event-trigger-remove:hover {
+  background: var(--weft-panel-raised);
+  color: var(--weft-text);
 }
 
 /* ---- Collapsible sections ---- */
@@ -2135,11 +2337,93 @@ button.weft-timeline-node-icon:hover {
   border-radius: var(--weft-radius-sm);
   background: var(--weft-input-bg);
   color: var(--weft-text);
-  cursor: pointer;
+  cursor: grab;
   font-size: 12px;
+  /* Same reasoning as .weft-node's own touch-action:none - useDragReorder's drag is pointer-
+     events based, not native HTML5 DnD, so touch scrolling has to be suppressed by hand here for
+     a drag to actually start on a touchscreen instead of just scrolling the sidebar. */
+  touch-action: none;
 }
 
 .weft-block-list li button.is-active {
+  border-color: var(--weft-accent);
+  background: var(--weft-accent-soft);
+}
+
+/* Drag-reordering the Elemente list (see useDragReorder's "block" kind in PagePanel.tsx/
+   LayoutPanel.tsx) - same treatment as the sequence sidebar's own .weft-node equivalents above. */
+.weft-block-list li button.is-dragging {
+  opacity: 0.4;
+}
+
+.weft-block-list li button.is-drop-before {
+  border-top-color: var(--weft-accent);
+}
+
+.weft-block-list li button.is-drop-after {
+  border-bottom-color: var(--weft-accent);
+}
+
+/* A BlockGroup's own row in the Elemente sidebar (PagePanel.tsx) - its header (own select/remove
+   buttons, same look as a plain block row) plus every member indented underneath with a left-
+   border "bracket", echoing the canvas's own grouped outline. Drag-reordering isn't offered for
+   either (see PagePanel.tsx - a group's overall stacking position still moves via its own "Ganz
+   nach vorne/hinten" context menu actions instead), so unlike a plain row these don't get
+   useDragReorder's own cursor/touch-action treatment. */
+.weft-block-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weft-block-group-header {
+  display: flex;
+  gap: 4px;
+}
+
+.weft-block-group-header button:first-child {
+  flex: 1;
+  text-align: left;
+  padding: 6px 9px;
+  border: 1px dashed var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-input-bg);
+  color: var(--weft-text);
+  font-size: 12px;
+}
+
+.weft-block-group-header button:first-child.is-active {
+  border-color: var(--weft-accent);
+  background: var(--weft-accent-soft);
+}
+
+.weft-block-group-members {
+  list-style: none;
+  margin: 0;
+  padding-left: 14px;
+  border-left: 2px solid var(--weft-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weft-block-group-members li {
+  display: flex;
+  gap: 4px;
+}
+
+.weft-block-group-members li button:first-child {
+  flex: 1;
+  text-align: left;
+  padding: 6px 9px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-input-bg);
+  color: var(--weft-text);
+  font-size: 12px;
+}
+
+.weft-block-group-members li button:first-child.is-active {
   border-color: var(--weft-accent);
   background: var(--weft-accent-soft);
 }

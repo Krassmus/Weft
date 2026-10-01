@@ -2,9 +2,12 @@ import { useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
 /** "page" rows can be dropped into any container (the top-level sequence or any branch) - "logic"
- * rows (a logic block itself, never held by a branch - see Branch's own comment in types.ts) stay
- * restricted to reordering within their own container, which for a logic block is always "top". */
-type DragKind = "page" | "logic";
+ * rows (a logic block itself, never held by a branch - see Branch's own comment in types.ts) and
+ * "block" rows (an element in a page's/layout's own Elemente list, see PagePanel.tsx/
+ * LayoutPanel.tsx) stay restricted to reordering within their own container: "top" is the only one
+ * a logic block ever has, and a block's container (its own page or layout id) is never a valid
+ * drop target for a block from a *different* page/layout anyway. */
+type DragKind = "page" | "logic" | "block";
 
 interface DragOverState {
   sourceContainerId: string;
@@ -50,9 +53,10 @@ export function useDragReorder() {
     const row = el instanceof Element ? el.closest<HTMLElement>("[data-drag-container]") : null;
     if (!row) return;
     const rowContainer = row.dataset.dragContainer!;
-    // A "logic" drag may only reorder within the container it started in (always "top"); a
+    // A "logic"/"block" drag may only reorder within the container it started in ("top" for a
+    // logic block; a page's or layout's own id for a block - see DragKind's own doc comment); a
     // "page" drag may land in any container, including a different one than it started in.
-    if (kindRef.current === "logic" && rowContainer !== containerRef.current) return;
+    if (kindRef.current !== "page" && rowContainer !== containerRef.current) return;
 
     const index = Number(row.dataset.dragIndex);
     const rect = row.getBoundingClientRect();

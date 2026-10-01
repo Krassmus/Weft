@@ -261,7 +261,7 @@
     if (!isSpace && !isRight && !isLeft) return;
     // Explicit === false (not just falsy) so a module exported before this setting existed -
     // its embedded JSON simply won't have the field at all, and can't be migrated after the
-    // fact like a re-opened .weft.zip can - keeps behaving exactly as it always did instead of
+    // fact like a re-opened .weft file can - keeps behaving exactly as it always did instead of
     // suddenly losing keyboard navigation nobody asked to turn off.
     if (module.keyboardNavigationEnabled === false) return;
     if (blocksGlobalKeyNav(document.activeElement, isSpace)) return;
@@ -275,6 +275,13 @@
   // these into --ar-w/--ar-h custom properties, which the CSS uses in a calc() to size the
   // stage to the largest box of that ratio that still fits the viewport (see player.runtime.css).
   var ASPECT_MAP = { "16:9": [16, 9], "4:3": [4, 3], "1:1": [1, 1], "3:2": [3, 2] };
+
+  // Numeric width/height - same value core/aspectRatio.ts's ASPECT_RATIO_NUMERIC gives, used by
+  // shapeSvgMarkup below to correct a rounded rectangle's corners (see roundedRectPath).
+  function slideAspectNumeric() {
+    var ratio = ASPECT_MAP[module.aspectRatio] || ASPECT_MAP["16:9"];
+    return ratio[0] / ratio[1];
+  }
 
   function stageStyle() {
     var ratio = ASPECT_MAP[module.aspectRatio] || ASPECT_MAP["16:9"];
@@ -305,15 +312,23 @@
     return node;
   }
 
-  // ---- page-timeline event bus (drives BlockEffect.triggerEventId - see BlockEffectEditor in
-  // panels/BlockPanel.tsx) ----
-  // A block's own Aufbau/Abbau is triggered by one of these ids, in exactly the same string shape
-  // the editor's own graph (see pageTimeline.ts's *NodeId functions) uses to name them - kept in
-  // sync by hand across the two files, the same way DEFAULT_VIEWPORT_WIDTH etc. already are,
-  // since this file can't import from there (see the file header: no imports, no build step).
-  // Reset per renderStage() call (a fresh page's blocks need fresh listeners, and any stale ones
-  // left over from the previous page's now-detached elements should never fire again).
+  // ---- page-timeline event bus (drives page.timeline.triggerEdges - see PageTimeline in
+  // core/types.ts) ----
+  // A block's own Aufbau/Abbau, and a video's own start, are triggered by one of these ids, in
+  // exactly the same string shape the editor's own graph (see pageTimeline.ts's *NodeId
+  // functions) uses to name them - kept in sync by hand across the two files, the same way
+  // DEFAULT_VIEWPORT_WIDTH etc. already are, since this file can't import from there (see the
+  // file header: no imports, no build step). Reset per renderStage() call (a fresh page's blocks
+  // need fresh listeners, and any stale ones left over from the previous page's now-detached
+  // elements should never fire again).
   var eventListeners = {};
+  // Every block-entrance/-exit and video-start node fires at most once per stage render, exactly
+  // like every other graph event already does (see hasFiredStart/hasFiredFill below) - besides
+  // matching what each of those actually means (an element doesn't appear twice; a video doesn't
+  // "start" twice), this is what keeps a trigger cycle the editor doesn't try to prevent (e.g. two
+  // blocks' own Aufbau each triggering the other's) from looping forever instead of just settling
+  // after one pass.
+  var firedTriggerableEvents = {};
   function onGraphEvent(eventId, callback) {
     if (!eventId) return;
     (eventListeners[eventId] = eventListeners[eventId] || []).push(callback);
@@ -323,11 +338,24 @@
       callback();
     });
   }
+  // Fires `eventId` (see fireGraphEvent) but only ever once per stage render - for the "event
+  // nodes" whose own firing is itself scripted (see firedTriggerableEvents above), rather than
+  // ones guarded individually the way quiz/video's own intrinsic events already are.
+  function fireTriggerableEventOnce(eventId) {
+    if (firedTriggerableEvents[eventId]) return;
+    firedTriggerableEvents[eventId] = true;
+    fireGraphEvent(eventId);
+  }
   function quizFillEventId(blockId) {
     return "quiz-fill:" + blockId;
   }
-  function quizSubmitEventId(blockId) {
-    return "quiz-submit:" + blockId;
+  // Kept in sync by hand with document/pageTimeline.ts's own quizSubmitNodeId - outcome-suffixed
+  // when given, so a trigger configured against the "richtig"/"falsch"-specific node in the
+  // editor's own graph (only possible once both outcomes have their own lane there - see
+  // buildQuizLane) resolves to a distinct id here too, not the same one both outcomes would
+  // otherwise share.
+  function quizSubmitEventId(blockId, outcome) {
+    return outcome ? "quiz-submit:" + blockId + ":" + outcome : "quiz-submit:" + blockId;
   }
   function videoStartEventId(blockId) {
     return "video-start:" + blockId;
@@ -338,43 +366,82 @@
   function videoEndEventId(blockId) {
     return "video-end:" + blockId;
   }
+  function blockEffectEventId(blockId, phase) {
+    return "block-" + phase + ":" + blockId;
+  }
+
+  // ---- trigger resolution (mirrors document/pageTimeline.ts's own getBlockEntranceTrigger/
+  // getBlockExitTrigger/getVideoStartTrigger by hand - see this file's header for why it can't
+  // just import them) ----
+  function findTriggerEdge(page, targetNodeId) {
+    var edges = (page.timeline && page.timeline.triggerEdges) || [];
+    for (var i = 0; i < edges.length; i++) {
+      if (edges[i].to === targetNodeId) return edges[i];
+    }
+    return null;
+  }
+  function resolveEntranceTrigger(page, block) {
+    var edge = findTriggerEdge(page, blockEffectEventId(block.id, "entrance"));
+    return edge ? { from: edge.from, delayMs: edge.delayMs || 0 } : { from: "start", delayMs: 0 };
+  }
+  function resolveExitTrigger(page, block) {
+    var edge = findTriggerEdge(page, blockEffectEventId(block.id, "exit"));
+    return edge ? { from: edge.from, delayMs: edge.delayMs || 0 } : null;
+  }
+  function resolveVideoStartTrigger(page, block) {
+    var edge = findTriggerEdge(page, videoStartEventId(block.id));
+    if (edge) return { from: edge.from, delayMs: edge.delayMs || 0 };
+    return block.autoplay ? { from: "start", delayMs: 0 } : null;
+  }
 
   /**
    * Wires up one block's own Aufbau/Abbau (see BaseBlock.entranceEffect/exitEffect in
-   * core/types.ts) - called once per block, right after it's built, from renderBlock. The block
-   * starts hidden (visibility, not display: none, so it never needs a reflow to reveal) and is
-   * only ever shown once its entrance's trigger event actually fires, after its own delay -
-   * "none" as the effect type still means exactly that, it just reveals instantly instead of
-   * animating; the default entrance (trigger "start", 0ms delay, type "none") reveals in the same
-   * synchronous pass that builds the stage, before the browser ever paints, so a block with no
-   * effects configured looks exactly like it always did: just there from the start. Abbau mirrors
-   * this the other way, and simply never runs at all when its own triggerEventId is null (the
-   * default - see defaultExitEffect in document/blockEffects.ts).
+   * core/types.ts, and PageTimeline.triggerEdges for who triggers it and after what delay) -
+   * called once per block, right after it's built, from renderBlock. The block starts hidden
+   * (visibility, not display: none, so it never needs a reflow to reveal) and is only ever shown
+   * once its entrance's trigger event actually fires, after its own delay - "none" as the effect
+   * type still means exactly that, it just reveals instantly instead of animating; the default
+   * entrance (trigger "start", 0ms delay, type "none") reveals in the same synchronous pass that
+   * builds the stage, before the browser ever paints, so a block with no effects configured looks
+   * exactly like it always did: just there from the start. Abbau mirrors this the other way, and
+   * simply never runs at all when resolveExitTrigger returns null (the default - see
+   * defaultExitEffect in document/blockEffects.ts). Once each has actually happened, it fires its
+   * own synthetic graph event (see blockEffectEventId) so something ELSE can in turn be triggered
+   * by this block's own Aufbau/Abbau, exactly like any other event on the page (see
+   * TRIGGERABLE_EVENT_TYPES in document/pageTimeline.ts).
    */
-  function applyBlockEffects(wrap, block) {
-    var entrance = block.entranceEffect || { type: "none", triggerEventId: "start", durationMs: 500, delayMs: 0 };
-    var exit = block.exitEffect || { type: "none", triggerEventId: null, durationMs: 500, delayMs: 0 };
+  function applyBlockEffects(wrap, block, page) {
+    var entrance = block.entranceEffect || { type: "none", durationMs: 500 };
+    var exit = block.exitEffect || { type: "none", durationMs: 500 };
+    var entranceTrigger = resolveEntranceTrigger(page, block);
+    var exitTrigger = resolveExitTrigger(page, block);
 
     wrap.style.visibility = "hidden";
-    onGraphEvent(entrance.triggerEventId, function () {
+    onGraphEvent(entranceTrigger.from, function () {
       setTimeout(function () {
         wrap.style.visibility = "";
+        var done = function () {
+          fireTriggerableEventOnce(blockEffectEventId(block.id, "entrance"));
+        };
         if (entrance.type === "fade") {
-          wrap.animate([{ opacity: 0 }, { opacity: 1 }], { duration: entrance.durationMs || 500, easing: "ease" });
+          wrap.animate([{ opacity: 0 }, { opacity: 1 }], { duration: entrance.durationMs || 500, easing: "ease" }).onfinish = done;
         } else if (entrance.type === "move") {
           wrap.animate([{ transform: "translateX(100%)" }, { transform: "translateX(0)" }], {
             duration: entrance.durationMs || 500,
             easing: "ease",
-          });
+          }).onfinish = done;
+        } else {
+          done();
         }
-      }, entrance.delayMs || 0);
+      }, entranceTrigger.delayMs || 0);
     });
 
-    if (exit.triggerEventId) {
-      onGraphEvent(exit.triggerEventId, function () {
+    if (exitTrigger) {
+      onGraphEvent(exitTrigger.from, function () {
         setTimeout(function () {
           function hide() {
             wrap.style.visibility = "hidden";
+            fireTriggerableEventOnce(blockEffectEventId(block.id, "exit"));
           }
           if (exit.type === "fade") {
             wrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: exit.durationMs || 500, easing: "ease" }).onfinish = hide;
@@ -386,7 +453,7 @@
           } else {
             hide();
           }
-        }, exit.delayMs || 0);
+        }, exitTrigger.delayMs || 0);
       });
     }
   }
@@ -409,6 +476,178 @@
       position.height +
       "%;" +
       (position.rotation ? "transform:rotate(" + position.rotation + "deg);" : "")
+    );
+  }
+
+  // ---- ShapeBlock rendering - hand-duplicated from features/editor/blocks/shapeGeometry.ts and
+  // ShapeSvg.tsx (this file can't import from there, see the file header) - keep both in sync by
+  // hand for any change here. ----
+
+  // Degrees, clockwise from straight up - see shapeGeometry.ts's own comment for why (so a
+  // polygon/star's first point always lands at the top, matching how they're conventionally
+  // drawn).
+  function pointOnCircle(angleDeg, radius) {
+    var rad = (angleDeg * Math.PI) / 180;
+    return [50 + radius * Math.sin(rad), 50 - radius * Math.cos(rad)];
+  }
+
+  function regularPolygonPoints(sides) {
+    var n = Math.max(3, Math.round(sides));
+    var points = [];
+    for (var i = 0; i < n; i++) points.push(pointOnCircle((360 / n) * i, 50));
+    return points;
+  }
+
+  function starOutlinePoints(points, innerRadiusPercent) {
+    var n = Math.max(3, Math.round(points));
+    var innerRadius = (50 * Math.max(0, Math.min(100, innerRadiusPercent))) / 100;
+    var result = [];
+    for (var i = 0; i < n * 2; i++) {
+      result.push(pointOnCircle((360 / (n * 2)) * i, i % 2 === 0 ? 50 : innerRadius));
+    }
+    return result;
+  }
+
+  function pointsAttr(points) {
+    return points
+      .map(function (p) {
+        return p[0] + "," + p[1];
+      })
+      .join(" ");
+  }
+
+  // Corrects one corner's radius (0-50, percent of the block's own shorter *true* side - see
+  // ShapeCornerRadii's own doc comment in core/types.ts) into the (rx, ry) pair the 0-100 square
+  // needs so that, once stretched by `boxAspect` (the block's true on-slide width:height ratio)
+  // to the block's actual shape, the corner traces a true circular arc rather than an elliptical
+  // one - see shapeGeometry.ts's own correctedCornerRadius.
+  function correctedCornerRadius(radius, boxAspect) {
+    var r = Math.min(50, Math.max(0, radius));
+    return boxAspect <= 1 ? [r, r * boxAspect] : [r / boxAspect, r];
+  }
+
+  // See shapeGeometry.ts's own roundedRectPath.
+  function roundedRectPath(radii, boxAspect) {
+    var tl = correctedCornerRadius(radii.topLeft, boxAspect);
+    var tr = correctedCornerRadius(radii.topRight, boxAspect);
+    var br = correctedCornerRadius(radii.bottomRight, boxAspect);
+    var bl = correctedCornerRadius(radii.bottomLeft, boxAspect);
+    return (
+      "M " + tl[0] + " 0 " +
+      "L " + (100 - tr[0]) + " 0 " +
+      "A " + tr[0] + " " + tr[1] + " 0 0 1 100 " + tr[1] + " " +
+      "L 100 " + (100 - br[1]) + " " +
+      "A " + br[0] + " " + br[1] + " 0 0 1 " + (100 - br[0]) + " 100 " +
+      "L " + bl[0] + " 100 " +
+      "A " + bl[0] + " " + bl[1] + " 0 0 1 0 " + (100 - bl[1]) + " " +
+      "L 0 " + tl[1] + " " +
+      "A " + tl[0] + " " + tl[1] + " 0 0 1 " + tl[0] + " 0 " +
+      "Z"
+    );
+  }
+
+  function hexToRgba(hex, opacity) {
+    var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!m) return hex;
+    return "rgba(" + parseInt(m[1], 16) + ", " + parseInt(m[2], 16) + ", " + parseInt(m[3], 16) + ", " + opacity + ")";
+  }
+
+  function shapeGradientId(blockId) {
+    return "weft-shape-fill-" + blockId;
+  }
+
+  // "dashed"/"dotted" scale with the stroke's own width (cqw), same reasoning as ShapeSvg.tsx's
+  // strokeDashStyle: a thicker stroke gets proportionally longer dashes/gaps.
+  function strokeDashStyle(style, widthCqw) {
+    if (style === "dashed") return "stroke-dasharray:" + widthCqw * 2.5 + "cqw " + widthCqw * 1.5 + "cqw;stroke-linecap:butt;";
+    if (style === "dotted") return "stroke-dasharray:0.01cqw " + widthCqw * 2 + "cqw;stroke-linecap:round;";
+    return "";
+  }
+
+  function shapeSvgMarkup(block) {
+    var fill = block.fill;
+    var stroke = block.stroke;
+    var shadow = block.shadow;
+    var gradientId = shapeGradientId(block.id);
+
+    var fillValue = fill.type === "none" ? "none" : fill.type === "gradient" ? "url(#" + gradientId + ")" : fill.color;
+    var fillOpacityAttr = fill.type === "solid" ? ' fill-opacity="' + fill.opacity + '"' : "";
+
+    var strokeAttrs = "";
+    if (stroke.enabled) {
+      strokeAttrs =
+        ' stroke="' +
+        stroke.color +
+        '" stroke-opacity="' +
+        stroke.opacity +
+        '" style="stroke-width:' +
+        stroke.width +
+        "cqw;vector-effect:non-scaling-stroke;" +
+        strokeDashStyle(stroke.style, stroke.width) +
+        '"';
+    }
+
+    var shapeMarkup;
+    if (block.shapeKind === "rectangle") {
+      // The block's own TRUE on-slide width:height ratio - see roundedRectPath's own comment for
+      // why a rounded rectangle's corners need this to stay circular instead of elliptical.
+      var boxAspect = block.position.height > 0 ? (block.position.width / block.position.height) * slideAspectNumeric() : 1;
+      shapeMarkup = '<path d="' + roundedRectPath(block.cornerRadii, boxAspect) + '" fill="' + fillValue + '"' + fillOpacityAttr + strokeAttrs + "/>";
+    } else if (block.shapeKind === "ellipse") {
+      shapeMarkup = '<ellipse cx="50" cy="50" rx="50" ry="50" fill="' + fillValue + '"' + fillOpacityAttr + strokeAttrs + "/>";
+    } else if (block.shapeKind === "polygon") {
+      shapeMarkup =
+        '<polygon points="' + pointsAttr(regularPolygonPoints(block.sides)) + '" fill="' + fillValue + '"' + fillOpacityAttr + strokeAttrs + "/>";
+    } else {
+      shapeMarkup =
+        '<polygon points="' +
+        pointsAttr(starOutlinePoints(block.starPoints, block.starInnerRadius)) +
+        '" fill="' +
+        fillValue +
+        '"' +
+        fillOpacityAttr +
+        strokeAttrs +
+        "/>";
+    }
+
+    var defsMarkup = "";
+    if (fill.type === "gradient") {
+      var stops = fill.gradient.stops
+        .map(function (s) {
+          return '<stop offset="' + s.offset + '%" stop-color="' + s.color + '" stop-opacity="' + s.opacity + '"/>';
+        })
+        .join("");
+      defsMarkup =
+        fill.gradient.kind === "radial"
+          ? '<defs><radialGradient id="' + gradientId + '" cx="50%" cy="50%" r="50%">' + stops + "</radialGradient></defs>"
+          : '<defs><linearGradient id="' +
+            gradientId +
+            '" x1="0%" y1="0%" x2="100%" y2="0%" gradientTransform="rotate(' +
+            fill.gradient.angle +
+            ' 0.5 0.5)">' +
+            stops +
+            "</linearGradient></defs>";
+    }
+
+    var filterStyle = shadow.enabled
+      ? "filter:drop-shadow(" +
+        shadow.offsetX +
+        "cqw " +
+        shadow.offsetY +
+        "cqw " +
+        shadow.blur +
+        "cqw " +
+        hexToRgba(shadow.color, shadow.opacity) +
+        ");"
+      : "";
+
+    return (
+      '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;display:block;overflow:visible;' +
+      filterStyle +
+      '">' +
+      defsMarkup +
+      shapeMarkup +
+      "</svg>"
     );
   }
 
@@ -477,7 +716,7 @@
     wrap.appendChild(gate);
   }
 
-  function renderStaticBlock(block) {
+  function renderStaticBlock(block, page) {
     var wrap = el("div", { class: "weft-block weft-block-" + block.kind, style: positionStyle(block.position) });
     if (block.kind === "text") {
       wrap.innerHTML = block.html;
@@ -498,7 +737,13 @@
       // setting the attribute alone (as el()'s other boolean attrs do above) would silently
       // leave audible autoplay blocked.
       videoEl.muted = !!block.muted;
-      videoEl.autoplay = !!block.autoplay;
+      // A resolved start trigger (see resolveVideoStartTrigger) that ISN'T just what
+      // VideoBlock.autoplay alone already implies takes over entirely, scripted below - native
+      // autoplay is switched off in that case so the two mechanisms can never both try to start
+      // the same video at once (see this block's own trigger-wiring further down).
+      var startTrigger = resolveVideoStartTrigger(page, block);
+      var hasExplicitStartTrigger = !!findTriggerEdge(page, videoStartEventId(block.id));
+      videoEl.autoplay = !hasExplicitStartTrigger && !!block.autoplay;
 
       // Fires each stop point's own event (see videoStopEventId - a block elsewhere can use it as
       // an Aufbau/Abbau trigger, see BlockEffectEditor) the moment playback reaches it, and pauses
@@ -550,6 +795,19 @@
           fireGraphEvent(videoStartEventId(block.id));
         }
       });
+      // A start trigger that isn't just native autoplay (see hasExplicitStartTrigger above) -
+      // either an explicit override, or autoplay was off to begin with and something else is
+      // meant to start this video - is scripted here instead: wait for its own source event, then
+      // actually call play() after the configured delay. The "play" listener above already fires
+      // videoStartEventId regardless of what caused play() to be called, so nothing else about
+      // how a video's own start propagates further needs to know or care which path started it.
+      if (startTrigger && hasExplicitStartTrigger) {
+        onGraphEvent(startTrigger.from, function () {
+          setTimeout(function () {
+            videoEl.play().catch(function () {});
+          }, startTrigger.delayMs || 0);
+        });
+      }
       // Never fires at all for a looping video (the loop attribute pre-empts "ended" natively) -
       // matches "video-end-loop"/the ∞ icon's own meaning of "doesn't really end" exactly.
       videoEl.addEventListener("ended", function () {
@@ -568,6 +826,8 @@
       } else {
         wrap.appendChild(iframeEl(block, block.url));
       }
+    } else if (block.kind === "shape") {
+      wrap.innerHTML = shapeSvgMarkup(block);
     }
     return wrap;
   }
@@ -680,10 +940,16 @@
           return block.correctOptionIds.indexOf(id) !== -1;
         });
       (correct ? block.onCorrect : block.onIncorrect).forEach(applyEffect);
-      // One shared event regardless of correct/incorrect - matches quizSubmitNodeId in
-      // pageTimeline.ts, which is likewise the same id for both outcome lanes (only the label/icon
-      // shown for it differ there, not the underlying event).
+      // Fires both the plain, outcome-agnostic event (for a trigger configured against the
+      // generic "Quiz abgeschickt" node - see quizSubmitNodeId in pageTimeline.ts, built when
+      // neither advanceOnCorrect nor advanceOnIncorrect is on) AND the one matching this
+      // particular submission's own actual outcome (for a trigger configured against the
+      // "richtig"/"falsch"-specific node, built once that outcome has its own lane) - whichever
+      // of the two an author could actually have picked in the editor has a real listener here;
+      // the other is just an id nothing happens to be registered against, same as any other
+      // no-op fireGraphEvent call.
       fireGraphEvent(quizSubmitEventId(block.id));
+      fireGraphEvent(quizSubmitEventId(block.id, correct ? "richtig" : "falsch"));
 
       // Replaces the submit button rather than joining it (see the feedback element above), and
       // locks the options in place - both so a learner can't submit twice, and so the answer
@@ -713,21 +979,23 @@
     return wrap;
   }
 
-  function renderBlock(block) {
-    var wrap = block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : renderStaticBlock(block);
-    applyBlockEffects(wrap, block);
+  function renderBlock(block, page) {
+    var wrap = block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : renderStaticBlock(block, page);
+    applyBlockEffects(wrap, block, page);
     return wrap;
   }
 
   function renderStage(pageId) {
-    // Fresh listeners for a fresh page - see eventListeners's own comment above for why stale
-    // ones from whatever page was showing before must never carry over.
+    // Fresh listeners (and fresh once-only guards) for a fresh page - see eventListeners's own
+    // comment above for why stale ones from whatever page was showing before must never carry
+    // over.
     eventListeners = {};
+    firedTriggerableEvents = {};
     var page = module.pages[pageId];
     var stage = el("div", { class: "weft-stage", style: stageStyle() }, []);
     var layout = page.layoutId ? module.layouts[page.layoutId] : null;
-    if (layout) layout.blocks.forEach(function (b) { stage.appendChild(renderBlock(b)); });
-    page.blocks.forEach(function (b) { stage.appendChild(renderBlock(b)); });
+    if (layout) layout.blocks.forEach(function (b) { stage.appendChild(renderBlock(b, page)); });
+    page.blocks.forEach(function (b) { stage.appendChild(renderBlock(b, page)); });
     // Every block's own entrance/exit listener is registered synchronously above, by the time
     // renderBlock returns for it - so firing "start" here, still before this stage is even
     // returned to be appended to the DOM, reaches all of them before the browser ever paints.

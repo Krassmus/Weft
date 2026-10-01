@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import pauseIconSvg from "../../../../mockups/icons/pause.svg?raw";
 import { createId } from "../../../core/id";
-import { addCustomFont } from "../../../core/document/actions";
+import { addCustomFont, setEventTrigger } from "../../../core/document/actions";
 import type { VideoUploadResult } from "../../../core/document/actions";
+import { blockEffectNodeId, getBlockEntranceTrigger, getBlockExitTrigger } from "../../../core/document/pageTimeline";
 import { useAssetStore } from "../../../core/assets/assetStore";
 import { formatTimeMMSS } from "../../../core/formatTime";
 import { useDocumentStore } from "../../../core/document/store";
@@ -22,6 +23,14 @@ import type {
   ImageBlock,
   Page,
   QuizBlock,
+  ShapeBlock,
+  ShapeCornerRadii,
+  ShapeFill,
+  ShapeGradient,
+  ShapeGradientStop,
+  ShapeKind,
+  ShapeShadow,
+  ShapeStroke,
   VariableEffect,
   VideoBlock,
   VideoStopPoint,
@@ -29,12 +38,21 @@ import type {
 import { Collapsible } from "../Collapsible";
 import { applyFontSize, applyFormat, useFormatSnapshot } from "../blocks/richText";
 import type { TriState } from "../blocks/richText";
-import { nodeLabel } from "../Timeline";
+import { listPageTriggerEvents } from "../Timeline";
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 
 const SANDBOX_FLAGS = ["allow-scripts", "allow-same-origin", "allow-popups", "allow-forms"];
 const UPLOAD_FONT_VALUE = "__upload__";
+// Single source of truth for the font-size stepper's floor/ceiling - used by the number input's
+// own min/max *and* by both step buttons *and* by typing a value directly, so all three ways of
+// changing the size agree. Previously the buttons hardcoded their own "8" separately from the
+// input's min attribute, and a typed value wasn't clamped at all - so a value typed below 8
+// (allowed) and then nudged with the "−" button (floored at the button's own hardcoded 8) would
+// visibly jump back *up* to 8 instead of continuing to shrink, which is what actually caused the
+// "inconsistent"/"komisch" behavior reported for small sizes, not the cqw storage itself.
+const MIN_FONT_SIZE_PX = 4;
+const MAX_FONT_SIZE_PX = 300;
 
 interface BlockPanelProps {
   block: Block;
@@ -49,7 +67,10 @@ interface BlockPanelProps {
 }
 
 export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, page }: BlockPanelProps) {
-  const triggerEvents = page ? listPageTriggerEvents(page) : [];
+  // A block's own Aufbau/Abbau can name any other event as its trigger, but never itself - that's
+  // not a real "it happens later" relationship, just a node pointing at its own not-yet-fired self.
+  const ownEffectNodeIds = new Set([blockEffectNodeId(block.id, "entrance"), blockEffectNodeId(block.id, "exit")]);
+  const triggerEvents = page ? listPageTriggerEvents(page).filter((e) => !ownEffectNodeIds.has(e.id)) : [];
   return (
     <>
       {/* Same formatting toolbar for both - a quiz's question and options are rich text edited
@@ -61,21 +82,26 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, page }: Bl
       {block.kind === "iframe" && <IframeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "button" && <ButtonEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "quiz" && <QuizEditor block={block} onUpdate={onUpdate} />}
+      {block.kind === "shape" && <ShapeEditor block={block} onUpdate={onUpdate} />}
       {page && (
         <>
           <BlockEffectEditor
             title="Aufbau"
             effect={block.entranceEffect}
+            trigger={getBlockEntranceTrigger(page, block)}
             events={triggerEvents}
             allowNoTrigger={false}
-            onChange={(entranceEffect) => onUpdate({ entranceEffect })}
+            onEffectChange={(entranceEffect) => onUpdate({ entranceEffect })}
+            onTriggerChange={(from, delayMs) => setEventTrigger(page.id, blockEffectNodeId(block.id, "entrance"), from, delayMs)}
           />
           <BlockEffectEditor
             title="Abbau"
             effect={block.exitEffect}
+            trigger={getBlockExitTrigger(page, block)}
             events={triggerEvents}
             allowNoTrigger={true}
-            onChange={(exitEffect) => onUpdate({ exitEffect })}
+            onEffectChange={(exitEffect) => onUpdate({ exitEffect })}
+            onTriggerChange={(from, delayMs) => setEventTrigger(page.id, blockEffectNodeId(block.id, "exit"), from, delayMs)}
           />
         </>
       )}
@@ -87,22 +113,6 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, page }: Bl
   );
 }
 
-/** Every event a block's own Aufbau/Abbau can trigger off (see BlockEffectEditor) - every node in
- * the page's own timeline graph (see PageTimeline in core/types.ts) except "end" (Nächste Folie),
- * which BlockEffect.triggerEventId's own doc comment explains is excluded because the slide is
- * already gone by the time it fires. Deduplicated by node id, since the same node (e.g. "start",
- * or a quiz's shared submit event) can legitimately appear in more than one lane. */
-function listPageTriggerEvents(page: Page): { id: string; label: string }[] {
-  const seen = new Map<string, string>();
-  for (const lane of page.timeline.lanes) {
-    for (const node of lane.nodes) {
-      if (node.kind === "end") continue;
-      if (!seen.has(node.id)) seen.set(node.id, nodeLabel(node));
-    }
-  }
-  return Array.from(seen, ([id, label]) => ({ id, label }));
-}
-
 const BLOCK_EFFECT_TYPES: BlockEffectType[] = ["none", "fade", "move"];
 
 const BLOCK_EFFECT_LABELS: Record<BlockEffectType, string> = {
@@ -112,27 +122,32 @@ const BLOCK_EFFECT_LABELS: Record<BlockEffectType, string> = {
 };
 
 /**
- * Editor for one BlockEffect (a block's own Aufbau or Abbau, see BaseBlock.entranceEffect/
- * exitEffect in core/types.ts) - type/duration mirror TransitionPanel.tsx's own radio group
- * exactly (same three options, same "hide duration while there's nothing to time" rule), plus the
- * trigger-event picker and delay this needs that a page's own outgoing transition doesn't: a
- * block's appearance/disappearance can be tied to any event on the page, not just "the page is
- * ending". `allowNoTrigger` adds a leading "no trigger at all" option (triggerEventId null) - only
- * for Abbau, since a block always has to appear *somehow*, but never disappearing early (staying
- * until the page itself does) is the sensible default for Abbau specifically.
+ * Editor for one block's Aufbau or Abbau - the animation itself (BaseBlock.entranceEffect/
+ * exitEffect, `effect`/`onEffectChange`) plus who triggers it and after what delay (`trigger`/
+ * `onTriggerChange`, backed by a PageTimeline.triggerEdges entry - see setEventTrigger in
+ * document/actions.ts - not by the effect object itself, see BlockEffect's own doc comment in
+ * core/types.ts). Type/duration mirror TransitionPanel.tsx's own radio group exactly (same three
+ * options, same "hide duration while there's nothing to time" rule). `allowNoTrigger` adds a
+ * leading "no trigger at all" option (`trigger` null) - only for Abbau, since a block always has
+ * to appear *somehow*, but never disappearing early (staying until the page itself does) is the
+ * sensible default for Abbau specifically (see getBlockExitTrigger).
  */
-function BlockEffectEditor({
+export function BlockEffectEditor({
   title,
   effect,
+  trigger,
   events,
   allowNoTrigger,
-  onChange,
+  onEffectChange,
+  onTriggerChange,
 }: {
   title: string;
   effect: BlockEffect;
+  trigger: { from: string; delayMs: number } | null;
   events: { id: string; label: string }[];
   allowNoTrigger: boolean;
-  onChange: (effect: BlockEffect) => void;
+  onEffectChange: (effect: BlockEffect) => void;
+  onTriggerChange: (from: string | null, delayMs: number) => void;
 }) {
   return (
     <Collapsible title={title} defaultOpen={false}>
@@ -142,7 +157,7 @@ function BlockEffectEditor({
             type="radio"
             name={`weft-block-effect-${title}`}
             checked={effect.type === type}
-            onChange={() => onChange({ ...effect, type })}
+            onChange={() => onEffectChange({ ...effect, type })}
           />
           <span>{BLOCK_EFFECT_LABELS[type]}</span>
         </label>
@@ -158,14 +173,17 @@ function BlockEffectEditor({
             onChange={(e) => {
               const seconds = Number(e.target.value);
               if (!Number.isFinite(seconds) || seconds <= 0) return;
-              onChange({ ...effect, durationMs: Math.round(seconds * 1000) });
+              onEffectChange({ ...effect, durationMs: Math.round(seconds * 1000) });
             }}
           />
         </label>
       )}
       <label className="weft-field">
         <span>Ausgelöst durch</span>
-        <select value={effect.triggerEventId ?? ""} onChange={(e) => onChange({ ...effect, triggerEventId: e.target.value || null })}>
+        <select
+          value={trigger?.from ?? ""}
+          onChange={(e) => onTriggerChange(e.target.value || null, trigger?.delayMs ?? 0)}
+        >
           {allowNoTrigger && <option value="">Kein automatischer Abbau</option>}
           {events.map((event) => (
             <option key={event.id} value={event.id}>
@@ -180,12 +198,12 @@ function BlockEffectEditor({
           type="number"
           min={0}
           step={0.1}
-          disabled={effect.triggerEventId === null}
-          value={effect.delayMs / 1000}
+          disabled={trigger === null}
+          value={(trigger?.delayMs ?? 0) / 1000}
           onChange={(e) => {
             const seconds = Number(e.target.value);
-            if (!Number.isFinite(seconds) || seconds < 0) return;
-            onChange({ ...effect, delayMs: Math.round(seconds * 1000) });
+            if (!Number.isFinite(seconds) || seconds < 0 || !trigger) return;
+            onTriggerChange(trigger.from, Math.round(seconds * 1000));
           }}
         />
       </label>
@@ -403,7 +421,7 @@ function TextEditor() {
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   const current = typeof snapshot.fontSizePx === "number" ? snapshot.fontSizePx : 16;
-                  applyFontSize(Math.max(8, current - 1));
+                  applyFontSize(Math.max(MIN_FONT_SIZE_PX, current - 1));
                 }}
               >
                 −
@@ -411,13 +429,17 @@ function TextEditor() {
               <input
                 key={fontSizeKey}
                 type="number"
-                min={8}
-                max={300}
+                min={MIN_FONT_SIZE_PX}
+                max={MAX_FONT_SIZE_PX}
                 defaultValue={fontSizeKey === "mixed" ? "" : fontSizeKey}
                 placeholder={snapshot.fontSizePx === "mixed" ? "Verschiedene" : "24"}
                 onBlur={(e) => {
                   const px = Number(e.target.value);
-                  if (px > 0) applyFontSize(px);
+                  // Clamped here, not just via the input's own min/max attributes - those only
+                  // affect the native spinner UI, not a value typed directly and read via
+                  // e.target.value, which is why typing e.g. "2" previously stored a font-size
+                  // below the intended floor at all (see MIN_FONT_SIZE_PX's own comment).
+                  if (Number.isFinite(px)) applyFontSize(Math.min(MAX_FONT_SIZE_PX, Math.max(MIN_FONT_SIZE_PX, px)));
                 }}
               />
               <button
@@ -427,7 +449,7 @@ function TextEditor() {
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   const current = typeof snapshot.fontSizePx === "number" ? snapshot.fontSizePx : 16;
-                  applyFontSize(Math.min(300, current + 1));
+                  applyFontSize(Math.min(MAX_FONT_SIZE_PX, current + 1));
                 }}
               >
                 +
@@ -806,6 +828,409 @@ function ButtonEditor({ block, onUpdate }: { block: ButtonBlock; onUpdate: Block
         </p>
       )}
     </Collapsible>
+  );
+}
+
+const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
+  rectangle: "Rechteck",
+  ellipse: "Ellipse",
+  polygon: "n-Eck",
+  star: "Stern",
+};
+
+function ShapeEditor({ block, onUpdate }: { block: ShapeBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
+  return (
+    <>
+      <Collapsible title="Form">
+        <label className="weft-field">
+          <span>Typ</span>
+          <select value={block.shapeKind} onChange={(e) => onUpdate({ shapeKind: e.target.value as ShapeKind })}>
+            {(Object.keys(SHAPE_KIND_LABELS) as ShapeKind[]).map((kind) => (
+              <option key={kind} value={kind}>
+                {SHAPE_KIND_LABELS[kind]}
+              </option>
+            ))}
+          </select>
+        </label>
+        {block.shapeKind === "rectangle" && (
+          <ShapeCornerRadiiEditor cornerRadii={block.cornerRadii} onChange={(cornerRadii) => onUpdate({ cornerRadii })} />
+        )}
+        {block.shapeKind === "polygon" && (
+          <label className="weft-field">
+            <span>Seiten ({block.sides})</span>
+            <input type="range" min={3} max={20} value={block.sides} onChange={(e) => onUpdate({ sides: Number(e.target.value) })} />
+          </label>
+        )}
+        {block.shapeKind === "star" && (
+          <>
+            <label className="weft-field">
+              <span>Zacken ({block.starPoints})</span>
+              <input
+                type="range"
+                min={3}
+                max={20}
+                value={block.starPoints}
+                onChange={(e) => onUpdate({ starPoints: Number(e.target.value) })}
+              />
+            </label>
+            <label className="weft-field">
+              <span>Innenradius ({Math.round(block.starInnerRadius)}%)</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={block.starInnerRadius}
+                onChange={(e) => onUpdate({ starInnerRadius: Number(e.target.value) })}
+              />
+            </label>
+          </>
+        )}
+      </Collapsible>
+
+      <Collapsible title="Füllung">
+        <ShapeFillEditor fill={block.fill} onChange={(fill) => onUpdate({ fill })} />
+      </Collapsible>
+
+      <Collapsible title="Kontur" defaultOpen={false}>
+        <ShapeStrokeEditor stroke={block.stroke} onChange={(stroke) => onUpdate({ stroke })} />
+      </Collapsible>
+
+      <Collapsible title="Schatten" defaultOpen={false}>
+        <ShapeShadowEditor shadow={block.shadow} onChange={(shadow) => onUpdate({ shadow })} />
+      </Collapsible>
+    </>
+  );
+}
+
+// Reading order (top-left, top-right, bottom-left, bottom-right), not the .weft-field-grid 2x2
+// layout order this used to be rendered in - that grid fills row-major (left-to-right then down),
+// so position 3 (bottomRight) landed in the grid's bottom-*left* cell and position 4 (bottomLeft)
+// in its bottom-*right* cell, i.e. visually swapped from what their own labels said. Rendered as
+// plain stacked .weft-field rows now instead (see ShapeCornerRadiiEditor below), so this order is
+// just for a sensible reading sequence, not a grid position - but keeping bottomLeft before
+// bottomRight here still matters for that reason.
+const CORNER_FIELDS: { key: keyof ShapeCornerRadii; label: string }[] = [
+  { key: "topLeft", label: "Oben links" },
+  { key: "topRight", label: "Oben rechts" },
+  { key: "bottomLeft", label: "Unten links" },
+  { key: "bottomRight", label: "Unten rechts" },
+];
+
+/** One shared "Eckenradius" slider that sets all four corners together (the common case, and
+ * what PowerPoint/Keynote's own single handle does) by default - "Ecken einzeln einstellen"
+ * reveals four independent sliders instead, one per corner (see ShapeCornerRadii in
+ * core/types.ts). Starts already expanded if the four corners aren't all equal (e.g. a document
+ * someone else already gave individual corners) so the mismatch isn't hidden; otherwise this is
+ * pure UI state, never itself stored on the block - there's nothing to persist beyond the four
+ * numbers themselves. */
+function ShapeCornerRadiiEditor({
+  cornerRadii,
+  onChange,
+}: {
+  cornerRadii: ShapeCornerRadii;
+  onChange: (cornerRadii: ShapeCornerRadii) => void;
+}) {
+  const allEqual =
+    cornerRadii.topLeft === cornerRadii.topRight &&
+    cornerRadii.topRight === cornerRadii.bottomRight &&
+    cornerRadii.bottomRight === cornerRadii.bottomLeft;
+  const [individual, setIndividual] = useState(!allEqual);
+
+  return (
+    <>
+      <label className="weft-field weft-field-inline">
+        <input type="checkbox" checked={individual} onChange={(e) => setIndividual(e.target.checked)} />
+        <span>Ecken einzeln einstellen</span>
+      </label>
+      {individual ? (
+        // Plain stacked .weft-field rows, not .weft-field-grid - that grid's narrow 2-column
+        // cells (built for a 2-3 digit x/y/width/height number, see its own comment in App.css)
+        // left each range input only a sliver of a track, too short to land on anything but
+        // roughly "0" or "near the end" with a mouse - exactly the "can only turn it off, can't
+        // fine-tune, can't get it back off 0" behavior this was reported as. A full-width track,
+        // like every other slider in this panel (Deckkraft, Winkel, the uniform Eckenradius
+        // below, ...) already gets, is draggable precisely the same way those are.
+        <>
+          {CORNER_FIELDS.map(({ key, label }) => (
+            <label key={key} className="weft-field">
+              <span>
+                {label} ({Math.round(cornerRadii[key])})
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={50}
+                value={cornerRadii[key]}
+                onChange={(e) => onChange({ ...cornerRadii, [key]: Number(e.target.value) })}
+              />
+            </label>
+          ))}
+        </>
+      ) : (
+        <label className="weft-field">
+          <span>Eckenradius ({Math.round(cornerRadii.topLeft)})</span>
+          <input
+            type="range"
+            min={0}
+            max={50}
+            value={cornerRadii.topLeft}
+            onChange={(e) => {
+              const r = Number(e.target.value);
+              onChange({ topLeft: r, topRight: r, bottomRight: r, bottomLeft: r });
+            }}
+          />
+        </label>
+      )}
+    </>
+  );
+}
+
+const SHAPE_FILL_TYPE_LABELS: Record<ShapeFill["type"], string> = {
+  none: "Keine",
+  solid: "Farbe",
+  gradient: "Verlauf",
+};
+
+function ShapeFillEditor({ fill, onChange }: { fill: ShapeFill; onChange: (fill: ShapeFill) => void }) {
+  return (
+    <>
+      <div className="weft-format-row">
+        {(Object.keys(SHAPE_FILL_TYPE_LABELS) as ShapeFill["type"][]).map((type) => (
+          <label key={type} className="weft-field weft-field-inline">
+            <input type="radio" name="weft-shape-fill-type" checked={fill.type === type} onChange={() => onChange({ ...fill, type })} />
+            <span>{SHAPE_FILL_TYPE_LABELS[type]}</span>
+          </label>
+        ))}
+      </div>
+      {fill.type === "solid" && (
+        <div className="weft-format-row">
+          <label className="weft-field">
+            <span>Farbe</span>
+            <input type="color" value={fill.color} onChange={(e) => onChange({ ...fill, color: e.target.value })} />
+          </label>
+          <label className="weft-field">
+            <span>Deckkraft ({Math.round(fill.opacity * 100)}%)</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={fill.opacity}
+              onChange={(e) => onChange({ ...fill, opacity: Number(e.target.value) })}
+            />
+          </label>
+        </div>
+      )}
+      {fill.type === "gradient" && <ShapeGradientEditor gradient={fill.gradient} onChange={(gradient) => onChange({ ...fill, gradient })} />}
+    </>
+  );
+}
+
+function ShapeGradientEditor({ gradient, onChange }: { gradient: ShapeGradient; onChange: (gradient: ShapeGradient) => void }) {
+  function updateStop(id: string, patch: Partial<ShapeGradientStop>) {
+    onChange({ ...gradient, stops: gradient.stops.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
+  }
+
+  function addStop() {
+    const last = gradient.stops[gradient.stops.length - 1];
+    onChange({
+      ...gradient,
+      stops: [...gradient.stops, { id: createId(), offset: last ? Math.min(100, last.offset + 20) : 100, color: "#ffffff", opacity: 1 }],
+    });
+  }
+
+  function removeStop(id: string) {
+    // A gradient needs at least two stops to be a gradient at all - the last two can't be removed
+    // down to one, which would leave ShapeSvg.tsx rendering a solid-looking fill under a "Verlauf"
+    // label that no longer has anything to interpolate between.
+    if (gradient.stops.length <= 2) return;
+    onChange({ ...gradient, stops: gradient.stops.filter((s) => s.id !== id) });
+  }
+
+  return (
+    <>
+      <div className="weft-format-row">
+        <label className="weft-field weft-field-inline">
+          <input
+            type="radio"
+            name="weft-shape-gradient-kind"
+            checked={gradient.kind === "linear"}
+            onChange={() => onChange({ ...gradient, kind: "linear" })}
+          />
+          <span>Linear</span>
+        </label>
+        <label className="weft-field weft-field-inline">
+          <input
+            type="radio"
+            name="weft-shape-gradient-kind"
+            checked={gradient.kind === "radial"}
+            onChange={() => onChange({ ...gradient, kind: "radial" })}
+          />
+          <span>Radial</span>
+        </label>
+      </div>
+      {gradient.kind === "linear" && (
+        <label className="weft-field">
+          <span>Winkel ({Math.round(gradient.angle)}°)</span>
+          <input
+            type="range"
+            min={0}
+            max={360}
+            value={gradient.angle}
+            onChange={(e) => onChange({ ...gradient, angle: Number(e.target.value) })}
+          />
+        </label>
+      )}
+      <span className="weft-subgroup-label">Farbverlaufspunkte</span>
+      {gradient.stops.map((stop) => (
+        <div key={stop.id} className="weft-effect-row">
+          <input
+            type="color"
+            value={stop.color}
+            title="Farbe"
+            onChange={(e) => updateStop(stop.id, { color: e.target.value })}
+          />
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={Math.round(stop.offset)}
+            title="Position (%)"
+            onChange={(e) => updateStop(stop.id, { offset: Math.min(100, Math.max(0, Number(e.target.value))) })}
+          />
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={stop.opacity}
+            title="Deckkraft"
+            onChange={(e) => updateStop(stop.id, { opacity: Number(e.target.value) })}
+          />
+          <button
+            type="button"
+            className="weft-icon-button"
+            disabled={gradient.stops.length <= 2}
+            onClick={() => removeStop(stop.id)}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <button type="button" className="weft-ghost-button weft-full-width" onClick={addStop}>
+        + Farbverlaufspunkt
+      </button>
+    </>
+  );
+}
+
+const SHAPE_STROKE_STYLE_LABELS: Record<ShapeStroke["style"], string> = {
+  solid: "Durchgezogen",
+  dashed: "Gestrichelt",
+  dotted: "Gepunktet",
+};
+
+function ShapeStrokeEditor({ stroke, onChange }: { stroke: ShapeStroke; onChange: (stroke: ShapeStroke) => void }) {
+  return (
+    <>
+      <label className="weft-field weft-field-inline">
+        <input type="checkbox" checked={stroke.enabled} onChange={(e) => onChange({ ...stroke, enabled: e.target.checked })} />
+        <span>Kontur anzeigen</span>
+      </label>
+      {stroke.enabled && (
+        <>
+          <div className="weft-format-row">
+            <label className="weft-field">
+              <span>Farbe</span>
+              <input type="color" value={stroke.color} onChange={(e) => onChange({ ...stroke, color: e.target.value })} />
+            </label>
+            <label className="weft-field">
+              <span>Deckkraft ({Math.round(stroke.opacity * 100)}%)</span>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={stroke.opacity}
+                onChange={(e) => onChange({ ...stroke, opacity: Number(e.target.value) })}
+              />
+            </label>
+          </div>
+          <label className="weft-field">
+            <span>Breite</span>
+            <input
+              type="number"
+              min={0}
+              step={0.1}
+              value={stroke.width}
+              onChange={(e) => onChange({ ...stroke, width: Math.max(0, Number(e.target.value)) })}
+            />
+          </label>
+          <label className="weft-field">
+            <span>Stil</span>
+            <select value={stroke.style} onChange={(e) => onChange({ ...stroke, style: e.target.value as ShapeStroke["style"] })}>
+              {(Object.keys(SHAPE_STROKE_STYLE_LABELS) as ShapeStroke["style"][]).map((style) => (
+                <option key={style} value={style}>
+                  {SHAPE_STROKE_STYLE_LABELS[style]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
+      )}
+    </>
+  );
+}
+
+function ShapeShadowEditor({ shadow, onChange }: { shadow: ShapeShadow; onChange: (shadow: ShapeShadow) => void }) {
+  return (
+    <>
+      <label className="weft-field weft-field-inline">
+        <input type="checkbox" checked={shadow.enabled} onChange={(e) => onChange({ ...shadow, enabled: e.target.checked })} />
+        <span>Schatten anzeigen</span>
+      </label>
+      {shadow.enabled && (
+        <>
+          <div className="weft-format-row">
+            <label className="weft-field">
+              <span>Farbe</span>
+              <input type="color" value={shadow.color} onChange={(e) => onChange({ ...shadow, color: e.target.value })} />
+            </label>
+            <label className="weft-field">
+              <span>Deckkraft ({Math.round(shadow.opacity * 100)}%)</span>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={shadow.opacity}
+                onChange={(e) => onChange({ ...shadow, opacity: Number(e.target.value) })}
+              />
+            </label>
+          </div>
+          <label className="weft-field">
+            <span>Unschärfe</span>
+            <input
+              type="number"
+              min={0}
+              step={0.1}
+              value={shadow.blur}
+              onChange={(e) => onChange({ ...shadow, blur: Math.max(0, Number(e.target.value)) })}
+            />
+          </label>
+          <div className="weft-field-grid">
+            <label>
+              <span>Versatz X</span>
+              <input type="number" step={0.1} value={shadow.offsetX} onChange={(e) => onChange({ ...shadow, offsetX: Number(e.target.value) })} />
+            </label>
+            <label>
+              <span>Versatz Y</span>
+              <input type="number" step={0.1} value={shadow.offsetY} onChange={(e) => onChange({ ...shadow, offsetY: Number(e.target.value) })} />
+            </label>
+          </div>
+        </>
+      )}
+    </>
   );
 }
 

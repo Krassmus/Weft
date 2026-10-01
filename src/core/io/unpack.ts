@@ -1,8 +1,8 @@
 import { strFromU8, unzipSync } from "fflate";
-import type { WeftDocument } from "../types";
+import type { Block, WeftDocument } from "../types";
 import { useAssetStore } from "../assets/assetStore";
 import { defaultEntranceEffect, defaultExitEffect } from "../document/blockEffects";
-import { createDefaultPageTimeline, syncPageTimelineEvents } from "../document/pageTimeline";
+import { blockEffectNodeId, createDefaultPageTimeline, syncPageTimelineEvents } from "../document/pageTimeline";
 import { assetZipPath, customFontZipPath } from "./pack";
 
 function escapeHtml(value: string): string {
@@ -90,6 +90,71 @@ function migrateMissingBlockEffects(doc: WeftDocument) {
   }
 }
 
+// Older saves (including ones made mid-development, before this existed) predate
+// PageTimeline.triggerEdges and kept a block's own Aufbau/Abbau trigger directly on BlockEffect
+// itself (triggerEventId/delayMs) - move whichever of those isn't already the implicit default
+// (see getBlockEntranceTrigger/getBlockExitTrigger in document/pageTimeline.ts) into a real
+// triggerEdges entry instead, then drop the old fields so nothing downstream has to keep
+// tolerating their presence.
+function migrateBlockEffectTriggers(doc: WeftDocument) {
+  for (const page of Object.values(doc.content.pages)) {
+    page.timeline.triggerEdges ??= [];
+    for (const block of page.blocks) {
+      const legacyEntrance = block.entranceEffect as unknown as { triggerEventId?: string | null; delayMs?: number };
+      if (legacyEntrance.triggerEventId !== undefined) {
+        if (legacyEntrance.triggerEventId && !(legacyEntrance.triggerEventId === "start" && (legacyEntrance.delayMs ?? 0) === 0)) {
+          page.timeline.triggerEdges.push({
+            from: legacyEntrance.triggerEventId,
+            to: blockEffectNodeId(block.id, "entrance"),
+            kind: "timed",
+            delayMs: legacyEntrance.delayMs ?? 0,
+          });
+        }
+        delete legacyEntrance.triggerEventId;
+        delete legacyEntrance.delayMs;
+      }
+      const legacyExit = block.exitEffect as unknown as { triggerEventId?: string | null; delayMs?: number };
+      if (legacyExit.triggerEventId !== undefined) {
+        if (legacyExit.triggerEventId) {
+          page.timeline.triggerEdges.push({
+            from: legacyExit.triggerEventId,
+            to: blockEffectNodeId(block.id, "exit"),
+            kind: "timed",
+            delayMs: legacyExit.delayMs ?? 0,
+          });
+        }
+        delete legacyExit.triggerEventId;
+        delete legacyExit.delayMs;
+      }
+    }
+  }
+}
+
+// Saves from before a "rectangle" ShapeBlock's corners could be set independently (even ones from
+// earlier the same day this was built - not just old "legacy" files) carry a single `cornerRadius`
+// number rather than today's `cornerRadii` object. Without this, rendering that block (see
+// ShapeSvg.tsx's roundedRectPath, which reads cornerRadii.topLeft etc.) throws on `undefined`
+// partway through - and since that happens *during render*, with no error boundary catching it,
+// it unmounts the whole app, not just that one block. Combined with the last-opened document
+// reloading itself automatically on launch (see EditorShell.tsx), a single old save with a shape
+// block on it was enough to make the app appear broken - a black window - on every single launch,
+// not just "this one file fails to open".
+function migrateLegacyShapeCornerRadius(doc: WeftDocument) {
+  function migrateBlocks(blocks: Block[]) {
+    for (const block of blocks) {
+      if (block.kind !== "shape") continue;
+      const legacy = block as unknown as { cornerRadius?: number; cornerRadii?: unknown };
+      if (legacy.cornerRadii === undefined) {
+        const r = legacy.cornerRadius ?? 0;
+        block.cornerRadii = { topLeft: r, topRight: r, bottomRight: r, bottomLeft: r };
+      }
+      delete legacy.cornerRadius;
+    }
+  }
+  for (const page of Object.values(doc.content.pages)) migrateBlocks(page.blocks);
+  for (const layout of Object.values(doc.content.layouts)) migrateBlocks(layout.blocks);
+}
+
 // Every save predating the quiz/video timeline events (or made with an older build's actions,
 // before some edit forgot to resync) may have quiz/video blocks its timeline doesn't reflect yet -
 // reconcile once on load rather than trust whatever's already in the file (see
@@ -97,6 +162,14 @@ function migrateMissingBlockEffects(doc: WeftDocument) {
 function syncAllPageTimelineEvents(doc: WeftDocument) {
   for (const page of Object.values(doc.content.pages)) {
     syncPageTimelineEvents(page);
+  }
+}
+
+// Older saves predate grouping (see BlockGroup in types.ts) - default every page to no groups,
+// since every page.groups.map/forEach elsewhere assumes an array.
+function migrateMissingGroups(doc: WeftDocument) {
+  for (const page of Object.values(doc.content.pages)) {
+    page.groups ??= [];
   }
 }
 
@@ -117,6 +190,9 @@ export function unpackDocument(zipBytes: Uint8Array): WeftDocument {
   migrateMissingTimelines(doc);
   migrateMissingVideoStopPoints(doc);
   migrateMissingBlockEffects(doc);
+  migrateBlockEffectTriggers(doc);
+  migrateLegacyShapeCornerRadius(doc);
+  migrateMissingGroups(doc);
   syncAllPageTimelineEvents(doc);
 
   const setAsset = useAssetStore.getState().setAsset;

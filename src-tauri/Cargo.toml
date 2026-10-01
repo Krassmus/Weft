@@ -12,7 +12,18 @@ edition = "2021"
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "weft_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# No "cdylib" - nothing in this project ever loads one: the desktop binary (src/main.rs) links
+# the rlib directly, and iOS links the staticlib (see gen/apple/project.yml's own `libapp.a`
+# dependency). `cargo build --lib` still tries to produce every crate-type this list names,
+# though, and a cdylib is a real, fully self-contained dynamic library - it needs every extern
+# "C" symbol resolved at cargo's OWN link step, including the ones the Swift-side bridge (Xcode's
+# own, separate compile of gen/apple/Sources) defines (init_plugin_dialog, register_plugin,
+# retain_object, ...) - which don't exist yet that early, since Xcode only compiles and links its
+# Swift sources in *after* this build finishes. That's what "Undefined symbols for architecture
+# arm64: _init_plugin_dialog, ..." during `tauri ios build`'s release profile actually was - not
+# an LTO or panic-strategy issue (despite how that error looks), just cargo trying to build an
+# output nothing here has ever needed.
+crate-type = ["staticlib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -25,12 +36,26 @@ serde_json = "1"
 tauri-plugin-fs = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"
+# navigator.clipboard.read() in the desktop app's WKWebView (macOS) reliably returns plain text
+# but not image data copied from other apps or Finder - confirmed against the real app, not just
+# a platform-support guess - so pasting an image (see useCopyPaste.ts) goes through this plugin's
+# readImage() instead, which talks to the native pasteboard directly rather than through the
+# webview's own, more limited clipboard implementation. That alone still isn't enough for a file
+# copied in Finder specifically (Cmd+C on a file puts a *file reference* on the pasteboard, not
+# pixel data) - readImage() there returns the generic per-extension file icon macOS synthesizes
+# as a fallback "image" representation, not the actual photo. See the `arboard` dependency below
+# for the fix.
+tauri-plugin-clipboard-manager = "2"
+# Reads an actual file path list off the pasteboard (arboard's own `get().file_list()`) - the one
+# thing tauri-plugin-clipboard-manager's JS API above doesn't expose at all, needed so a Finder
+# file copy can be read from disk with its real bytes/format intact (see read_clipboard_file_paths
+# in lib.rs) instead of going through readImage()'s lossy icon fallback. Already an indirect
+# dependency of tauri-plugin-clipboard-manager itself (same version, same target restriction
+# mirrored below) - listed directly here only because that plugin doesn't re-export it.
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
+arboard = "3"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
-codegen-units = 1
-lto = true
 opt-level = 3
-panic = "abort"
-strip = true

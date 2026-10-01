@@ -36,6 +36,7 @@ const en = {
   "block.iframe": "Iframe",
   "block.button": "Button",
   "block.quiz": "Quiz",
+  "block.shape": "Shape",
 
   "settings.window.title": "Settings",
   "settings.language.legend": "Language",
@@ -68,6 +69,7 @@ const de: Record<keyof typeof en, string> = {
   "block.iframe": "Iframe",
   "block.button": "Button",
   "block.quiz": "Quiz",
+  "block.shape": "Form",
 
   "settings.window.title": "Einstellungen",
   "settings.language.legend": "Sprache",
@@ -94,4 +96,5 @@ export const BLOCK_KIND_KEYS: Record<Block["kind"], Extract<TranslationKey, `blo
   iframe: "block.iframe",
   button: "block.button",
   quiz: "block.quiz",
+  shape: "block.shape",
 };

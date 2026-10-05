@@ -14,6 +14,7 @@ import type {
   Page,
   StaticBlock,
   TimelineEdgeKind,
+  Transition,
   TransitionType,
   UUID,
   VariableCondition,
@@ -21,6 +22,9 @@ import type {
   VariableType,
   WeftModule,
 } from "../types";
+import { DEFAULT_CODE_THEME } from "../code/codeThemes";
+import { DEFAULT_TRANSITION_DURATION_MS } from "./transitions";
+import { defaultInitialValue } from "./variables";
 import { defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
 import { blockEffectNodeId, createDefaultPageTimeline, syncPageTimelineEvents, withTriggerEdge } from "./pageTimeline";
 import { defaultShapeCornerRadii, defaultShapeFill, defaultShapeShadow, defaultShapeStroke } from "./shapeDefaults";
@@ -56,18 +60,6 @@ export function setAspectRatio(aspectRatio: AspectRatio) {
   });
 }
 
-export function setLmsEnabled(enabled: boolean) {
-  edit("LMS-Anbindung umschalten", (m) => {
-    m.lms.enabled = enabled;
-  });
-}
-
-export function setLmsAllowedOrigins(origins: string[]) {
-  edit("Erlaubte LMS-Origins ändern", (m) => {
-    m.lms.allowedOrigins = origins;
-  });
-}
-
 export function setKeyboardNavigationEnabled(enabled: boolean) {
   edit("Tastatur-Navigation umschalten", (m) => {
     m.keyboardNavigationEnabled = enabled;
@@ -77,24 +69,36 @@ export function setKeyboardNavigationEnabled(enabled: boolean) {
 // ---- Variables ---------------------------------------------------------
 
 export function addVariable(name: string, type: VariableType) {
-  const initialValue = type === "number" ? 0 : type === "boolean" ? false : "";
-  const variable: VariableDef = { id: createId(), name, type, initialValue };
+  const variable: VariableDef = { id: createId(), name, type, initialValue: defaultInitialValue(type) };
+  if (type === "computed") variable.expression = "";
   edit("Variable hinzufügen", (m) => {
     m.variables.push(variable);
   });
   return variable.id;
 }
 
-export function updateVariable(id: string, patch: Partial<Omit<VariableDef, "id">>) {
+export function updateVariable(id: string, patch: Partial<Omit<VariableDef, "id" | "fixed">>) {
   edit("Variable bearbeiten", (m) => {
     const variable = m.variables.find((v) => v.id === id);
-    if (variable) Object.assign(variable, patch);
+    if (!variable) return;
+    // The built-in variable keeps its name, and its type can only go between Ja/Nein and Berechnet.
+    const allowed = variable.fixed
+      ? { expression: patch.expression, type: patch.type === "boolean" || patch.type === "computed" ? patch.type : undefined }
+      : patch;
+    for (const [key, value] of Object.entries(allowed)) if (value !== undefined) Object.assign(variable, { [key]: value });
+    if (patch.type !== undefined && patch.type === variable.type) {
+      // A new type starts from that type's own empty value, and only a computed variable has a
+      // formula.
+      variable.initialValue = defaultInitialValue(patch.type);
+      if (patch.type === "computed") variable.expression ??= "";
+      else delete variable.expression;
+    }
   });
 }
 
 export function removeVariable(id: string) {
   edit("Variable entfernen", (m) => {
-    m.variables = m.variables.filter((v) => v.id !== id);
+    m.variables = m.variables.filter((v) => v.id !== id || v.fixed);
   });
 }
 
@@ -169,7 +173,21 @@ export function setPageLayout(pageId: string, layoutId: string | null) {
 export function setPageTransition(pageId: string, type: TransitionType) {
   edit("Übergang ändern", (m) => {
     const page = m.pages[pageId];
-    if (page) page.transition.type = type;
+    if (!page) return;
+    // A new type starts at its own natural length - unless the duration had been changed by hand
+    // (anything other than the previous type's default), which is kept.
+    const untouched = page.transition.durationMs === DEFAULT_TRANSITION_DURATION_MS[page.transition.type];
+    page.transition.type = type;
+    if (untouched) page.transition.durationMs = DEFAULT_TRANSITION_DURATION_MS[type];
+  });
+}
+
+/** Direction / content-only / hard edge / iris center - the options that only some transition types
+ * have (see Transition in core/types.ts). */
+export function updatePageTransition(pageId: string, patch: Partial<Omit<Transition, "type" | "durationMs">>) {
+  edit("Übergang ändern", (m) => {
+    const page = m.pages[pageId];
+    if (page) Object.assign(page.transition, patch);
   });
 }
 
@@ -312,6 +330,18 @@ function defaultBlockFor(kind: Block["kind"]): Block {
   switch (kind) {
     case "text":
       return { ...base, kind, position, html: "<p>Neuer Text</p>" };
+    case "code":
+      return {
+        ...base,
+        kind,
+        position: { x: 10, y: 30, width: 80, height: 40 },
+        code: 'function greet(name) {\n  return "Hello, " + name + "!";\n}\n\nconsole.log(greet("Weft"));',
+        language: "javascript",
+        theme: DEFAULT_CODE_THEME,
+        fontSize: 13,
+      };
+    case "tex":
+      return { ...base, kind, position: { x: 25, y: 35, width: 50, height: 30 }, tex: "\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2}", color: "" };
     case "image":
       return { ...base, kind, position, assetId: null, alt: "" };
     case "video":

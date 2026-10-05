@@ -13,11 +13,20 @@
 
   var qrCodeSvgsEl = document.getElementById("weft-qr-codes");
   var qrCodeSvgs = qrCodeSvgsEl ? JSON.parse(qrCodeSvgsEl.textContent || "{}") : {};
+  // TeX blocks arrive already typeset to HTML (buildRuntimeHtml.ts), keyed by block id - the player
+  // itself needs no KaTeX script, just the (conditionally embedded) KaTeX stylesheet.
+  // Code blocks likewise arrive highlighted (highlight.js ran at export time), keyed by block id.
+  // Formulas of "computed" variables, already parsed to syntax trees (buildRuntimeHtml.ts), keyed by
+  // variable id - see evalExpression.
+  var computedEl = document.getElementById("weft-computed");
+  var computed = computedEl ? JSON.parse(computedEl.textContent || "{}") : {};
+  var codeHtmlEl = document.getElementById("weft-code-html");
+  var codeHtml = codeHtmlEl ? JSON.parse(codeHtmlEl.textContent || "{}") : {};
+  var texHtmlEl = document.getElementById("weft-tex-html");
+  var texHtml = texHtmlEl ? JSON.parse(texHtmlEl.textContent || "{}") : {};
 
   var startPageIdEl = document.getElementById("weft-start-page");
   var startPageId = startPageIdEl ? JSON.parse(startPageIdEl.textContent || "null") : null;
-
-  var lmsEnabled = !!(module.lms && module.lms.enabled) && window.parent !== window;
 
   // ---- variable state (runtime-only; never written back into the document) ----
   var variables = {};
@@ -32,6 +41,11 @@
   }
 
   function applyEffect(effect) {
+    var target = module.variables.filter(function (v) {
+      return v.id === effect.variableId;
+    })[0];
+    // A computed variable has no stored value to change.
+    if (target && isComputedDef(target)) return;
     var before = variables[effect.variableId];
     if (effect.op === "set") variables[effect.variableId] = effect.value;
     else if (effect.op === "add") variables[effect.variableId] = (Number(before) || 0) + effect.value;
@@ -40,7 +54,253 @@
       var def = module.variables.filter(function (v) {
         return v.id === effect.variableId;
       })[0];
-      if (def) postToLms({ type: "variable-changed", name: def.name, value: variables[effect.variableId] });
+      refreshVariableDisplays();
+      syncLms();
+    }
+  }
+
+  // ---- computed variables ----
+  // A computed variable (the "Berechnet" type, or the built-in `success` with a formula) is never
+  // stored: its value is worked out from its syntax tree every time it's read, so it always reflects
+  // the variables it depends on. Reading one that is currently being worked out (a circle of
+  // formulas) gives false rather than looping.
+  var evaluating = {};
+
+  function isComputedDef(def) {
+    return Object.prototype.hasOwnProperty.call(computed, def.id);
+  }
+
+  function variableValue(def) {
+    if (!isComputedDef(def)) return variables[def.id];
+    var tree = computed[def.id];
+    if (!tree || evaluating[def.id]) return false;
+    evaluating[def.id] = true;
+    try {
+      var result = evalExpression(tree);
+    } finally {
+      delete evaluating[def.id];
+    }
+    // The built-in `success` is a Ja/Nein even when computed; any other "Berechnet" variable is whatever its formula yields.
+    return def.fixed ? truthy(result) : result;
+  }
+
+  function truthy(x) {
+    if (typeof x === "boolean") return x;
+    if (typeof x === "number") return x !== 0 && !isNaN(x);
+    if (typeof x === "string") {
+      var s = x.trim().toLowerCase();
+      return s !== "" && s !== "false" && s !== "nein" && s !== "0";
+    }
+    return false;
+  }
+
+  // The number a value stands for, or null if it has none (a non-numeric text).
+  function numericOrNull(x) {
+    if (typeof x === "number") return x;
+    if (typeof x === "boolean") return x ? 1 : 0;
+    if (typeof x === "string" && x.trim() !== "" && !isNaN(Number(x))) return Number(x);
+    return null;
+  }
+
+  function toNumber(x) {
+    var n = numericOrNull(x);
+    return n === null ? 0 : n;
+  }
+
+  function looseEquals(a, b) {
+    if (typeof a === typeof b) return a === b;
+    if (typeof a === "boolean" || typeof b === "boolean") return truthy(a) === truthy(b);
+    var na = numericOrNull(a);
+    var nb = numericOrNull(b);
+    if (na !== null && nb !== null) return na === nb;
+    return String(a) === String(b);
+  }
+
+  // Negative / zero / positive: numerically when both sides are numbers (or numeric texts), else as text.
+  function compareValues(a, b) {
+    var na = numericOrNull(a);
+    var nb = numericOrNull(b);
+    if (na !== null && nb !== null) return na - nb;
+    var sa = String(a);
+    var sb = String(b);
+    return sa < sb ? -1 : sa > sb ? 1 : 0;
+  }
+
+  // Evaluates a syntax tree made by core/document/expressions.ts (see its header for the language).
+  function evalExpression(node) {
+    switch (node.t) {
+      case "num":
+      case "str":
+      case "bool":
+        return node.v;
+      case "var": {
+        var current = variableValueByName(node.n);
+        return current ? current.value : false;
+      }
+      case "not":
+        return !truthy(evalExpression(node.a));
+      case "neg":
+        return -toNumber(evalExpression(node.a));
+      case "bin": {
+        // Like JavaScript's && and ||: the result is one of the two operands, not necessarily a boolean.
+        if (node.op === "and") {
+          var left = evalExpression(node.a);
+          return truthy(left) ? evalExpression(node.b) : left;
+        }
+        if (node.op === "or") {
+          var first = evalExpression(node.a);
+          return truthy(first) ? first : evalExpression(node.b);
+        }
+        var a = evalExpression(node.a);
+        var b = evalExpression(node.b);
+        switch (node.op) {
+          case "==":
+            return looseEquals(a, b);
+          case "!=":
+            return !looseEquals(a, b);
+          // === and !== need the same type as well as the same value, as in JavaScript.
+          case "===":
+            return a === b;
+          case "!==":
+            return a !== b;
+          case "<":
+            return compareValues(a, b) < 0;
+          case "<=":
+            return compareValues(a, b) <= 0;
+          case ">":
+            return compareValues(a, b) > 0;
+          case ">=":
+            return compareValues(a, b) >= 0;
+          case "+":
+            return typeof a === "string" || typeof b === "string" ? String(a) + String(b) : toNumber(a) + toNumber(b);
+          case "-":
+            return toNumber(a) - toNumber(b);
+          case "*":
+            return toNumber(a) * toNumber(b);
+          case "/":
+            return toNumber(b) === 0 ? 0 : toNumber(a) / toNumber(b);
+          case "%":
+            return toNumber(b) === 0 ? 0 : toNumber(a) % toNumber(b);
+          case "**": {
+            var power = Math.pow(toNumber(a), toNumber(b));
+            return isFinite(power) ? power : 0;
+          }
+        }
+        return false;
+      }
+      case "cond":
+        return truthy(evalExpression(node.c)) ? evalExpression(node.a) : evalExpression(node.b);
+      case "call": {
+        if (node.f === "if") return truthy(evalExpression(node.args[0])) ? evalExpression(node.args[1]) : evalExpression(node.args[2]);
+        var numbers = node.args.map(function (arg) {
+          return toNumber(evalExpression(arg));
+        });
+        if (node.f === "min") return Math.min.apply(null, numbers);
+        if (node.f === "max") return Math.max.apply(null, numbers);
+        if (node.f === "round") return Math.round(numbers[0]);
+        if (node.f === "floor") return Math.floor(numbers[0]);
+        if (node.f === "ceil") return Math.ceil(numbers[0]);
+        if (node.f === "abs") return Math.abs(numbers[0]);
+        return false;
+      }
+    }
+    return false;
+  }
+
+  // ---- {{variable}} placeholders in texts ----
+  // Matched per TEXT NODE, never across element boundaries: a name with formatting in the middle
+  // ({{meine<b>variable</b>}}) is split over several nodes and so simply isn't recognised - it
+  // stays as literal text (the editor warns about it, see core/document/variablePlaceholders.ts,
+  // which has to stay in sync with this pattern). Formatting around the WHOLE placeholder works,
+  // since the replacement span lands inside whatever formatting wrapped the original text.
+  // Unknown names are left as they are, so a typo is visible in the preview rather than blank.
+  // ---- virtual variables ----
+  // Always available in {{placeholders}}, never stored or declared (see
+  // core/document/virtualVariables.ts for the list the editor shows - keep the names in sync). A
+  // variable the author declared under the same name wins, so an older module that already uses
+  // e.g. "progress" for its own purposes keeps working unchanged.
+  //
+  // progress = round up(visited / (visited + remaining) * 100): "visited" is the pages on the path
+  // taken up to and including the one showing (so the last page reads 100), "remaining" the most
+  // pages that can still follow it - along the rest of its own branch, then the longest branch of
+  // every logic block still ahead.
+  function remainingPages() {
+    var pageId = history[pos];
+    var location = pageId ? findStartCursor(pageId) : null;
+    if (!location) return 0;
+    var remaining = location.branch ? location.branch.pages.length - 1 - location.branch.pos : 0;
+    for (var i = location.topIndex + 1; i < module.sequence.length; i++) {
+      var node = module.sequence[i];
+      if (node.kind === "page") {
+        remaining++;
+        continue;
+      }
+      var longest = 0;
+      module.logicBlocks[node.logicBlockId].branches.forEach(function (branch) {
+        longest = Math.max(longest, branch.pageIds.length);
+      });
+      remaining += longest;
+    }
+    return remaining;
+  }
+
+  function progressValue() {
+    var visited = Math.min(pos + 1, history.length);
+    if (visited <= 0) return 0;
+    return Math.ceil((visited * 100) / (visited + remainingPages()));
+  }
+
+  // The current value of a variable by name (declared, else virtual), or null if there is none.
+  function variableValueByName(name) {
+    var def = variableByName(name);
+    if (def) return { value: variableValue(def) };
+    if (name === "progress") return { value: progressValue() };
+    return null;
+  }
+
+  var VARIABLE_PLACEHOLDER = /\{\{([^{}<>]*)\}\}/g;
+
+  function formatVariableValue(value) {
+    return String(value);
+  }
+
+  function applyVariablesToNode(root) {
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    var textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+    textNodes.forEach(function (textNode) {
+      var text = textNode.nodeValue;
+      VARIABLE_PLACEHOLDER.lastIndex = 0;
+      if (!VARIABLE_PLACEHOLDER.test(text)) return;
+      var fragment = document.createDocumentFragment();
+      var last = 0;
+      VARIABLE_PLACEHOLDER.lastIndex = 0;
+      var match;
+      while ((match = VARIABLE_PLACEHOLDER.exec(text))) {
+        var name = match[1].trim();
+        var current = variableValueByName(name);
+        if (!current) continue;
+        if (match.index > last) fragment.appendChild(document.createTextNode(text.slice(last, match.index)));
+        var span = document.createElement("span");
+        span.className = "weft-var";
+        span.setAttribute("data-weft-var", name);
+        span.textContent = formatVariableValue(current.value);
+        fragment.appendChild(span);
+        last = match.index + match[0].length;
+      }
+      if (last === 0) return;
+      if (last < text.length) fragment.appendChild(document.createTextNode(text.slice(last)));
+      textNode.parentNode.replaceChild(fragment, textNode);
+    });
+  }
+
+  // A variable can change while a page is showing (a quiz answer, a logic effect) - every
+  // placeholder currently on screen follows.
+  function refreshVariableDisplays() {
+    var spans = document.querySelectorAll("[data-weft-var]");
+    for (var i = 0; i < spans.length; i++) {
+      var current = variableValueByName(spans[i].getAttribute("data-weft-var"));
+      if (current) spans[i].textContent = formatVariableValue(current.value);
     }
   }
 
@@ -80,21 +340,28 @@
     if (startCursor) cursor = startCursor;
   }
 
+  // The condition's value is typed into a text field in the editor, so it often arrives as text
+  // ("10", "true") for a number or Ja/Nein variable - looseEquals/compareValues compare by what
+  // the values mean, not by their JavaScript type.
   function evalCondition(cond) {
-    var v = variables[cond.variableId];
+    var def = module.variables.filter(function (v) {
+      return v.id === cond.variableId;
+    })[0];
+    if (!def) return false;
+    var v = variableValue(def);
     switch (cond.comparator) {
       case "eq":
-        return v === cond.value;
+        return looseEquals(v, cond.value);
       case "neq":
-        return v !== cond.value;
+        return !looseEquals(v, cond.value);
       case "gt":
-        return v > cond.value;
+        return compareValues(v, cond.value) > 0;
       case "gte":
-        return v >= cond.value;
+        return compareValues(v, cond.value) >= 0;
       case "lt":
-        return v < cond.value;
+        return compareValues(v, cond.value) < 0;
       case "lte":
-        return v <= cond.value;
+        return compareValues(v, cond.value) <= 0;
       default:
         return false;
     }
@@ -142,7 +409,10 @@
 
   function pageTransition(pageId) {
     var page = pageId && module.pages[pageId];
-    return (page && page.transition) || { type: "none", durationMs: 500 };
+    var transition = (page && page.transition) || { type: "none", durationMs: 500 };
+    // Carries which page is being left, so a transition can look at it (Move's "content only" needs
+    // to know whether the next page shares its layout).
+    return Object.assign({}, transition, { fromPageId: pageId });
   }
 
   function goNext() {
@@ -162,7 +432,6 @@
     if (node.type === "end") {
       pos = history.length; // one past the last page: the "finished" state
       render(pageTransition(outgoing));
-      sendCompleted();
       return;
     }
     history.push(node.pageId);
@@ -187,46 +456,104 @@
     goNext();
   }
 
-  // ---- LMS bridge (postMessage) ----
-  function postToLms(msg) {
-    if (!lmsEnabled) return;
-    var origins = module.lms.allowedOrigins && module.lms.allowedOrigins.length ? module.lms.allowedOrigins : ["*"];
-    var payload = Object.assign({ source: "weft-module", version: 1, moduleId: module.id }, msg);
-    origins.forEach(function (origin) {
-      window.parent.postMessage(payload, origin);
+  // ---- LMS (VanillaLM) ----
+  // VanillaLM (embedded ahead of this script - see buildRuntimeHtml.ts) collects points, attributes
+  // and the success flag and posts them to the page around the module (Stud.IP). It is always
+  // active: with no such page, there's simply nobody listening. What reaches it:
+  //  - a stored NUMBER variable: addPoints(name, change) - the points follow the variable (a restart
+  //    takes them back down), starting from its initial value, so points already earned in an earlier
+  //    session aren't overwritten;
+  //  - every other variable (text, Ja/Nein, computed ones) and the virtual `progress`:
+  //    setAttribute(name, value);
+  //  - `success` turning true: markSuccess() (the library has no way back, so it stays marked).
+  // syncLms() runs after every change of a variable and after every slide; it only calls into the
+  // library for what actually changed, and sends (VanillaLM.send) right away for success and in the
+  // same tick for anything else. Every call is guarded: the module keeps working even if the library
+  // were missing or one of its methods threw.
+  var lmsSnapshot = {};
+  var lmsSuccessMarked = false;
+  var lmsSendQueued = false;
+
+  function lmsCall(fn) {
+    try {
+      fn();
+      return true;
+    } catch (error) {
+      if (window.console) console.warn("VanillaLM:", error);
+      return false;
+    }
+  }
+
+  function lmsSend() {
+    lmsCall(function () {
+      VanillaLM.send();
     });
   }
 
-  function namedVariables() {
-    var out = {};
-    module.variables.forEach(function (v) {
-      out[v.name] = variables[v.id];
+  function lmsAddPoints(name, change) {
+    var done = lmsCall(function () {
+      VanillaLM.addPoints(name, change);
     });
-    return out;
+    if (done) return;
+    // addPoints looks the old value up in the saved session first, which fails while nothing has been
+    // saved yet - setPoints doesn't need that.
+    lmsCall(function () {
+      VanillaLM.setPoints(name, ((VanillaLM.state.points && VanillaLM.state.points[name]) || 0) + change);
+    });
   }
 
-  function sendProgress() {
-    postToLms({ type: "progress", nodeIndex: pos, nodeCount: module.sequence.length });
-  }
-
-  function sendCompleted() {
-    postToLms({ type: "completed", variables: namedVariables() });
-  }
-
-  if (lmsEnabled) {
-    window.addEventListener("message", function (event) {
-      var data = event.data;
-      if (!data || data.source !== "weft-lms-host") return;
-      if (data.type === "init" && data.variables) {
-        Object.keys(data.variables).forEach(function (name) {
-          var def = variableByName(name);
-          if (def) variables[def.id] = data.variables[name];
+  function syncLms() {
+    if (typeof VanillaLM === "undefined") return;
+    var changed = false;
+    var successNow = false;
+    module.variables.forEach(function (def) {
+      var value = variableValue(def);
+      if (def.fixed && def.name === "success") {
+        if (truthy(value) && !lmsSuccessMarked) {
+          lmsSuccessMarked = true;
+          successNow = true;
+          lmsCall(function () {
+            VanillaLM.markSuccess();
+          });
+        }
+      } else if (def.type === "number") {
+        var current = Number(value) || 0;
+        var before = def.id in lmsSnapshot ? lmsSnapshot[def.id] : Number(def.initialValue) || 0;
+        lmsSnapshot[def.id] = current;
+        if (current !== before) {
+          lmsAddPoints(def.name, current - before);
+          changed = true;
+        }
+      } else if (lmsSnapshot[def.id] !== value) {
+        lmsSnapshot[def.id] = value;
+        lmsCall(function () {
+          VanillaLM.setAttribute(def.name, value);
         });
-        render();
-      } else if (data.type === "request-state") {
-        sendProgress();
+        changed = true;
       }
     });
+    // The virtual `progress` - unless the author declared a variable of that name, which wins (and
+    // was just handled above like any other).
+    if (!variableByName("progress")) {
+      var progress = progressValue();
+      if (lmsSnapshot.__progress !== progress) {
+        lmsSnapshot.__progress = progress;
+        lmsCall(function () {
+          VanillaLM.setAttribute("progress", progress);
+        });
+        changed = true;
+      }
+    }
+    if (successNow) {
+      lmsSend();
+    } else if (changed && !lmsSendQueued) {
+      // Several changes in the same moment (a quiz applying all its effects) go out as one message.
+      lmsSendQueued = true;
+      setTimeout(function () {
+        lmsSendQueued = false;
+        lmsSend();
+      }, 0);
+    }
   }
 
   // ---- keyboard navigation ----
@@ -249,8 +576,7 @@
 
   window.addEventListener("keydown", function (e) {
     if (e.key === "Escape") {
-      // Not gated behind lmsEnabled (that flag is for the separate, optional LMS protocol) -
-      // this only fires when actually embedded in an iframe, which is exactly when some host
+      // This only fires when actually embedded in an iframe, which is exactly when some host
       // (the editor's own Vorschau, or an LMS) needs telling that the learner wants out.
       if (window.parent !== window) window.parent.postMessage({ source: "weft-module", type: "exit-presentation" }, "*");
       return;
@@ -560,18 +886,33 @@
     if (entranceTrigger) {
       wrap.style.visibility = "hidden";
       var showEntrance = function () {
-        wrap.style.visibility = "";
         var done = function () {
           fireTriggerableEventOnce(blockEffectEventId(block.id, "entrance"));
         };
-        if (entrance.type === "fade") {
-          wrap.animate([{ opacity: 0 }, { opacity: 1 }], { duration: entrance.durationMs || 500, easing: "ease" }).onfinish = done;
-        } else if (entrance.type === "move") {
-          wrap.animate([{ transform: "translateX(100%)" }, { transform: "translateX(0)" }], {
+        // The animation's own starting state is set inline BEFORE the block becomes visible (and
+        // kept by fill: "backwards" until the animation really runs): otherwise there can be a
+        // frame - a heavier block like a TeX formula makes it visible - where the block is already
+        // shown at its final state but the animation hasn't started yet, which flickers.
+        var animateIn = function (property, from, to) {
+          var original = wrap.style[property];
+          wrap.style[property] = from;
+          wrap.style.visibility = "";
+          var animation = wrap.animate([{ [property]: from }, { [property]: to }], {
             duration: entrance.durationMs || 500,
             easing: "ease",
-          }).onfinish = done;
+            fill: "backwards",
+          });
+          animation.onfinish = function () {
+            wrap.style[property] = original;
+            done();
+          };
+        };
+        if (entrance.type === "fade") {
+          animateIn("opacity", "0", "1");
+        } else if (entrance.type === "move") {
+          animateIn("transform", "translateX(100%)", "translateX(0)");
         } else {
+          wrap.style.visibility = "";
           done();
         }
       };
@@ -594,11 +935,14 @@
       }
       var runExit = function () {
         if (exit.type === "fade") {
-          wrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: exit.durationMs || 500, easing: "ease" }).onfinish = hideExit;
+          // fill: "forwards" keeps the end state until hideExit hides the block - no frame at the
+          // original state in between.
+          wrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: exit.durationMs || 500, easing: "ease", fill: "forwards" }).onfinish = hideExit;
         } else if (exit.type === "move") {
           wrap.animate([{ transform: "translateX(0)" }, { transform: "translateX(100%)" }], {
             duration: exit.durationMs || 500,
             easing: "ease",
+            fill: "forwards",
           }).onfinish = hideExit;
         } else {
           hideExit();
@@ -872,10 +1216,53 @@
     wrap.appendChild(gate);
   }
 
+  // Scales the once-typeset formula to fit (contain, centered) its box - mirrors TexView.tsx. The
+  // observer's first callback runs as soon as the box is attached and laid out, and again whenever
+  // the stage is resized.
+  function fitTexBlock(box, inner) {
+    function fit() {
+      var boxWidth = box.clientWidth;
+      var boxHeight = box.clientHeight;
+      var width = inner.offsetWidth;
+      var height = inner.offsetHeight;
+      if (!width || !height || !boxWidth || !boxHeight) return;
+      var scale = Math.min(boxWidth / width, boxHeight / height);
+      var x = (boxWidth - width * scale) / 2;
+      var y = (boxHeight - height * scale) / 2;
+      inner.style.transform = "translate(" + x + "px, " + y + "px) scale(" + scale + ")";
+      inner.style.visibility = "inherit";
+    }
+    if (typeof ResizeObserver === "function") {
+      var observer = new ResizeObserver(fit);
+      observer.observe(box);
+      // KaTeX's fonts load lazily and change the formula's natural size once they arrive.
+      observer.observe(inner);
+    } else window.addEventListener("resize", fit);
+  }
+
   function renderStaticBlock(block, page) {
     var wrap = el("div", { class: "weft-block weft-block-" + block.kind, style: positionStyle(block.position) });
     if (block.kind === "text") {
       wrap.innerHTML = block.html;
+      applyVariablesToNode(wrap);
+    } else if (block.kind === "code") {
+      // Same markup and font-size math as the editor's CodeView.tsx.
+      var codeBox = el("div", {
+        class: "weft-code weft-code-theme-" + block.theme + (block.transparentBackground ? " weft-code-transparent" : ""),
+        style: "font-size:" + Math.round((block.fontSize / 9.6) * 1000) / 1000 + "cqw;",
+      }, []);
+      var codePre = el("pre", { class: "weft-code-pre" }, []);
+      codePre.innerHTML = codeHtml[block.id] || "";
+      codeBox.appendChild(codePre);
+      wrap.appendChild(codeBox);
+    } else if (block.kind === "tex") {
+      var texBox = el("div", { class: "weft-tex" }, []);
+      var texInner = el("div", { class: "weft-tex-inner" }, []);
+      texInner.innerHTML = texHtml[block.id] || "";
+      texBox.appendChild(texInner);
+      wrap.appendChild(texBox);
+      if (block.color) wrap.style.color = block.color;
+      fitTexBlock(texBox, texInner);
     } else if (block.kind === "image") {
       wrap.appendChild(el("img", { src: assetSrc(block.assetId), alt: block.alt, style: "width:100%;height:100%;object-fit:contain;" }, []));
     } else if (block.kind === "video") {
@@ -998,6 +1385,7 @@
     var button = el("button", { type: "button", class: "weft-block-button-el" }, [
       document.createTextNode(block.text || "Weiter"),
     ]);
+    applyVariablesToNode(button);
     if (block.action === "prev") {
       button.disabled = pos <= 0;
       button.addEventListener("click", goPrev);
@@ -1039,6 +1427,7 @@
 
     var question = el("div", { class: "weft-quiz-question" }, []);
     question.innerHTML = block.questionHtml;
+    applyVariablesToNode(question);
     form.appendChild(question);
 
     var optionsWrap = el("div", { class: "weft-quiz-options" }, []);
@@ -1062,6 +1451,7 @@
       checkboxWrap.appendChild(checkedIcon);
       var text = el("span", { class: "weft-quiz-option-text" }, []);
       text.innerHTML = opt.html;
+      applyVariablesToNode(text);
       optionLabel.appendChild(checkboxWrap);
       optionLabel.appendChild(text);
       optionsWrap.appendChild(optionLabel);
@@ -1165,7 +1555,15 @@
     var page = module.pages[pageId];
     var stage = el("div", { class: "weft-stage", style: stageStyle() }, []);
     var layout = page.layoutId ? module.layouts[page.layoutId] : null;
-    if (layout) layout.blocks.forEach(function (b) { stage.appendChild(renderBlock(b, page)); });
+    // Layout blocks are marked so a "content only" Move can leave them standing while the page's own
+    // blocks slide (see animateTransition).
+    if (layout) {
+      layout.blocks.forEach(function (b) {
+        var layoutBlock = renderBlock(b, page);
+        layoutBlock.classList.add("weft-block-from-layout");
+        stage.appendChild(layoutBlock);
+      });
+    }
     page.blocks.forEach(function (b) { stage.appendChild(renderBlock(b, page)); });
     wireEndTrigger(page);
     // Every block's own entrance/exit listener is registered synchronously above, by the time
@@ -1198,29 +1596,286 @@
     return wrap;
   }
 
-  // Animates the outgoing .weft-stage-wrap out and/or the incoming one in, per `transition.type`
-  // (see Transition in core/types.ts and the matching .is-transition-old/-new rules in
-  // player.runtime.css), then swaps them for real once the animation finishes. "fade": only the
-  // outgoing one animates (opacity 1 -> 0), revealing the incoming one underneath, already at
-  // full opacity - matches how it was designed in the editor's Timeline/TransitionPanel. "move":
-  // the outgoing one slides a full width to the left while the incoming one slides in from a full
-  // width to the right, in lockstep.
+  // ---- page transitions ----
+  // animateTransition animates the outgoing .weft-stage-wrap out and/or the incoming one in, per
+  // `transition.type` (see Transition in core/types.ts - option names and defaults are mirrored by
+  // hand from core/document/transitions.ts - and the matching .is-transition-* rules in
+  // player.runtime.css), then swaps them for real once it's done. The two wraps are stacked exactly
+  // on top of each other for the duration (outgoing = oldWrap, incoming = newWrap):
+  //  - fade: the outgoing one fades out, revealing the incoming one underneath.
+  //  - move: both slide along `direction` (the outgoing one goes that way, the incoming one arrives
+  //    from the opposite side) - or, "content only" and the next page shares the layout, just the
+  //    pages' own blocks slide while background and layout blocks stay put. Otherwise the whole
+  //    slide moves and the content trails it by CONTENT_LAG_MS.
+  //  - iris: the incoming one opens as a growing circle (soft or hard edged) from `irisCenter`.
+  //  - cube: both are faces of a cube that turns towards `direction`.
+  //  - blur: the outgoing one blurs, then dissolves into the (also blurred) incoming one, which
+  //    sharpens.
+  //  - horror: the outgoing one flickers between grayscale and color four times, then the incoming
+  //    one appears - in grayscale first, then color.
+  var CONTENT_LAG_MS = 50;
+  var TRANSITION_EASE = "ease";
+  var finishActiveTransition = null;
+
+  function transitionDirectionOf(transition) {
+    return transition.direction || (transition.type === "cube" ? "right" : "left");
+  }
+
+  function directionVector(direction) {
+    if (direction === "right") return [1, 0];
+    if (direction === "up") return [0, -1];
+    if (direction === "down") return [0, 1];
+    return [-1, 0];
+  }
+
+  // CSS's cubic-bezier(.25, .1, .25, 1) ("ease") as a function of linear progress, for the one place
+  // the position along a slide's path has to be known at an arbitrary moment (Move's trailing content).
+  function easeProgress(x) {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    var x1 = 0.25, y1 = 0.1, x2 = 0.25, y2 = 1;
+    function bezier(t, a, b) {
+      return 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
+    }
+    var lo = 0, hi = 1, t = x;
+    for (var i = 0; i < 30; i++) {
+      t = (lo + hi) / 2;
+      if (bezier(t, x1, x2) < x) lo = t;
+      else hi = t;
+    }
+    return bezier(t, y1, y2);
+  }
+
+  function layoutIdOf(pageId) {
+    var page = pageId && module.pages[pageId];
+    return page ? page.layoutId || null : undefined;
+  }
+
   function animateTransition(root, oldWrap, newWrap, transition) {
     var duration = transition.durationMs || 500;
+    var type = transition.type;
+    var width = root.clientWidth;
+    var height = root.clientHeight;
+    var cancelled = false;
     oldWrap.classList.add("is-transition-old");
     newWrap.classList.add("is-transition-new");
     root.appendChild(newWrap);
 
     function finish() {
+      if (cancelled) return;
+      cancelled = true;
+      finishActiveTransition = null;
       if (oldWrap.parentNode === root) root.removeChild(oldWrap);
       newWrap.classList.remove("is-transition-new");
+      newWrap.getAnimations({ subtree: true }).forEach(function (animation) {
+        animation.cancel();
+      });
+      ["zIndex", "maskImage", "webkitMaskImage", "clipPath"].forEach(function (property) {
+        newWrap.style[property] = "";
+      });
+      root.style.perspective = "";
+      root.style.transformStyle = "";
+      root.style.overflow = "";
+    }
+    // A new page change during a running transition completes it on the spot (see render()).
+    finishActiveTransition = finish;
+    // Animations end on their own clock, but their "finish" event is only delivered with a rendered
+    // frame - which a throttled or hidden page may hold back for a long time, leaving the old slide
+    // lying under the new one. This guarantees the swap happens shortly after the time is up either
+    // way (finish is idempotent).
+    setTimeout(finish, duration + CONTENT_LAG_MS + 150);
+
+    function run(element, keyframes, options) {
+      return element.animate(keyframes, Object.assign({ duration: duration, easing: TRANSITION_EASE, fill: "both" }, options));
     }
 
-    if (transition.type === "fade") {
-      oldWrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: duration, easing: "ease" }).onfinish = finish;
-    } else if (transition.type === "move") {
-      oldWrap.animate([{ transform: "translateX(0)" }, { transform: "translateX(-100%)" }], { duration: duration, easing: "ease" });
-      newWrap.animate([{ transform: "translateX(100%)" }, { transform: "translateX(0)" }], { duration: duration, easing: "ease" }).onfinish = finish;
+    if (type === "fade") {
+      run(oldWrap, [{ opacity: 1 }, { opacity: 0 }]).onfinish = finish;
+    } else if (type === "move") {
+      var vector = directionVector(transitionDirectionOf(transition));
+      var dx = vector[0] * width;
+      var dy = vector[1] * height;
+      var sameLayout =
+        layoutIdOf(transition.fromPageId) !== undefined &&
+        layoutIdOf(transition.fromPageId) === layoutIdOf(pos < history.length ? history[pos] : null);
+      var oldContent = Array.prototype.slice.call(oldWrap.querySelectorAll(".weft-block:not(.weft-block-from-layout)"));
+      var newContent = Array.prototype.slice.call(newWrap.querySelectorAll(".weft-block:not(.weft-block-from-layout)"));
+      // translate (not transform): composes with a block's own rotate() instead of replacing it.
+      if (transition.contentOnly && sameLayout) {
+        // The slide itself stays: the outgoing wrap loses its own background and layout blocks (it
+        // would otherwise cover the incoming layout, which is identical anyway), keeps only its
+        // content, and sits above the incoming one while that content slides out and the new one in.
+        oldWrap.classList.add("is-content-only-old");
+        var last = null;
+        oldContent.forEach(function (block) {
+          last = run(block, [{ translate: "0 0" }, { translate: dx + "px " + dy + "px" }]);
+        });
+        newContent.forEach(function (block) {
+          last = run(block, [{ translate: -dx + "px " + -dy + "px" }, { translate: "0 0" }]);
+        });
+        if (last) last.onfinish = finish;
+        else setTimeout(finish, duration);
+      } else {
+        run(oldWrap, [{ transform: "translate(0, 0)" }, { transform: "translate(" + dx + "px, " + dy + "px)" }]);
+        run(newWrap, [{ transform: "translate(" + -dx + "px, " + -dy + "px)" }, { transform: "translate(0, 0)" }]);
+        // The content trails its slide: at every moment it sits where the slide was CONTENT_LAG_MS
+        // earlier, i.e. offset from the slide by (position then - position now) - sampled into
+        // keyframes, since that offset isn't expressible with a single easing curve.
+        var total = duration + CONTENT_LAG_MS;
+        var steps = 30;
+        function offsetKeyframes(slideAt, content) {
+          var frames = [];
+          for (var i = 0; i <= steps; i++) {
+            var t = (i / steps) * total;
+            var rel = slideAt(t - CONTENT_LAG_MS) - slideAt(t);
+            frames.push({ translate: rel * dx + "px " + rel * dy + "px", offset: i / steps });
+          }
+          return frames;
+        }
+        // outgoing slide travels 0 -> +1 (of dx/dy), incoming one -1 -> 0
+        var outAt = function (t) {
+          return easeProgress(t / duration);
+        };
+        var inAt = function (t) {
+          return easeProgress(t / duration) - 1;
+        };
+        var lastContent = null;
+        oldContent.forEach(function (block) {
+          lastContent = run(block, offsetKeyframes(outAt), { duration: total, easing: "linear" });
+        });
+        newContent.forEach(function (block) {
+          lastContent = run(block, offsetKeyframes(inAt), { duration: total, easing: "linear" });
+        });
+        // Wait for the trailing content too, not just for the slides themselves.
+        if (lastContent) lastContent.onfinish = finish;
+        else setTimeout(finish, duration);
+      }
+    } else if (type === "iris") {
+      oldWrap.style.zIndex = "1";
+      newWrap.style.zIndex = "2";
+      var stageRect = newWrap.querySelector(".weft-stage").getBoundingClientRect();
+      var rootRect = root.getBoundingClientRect();
+      var center = transition.irisCenter || { x: 50, y: 50 };
+      var cx = stageRect.left - rootRect.left + (center.x / 100) * stageRect.width;
+      var cy = stageRect.top - rootRect.top + (center.y / 100) * stageRect.height;
+      // Far enough to cover the whole viewport (the letterbox too) from wherever the centre is.
+      var maxRadius = Math.max(
+        Math.hypot(cx, cy),
+        Math.hypot(width - cx, cy),
+        Math.hypot(cx, height - cy),
+        Math.hypot(width - cx, height - cy)
+      );
+      var feather = transition.hardEdge ? 0 : Math.min(width, height) * 0.2;
+      var started = null;
+      var frame = function (now) {
+        if (cancelled) return;
+        if (started === null) started = now;
+        var progress = Math.min(1, (now - started) / duration);
+        var radius = easeProgress(progress) * (maxRadius + feather);
+        if (feather === 0) {
+          newWrap.style.clipPath = "circle(" + radius + "px at " + cx + "px " + cy + "px)";
+        } else {
+          var mask =
+            "radial-gradient(circle at " + cx + "px " + cy + "px, #000 " + Math.max(0, radius - feather) + "px, transparent " + radius + "px)";
+          newWrap.style.webkitMaskImage = mask;
+          newWrap.style.maskImage = mask;
+        }
+        if (progress < 1) requestAnimationFrame(frame);
+        else finish();
+      };
+      // Fully masked from the very first paint, before the first frame callback runs.
+      if (feather === 0) newWrap.style.clipPath = "circle(0px at " + cx + "px " + cy + "px)";
+      else {
+        newWrap.style.webkitMaskImage = "linear-gradient(transparent, transparent)";
+        newWrap.style.maskImage = "linear-gradient(transparent, transparent)";
+      }
+      requestAnimationFrame(frame);
+    } else if (type === "cube") {
+      var cubeDirection = transitionDirectionOf(transition);
+      var horizontal = cubeDirection === "left" || cubeDirection === "right";
+      var axis = horizontal ? "rotateY" : "rotateX";
+      var size = horizontal ? width : height;
+      // rotateY(+) carries a face's front to the right, rotateX(+) carries it up (see the matrix
+      // for a point at z = size/2) - so "right" and "up" turn the cube by +90deg, the others by -90.
+      var sign = cubeDirection === "right" || cubeDirection === "up" ? 1 : -1;
+      var face = function (angle) {
+        return "translateZ(" + -size / 2 + "px) " + axis + "(" + angle + "deg) translateZ(" + size / 2 + "px)";
+      };
+      root.style.perspective = Math.round(size * 2.5) + "px";
+      // overflow other than visible would flatten the 3D scene; the page itself clips instead.
+      root.style.overflow = "visible";
+      root.style.transformStyle = "preserve-3d";
+      oldWrap.style.zIndex = "auto";
+      newWrap.style.zIndex = "auto";
+      run(oldWrap, [{ transform: face(0) }, { transform: face(sign * 90) }], { easing: "ease-in-out" });
+      run(newWrap, [{ transform: face(-sign * 90) }, { transform: face(0) }], { easing: "ease-in-out" }).onfinish = finish;
+    } else if (type === "blur") {
+      var blurPx = Math.max(8, Math.round(Math.min(width, height) * 0.03));
+      var blurred = "blur(" + blurPx + "px)";
+      oldWrap.style.zIndex = "1";
+      newWrap.style.zIndex = "0";
+      run(
+        oldWrap,
+        [
+          { filter: "blur(0px)", opacity: 1, offset: 0 },
+          { filter: blurred, opacity: 1, offset: 0.35 },
+          { filter: blurred, opacity: 0, offset: 0.65 },
+          { filter: blurred, opacity: 0, offset: 1 },
+        ],
+        { easing: "linear" }
+      );
+      run(
+        newWrap,
+        [
+          { filter: blurred, offset: 0 },
+          { filter: blurred, offset: 0.5 },
+          { filter: "blur(0px)", offset: 1 },
+        ],
+        { easing: "linear" }
+      ).onfinish = finish;
+    } else if (type === "horror") {
+      oldWrap.style.zIndex = "1";
+      newWrap.style.zIndex = "2";
+      // Four cycles of gray -> color -> gray, each with a brief flicker (a dip in opacity, letting
+      // the black behind show) in every phase; together they fill the first HORROR_OLD_SHARE of the
+      // duration, then the next slide takes over.
+      var HORROR_OLD_SHARE = 0.72;
+      var cycle = [
+        [0, 1, 1],
+        [0.08, 1, 0.25],
+        [0.14, 1, 1],
+        [0.3, 0, 1],
+        [0.38, 0, 0.3],
+        [0.44, 0, 1],
+        [0.6, 1, 1],
+        [0.68, 1, 0.4],
+        [0.74, 1, 1],
+        [1, 1, 1],
+      ];
+      var flicker = [];
+      for (var c = 0; c < 4; c++) {
+        cycle.forEach(function (point, index) {
+          if (c > 0 && index === 0) return; // the previous cycle already ends on this exact state
+          flicker.push({
+            filter: "grayscale(" + point[1] + ")",
+            opacity: point[2],
+            offset: ((c + point[0]) / 4) * HORROR_OLD_SHARE,
+          });
+        });
+      }
+      flicker.push({ filter: "grayscale(1)", opacity: 1, offset: 1 });
+      run(oldWrap, flicker, { easing: "linear" });
+      run(
+        newWrap,
+        [
+          { opacity: 0, filter: "grayscale(1)", offset: 0 },
+          { opacity: 0, filter: "grayscale(1)", offset: HORROR_OLD_SHARE - 0.001 },
+          { opacity: 1, filter: "grayscale(1)", offset: HORROR_OLD_SHARE },
+          { opacity: 1, filter: "grayscale(1)", offset: HORROR_OLD_SHARE + 0.08 },
+          { opacity: 1, filter: "grayscale(0)", offset: 1 },
+        ],
+        { easing: "linear" }
+      ).onfinish = finish;
     } else {
       finish(); // an unrecognized/future type - fall back to an instant cut rather than getting stuck mid-transition
     }
@@ -1228,6 +1883,9 @@
 
   function render(outgoingTransition) {
     var root = document.getElementById("weft-root");
+    // A page change while a transition is still running completes that one first, so exactly one
+    // wrap (the one now showing) is ever left to animate away from.
+    if (finishActiveTransition) finishActiveTransition();
     var oldWrap = root.firstElementChild;
     var newWrap = buildStageWrap();
 
@@ -1238,10 +1896,10 @@
       root.appendChild(newWrap);
     }
 
-    sendProgress();
-    if (lmsEnabled) postToLms({ type: "resize", height: document.documentElement.scrollHeight });
+    // After every slide (the finished screen included): progress has moved, and so may anything a
+    // formula reads from it.
+    syncLms();
   }
 
-  postToLms({ type: "ready" });
   goNext();
 })();

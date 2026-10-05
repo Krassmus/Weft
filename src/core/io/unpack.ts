@@ -3,6 +3,7 @@ import type { Block, WeftDocument } from "../types";
 import { useAssetStore } from "../assets/assetStore";
 import { defaultEntranceEffect, defaultExitEffect } from "../document/blockEffects";
 import { blockEffectNodeId, createDefaultPageTimeline, syncPageTimelineEvents } from "../document/pageTimeline";
+import { ensureBuiltinVariables } from "../document/variables";
 import { assetZipPath, customFontZipPath } from "./pack";
 
 function escapeHtml(value: string): string {
@@ -208,7 +209,7 @@ function migrateMissingAdvanceTriggers(doc: WeftDocument) {
       if (!page.timeline.triggerEdges.some((e) => e.to === entranceId)) {
         if (block.entranceEffect.type === "none") {
           block.entranceEffect.type = "off";
-        } else {
+        } else if (block.entranceEffect.type !== "off") {
           page.timeline.triggerEdges.push({ from: "start", to: entranceId, kind: "timed", delayMs: 0 });
         }
       }
@@ -240,7 +241,16 @@ export function unpackDocument(zipBytes: Uint8Array): WeftDocument {
   migrateBlockEffectTriggers(doc);
   migrateLegacyShapeCornerRadius(doc);
   migrateMissingGroups(doc);
-  migrateMissingAdvanceTriggers(doc);
+  // The built-in `success` variable exists in every module - older saves predate it.
+  ensureBuiltinVariables(doc.content.variables);
+  // The old per-module "LMS-Anbindung" setting no longer exists (VanillaLM is always active).
+  delete (doc.content as unknown as { lms?: unknown }).lms;
+  // Only a pre-"Weiter" save (formatVersion 1) has implicit defaults that still mean the OLD
+  // behavior - see WeftDocument.formatVersion. Running this on an already-current document would
+  // misread its (intentional) "no edge yet = Weiter" blocks as legacy and freeze them to "Start
+  // der Folie" on every single reopen.
+  if (doc.formatVersion < 2) migrateMissingAdvanceTriggers(doc);
+  doc.formatVersion = 2;
   syncAllPageTimelineEvents(doc);
 
   const setAsset = useAssetStore.getState().setAsset;

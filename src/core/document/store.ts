@@ -45,10 +45,27 @@ export type SelectionRef =
    * selecting whatever block happens to be behind it. */
   | { type: "event"; pageId: string; nodeId: string };
 
+/** The layout currently being edited on the canvas (a layout selected directly, or one of its own
+ * blocks) - null whenever the canvas shows a page instead. Drives both the sidebar's switch from
+ * the slide overview to the layout overview (Sidebar.tsx) and the canvas toolbar's "Bearbeiten
+ * beenden" button (Canvas.tsx). */
+export function editedLayoutId(selection: SelectionRef | null): string | null {
+  if (selection?.type === "layout") return selection.layoutId;
+  if ((selection?.type === "block" || selection?.type === "blocks") && selection.container.kind === "layout") {
+    return selection.container.layoutId;
+  }
+  return null;
+}
+
 interface DocumentState {
   doc: WeftDocument;
   selection: SelectionRef | null;
   filePath: string | null;
+  /** The `content` that was last written to disk (a manual or automatic save) or loaded from it.
+   * Every edit/undo/redo produces a new content object, so `doc.content !== savedContent` is
+   * exactly "there are unsaved changes" - what automatic saving (core/io/autosave.ts) keys on. */
+  savedContent: WeftModule;
+  markSaved: (content: WeftModule) => void;
 
   /** Applies `recipe` to the content, records one undo entry (unless it was a no-op). */
   edit: (label: string, recipe: (draft: WeftModule) => void) => void;
@@ -61,10 +78,14 @@ interface DocumentState {
   select: (ref: SelectionRef | null) => void;
 }
 
+const initialDocument = createEmptyDocument();
+
 export const useDocumentStore = create<DocumentState>((set, get) => ({
-  doc: createEmptyDocument(),
+  doc: initialDocument,
   selection: null,
   filePath: null,
+  savedContent: initialDocument.content,
+  markSaved: (content) => set({ savedContent: content }),
 
   edit: (label, recipe) =>
     set((state) => {
@@ -105,6 +126,6 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   canUndo: () => get().doc.undoIndex >= 0,
   canRedo: () => get().doc.undoIndex < get().doc.undoHistory.length - 1,
 
-  loadDocument: (doc, filePath = null) => set({ doc, selection: null, filePath }),
+  loadDocument: (doc, filePath = null) => set({ doc, selection: null, filePath, savedContent: doc.content }),
   select: (ref) => set({ selection: ref }),
 }));

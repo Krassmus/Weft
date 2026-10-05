@@ -1,5 +1,6 @@
 import { renameBranch, renameLogicBlock, updateBranchCondition } from "../../../core/document/actions";
 import { useDocumentStore } from "../../../core/document/store";
+import { isBooleanVariable } from "../../../core/document/variables";
 import type { LogicBlock, VariableCondition } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
 
@@ -32,6 +33,8 @@ export function LogicBlockPanel({ logicBlock }: { logicBlock: LogicBlock }) {
       {logicBlock.branches.map((branch, index) => {
         const isLast = index === logicBlock.branches.length - 1;
         const condition = branch.condition;
+        const conditionTarget = variables.find((v) => v.id === condition?.variableId);
+        const compareAsBoolean = !!conditionTarget && isBooleanVariable(conditionTarget);
 
         return (
           <Collapsible key={branch.id} title={`${index + 1}. ${branch.label}`}>
@@ -46,7 +49,14 @@ export function LogicBlockPanel({ logicBlock }: { logicBlock: LogicBlock }) {
               <div className="weft-condition-row">
                 <select
                   value={condition?.variableId ?? ""}
-                  onChange={(e) => updateBranchCondition(logicBlock.id, branch.id, { variableId: e.target.value })}
+                  onChange={(e) => {
+                    const chosen = variables.find((v) => v.id === e.target.value);
+                    // A Ja/Nein variable is compared with Ja or Nein; switching away from one drops that
+                    // boolean so the text field doesn't start out holding "true".
+                    const value =
+                      chosen && isBooleanVariable(chosen) ? true : typeof condition?.value === "boolean" ? "" : condition?.value;
+                    updateBranchCondition(logicBlock.id, branch.id, { variableId: e.target.value, ...(value !== undefined && { value }) });
+                  }}
                 >
                   {variables.map((v) => (
                     <option key={v.id} value={v.id}>
@@ -66,10 +76,20 @@ export function LogicBlockPanel({ logicBlock }: { logicBlock: LogicBlock }) {
                     </option>
                   ))}
                 </select>
-                <input
-                  value={String(condition?.value ?? "")}
-                  onChange={(e) => updateBranchCondition(logicBlock.id, branch.id, { value: e.target.value })}
-                />
+                {compareAsBoolean ? (
+                  <select
+                    value={condition?.value === true || condition?.value === "true" ? "yes" : "no"}
+                    onChange={(e) => updateBranchCondition(logicBlock.id, branch.id, { value: e.target.value === "yes" })}
+                  >
+                    <option value="yes">Ja</option>
+                    <option value="no">Nein</option>
+                  </select>
+                ) : (
+                  <input
+                    value={String(condition?.value ?? "")}
+                    onChange={(e) => updateBranchCondition(logicBlock.id, branch.id, { value: e.target.value })}
+                  />
+                )}
               </div>
             )}
           </Collapsible>

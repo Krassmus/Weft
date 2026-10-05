@@ -1,5 +1,6 @@
 import { confirm as confirmNative, message as messageNative, open, save } from "@tauri-apps/plugin-dialog";
-import { readFile, writeFile } from "@tauri-apps/plugin-fs";
+import { appCacheDir, join } from "@tauri-apps/api/path";
+import { mkdir, readFile, remove, rename, writeFile } from "@tauri-apps/plugin-fs";
 import type { WeftDocument } from "../types";
 import { packDocument } from "./pack";
 import { unpackDocument } from "./unpack";
@@ -52,6 +53,30 @@ async function writeBytes(bytes: Uint8Array, suggestedName: string, dialogTitle:
   return suggestedName;
 }
 
+// Manual saves and automatic ones (autosave.ts) can overlap - writes to disk go through one queue
+// so two never interleave on the same file.
+let writeQueue: Promise<unknown> = Promise.resolve();
+function serialized<T>(task: () => Promise<T>): Promise<T> {
+  const run = writeQueue.then(task, task);
+  writeQueue = run.catch(() => {});
+  return run;
+}
+
+/** Writes next to the target first and renames over it, so a crash or a full disk halfway through
+ * leaves the previous version intact instead of a truncated file - which matters now that this
+ * runs every few seconds in the background. Falls back to a plain overwrite if the rename isn't
+ * possible (e.g. a permission the build doesn't have). */
+async function writeFileSafely(path: string, bytes: Uint8Array): Promise<void> {
+  const temporaryPath = `${path}.tmp`;
+  try {
+    await writeFile(temporaryPath, bytes);
+    await rename(temporaryPath, path);
+  } catch {
+    await writeFile(path, bytes);
+    await remove(temporaryPath).catch(() => {});
+  }
+}
+
 export async function saveDocumentAs(doc: WeftDocument): Promise<string | null> {
   const bytes = await packDocument(doc);
   return writeBytes(bytes, suggestedFileName(doc.content.title, SAVE_EXTENSION), "Lernmodul speichern", SAVE_EXTENSION);
@@ -61,7 +86,44 @@ export async function saveDocumentAs(doc: WeftDocument): Promise<string | null> 
  * (from a prior save or from opening a file), matching how Save works in most other apps. */
 export async function saveDocumentToPath(doc: WeftDocument, path: string): Promise<void> {
   const bytes = await packDocument(doc);
-  await writeFile(path, bytes);
+  await serialized(() => writeFileSafely(path, bytes));
+}
+
+// A module that has never been saved anywhere has no file for automatic saving to write to - its
+// autosaves go to one fixed recovery file in the app's own cache folder instead, which is offered
+// back on the next launch (see EditorShell.tsx) and deleted again as soon as the module gets a
+// real file via Speichern.
+const RECOVERY_FILE_NAME = "recovery.weft";
+
+async function recoveryPath(): Promise<string> {
+  const dir = await join(await appCacheDir(), "recovery");
+  await mkdir(dir, { recursive: true });
+  return join(dir, RECOVERY_FILE_NAME);
+}
+
+export async function saveRecoveryCopy(doc: WeftDocument): Promise<void> {
+  const bytes = await packDocument(doc);
+  const path = await recoveryPath();
+  await serialized(() => writeFileSafely(path, bytes));
+}
+
+/** The module autosaved before its first real save, if there is one (and it still opens). */
+export async function readRecoveryCopy(): Promise<WeftDocument | null> {
+  if (!isTauri()) return null;
+  try {
+    return unpackDocument(await readFile(await recoveryPath()));
+  } catch {
+    return null;
+  }
+}
+
+export async function clearRecoveryCopy(): Promise<void> {
+  if (!isTauri()) return;
+  try {
+    await remove(await recoveryPath());
+  } catch {
+    // Nothing there (or not removable) - either way there's no stale copy left to act on.
+  }
 }
 
 export async function exportAsHtmlModule(doc: WeftDocument): Promise<string | null> {
@@ -162,7 +224,7 @@ export async function confirmDestructive(message: string, title: string): Promis
   return window.confirm(message);
 }
 
-async function showWarning(text: string, title: string): Promise<void> {
+export async function showWarning(text: string, title: string): Promise<void> {
   if (isTauri()) {
     await messageNative(text, { title, kind: "warning" });
     return;

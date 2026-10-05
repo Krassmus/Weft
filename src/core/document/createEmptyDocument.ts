@@ -10,6 +10,7 @@ import type {
 } from "../types";
 import { defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
 import { createDefaultPageTimeline, syncPageTimelineEvents } from "./pageTimeline";
+import { ensureBuiltinVariables } from "./variables";
 
 /**
  * Builds a small but complete demo module (title, content, one branch, one ending slide)
@@ -164,12 +165,12 @@ export function createEmptyDocument(): WeftDocument {
     sequence,
     assets: [],
     customFonts: [],
-    lms: { enabled: false, allowedOrigins: [] },
     keyboardNavigationEnabled: true,
   };
+  ensureBuiltinVariables(content.variables);
 
   return {
-    formatVersion: 1,
+    formatVersion: 2,
     content,
     undoHistory: [],
     undoIndex: -1,

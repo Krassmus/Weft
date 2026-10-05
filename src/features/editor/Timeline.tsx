@@ -11,13 +11,9 @@ import visibilityVisibleIconSvg from "../../../mockups/icons/visibility-visible.
 import visibilityInvisibleIconSvg from "../../../mockups/icons/visibility-invisible.svg?raw";
 import { isTriggerableNode, listAllNodes } from "../../core/document/pageTimeline";
 import { useDocumentStore } from "../../core/document/store";
-import type { Page, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode, TransitionType } from "../../core/types";
+import { TRANSITION_LABELS } from "../../core/document/transitions";
+import type { Page, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode } from "../../core/types";
 
-const TRANSITION_LABELS: Record<TransitionType, string> = {
-  none: "",
-  fade: "Fade",
-  move: "Move",
-};
 
 // No icon file for this in the set (see mockups/icons) - a plain "∞" glyph, drawn as an <svg
 // text> so it slots into TimelineNodeIcon exactly like every other, file-based icon here (same
@@ -273,7 +269,7 @@ function TimelineLaneRow({
 }) {
   const selection = useDocumentStore((s) => s.selection);
   const select = useDocumentStore((s) => s.select);
-  const transitionDetail = TRANSITION_LABELS[page.transition.type];
+  const transitionDetail = page.transition.type === "none" ? "" : TRANSITION_LABELS[page.transition.type];
 
   // Every node - "start", "end", or a block-contributed "event" - selects the very same way now:
   // as itself, not as a shortcut for whatever block happens to be behind it (see EventPanel.tsx's

@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import {
   addBranch,
+  addLayout,
   addLogicBlockToSequence,
   addPageToBranch,
   addPageToSequence,
@@ -12,7 +13,7 @@ import {
   removeSequenceNodeAt,
 } from "../../core/document/actions";
 import type { PageContainerRef } from "../../core/document/actions";
-import { useDocumentStore } from "../../core/document/store";
+import { editedLayoutId, useDocumentStore } from "../../core/document/store";
 import { useTranslation } from "../../core/i18n/useTranslation";
 import type { LogicBlock } from "../../core/types";
 import { ContextMenu, useContextMenu } from "./ContextMenu";
@@ -50,6 +51,9 @@ export function Sidebar() {
   const [tab, setTab] = useState<TabId>("folien");
   const contextMenu = useContextMenu();
   const { bind } = useDragReorder();
+  // While a layout is being edited, the first tab shows the layouts (to jump between them)
+  // instead of the slides - the slides aren't what's on the canvas then.
+  const layoutMode = useDocumentStore((s) => editedLayoutId(s.selection) !== null);
 
   return (
     <aside className="weft-sidebar">
@@ -61,19 +65,55 @@ export function Sidebar() {
             className={"weft-sidebar-tab" + (tab === tabDef.id ? " is-active" : "")}
             onClick={() => setTab(tabDef.id)}
           >
-            {t(tabDef.labelKey)}
+            {tabDef.id === "folien" && layoutMode ? t("sidebar.tab.layouts") : t(tabDef.labelKey)}
           </button>
         ))}
       </div>
 
       <div className="weft-sidebar-content">
-        {tab === "folien" && <SequenceTree openMenu={contextMenu.open} bind={bind} />}
+        {tab === "folien" && (layoutMode ? <LayoutList /> : <SequenceTree openMenu={contextMenu.open} bind={bind} />)}
         {tab === "variablen" && <VariablesTab />}
         {tab === "einstellungen" && <SettingsTab />}
       </div>
 
       <ContextMenu menu={contextMenu.menu} onClose={contextMenu.close} />
     </aside>
+  );
+}
+
+/** The overview shown instead of the slide list while a layout is being edited: every layout as a
+ * thumbnail with its name, the one on the canvas highlighted; clicking one switches to editing it. */
+function LayoutList() {
+  const layouts = useDocumentStore((s) => s.doc.content.layouts);
+  const activeId = useDocumentStore((s) => editedLayoutId(s.selection));
+  const select = useDocumentStore((s) => s.select);
+
+  return (
+    <ol className="weft-sequence">
+      {Object.values(layouts).map((layout) => (
+        <li key={layout.id}>
+          <button
+            type="button"
+            className={"weft-node weft-node-layout" + (layout.id === activeId ? " is-active" : "")}
+            onClick={() => select({ type: "layout", layoutId: layout.id })}
+          >
+            <div className="weft-node-layout-body">
+              <SlideThumbnail blocks={layout.blocks} />
+              <span className="weft-node-title">{layout.name}</span>
+            </div>
+          </button>
+        </li>
+      ))}
+      <li>
+        <button
+          type="button"
+          className="weft-ghost-button weft-full-width"
+          onClick={() => select({ type: "layout", layoutId: addLayout("Neues Layout") })}
+        >
+          + Neues Layout
+        </button>
+      </li>
+    </ol>
   );
 }
 

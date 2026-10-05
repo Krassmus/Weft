@@ -16,10 +16,14 @@ import type { Block } from "../types";
 const en = {
   "toolbar.openFailed": "Opening failed:",
   "toolbar.saveFailed": "Saving failed:",
+  "toolbar.quitSaveFailedTitle": "Quit without saving?",
+  "toolbar.quitSaveFailed": "The latest changes could not be saved. Quit anyway? Unsaved changes will be lost.",
+  "toolbar.autosaveFailed": "Automatic saving failed - your latest changes are not saved yet. Trying again in a moment.",
   "toolbar.exportFailed": "Exporting failed:",
   "toolbar.resizerTitle": "Drag to resize the sidebar",
 
   "sidebar.tab.slides": "Slides",
+  "sidebar.tab.layouts": "Layouts",
   "sidebar.tab.variables": "Variables",
   "sidebar.tab.settings": "Settings",
 
@@ -31,6 +35,8 @@ const en = {
   "panel.layout.name": "Name",
 
   "block.text": "Text",
+  "block.code": "Code",
+  "block.tex": "Formula",
   "block.image": "Image",
   "block.video": "Video",
   "block.iframe": "Iframe",
@@ -49,10 +55,14 @@ const en = {
 const de: Record<keyof typeof en, string> = {
   "toolbar.openFailed": "Öffnen fehlgeschlagen:",
   "toolbar.saveFailed": "Speichern fehlgeschlagen:",
+  "toolbar.quitSaveFailedTitle": "Ohne Speichern beenden?",
+  "toolbar.quitSaveFailed": "Die letzten Änderungen konnten nicht gespeichert werden. Trotzdem beenden? Nicht gespeicherte Änderungen gehen verloren.",
+  "toolbar.autosaveFailed": "Automatisches Speichern fehlgeschlagen - die letzten Änderungen sind noch nicht gesichert. Es wird gleich erneut versucht.",
   "toolbar.exportFailed": "Exportieren fehlgeschlagen:",
   "toolbar.resizerTitle": "Breite der Seitenleiste ziehen",
 
   "sidebar.tab.slides": "Folien",
+  "sidebar.tab.layouts": "Layouts",
   "sidebar.tab.variables": "Variablen",
   "sidebar.tab.settings": "Einstellungen",
 
@@ -64,6 +74,8 @@ const de: Record<keyof typeof en, string> = {
   "panel.layout.name": "Name",
 
   "block.text": "Text",
+  "block.code": "Code",
+  "block.tex": "Formel",
   "block.image": "Bild",
   "block.video": "Video",
   "block.iframe": "Iframe",
@@ -91,6 +103,8 @@ export const translations: Record<Language, Record<TranslationKey, string>> = { 
  * the same way it already would in each of those three files' own label records. */
 export const BLOCK_KIND_KEYS: Record<Block["kind"], Extract<TranslationKey, `block.${string}`>> = {
   text: "block.text",
+  code: "block.code",
+  tex: "block.tex",
   image: "block.image",
   video: "block.video",
   iframe: "block.iframe",

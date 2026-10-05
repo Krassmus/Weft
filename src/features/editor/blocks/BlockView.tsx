@@ -20,6 +20,10 @@ import { ContextMenu, useContextMenu } from "../ContextMenu";
 import type { ContextMenuItem } from "../ContextMenu";
 import { registerActiveEditable, saveSelection } from "./richText";
 import { ShapeSvg } from "./ShapeSvg";
+import { CodeView } from "./CodeView";
+import { TexView } from "./TexView";
+import { useTexDialog } from "./texDialogStore";
+import { usePlaceholderProblems } from "./usePlaceholderProblems";
 import type { CornerHandleId, HandleId } from "./resizeMath";
 import {
   clampMove,
@@ -160,13 +164,14 @@ export function BlockView({
   const [nearEdge, setNearEdge] = useState(false);
   const [snapGuides, setSnapGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
   const contextMenu = useContextMenu();
+  const placeholderProblems = usePlaceholderProblems(block);
   const position = livePositionOverride ?? liveOverride ?? block.position;
-  // An image, video, or iframe has no inner content worth preserving access to on the canvas
+  // An image, video, iframe or formula has no inner content worth preserving access to on the canvas
   // (unlike text/quiz - and an iframe's own content is non-interactive here anyway, see
   // .weft-edit-block-iframe-wrap iframe's pointer-events:none in App.css), so it can be grabbed
   // and moved from anywhere - including on the very first click, before it's even selected, see
   // handlePointerDownMove/handlePointerMoveHover below.
-  const isFreelyMovableBlock = block.kind === "image" || block.kind === "video" || block.kind === "iframe" || block.kind === "shape";
+  const isFreelyMovableBlock = block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "iframe" || block.kind === "shape";
   // Only an image or video has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
   // given, so unlike image/video it keeps the full edge+corner handle set below instead of being
@@ -377,7 +382,16 @@ export function BlockView({
           else onSelect?.();
         }}
         onDoubleClick={(event) => {
-          if (locked || !onDoubleClick) return;
+          if (locked) return;
+          // A formula opens its editing dialog - except for a not-yet-entered group member, where
+          // the first double-click still means "enter the group" (see onDoubleClick's own doc
+          // comment); once entered the block is selected, so the next one opens the dialog.
+          if (block.kind === "tex" && (selected || !onDoubleClick)) {
+            event.stopPropagation();
+            useTexDialog.getState().open(block.id);
+            return;
+          }
+          if (!onDoubleClick) return;
           event.stopPropagation();
           onDoubleClick();
         }}
@@ -414,6 +428,13 @@ export function BlockView({
             onSendToBack={onSendToBack}
           />
         </div>
+        {placeholderProblems.length > 0 && !locked && (
+          // Next to the block, not in it: a {{variable}} that won't be evaluated when played (see
+          // findPlaceholderProblems) - the text itself stays exactly as the author typed it.
+          <div className="weft-edit-block-warning" title={placeholderProblems.join("\n")}>
+            ⚠
+          </div>
+        )}
         {selected &&
           !locked &&
           !groupSelected &&
@@ -458,6 +479,10 @@ function BlockContent({
           onCommit={(html) => onUpdate?.({ html })}
         />
       );
+    case "code":
+      return <CodeView block={block} editable={selected} onCommit={(code) => onUpdate?.({ code })} />;
+    case "tex":
+      return <TexView tex={block.tex} color={block.color} />;
     case "image":
       return block.assetId ? (
         <img src={getObjectUrl(block.assetId)} alt={block.alt} className="weft-edit-block-image" draggable={false} />

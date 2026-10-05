@@ -3,6 +3,8 @@ import { useAssetStore } from "../../core/assets/assetStore";
 import { useDocumentStore } from "../../core/document/store";
 import type { Block } from "../../core/types";
 import { ShapeSvg } from "./blocks/ShapeSvg";
+import { CodeView } from "./blocks/CodeView";
+import { TexView } from "./blocks/TexView";
 // Same "this is a video, not a button" watermark as the editor canvas (see BlockView.tsx) - kept
 // visually consistent between the two views, per the same reasoning: it's not clickable here
 // either.
@@ -49,6 +51,20 @@ function ThumbBlock({ block }: { block: Block }) {
 
   if (block.kind === "text") {
     return <div className="weft-thumb-block weft-thumb-block-text" style={style} dangerouslySetInnerHTML={{ __html: block.html }} />;
+  }
+  if (block.kind === "code") {
+    return (
+      <div className="weft-thumb-block weft-thumb-block-code" style={style}>
+        <CodeView block={block} editable={false} />
+      </div>
+    );
+  }
+  if (block.kind === "tex") {
+    return (
+      <div className="weft-thumb-block weft-thumb-block-tex" style={style}>
+        <TexView tex={block.tex} color={block.color} />
+      </div>
+    );
   }
   if (block.kind === "image") {
     return block.assetId ? (

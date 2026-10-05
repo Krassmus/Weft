@@ -161,6 +161,8 @@ function buildVideoLane(video: VideoBlock): TimelineLane {
 
 const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
   text: "Text",
+  code: "Code",
+  tex: "Formel",
   image: "Bild",
   video: "Video",
   iframe: "Iframe",
@@ -587,7 +589,10 @@ export function syncPageTimelineEvents(page: Page): void {
   // something entirely outside the "start" chain (e.g. a video's own stop point). Still shown, at
   // the tail of the same row, just with no connecting line (see .is-none in App.css) - it has to
   // stay visible/clickable to be reconfigured either way.
-  if (!bypassLane.nodes.includes(endNode)) bypassLane.nodes.push(endNode);
+  // Checked against attachedIds (not just bypassLane.nodes) - when "start" itself FORKS (several
+  // things all triggered by it), "end" can have been reached inside one of the branch lanes
+  // instead, and appending it here too would show it twice.
+  if (!attachedIds.has(endNode.id)) bypassLane.nodes.push(endNode);
 
   // Every other attachment root (a video's own start, a quiz event, ...) that isn't itself
   // something else's own target gets its own fresh lane, extended the same way.

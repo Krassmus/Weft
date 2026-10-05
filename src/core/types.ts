@@ -4,7 +4,9 @@ export type UUID = string;
 
 export type AspectRatio = "16:9" | "4:3" | "1:1" | "3:2";
 
-export type VariableType = "number" | "string" | "boolean";
+/** "computed" is a variable whose value is never stored: it is worked out from other variables by
+ * its `expression` every time it is read (see core/document/expressions.ts for the language). */
+export type VariableType = "number" | "string" | "boolean" | "computed";
 export type VariableValue = number | string | boolean;
 
 export interface VariableDef {
@@ -12,6 +14,13 @@ export interface VariableDef {
   name: string;
   type: VariableType;
   initialValue: VariableValue;
+  /** The formula of a "computed" variable; absent on every other type. */
+  expression?: string;
+  /** A built-in variable (`success`): always present, never renamed or removed, and a Ja/Nein either
+   * way - its type can only be switched between "boolean" (set by hand/quiz effects) and "computed"
+   * (a formula, whose result is read as Ja/Nein). See ensureBuiltinVariables in
+   * core/document/variables.ts. */
+  fixed?: boolean;
 }
 
 export type VariableEffect =
@@ -77,6 +86,36 @@ interface BaseBlock {
 export interface TextBlock extends BaseBlock {
   kind: "text";
   html: string;
+}
+
+/** Program code with syntax highlighting (highlight.js) - works like a text block (typed straight
+ * into the block on the slide, scrolls if it doesn't fit) but is plain text: no formatting other
+ * than what the highlighter itself colors. */
+export interface CodeBlock extends BaseBlock {
+  kind: "code";
+  code: string;
+  /** A highlight.js language id (see CODE_LANGUAGES in core/code/highlight.ts), or "auto" to let
+   * the highlighter guess. */
+  language: string;
+  /** One of CODE_THEMES' ids (core/code/codeThemes.ts). */
+  theme: string;
+  /** In px on a 960px-wide slide, like a text block's sizes - stored (and rendered) as a share of
+   * the slide's width (cqw), so it scales with the slide. */
+  fontSize: number;
+  /** Drops the theme's background color (the text colors stay) so the slide shows through.
+   * Optional only so a block saved before this field existed still loads - absent means false. */
+  transparentBackground?: boolean;
+}
+
+/** A TeX formula (rendered with KaTeX in display mode, so it may span several lines via a double backslash).
+ * Behaves like an image on the slide: it is scaled to fit its box (contain), so resizing the box
+ * resizes the formula. Formatting is deliberately limited to the block as a whole (`color`) plus
+ * whatever TeX commands the author writes into `tex` itself (e.g. a color command around part of it). */
+export interface TexBlock extends BaseBlock {
+  kind: "tex";
+  tex: string;
+  /** CSS color for the whole formula; "" = inherit the slide's own text color. */
+  color: string;
 }
 
 export interface ImageBlock extends BaseBlock {
@@ -268,7 +307,7 @@ export interface ShapeBlock extends BaseBlock {
  * navigation button (or a shape, which carries no state at all) has nothing graded to exclude, so
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
-export type StaticBlock = TextBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock;
+export type StaticBlock = TextBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock;
 export type Block = StaticBlock | QuizBlock;
 
 export interface Layout {
@@ -278,16 +317,32 @@ export interface Layout {
 }
 
 /** Every kind of transition Weft knows how to animate the move to the *next* node with - "none"
- * is an instant cut; "fade"/"move" are animated (see player.runtime.js's animateTransition).
- * Kept as its own type rather than inlined into Transition so the player and the timeline UI's
- * own options list (see Timeline.tsx) can both reference just this. */
-export type TransitionType = "none" | "fade" | "move";
+ * is an instant cut, all others are animated (see player.runtime.js's animateTransition). Kept as
+ * its own type rather than inlined into Transition so the player and the editor's own options
+ * list (see document/transitions.ts) can both reference just this. */
+export type TransitionType = "none" | "fade" | "move" | "iris" | "cube" | "blur" | "horror";
+
+/** Which way the OUTGOING slide travels (a Move slides it off that way, a Cube turns that way) -
+ * the incoming one arrives from the opposite side. */
+export type TransitionDirection = "left" | "right" | "up" | "down";
 
 export interface Transition {
   type: TransitionType;
   /** Only meaningful when type isn't "none" - how long the animation takes, in milliseconds.
    * Defaults to 500 (see setPageTransition/setPageTransitionDuration in document/actions.ts). */
   durationMs: number;
+  /** "move" and "cube" only. Absent = that type's default (see defaultDirection in
+   * document/transitions.ts) - every option below is optional so a module saved before it existed
+   * still loads. */
+  direction?: TransitionDirection;
+  /** "move" only: slide just the page's own content while the slide itself (background and the
+   * layout's blocks) stays put - possible only when the next slide uses the same layout, otherwise
+   * the whole slide moves regardless (with the content trailing it by a few ms). */
+  contentOnly?: boolean;
+  /** "iris" only: a hard-edged circle instead of the default soft one. */
+  hardEdge?: boolean;
+  /** "iris" only: where the circle opens from, in percent of the slide. Absent = the middle. */
+  irisCenter?: { x: number; y: number };
 }
 
 /** How an edge's timing is known: "unknown" - the "to" node happens sometime causally after the
@@ -504,12 +559,6 @@ export interface CustomFont {
   mimeType: string;
 }
 
-export interface LmsConfig {
-  /** Off by default - the module works as a stand-alone presentation until this is switched on. */
-  enabled: boolean;
-  allowedOrigins: string[];
-}
-
 export interface WeftModule {
   /** Set once with crypto.randomUUID() at creation and never reused, so an LMS can key progress on it forever. */
   id: UUID;
@@ -524,7 +573,6 @@ export interface WeftModule {
   sequence: SequenceNodeRef[];
   assets: AssetMeta[];
   customFonts: CustomFont[];
-  lms: LmsConfig;
   /** On by default (matches every module saved before this existed - see unpack.ts's migration).
    * Switched off, the player ignores Space/←/→ entirely - only an author-placed button block or a
    * quiz's own onCorrect/onIncorrect effects can move the learner forward or back. The main
@@ -544,9 +592,15 @@ export interface UndoEntry {
 /**
  * The root object that is serialized to weft.json. Save format and export format are the
  * same on purpose: exporting is just packing this plus a generated index.html into a zip.
+ *
+ * `formatVersion` 2: Weiter-as-a-trigger/"off" effect type exist (see migrateMissingAdvanceTriggers
+ * in io/unpack.ts) - a document saved at 1 predates them, so its "no trigger edge" states still
+ * mean the OLD defaults (immediate) and get frozen into explicit edges once on load; a document at
+ * 2 was authored with the new dynamic defaults ("no edge" = "Weiter, after everything else"),
+ * which that migration must never touch - re-running it would silently rewrite them.
  */
 export interface WeftDocument {
-  formatVersion: 1;
+  formatVersion: 1 | 2;
   content: WeftModule;
   undoHistory: UndoEntry[];
   /** Index of the last applied entry; -1 means the document is at its initial state. */

@@ -9,7 +9,50 @@
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 #[cfg(desktop)]
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder, Wry};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use tauri::AppHandle;
+
+// Closing the window or quitting (Cmd+Q) doesn't end the app right away: the frontend is asked to
+// finish saving first (see requestFlushBeforeExit in src/features/editor/EditorShell.tsx and
+// core/io/autosave.ts), then ends the app itself via `exit_app`. PENDING is true from the request
+// until the frontend either exits or calls `cancel_exit` (the user chose to keep working after a
+// failed save); GENERATION tells the watchdog thread below which request it belongs to.
+static PENDING: AtomicBool = AtomicBool::new(false);
+static GENERATION: AtomicU64 = AtomicU64::new(0);
+// If the frontend never answers (e.g. its page is dead), the app still has to be quittable.
+#[cfg(desktop)]
+const EXIT_WATCHDOG_SECS: u64 = 60;
+
+#[cfg(desktop)]
+fn request_flush_before_exit(app_handle: &AppHandle) {
+    // A second close/quit click while the first is still being saved just waits for it.
+    if PENDING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let generation = GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
+    let _ = app_handle.emit("weft://flush-before-exit", ());
+    let handle = app_handle.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(EXIT_WATCHDOG_SECS));
+        if PENDING.load(Ordering::SeqCst) && GENERATION.load(Ordering::SeqCst) == generation {
+            handle.exit(0);
+        }
+    });
+}
+
+/// Ends the app for real - called by the frontend once everything is saved (or the user chose to
+/// quit anyway). Passes through request_flush_before_exit's own interception, which only holds
+/// back exits that don't carry an exit code.
+#[tauri::command]
+fn exit_app(app_handle: AppHandle) {
+    app_handle.exit(0);
+}
+
+/// The frontend decided not to quit after all (see PENDING).
+#[tauri::command]
+fn cancel_exit() {
+    PENDING.store(false, Ordering::SeqCst);
+}
 
 /// The handful of native-menu strings that need to follow the user's chosen language - kept in
 /// sync with src/core/i18n/translations.ts by hand, since Rust and the frontend bundle have no
@@ -207,13 +250,30 @@ fn show_settings_window(app_handle: &AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![set_menu_language, read_clipboard_file_paths])
+        .on_window_event(|_window, _event| {
+            // The main window's close button: hold the close back until the frontend has saved.
+            // (The settings window closes normally.) Quitting with Cmd+Q doesn't close windows
+            // first - that's caught at the run() loop below instead.
+            #[cfg(desktop)]
+            if _window.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = _event {
+                    api.prevent_close();
+                    request_flush_before_exit(_window.app_handle());
+                }
+            }
+        })
+        .invoke_handler(tauri::generate_handler![
+            set_menu_language,
+            read_clipboard_file_paths,
+            exit_app,
+            cancel_exit
+        ])
         .setup(|_app| {
             // No native menu bar on mobile (see this file's own header comment) - nothing here to
             // build at startup, and nothing to wire menu-item clicks to. Every menu action this
@@ -257,6 +317,19 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|_app_handle, _event| {
+        // Cmd+Q / "Quit" in the app menu / the last window closing: an exit WITHOUT an exit code is
+        // the user's, so hold it back until saved. exit_app's own exit carries one (0) and goes
+        // straight through.
+        #[cfg(desktop)]
+        if let tauri::RunEvent::ExitRequested { api, code, .. } = _event {
+            if code.is_none() {
+                api.prevent_exit();
+                request_flush_before_exit(_app_handle);
+            }
+        }
+    });
 }

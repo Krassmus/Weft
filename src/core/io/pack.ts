@@ -1,4 +1,5 @@
-import { strToU8, zipSync } from "fflate";
+import { strToU8, zip } from "fflate";
+import type { AsyncZippable } from "fflate";
 import type { WeftDocument } from "../types";
 import { useAssetStore } from "../assets/assetStore";
 import { usedAssetIds } from "../document/usedAssets";
@@ -17,6 +18,20 @@ export function curatedFontZipPath(fileName: string): string {
 
 export function customFontZipPath(fontId: string, fileName: string): string {
   return `fonts/${fontId}_${fileName}`;
+}
+
+// Formats that are already compressed - deflating them again costs a lot of CPU for ~0% saving,
+// so they're stored as-is (level 0). Video is by far the biggest of these.
+const ALREADY_COMPRESSED = /\.(mp4|m4v|mov|webm|mkv|avi|mp3|m4a|aac|ogg|wav|jpe?g|png|gif|webp|avif|heic|woff2?|zip)$/i;
+
+/** Zips in a Web Worker (fflate's async API) so a big module never freezes the editor while it's
+ * being saved - the synchronous zipSync used to block the main thread for as long as the
+ * compression took (seconds, with a few videos in it). Buffers are handed over to the worker
+ * without copying, which is safe here: every one of them is a fresh copy made just for this zip. */
+function zipInWorker(files: AsyncZippable): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    zip(files, { level: 6, consume: true }, (err, data) => (err ? reject(err) : resolve(data)));
+  });
 }
 
 /**
@@ -44,22 +59,25 @@ export async function packDocument(doc: WeftDocument): Promise<Uint8Array> {
     (font) => Promise.resolve(customFontZipPath(font.id, font.fileName)),
   );
 
-  const files: Record<string, Uint8Array> = {
+  const files: AsyncZippable = {
     "weft.json": strToU8(JSON.stringify(docToSave, null, 2)),
     "index.html": strToU8(await buildRuntimeHtml(content, {}, fontFaceCss)),
+  };
+  const addFile = (path: string, data: Uint8Array) => {
+    files[path] = ALREADY_COMPRESSED.test(path) ? [data, { level: 0 }] : data;
   };
 
   const blobs = useAssetStore.getState().blobs;
   for (const meta of usedAssets) {
     const blob = blobs.get(meta.id);
     if (!blob) continue;
-    files[assetZipPath(meta.id, meta.fileName)] = new Uint8Array(await blob.arrayBuffer());
+    addFile(assetZipPath(meta.id, meta.fileName), new Uint8Array(await blob.arrayBuffer()));
   }
 
   for (const font of content.customFonts) {
     const blob = blobs.get(font.id);
     if (!blob) continue;
-    files[customFontZipPath(font.id, font.fileName)] = new Uint8Array(await blob.arrayBuffer());
+    addFile(customFontZipPath(font.id, font.fileName), new Uint8Array(await blob.arrayBuffer()));
   }
 
   const seenCuratedFiles = new Set<string>();
@@ -68,9 +86,9 @@ export async function packDocument(doc: WeftDocument): Promise<Uint8Array> {
       if (seenCuratedFiles.has(face.file)) continue;
       seenCuratedFiles.add(face.file);
       const res = await fetch(`/fonts/${face.file}`);
-      files[curatedFontZipPath(face.file)] = new Uint8Array(await res.arrayBuffer());
+      addFile(curatedFontZipPath(face.file), new Uint8Array(await res.arrayBuffer()));
     }
   }
 
-  return zipSync(files, { level: 6 });
+  return zipInWorker(files);
 }

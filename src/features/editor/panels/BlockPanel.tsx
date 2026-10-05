@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import pauseIconSvg from "../../../../mockups/icons/pause.svg?raw";
+import { CODE_THEMES } from "../../../core/code/codeThemes";
+import { AUTO_LANGUAGE, CODE_LANGUAGES } from "../../../core/code/highlight";
 import { createId } from "../../../core/id";
 import { addCustomFont, setEventTrigger } from "../../../core/document/actions";
 import type { VideoUploadResult } from "../../../core/document/actions";
@@ -9,6 +11,7 @@ import type { ResolvedTrigger } from "../../../core/document/pageTimeline";
 import { useAssetStore } from "../../../core/assets/assetStore";
 import { formatTimeMMSS } from "../../../core/formatTime";
 import { useDocumentStore } from "../../../core/document/store";
+import { isBooleanVariable, isSettableVariable } from "../../../core/document/variables";
 import { CURATED_FONT_FAMILIES } from "../../../core/fonts/curatedFonts";
 import { DEFAULT_FONT_FAMILY } from "../../../core/fonts/fontFaceCss";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
@@ -20,6 +23,7 @@ import type {
   BlockEffect,
   BlockEffectType,
   ButtonBlock,
+  CodeBlock,
   IframeBlock,
   ImageBlock,
   Page,
@@ -33,6 +37,7 @@ import type {
   ShapeShadow,
   ShapeStroke,
   TimelineEdgeKind,
+  VariableDef,
   VariableEffect,
   VideoBlock,
   VideoStopPoint,
@@ -43,6 +48,8 @@ import type { TriState } from "../blocks/richText";
 import { listPageTriggerEvents } from "../Timeline";
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
+import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
+import { TexEditor } from "./TexEditor";
 import { TriggerPicker } from "./TriggerPicker";
 
 const SANDBOX_FLAGS = ["allow-scripts", "allow-same-origin", "allow-popups", "allow-forms"];
@@ -74,12 +81,22 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, page }: Bl
   // not a real "it happens later" relationship, just a node pointing at its own not-yet-fired self.
   const ownEffectNodeIds = new Set([blockEffectNodeId(block.id, "entrance"), blockEffectNodeId(block.id, "exit")]);
   const triggerEvents = page ? listPageTriggerEvents(page).filter((e) => !ownEffectNodeIds.has(e.id)) : [];
+  const placeholderProblems = usePlaceholderProblems(block);
   return (
     <>
+      {placeholderProblems.length > 0 && (
+        <div className="weft-placeholder-warning">
+          {placeholderProblems.map((problem) => (
+            <p key={problem}>⚠ {problem}</p>
+          ))}
+        </div>
+      )}
       {/* Same formatting toolbar for both - a quiz's question and options are rich text edited
           directly on the canvas exactly like a text block's own content, just several regions
           sharing one block instead of one filling it (see EditableRichText in BlockView.tsx). */}
       {(block.kind === "text" || block.kind === "quiz") && <TextEditor />}
+      {block.kind === "code" && <CodeEditor block={block} onUpdate={onUpdate} />}
+      {block.kind === "tex" && <TexEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "image" && <ImageEditor block={block} onUpdate={onUpdate} onSetImage={onSetImage} />}
       {block.kind === "video" && <VideoEditor block={block} onUpdate={onUpdate} onSetVideo={onSetVideo} />}
       {block.kind === "iframe" && <IframeEditor block={block} onUpdate={onUpdate} />}
@@ -494,6 +511,56 @@ function ImageEditor({
       <label className="weft-field">
         <span>Alt-Text</span>
         <input value={block.alt} onChange={(e) => onUpdate({ alt: e.target.value })} />
+      </label>
+    </Collapsible>
+  );
+}
+
+function CodeEditor({ block, onUpdate }: { block: CodeBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
+  return (
+    <Collapsible title="Code">
+      <p className="weft-hint">Code direkt auf der Folie eingeben. Mit Tab wird eingerückt.</p>
+      <label className="weft-field">
+        <span>Sprache</span>
+        <select value={block.language} onChange={(e) => onUpdate({ language: e.target.value })}>
+          <option value={AUTO_LANGUAGE}>Automatisch erkennen</option>
+          {CODE_LANGUAGES.map((language) => (
+            <option key={language.id} value={language.id}>
+              {language.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="weft-field">
+        <span>Design</span>
+        <select value={block.theme} onChange={(e) => onUpdate({ theme: e.target.value })}>
+          {CODE_THEMES.map((theme) => (
+            <option key={theme.id} value={theme.id}>
+              {theme.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="weft-field weft-field-inline">
+        <input
+          type="checkbox"
+          checked={!!block.transparentBackground}
+          onChange={(e) => onUpdate({ transparentBackground: e.target.checked })}
+        />
+        <span>Transparenter Hintergrund</span>
+      </label>
+      <label className="weft-field">
+        <span>Schriftgröße</span>
+        <input
+          type="number"
+          min={6}
+          max={60}
+          value={block.fontSize}
+          onChange={(e) => {
+            const size = Number(e.target.value);
+            if (Number.isFinite(size) && size > 0) onUpdate({ fontSize: Math.min(60, Math.max(6, size)) });
+          }}
+        />
       </label>
     </Collapsible>
   );
@@ -1329,71 +1396,108 @@ function QuizEditor({ block, onUpdate }: { block: QuizBlock; onUpdate: BlockPane
   );
 }
 
+/** What a fresh effect on `variable` starts as - an addition for a number, set-to-yes for a Ja/Nein,
+ * set-to-empty for text. */
+function defaultEffectFor(variable: VariableDef): VariableEffect {
+  if (isBooleanVariable(variable)) return { variableId: variable.id, op: "set", value: true };
+  if (variable.type === "string") return { variableId: variable.id, op: "set", value: "" };
+  return { variableId: variable.id, op: "add", value: 1 };
+}
+
 function EffectListEditor({
   effects,
-  variables,
+  variables: allVariables,
   onChange,
 }: {
   effects: VariableEffect[];
-  variables: { id: string; name: string }[];
+  variables: VariableDef[];
   onChange: (effects: VariableEffect[]) => void;
 }) {
+  // A computed variable has no value to change, so it's never a target.
+  const variables = allVariables.filter(isSettableVariable);
   return (
     <>
-      {effects.map((effect, index) => (
-        <div key={index} className="weft-effect-row">
-          <select
-            value={effect.variableId}
-            onChange={(e) => {
-              const next = [...effects];
-              next[index] = { ...effect, variableId: e.target.value };
-              onChange(next);
-            }}
-          >
-            {variables.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name}
-              </option>
-            ))}
-          </select>
-          <select
-            value={effect.op}
-            onChange={(e) => {
-              const op = e.target.value as VariableEffect["op"];
-              const next = [...effects];
-              next[index] =
-                op === "add"
-                  ? { variableId: effect.variableId, op, value: 1 }
-                  : op === "append"
-                    ? { variableId: effect.variableId, op, value: "" }
-                    : { variableId: effect.variableId, op, value: 0 };
-              onChange(next);
-            }}
-          >
-            <option value="set">setzen auf</option>
-            <option value="add">addieren</option>
-            <option value="append">anhängen</option>
-          </select>
-          <input
-            value={String(effect.value)}
-            onChange={(e) => {
-              const raw = e.target.value;
-              const value = effect.op === "add" ? Number(raw) : raw;
-              const next = [...effects];
-              next[index] = { ...effect, value } as VariableEffect;
-              onChange(next);
-            }}
-          />
-          <button type="button" className="weft-icon-button" onClick={() => onChange(effects.filter((_, i) => i !== index))}>
-            ×
-          </button>
-        </div>
-      ))}
+      {effects.map((effect, index) => {
+        const target = allVariables.find((v) => v.id === effect.variableId);
+        const isBoolean = !!target && isBooleanVariable(target);
+        return (
+          <div key={index} className="weft-effect-row">
+            <select
+              value={effect.variableId}
+              onChange={(e) => {
+                const next = [...effects];
+                const chosen = variables.find((v) => v.id === e.target.value);
+                // Switching between kinds of variable (number/text/Ja-Nein) restarts the effect, since
+                // an "add 1" or a text value means nothing on the other kind.
+                next[index] =
+                  chosen && chosen.type !== target?.type ? defaultEffectFor(chosen) : { ...effect, variableId: e.target.value };
+                onChange(next);
+              }}
+            >
+              {/* Keeps showing a target that was computed after the effect was made, rather than a blank. */}
+              {target && !isSettableVariable(target) && <option value={target.id}>{target.name} (berechnet)</option>}
+              {variables.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={effect.op}
+              disabled={isBoolean}
+              onChange={(e) => {
+                const op = e.target.value as VariableEffect["op"];
+                const next = [...effects];
+                next[index] =
+                  op === "add"
+                    ? { variableId: effect.variableId, op, value: 1 }
+                    : op === "append"
+                      ? { variableId: effect.variableId, op, value: "" }
+                      : { variableId: effect.variableId, op, value: target?.type === "number" ? 0 : "" };
+                onChange(next);
+              }}
+            >
+              <option value="set">setzen auf</option>
+              {!isBoolean && <option value="add">addieren</option>}
+              {!isBoolean && <option value="append">anhängen</option>}
+            </select>
+            {isBoolean ? (
+              <select
+                value={effect.value === true ? "yes" : "no"}
+                onChange={(e) => {
+                  const next = [...effects];
+                  next[index] = { variableId: effect.variableId, op: "set", value: e.target.value === "yes" };
+                  onChange(next);
+                }}
+              >
+                <option value="yes">Ja</option>
+                <option value="no">Nein</option>
+              </select>
+            ) : (
+              <input
+                value={String(effect.value)}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  // A number variable is set/added to with a number, never with text that merely looks like one.
+                  const numeric = effect.op === "add" || (effect.op === "set" && target?.type === "number");
+                  const value = numeric ? (Number.isFinite(Number(raw)) ? Number(raw) : 0) : raw;
+                  const next = [...effects];
+                  next[index] = { ...effect, value } as VariableEffect;
+                  onChange(next);
+                }}
+              />
+            )}
+            <button type="button" className="weft-icon-button" onClick={() => onChange(effects.filter((_, i) => i !== index))}>
+              ×
+            </button>
+          </div>
+        );
+      })}
       {variables.length > 0 && (
         <button
           type="button"
           className="weft-ghost-button weft-full-width"
-          onClick={() => onChange([...effects, { variableId: variables[0].id, op: "add", value: 1 }])}
+          onClick={() => onChange([...effects, defaultEffectFor(variables[0])])}
         >
           + Effekt
         </button>

@@ -852,6 +852,21 @@ img.weft-thumb-block {
   color: var(--weft-text);
 }
 
+/* The blue "Bearbeiten beenden" that replaces Abspielen while a layout is edited - the
+   double class beats .weft-canvas-toolbar button's own muted look above. */
+.weft-canvas-toolbar .weft-canvas-end-edit-button {
+  border-color: var(--weft-accent);
+  background: var(--weft-accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.weft-canvas-toolbar .weft-canvas-end-edit-button:hover {
+  border-color: var(--weft-accent-hover);
+  background: var(--weft-accent-hover);
+  color: #fff;
+}
+
 .weft-canvas-play-button {
   display: inline-flex;
   align-items: center;
@@ -2545,4 +2560,287 @@ button.weft-timeline-node-icon.is-animated:hover {
 
 .weft-settings-field .weft-hint {
   margin-top: 4px;
+}
+
+/* ---- TeX block (blocks/TexView.tsx, panels/TexEditor.tsx) ---- */
+
+/* The formula is typeset once at this natural size and only ever transformed to fit its box (see
+   TexView) - hidden until the first fit so it never flashes at its unscaled size. The same three
+   rules live in player.runtime.css for the exported player. */
+.weft-tex {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.weft-tex-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  white-space: nowrap;
+  font-size: 40px;
+  visibility: hidden;
+}
+
+.weft-tex-inner .katex-display {
+  margin: 0;
+}
+
+.weft-thumb-block-tex {
+  overflow: hidden;
+}
+
+.weft-tex-source-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.weft-tex-source-header .weft-icon-button svg {
+  width: 16px;
+  height: 16px;
+  /* The icon file carries its own dark-blue fill attribute, unreadable on the dark sidebar. */
+  fill: currentColor;
+}
+
+.weft-tex-source {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.weft-tex-source-large {
+  font-size: 14px;
+}
+
+.weft-tex-format-bar {
+  margin-top: 6px;
+}
+
+.weft-tex-dialog {
+  width: min(860px, 94vw);
+}
+
+.weft-tex-dialog-preview {
+  margin-top: 12px;
+  min-height: 140px;
+  max-height: 40vh;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  font-size: 26px;
+}
+
+.weft-tex-dialog-preview > .katex-display {
+  margin: 0;
+}
+
+/* ---- Layout overview in the sidebar (Sidebar.tsx's LayoutList), shown while editing a layout ---- */
+
+.weft-node-layout {
+  cursor: pointer;
+}
+
+.weft-node-layout-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* ---- {{variable}} placeholder warnings (core/document/variablePlaceholders.ts) ---- */
+
+.weft-edit-block-warning {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  margin-left: 4px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f59e0b;
+  color: #1f1300;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+
+.weft-placeholder-warning {
+  padding: 8px 10px;
+  border: 1px solid #b45309;
+  border-radius: var(--weft-radius-sm);
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  font-size: 12px;
+}
+
+.weft-placeholder-warning p {
+  margin: 0;
+}
+
+.weft-placeholder-warning p + p {
+  margin-top: 4px;
+}
+
+/* ---- Virtual variables list (panels/VariablesTab.tsx) ---- */
+
+.weft-variable-virtual-title {
+  margin: 16px 0 4px;
+  font-size: 12px;
+  color: var(--weft-text);
+}
+
+.weft-variable-virtual-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.weft-variable-virtual-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.weft-variable-virtual-list code {
+  align-self: flex-start;
+  padding: 1px 6px;
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-panel-raised);
+  font-size: 12px;
+}
+
+/* ---- Code block (blocks/CodeView.tsx; the same rules live in player.runtime.css) ---- */
+
+.weft-code {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: auto;
+  padding: 0.7em 0.9em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  line-height: 1.5;
+  tab-size: 2;
+}
+
+/* One box the size of the highlighted text; the textarea (editing only) lies exactly over it. */
+.weft-code-stack {
+  position: relative;
+  min-width: 100%;
+  width: max-content;
+  min-height: 100%;
+}
+
+.weft-code-pre {
+  margin: 0;
+  font: inherit;
+  white-space: pre;
+}
+
+/* Its own text is invisible (-webkit-text-fill-color keeps `color` - and with it the caret - intact)
+   so the highlighted copy underneath is what's seen. Every metric that affects line breaks must
+   match .weft-code-pre exactly. */
+.weft-code-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  font: inherit;
+  line-height: inherit;
+  tab-size: inherit;
+  white-space: pre;
+  -webkit-text-fill-color: transparent;
+}
+
+.weft-thumb-block-code {
+  overflow: hidden;
+}
+
+/* A thumbnail is only a picture: the code must not scroll inside it (the wheel belongs to the slide
+   overview), unlike the real block on the canvas and in the player. */
+.weft-thumb-block-code .weft-code {
+  overflow: hidden;
+}
+
+.weft-code-placeholder {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* "Transparenter Hintergrund": beats the theme's own single-class background rule on specificity,
+   whichever theme it is. */
+.weft-code.weft-code-transparent {
+  background: transparent;
+}
+
+/* ---- Iris-Blende's opening point (Canvas.tsx's IrisCenterHandle) ---- */
+
+.weft-iris-handle {
+  position: absolute;
+  z-index: 50;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: rgba(220, 38, 38, 0.85);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  cursor: grab;
+}
+
+/* ---- Variables: computed formulas (panels/VariablesTab.tsx) ---- */
+
+.weft-variable-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weft-formula-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.weft-formula-input.is-invalid {
+  border-color: #dc2626;
+}
+
+.weft-variable-problem {
+  margin: 0;
+  color: #f87171;
+  font-size: 12px;
+}
+
+/* Where a remove button would be, in rows that have none (the built-in and virtual variables). */
+.weft-variable-row-spacer {
+  flex: 0 0 28px;
+  width: 28px;
 }

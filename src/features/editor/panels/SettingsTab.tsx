@@ -4,8 +4,6 @@ import {
   removeCustomFont,
   setAspectRatio,
   setKeyboardNavigationEnabled,
-  setLmsAllowedOrigins,
-  setLmsEnabled,
   setModuleTitle,
 } from "../../../core/document/actions";
 import { useDocumentStore } from "../../../core/document/store";
@@ -92,23 +90,6 @@ export function SettingsTab() {
           + Eigene Schriftart hochladen
         </button>
       </div>
-
-      <div className="weft-divider" />
-
-      <label className="weft-field weft-field-inline">
-        <input type="checkbox" checked={content.lms.enabled} onChange={(e) => setLmsEnabled(e.target.checked)} />
-        <span>LMS-Anbindung (Stud.IP, postMessage)</span>
-      </label>
-      {content.lms.enabled && (
-        <label className="weft-field">
-          <span>Erlaubte Origins (eine pro Zeile)</span>
-          <textarea
-            rows={3}
-            value={content.lms.allowedOrigins.join("\n")}
-            onChange={(e) => setLmsAllowedOrigins(e.target.value.split("\n").map((s) => s.trim()).filter(Boolean))}
-          />
-        </label>
-      )}
     </div>
   );
 }

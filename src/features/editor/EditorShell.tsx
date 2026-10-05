@@ -1,16 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore } from "../../core/document/store";
 import { useCustomFontRegistration } from "../../core/fonts/registerCustomFonts";
 import { useSyncMenuLanguage } from "../../core/i18n/useSyncMenuLanguage";
 import { useTranslation } from "../../core/i18n/useTranslation";
+import { flushAutosave, startAutosave } from "../../core/io/autosave";
 import {
+  clearRecoveryCopy,
+  confirmDestructive,
   exportAsHtmlModule,
   isTauri,
   openDocument,
   openDocumentAtPath,
+  readRecoveryCopy,
   saveDocumentAs,
   saveDocumentToPath,
 } from "../../core/io/fileIO";
@@ -144,12 +149,50 @@ export function EditorShell() {
   // right now; it also forgets that path so this doesn't keep silently failing every launch.
   useEffect(() => {
     const lastPath = readLastPath();
-    if (!lastPath) return;
+    if (!lastPath) {
+      // Nothing was ever saved to a file - but a module that was being worked on may have been
+      // autosaved to the recovery copy (see core/io/fileIO.ts), so pick up where it left off.
+      void readRecoveryCopy().then((doc) => {
+        if (doc && useDocumentStore.getState().filePath === null) loadDocument(doc, null);
+      });
+      return;
+    }
     void openDocumentAtPath(lastPath)
       .then((doc) => {
         if (doc && useDocumentStore.getState().filePath === null) loadDocument(doc, lastPath);
       })
       .catch(() => forgetLastPath());
+  }, []);
+
+  // Saves in the background whenever there are unsaved changes (see core/io/autosave.ts). A ref
+  // for the message so a language change doesn't restart it - the subscription itself is
+  // one-time.
+  const autosaveFailedRef = useRef("");
+  autosaveFailedRef.current = t("toolbar.autosaveFailed");
+  useEffect(() => startAutosave(() => alert(autosaveFailedRef.current)), []);
+
+  // Closing the window or quitting (see src-tauri/src/lib.rs, which holds the exit back and asks
+  // for this): finish saving first, then end the app. If saving is impossible, the user decides -
+  // quit and lose the unsaved changes, or stay and keep working.
+  const quitMessagesRef = useRef({ message: "", title: "" });
+  quitMessagesRef.current = { message: t("toolbar.quitSaveFailed"), title: t("toolbar.quitSaveFailedTitle") };
+  useEffect(() => {
+    if (!isTauri()) return;
+    const unlisten = listen("weft://flush-before-exit", async () => {
+      try {
+        await flushAutosave();
+      } catch {
+        const { message, title } = quitMessagesRef.current;
+        if (!(await confirmDestructive(message, title))) {
+          await invoke("cancel_exit");
+          return;
+        }
+      }
+      await invoke("exit_app");
+    });
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
   }, []);
 
   // "Öffnen"/"Speichern"/"Speichern unter"/"Exportieren" in the native "Datei" menu (see
@@ -223,9 +266,14 @@ export function EditorShell() {
     try {
       if (filePath) {
         await saveDocumentToPath(doc, filePath);
+        useDocumentStore.getState().markSaved(doc.content);
       } else {
         const path = await saveDocumentAs(doc);
-        if (path) useDocumentStore.setState({ filePath: path });
+        if (path) {
+          useDocumentStore.setState({ filePath: path });
+          useDocumentStore.getState().markSaved(doc.content);
+          void clearRecoveryCopy();
+        }
       }
     } catch (err) {
       alert(`${t("toolbar.saveFailed")}\n${errorMessage(err)}`);
@@ -240,7 +288,11 @@ export function EditorShell() {
   async function handleSaveAs() {
     try {
       const path = await saveDocumentAs(doc);
-      if (path) useDocumentStore.setState({ filePath: path });
+      if (path) {
+        useDocumentStore.setState({ filePath: path });
+        useDocumentStore.getState().markSaved(doc.content);
+        void clearRecoveryCopy();
+      }
     } catch (err) {
       alert(`${t("toolbar.saveFailed")}\n${errorMessage(err)}`);
     }

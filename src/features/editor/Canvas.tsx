@@ -20,9 +20,11 @@ import {
   updateBlock,
   updateBlockPositions,
   updateLayoutBlock,
+  updatePageTransition,
 } from "../../core/document/actions";
 import type { VideoUploadResult } from "../../core/document/actions";
 import { useDocumentStore } from "../../core/document/store";
+import { DEFAULT_IRIS_CENTER } from "../../core/document/transitions";
 import type { BlockContainerRef } from "../../core/document/store";
 import { warnUnplayableVideo } from "../../core/io/fileIO";
 import type { BlockGroup, BlockPosition, Layout, Page, WeftDocument } from "../../core/types";
@@ -302,6 +304,57 @@ function resolveEditTarget(
  * box it was of the old one (scalePositionWithinBox) instead of just resizing one block - that's
  * the "scales proportionally like Keynote" behavior.
  */
+/**
+ * The red circle on the slide that marks where an Iris-Blende opens from (Page.transition.
+ * irisCenter) - shown while the page's "Nächste Folie" is selected and set to the iris, dragged
+ * anywhere on the slide (the point stays within it). The live position is only local until the
+ * drag ends, like every other drag here, so a drag is one undo step.
+ */
+function IrisCenterHandle({ page, stageRef }: { page: Page; stageRef: RefObject<HTMLDivElement | null> }) {
+  const [live, setLive] = useState<{ x: number; y: number } | null>(null);
+  const shown = live ?? page.transition.irisCenter ?? DEFAULT_IRIS_CENTER;
+
+  function handlePointerDown(e: ReactPointerEvent) {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const stage = stageRef.current?.getBoundingClientRect();
+    if (!stage) return;
+    let latest = shown;
+
+    function handleMove(ev: PointerEvent) {
+      const x = Math.min(100, Math.max(0, ((ev.clientX - stage!.left) / stage!.width) * 100));
+      const y = Math.min(100, Math.max(0, ((ev.clientY - stage!.top) / stage!.height) * 100));
+      latest = { x: round(x), y: round(y) };
+      setLive(latest);
+    }
+    function finish() {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+      document.body.classList.remove("weft-dragging");
+      updatePageTransition(page.id, { irisCenter: latest });
+      suppressNextClick();
+      setLive(null);
+    }
+
+    document.body.classList.add("weft-dragging");
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
+  }
+
+  return (
+    <div
+      className="weft-iris-handle"
+      style={{ left: `${shown.x}%`, top: `${shown.y}%` }}
+      title="Mittelpunkt der Iris-Blende - verschieben"
+      onPointerDown={handlePointerDown}
+      onClick={(e) => e.stopPropagation()}
+    />
+  );
+}
+
 function GroupResizeOverlay({
   page,
   group,
@@ -392,6 +445,12 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
   // one (see resolveEditTarget's own fallbackPageId parameter).
   const lastPageIdRef = useRef<string | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  // Whether the pointer press that is about to end in a click began on a block. Selecting text in a
+  // block (or code in a code block) and letting go outside it makes the browser fire that click on
+  // the stage/wrap instead - which would read as "clicked the background" and deselect the block
+  // mid-edit. Set on every press (capture, so nothing can stop it first), checked by the
+  // background click handlers below.
+  const pressStartedInBlockRef = useRef(false);
   // Set by a member's onDoubleClick (see BlockView's own doc comment on that prop) - while this
   // names the CURRENT selection's own group, a plain click on one of that group's other members
   // selects it directly instead of re-selecting the whole group, matching the sidebar's own
@@ -448,6 +507,18 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
     setEnteredGroupId(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selection]);
+
+  /** Back to the page that was on the canvas before layout editing started (kept by
+   * lastPageIdRef, which only ever records pages) - or, if that's gone or there never was one, the
+   * module's first page. */
+  function leaveLayoutEditing() {
+    const { pages, sequence } = doc.content;
+    const lastId = lastPageIdRef.current;
+    const firstPageNode = sequence.find((node) => node.kind === "page");
+    const pageId =
+      lastId && pages[lastId] ? lastId : firstPageNode?.kind === "page" ? firstPageNode.pageId : (Object.keys(pages)[0] ?? null);
+    select(pageId ? { type: "page", pageId } : null);
+  }
 
   function handleDragOver(e: ReactDragEvent<HTMLDivElement>) {
     // Only react to an actual file drag (e.g. from the Finder) - not our own internal block
@@ -648,14 +719,22 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
   return (
     <div className="weft-canvas">
       <div className="weft-canvas-toolbar">
-        <button
-          type="button"
-          className="weft-canvas-play-button"
-          onClick={() => onPresent(target?.kind === "page" ? target.page.id : null)}
-        >
-          <span className="weft-canvas-play-icon" dangerouslySetInnerHTML={{ __html: playIconSvg }} />
-          Abspielen
-        </button>
+        {target?.kind === "layout" ? (
+          // Editing a layout has no slide to play, and nothing else on screen says how to get
+          // back - so this takes Abspielen's place and returns to the page edited last.
+          <button type="button" className="weft-canvas-end-edit-button" onClick={leaveLayoutEditing}>
+            Bearbeiten beenden
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="weft-canvas-play-button"
+            onClick={() => onPresent(target?.kind === "page" ? target.page.id : null)}
+          >
+            <span className="weft-canvas-play-icon" dangerouslySetInnerHTML={{ __html: playIconSvg }} />
+            Abspielen
+          </button>
+        )}
         {target?.kind === "layout" && <span className="weft-canvas-context">Layout: {target.layout.name}</span>}
         {zoom !== 1 && (
           <button type="button" className="weft-canvas-zoom-reset" onClick={resetZoom} title="Zoom zurücksetzen">
@@ -668,7 +747,11 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
         ref={stageWrapRef}
         className="weft-canvas-stage-wrap"
         style={{ "--zoom": zoom } as CSSProperties}
+        onPointerDownCapture={(e) => {
+          pressStartedInBlockRef.current = !!(e.target as HTMLElement).closest(".weft-edit-block");
+        }}
         onClick={() => {
+          if (pressStartedInBlockRef.current) return;
           // The black letterbox area around the slide (visible whenever the stage doesn't fill
           // the wrap, e.g. at narrow window widths) - clicking it should feel like clicking the
           // slide's own background, which already deselects the current block via the onClick on
@@ -711,7 +794,9 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
             <div
               className={"weft-stage weft-stage-edit" + (dragOver ? " is-drag-over" : "")}
               style={{ aspectRatio: aspect }}
-              onClick={() => select({ type: "layout", layoutId: target.layout.id })}
+              onClick={() => {
+                if (!pressStartedInBlockRef.current) select({ type: "layout", layoutId: target.layout.id });
+              }}
               onDragOver={handleDragOver}
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) =>
@@ -755,7 +840,9 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
               ref={stageRef}
               className={"weft-stage weft-stage-edit" + (dragOver ? " is-drag-over" : "")}
               style={{ aspectRatio: aspect }}
-              onClick={() => select({ type: "page", pageId: target.page.id })}
+              onClick={() => {
+                if (!pressStartedInBlockRef.current) select({ type: "page", pageId: target.page.id });
+              }}
               onDragOver={handleDragOver}
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) =>
@@ -860,6 +947,10 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                   />
                 );
               })}
+              {selection?.type === "event" &&
+                selection.pageId === target.page.id &&
+                (selection.nodeId === "end" || selection.nodeId.startsWith("end:")) &&
+                target.page.transition.type === "iris" && <IrisCenterHandle page={target.page} stageRef={stageRef} />}
               {activeGroup && !enteredGroupId && (
                 <GroupResizeOverlay page={target.page} group={activeGroup} stageRef={stageRef} onLiveChange={setGroupLiveOverrides} />
               )}

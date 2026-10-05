@@ -23,6 +23,10 @@
       "allow": [{ "path": "$HOME/**" }, { "path": "$APPCACHE/**" }]
     },
     {
+      "identifier": "fs:allow-rename",
+      "allow": [{ "path": "$HOME/**" }, { "path": "$APPCACHE/**" }]
+    },
+    {
       "identifier": "fs:allow-mkdir",
       "allow": [{ "path": "$APPCACHE/**" }]
     },

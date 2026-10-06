@@ -675,4 +675,8 @@ export interface WeftDocument {
    * other copies of it (see mergeHistory in document/store.ts). Never part of weft.json itself;
    * loadDocument consumes it. */
   history?: Uint8Array;
+  /** The id of the Automerge document this file was saved from (see COLLAB_FILE in io/pack.ts), set
+   * together with `history`: opening the file continues under that same id, so a link that was shared
+   * for it keeps working and every copy of the file finds the same room. Never part of weft.json. */
+  documentId?: string;
 }

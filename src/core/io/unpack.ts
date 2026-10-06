@@ -7,7 +7,7 @@ import { defaultEntranceEffect, defaultExitEffect } from "../document/blockEffec
 import { blockEffectNodeId, createDefaultPageTimeline, syncPageTimelineEvents } from "../document/pageTimeline";
 import { orderedIdRecord, orderedRecord, orderedRecordBy } from "../document/ordering";
 import { ensureBuiltinVariables } from "../document/variables";
-import { assetZipPath, customFontZipPath, HISTORY_FILE } from "./pack";
+import { assetZipPath, COLLAB_FILE, customFontZipPath, HISTORY_FILE } from "./pack";
 
 function escapeHtml(value: string): string {
   return value
@@ -303,6 +303,18 @@ function importAssets(files: Record<string, Uint8Array>, content: Pick<WeftModul
   }
 }
 
+/** The Automerge document id stored next to the history (see COLLAB_FILE in pack.ts), if it is there
+ * and looks like one. */
+function readDocumentId(bytes: Uint8Array | undefined): string | undefined {
+  if (!bytes) return undefined;
+  try {
+    const { documentId } = JSON.parse(strFromU8(bytes)) as { documentId?: unknown };
+    return typeof documentId === "string" && /^[1-9A-HJ-NP-Za-km-z]{20,40}$/.test(documentId) ? documentId : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function unpackDocument(zipBytes: Uint8Array, options: { importAssets?: boolean } = {}): WeftDocument {
   const files = unzipSync(zipBytes);
 
@@ -346,7 +358,11 @@ export function unpackDocument(zipBytes: Uint8Array, options: { importAssets?: b
   if (fileVersion < 2) migrateMissingAdvanceTriggers(doc);
   doc.formatVersion = CURRENT_FORMAT_VERSION;
   syncAllPageTimelineEvents(doc);
-  if (fileVersion === CURRENT_FORMAT_VERSION) doc.history = readHistory(files[HISTORY_FILE], jsonContentMarker);
+  if (fileVersion === CURRENT_FORMAT_VERSION) {
+    doc.history = readHistory(files[HISTORY_FILE], jsonContentMarker);
+    // The id only goes with a history that is actually used - it names the document that history is of.
+    if (doc.history) doc.documentId = readDocumentId(files[COLLAB_FILE]);
+  }
 
   if (options.importAssets !== false) importAssets(files, doc.content);
 

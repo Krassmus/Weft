@@ -61,9 +61,36 @@ function newSecret(): string {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-// A document keeps the secret it was first shared with for as long as this app runs, so the link
-// stays valid when it is shared again.
-const secrets = new Map<string, string>();
+// A document keeps the secret it was first shared with - also across restarts of the app, since the
+// document itself comes back under the same id (see importHistory in document/store.ts) - so the link
+// stays valid when it is shared again, and links given out earlier keep working. Kept in the app's
+// own storage, never in a file.
+const SECRETS_KEY = "weft:collabSecrets";
+const MAX_SECRETS = 200;
+
+const secrets = {
+  load(): Record<string, string> {
+    try {
+      return JSON.parse(localStorage.getItem(SECRETS_KEY) ?? "{}") as Record<string, string>;
+    } catch {
+      return {};
+    }
+  },
+  get(documentId: string): string | undefined {
+    return this.load()[documentId];
+  },
+  set(documentId: string, secret: string): void {
+    const all = this.load();
+    delete all[documentId];
+    all[documentId] = secret; // most recently used last
+    const keep = Object.entries(all).slice(-MAX_SECRETS);
+    try {
+      localStorage.setItem(SECRETS_KEY, JSON.stringify(Object.fromEntries(keep)));
+    } catch {
+      /* not remembered - the link then changes next time */
+    }
+  },
+};
 
 let broadcastAttached = false;
 const attachedServers = new Set<string>();

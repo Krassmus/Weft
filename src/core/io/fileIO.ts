@@ -127,7 +127,7 @@ export async function clearRecoveryCopy(): Promise<void> {
 }
 
 export async function exportAsHtmlModule(doc: WeftDocument): Promise<string | null> {
-  const bytes = await packDocument(doc);
+  const bytes = await packDocument(doc, { forExport: true });
   // The dialog filter matches only the final extension - "weft.zip" already ends in "zip", so the
   // filter itself is just "zip" (matching EXPORT_EXTENSION's own last segment).
   return writeBytes(bytes, suggestedFileName(doc.content.title, EXPORT_EXTENSION), "Lernmodul exportieren", "zip");

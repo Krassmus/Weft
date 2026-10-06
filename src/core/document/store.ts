@@ -198,7 +198,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     // one is openSharedDocument.)
     // With the editing history from the file, it goes on from there - that is what lets this copy
     // be merged with other copies of the same file later; without one, history starts here.
-    const next = doc.history ? repo.import<WeftModule>(doc.history) : repo.create<WeftModule>(plain(doc.content));
+    const next = doc.history ? importHistory(doc.history, doc.documentId) : repo.create<WeftModule>(plain(doc.content));
     bindHandle(next);
     const content = next.doc() as WeftModule;
     set({
@@ -212,6 +212,25 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   },
   select: (ref) => set({ selection: ref }),
 }));
+
+/** The document of a file's editing history. Under the id the file was saved with, if it has one: then
+ * it is the same document again however often, and on whichever computer, the file is opened - the
+ * link shared for it stays valid, and everybody who has the file ends up in the same room (their
+ * copies merge, since they share their beginning). Without one - an older file, or an export - it is
+ * a document with a new id. */
+function importHistory(history: Uint8Array, documentId?: string): DocHandle<WeftModule> {
+  if (documentId) {
+    try {
+      // What this repo still holds under that id from earlier in this session is the state of back
+      // then, not of the file - including edits that were never saved. The file is what is opened.
+      if (documentId in repo.handles) repo.delete(documentId as never);
+      return repo.import<WeftModule>(history, { docId: documentId as never });
+    } catch {
+      // not importable under that id - open it as a document of its own
+    }
+  }
+  return repo.import<WeftModule>(history);
+}
 
 /** Whether what is selected still exists - somebody else may have deleted it since. For a selection
  * of several blocks, only the ones that still exist are kept. */

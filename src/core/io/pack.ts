@@ -3,12 +3,17 @@ import type { AsyncZippable } from "fflate";
 import type { WeftDocument, WeftModule } from "../types";
 import { useAssetStore } from "../assets/assetStore";
 import { Automerge } from "../collab/automerge";
+import { currentHandle } from "../document/store";
 import { usedAssetIds } from "../document/usedAssets";
 import { buildInlineFontFaceCss } from "../runtime/buildInlineFontFaceCss";
 import { buildRuntimeHtml } from "../runtime/buildRuntimeHtml";
 
 /** The Automerge history of the module inside the archive. */
 export const HISTORY_FILE = "weft.automerge";
+
+/** Which Automerge document the history belongs to ({ documentId }) - what keeps the link for sharing a
+ * file the same every time it is opened. */
+export const COLLAB_FILE = "weft.collab.json";
 
 export function assetZipPath(assetId: string, fileName: string): string {
   return `assets/${assetId}_${fileName}`;
@@ -42,9 +47,12 @@ function zipInWorker(files: AsyncZippable): Promise<Uint8Array> {
  * reopened). Every font the module uses - the curated ones its text actually references (see
  * fontFaceCss.ts - guaranteed to render the same everywhere the module ends up, unlike a system
  * font) and the custom ones - is also inlined into index.html as a data: URI. Save and "export as HTML module" both call
- * this; they only differ in the file extension the caller writes it under.
+ * this; they differ in the file extension the caller writes it under - and in `forExport`: an
+ * exported module goes to the people who learn from it, so it carries neither the editing history
+ * (which still holds every text that was deleted or rewritten along the way) nor the id of the
+ * document it was edited as. It opens again as a module of its own, with a history starting there.
  */
-export async function packDocument(doc: WeftDocument): Promise<Uint8Array> {
+export async function packDocument(doc: WeftDocument, options: { forExport?: boolean } = {}): Promise<Uint8Array> {
   // doc.content.assets is append-only during editing (see usedAssetIds' own comment) - a block
   // deleted or a file replaced mid-session leaves its old asset behind, still listed, still
   // bundled, forever, unless filtered back down to only what's still actually referenced right
@@ -68,8 +76,14 @@ export async function packDocument(doc: WeftDocument): Promise<Uint8Array> {
   // stays the readable description of the same state (and what older versions and other tools
   // read); on opening, the history is used only if it still describes exactly that state.
   // Already compressed - stored as is.
-  if (Automerge.getObjectId(doc.content) !== null) {
+  if (!options.forExport && Automerge.getObjectId(doc.content) !== null) {
     files[HISTORY_FILE] = [Automerge.save(doc.content as Automerge.Doc<WeftModule>), { level: 0 }];
+    // ...and under which id it was edited, so that opening it later - on any computer - is the same
+    // document again (see loadDocument in document/store.ts).
+    const handle = currentHandle();
+    if ((handle.doc() as WeftModule).id === doc.content.id) {
+      files[COLLAB_FILE] = strToU8(JSON.stringify({ documentId: handle.documentId }));
+    }
   }
   const addFile = (path: string, data: Uint8Array) => {
     files[path] = ALREADY_COMPRESSED.test(path) ? [data, { level: 0 }] : data;

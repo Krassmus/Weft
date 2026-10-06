@@ -448,7 +448,8 @@ function CollaborationField() {
           </button>
           <p className="weft-hint">
             Wer den Link hat, kann beitreten und alles ändern. Beide müssen online sein; das Lernmodul kommt direkt von
-            Rechner zu Rechner.
+            Rechner zu Rechner. Der Link bleibt gültig, auch wenn du die gespeicherte Datei später wieder öffnest - und
+            wer dieselbe Datei hat, kann mit ihr beitreten, ohne seine Änderungen zu verlieren.
           </p>
         </>
       )}

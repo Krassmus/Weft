@@ -122,6 +122,10 @@ interface DocumentState {
   editingLanguage: string | null;
   setEditingLanguage: (language: string | null) => void;
 
+  /** Counts the times the document being edited was replaced by another (opened, joined, restored) -
+   * for whatever has to start over then (see core/collab/folder/folderSession.ts). */
+  documentKey: number;
+
   /** This editor's own undo history (see UndoEntry), reset whenever a document is loaded. */
   undoHistory: UndoEntry[];
   /** Index of the last applied entry; -1 means the document is at its initial state. */
@@ -151,6 +155,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   editingLanguage: null,
   setEditingLanguage: (language) => set({ editingLanguage: language }),
 
+  documentKey: 0,
   undoHistory: [],
   undoIndex: -1,
 
@@ -208,6 +213,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       savedContent: content,
       undoHistory: [],
       undoIndex: -1,
+      documentKey: get().documentKey + 1,
     });
   },
   select: (ref) => set({ selection: ref }),
@@ -308,5 +314,6 @@ export async function openSharedDocument(url: string, timeoutMs = 45000): Promis
     savedContent: content,
     undoHistory: [],
     undoIndex: -1,
+    documentKey: state.documentKey + 1,
   }));
 }

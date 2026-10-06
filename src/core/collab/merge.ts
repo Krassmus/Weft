@@ -1,3 +1,4 @@
+import type { DocHandle } from "@automerge/automerge-repo";
 import { Automerge } from "./automerge";
 import { sharesOrigin } from "./origin";
 import { currentHandle, repo, useDocumentStore } from "../document/store";
@@ -19,13 +20,17 @@ export type MergeResult =
  * field against its twin.
  */
 export function mergeHistory(binary: Uint8Array): MergeResult {
+  return mergeHistoryInto(currentHandle(), binary);
+}
+
+/** mergeHistory for any document, not just the one being edited. */
+export function mergeHistoryInto(handle: DocHandle<WeftModule>, binary: Uint8Array): MergeResult {
   let other: Automerge.Doc<WeftModule>;
   try {
     other = Automerge.load<WeftModule>(binary);
   } catch {
     return { ok: false, reason: "unreadable" };
   }
-  const handle = currentHandle();
   const mine = handle.doc();
   if (other.id !== mine.id) return { ok: false, reason: "other-module" };
   if (!sharesOrigin(other, mine)) return { ok: false, reason: "no-common-origin" };

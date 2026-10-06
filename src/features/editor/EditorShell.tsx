@@ -1,3 +1,4 @@
+import { syncFolderForCurrentDocument } from "../../core/collab/folder/folderSession";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -163,6 +164,13 @@ export function EditorShell() {
       })
       .catch(() => forgetLastPath());
   }, []);
+
+  // A module that is synced with a shared folder (see core/collab/folder/) picks that up again whenever
+  // it is opened - and the sync of the module that was open before ends.
+  const documentKey = useDocumentStore((s) => s.documentKey);
+  useEffect(() => {
+    void syncFolderForCurrentDocument();
+  }, [documentKey]);
 
   // Saves in the background whenever there are unsaved changes (see core/io/autosave.ts). A ref
   // for the message so a language change doesn't restart it - the subscription itself is

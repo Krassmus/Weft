@@ -21,6 +21,16 @@ import { buildLanguageCatalog, flagForLocale, languageName } from "../../../core
 import { useTranslation } from "../../../core/i18n/useTranslation";
 import { confirmDestructive, pickDocumentFile, pickFontFile } from "../../../core/io/fileIO";
 import { useAssetTransfers } from "../../../core/collab/assetSync";
+import {
+  chooseSyncFolder,
+  listModulesInFolder,
+  folderSyncAvailable,
+  openModuleFromFolder,
+  startFolderSync,
+  stopFolderSync,
+  useFolderSync,
+} from "../../../core/collab/folder/folderSession";
+import type { FolderModule } from "../../../core/collab/folder/folderSync";
 import { presenceColor, usePresence } from "../../../core/collab/presence";
 import { useProfileStore } from "../../../core/profile/profileStore";
 import { PersonAvatar } from "../PersonAvatar";
@@ -228,6 +238,106 @@ function AspectRatioSketch({ aspect }: { aspect: number }) {
         className="weft-aspect-sketch-slide"
         style={{ width: wide ? "100%" : `${aspect * 100}%`, height: wide ? `${100 / aspect}%` : "100%" }}
       />
+    </div>
+  );
+}
+
+/**
+ * Work together through a shared folder (Nextcloud, Sciebo, Dropbox, Syncthing ...): Weft writes this
+ * module's changes into the folder and merges in what the others have written there - nobody has to be
+ * online at the same time, and no server is involved. See core/collab/folder/folderSync.ts.
+ */
+function FolderSyncField() {
+  const sync = useFolderSync();
+  const [error, setError] = useState("");
+  const [pickedFolder, setPickedFolder] = useState<string | null>(null);
+  const [modules, setModules] = useState<FolderModule[] | null>(null);
+
+  if (!folderSyncAvailable()) {
+    return (
+      <div className="weft-field">
+        <span>Ordner-Abgleich</span>
+        <p className="weft-hint">Den Abgleich über einen gemeinsamen Ordner gibt es in der Desktop-App.</p>
+      </div>
+    );
+  }
+
+  async function chooseAndStart() {
+    setError("");
+    const folder = await chooseSyncFolder();
+    if (folder) await startFolderSync(folder);
+  }
+
+  async function browse() {
+    setError("");
+    setModules(null);
+    const folder = await chooseSyncFolder();
+    if (!folder) return;
+    try {
+      setModules(await listModulesInFolder(folder));
+      setPickedFolder(folder);
+    } catch (err) {
+      setError(`Der Ordner lässt sich nicht lesen: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  async function openModule(module: FolderModule) {
+    if (!pickedFolder) return;
+    setError("");
+    try {
+      await openModuleFromFolder(pickedFolder, module);
+      setModules(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  const { status } = sync;
+  return (
+    <div className="weft-field">
+      <span>Ordner-Abgleich</span>
+      <p className="weft-hint">
+        Mit einem Ordner abgleichen, den ein Dienst wie Nextcloud oder Sciebo für alle gleich hält: Weft legt dort die
+        Änderungen ab und übernimmt, was die anderen hineinlegen. Niemand muss gleichzeitig online sein, ein Server ist
+        nicht nötig.
+      </p>
+      {sync.active ? (
+        <>
+          <p className="weft-hint">
+            Ordner: {sync.folder}
+            <br />
+            {status.lastSyncAt
+              ? `Zuletzt abgeglichen: ${new Date(status.lastSyncAt).toLocaleTimeString()} - ${status.peerFiles} ${status.peerFiles === 1 ? "weitere Kopie" : "weitere Kopien"} im Ordner`
+              : "Gleiche ab …"}
+            {status.missingMedia > 0 && ` - ${status.missingMedia} ${status.missingMedia === 1 ? "Bild/Video fehlt" : "Bilder/Videos fehlen"} noch (kommen mit dem Ordner)`}
+          </p>
+          <button type="button" className="weft-ghost-button weft-full-width" onClick={() => stopFolderSync(true)}>
+            Abgleich beenden
+          </button>
+        </>
+      ) : (
+        <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void chooseAndStart()}>
+          Ordner wählen und abgleichen …
+        </button>
+      )}
+      {status.error && <p className="weft-placeholder-warning">{status.error}</p>}
+      <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void browse()}>
+        Lernmodul aus einem Ordner öffnen …
+      </button>
+      {modules && (
+        <div className="weft-folder-modules">
+          {modules.length === 0 ? (
+            <p className="weft-hint">In diesem Ordner liegt noch kein abgeglichenes Lernmodul.</p>
+          ) : (
+            modules.map((module) => (
+              <button key={module.dir} type="button" className="weft-ghost-button weft-full-width" onClick={() => void openModule(module)}>
+                {module.title} ({module.peerFiles} {module.peerFiles === 1 ? "Kopie" : "Kopien"})
+              </button>
+            ))
+          )}
+        </div>
+      )}
+      {error && <p className="weft-placeholder-warning">{error}</p>}
     </div>
   );
 }
@@ -511,6 +621,10 @@ export function SettingsTab() {
       <div className="weft-divider" />
 
       <LanguagesField />
+
+      <div className="weft-divider" />
+
+      <FolderSyncField />
 
       <div className="weft-divider" />
 

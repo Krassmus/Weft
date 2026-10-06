@@ -3156,3 +3156,10 @@ button.weft-timeline-node-icon.is-animated:hover {
   object-fit: cover;
   vertical-align: -3px;
 }
+
+/* "Lernmodul aus einem Ordner öffnen": the modules found in the shared folder, one button each. */
+.weft-folder-modules {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

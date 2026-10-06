@@ -22,6 +22,7 @@ import { SettingsTab } from "./panels/SettingsTab";
 import { VariablesTab } from "./panels/VariablesTab";
 import { SlideThumbnail } from "./SlideThumbnail";
 import { useDragReorder } from "./useDragReorder";
+import { presenceColor, usePageViewers } from "../../core/collab/presence";
 import { orderedValues } from "../../core/document/ordering";
 import { branchPageIds, sequenceOf } from "../../core/document/sequence";
 
@@ -223,6 +224,7 @@ function PageRow({
   const page = useDocumentStore((s) => s.doc.content.pages[pageId]);
   const layout = useDocumentStore((s) => (page?.layoutId ? s.doc.content.layouts[page.layoutId] : undefined));
   const { dragClassName, ...dragAttrs } = dragProps;
+  const viewers = usePageViewers(pageId);
   if (!page) return null;
 
   return (
@@ -239,6 +241,13 @@ function PageRow({
     >
       <span className="weft-node-index">{index}</span>
       <SlideThumbnail blocks={[...orderedValues(layout?.blocks ?? {}), ...orderedValues(page.blocks)]} />
+      {viewers.length > 0 && (
+        <span className="weft-node-viewers">
+          {viewers.map((person) => (
+            <span key={person.peerId} className="weft-node-viewer" style={{ background: presenceColor(person.peerId) }} title={person.name} />
+          ))}
+        </span>
+      )}
     </button>
   );
 }

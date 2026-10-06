@@ -1,3 +1,4 @@
+import { presenceColor, useBlockViewers } from "../../../core/collab/presence";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
@@ -177,6 +178,7 @@ export function BlockView({
   const [snapGuides, setSnapGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
   const contextMenu = useContextMenu();
   const placeholderProblems = usePlaceholderProblems(block);
+  const viewers = useBlockViewers(block.id);
   const position = livePositionOverride ?? liveOverride ?? block.position;
   // An image, video, iframe or formula has no inner content worth preserving access to on the canvas
   // (unlike text/quiz - and an iframe's own content is non-interactive here anyway, see
@@ -445,6 +447,14 @@ export function BlockView({
           // findPlaceholderProblems) - the text itself stays exactly as the author typed it.
           <div className="weft-edit-block-warning" title={placeholderProblems.join("\n")}>
             ⚠
+          </div>
+        )}
+        {viewers.length > 0 && (
+          // Somebody else has this block selected: a frame in their colour, with their name on it.
+          <div className="weft-remote-selection" style={{ borderColor: presenceColor(viewers[0].peerId) }}>
+            <span className="weft-remote-selection-name" style={{ background: presenceColor(viewers[0].peerId) }}>
+              {viewers.map((v) => v.name).join(", ")}
+            </span>
           </div>
         )}
         {selected &&

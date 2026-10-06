@@ -34,6 +34,7 @@ import type { HandleId } from "./blocks/resizeMath";
 import { clampGroupMove, clampMove, groupBoundingBox, HANDLES, resizeFromHandle, round, scalePositionWithinBox } from "./blocks/resizeMath";
 import { Timeline } from "./Timeline";
 import { orderedValues } from "../../core/document/ordering";
+import { PresenceBar } from "./PresenceBar";
 import { branchPageIds, sequenceOf } from "../../core/document/sequence";
 
 const ARROW_STEP_PERCENT = 1;
@@ -743,6 +744,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
             {Math.round(zoom * 100)}%
           </button>
         )}
+        <PresenceBar />
       </div>
 
       <div

@@ -3,6 +3,7 @@ import { BroadcastChannelNetworkAdapter } from "@automerge/automerge-repo-networ
 import { WebSocketClientAdapter } from "@automerge/automerge-repo-network-websocket";
 import { allowSharing, currentHandle, openSharedDocument, repo } from "../document/store";
 import { AssetSync } from "./assetSync";
+import { PresenceSync } from "./presence";
 import { useDirectConnection, WebRtcNetworkAdapter } from "./webrtcAdapter";
 
 /**
@@ -68,6 +69,7 @@ let broadcastAttached = false;
 const attachedServers = new Set<string>();
 let directAdapter: WebRtcNetworkAdapter | null = null;
 let assetSync: AssetSync | null = null;
+let presenceSync: PresenceSync | null = null;
 
 function connect(
   documentId: string,
@@ -96,11 +98,15 @@ function connect(
   }
 }
 
-/** (Re)starts the exchange of images, videos and fonts for the document being edited. */
-function syncAssets(): void {
+/** (Re)starts what runs on top of the connection for the document being edited: the exchange of
+ * images, videos and fonts, and who-is-where. */
+function startSessionServices(): void {
   assetSync?.stop();
   assetSync = new AssetSync(currentHandle());
   assetSync.start();
+  presenceSync?.stop();
+  presenceSync = new PresenceSync(currentHandle());
+  presenceSync.start();
 }
 
 /** Starts sharing the document being edited; returns the invitation link to give to others. */
@@ -113,7 +119,7 @@ export function shareCurrentDocument(options: CollabOptions = {}): string {
   }
   allowSharing(handle.documentId);
   connect(handle.documentId, secret, options);
-  syncAssets();
+  startSessionServices();
   return formatInvitation({ url: handle.url, secret, relays: options.relayUrls ?? [] });
 }
 
@@ -136,5 +142,5 @@ export async function joinSharedDocument(invitation: string, options: CollabOpti
     const direct = useDirectConnection.getState();
     throw direct.state === "failed" && direct.error ? new Error(direct.error) : error;
   }
-  syncAssets();
+  startSessionServices();
 }

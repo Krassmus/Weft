@@ -21,6 +21,7 @@ import { buildLanguageCatalog, flagForLocale, languageName } from "../../../core
 import { useTranslation } from "../../../core/i18n/useTranslation";
 import { confirmDestructive, pickDocumentFile, pickFontFile } from "../../../core/io/fileIO";
 import { useAssetTransfers } from "../../../core/collab/assetSync";
+import { presenceColor, setLocalName, useLocalName, usePresence } from "../../../core/collab/presence";
 import { useDirectConnection } from "../../../core/collab/webrtcAdapter";
 import { mergeDocumentFile } from "../../../core/collab/merge";
 import { joinSharedDocument, shareCurrentDocument } from "../../../core/collab/session";
@@ -283,6 +284,8 @@ function CollaborationField() {
   const [mergeMessage, setMergeMessage] = useState("");
   const { missing, transfers } = useAssetTransfers();
   const connection = useDirectConnection();
+  const localName = useLocalName((s) => s.name);
+  const people = Object.values(usePresence((s) => s.peers));
   const receiving = Object.values(transfers);
   const megabytes = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
   const webRtcAvailable = typeof RTCPeerConnection !== "undefined";
@@ -368,6 +371,10 @@ function CollaborationField() {
       {mergeMessage && <p className="weft-hint">{mergeMessage}</p>}
 
       <p className="weft-hint">Live: Zusammen im selben Lernmodul arbeiten.</p>
+      <label className="weft-field">
+        <span>Dein Name (für die anderen)</span>
+        <input value={localName} onChange={(e) => setLocalName(e.target.value)} />
+      </label>
       <label className="weft-field weft-field-inline">
         <input
           type="checkbox"
@@ -461,6 +468,17 @@ function CollaborationField() {
           {connection.state === "connected" && ` (${connection.peers} ${connection.peers === 1 ? "Person" : "Personen"})`}
           {connection.error && ` - ${connection.error}`}
         </p>
+      )}
+      {people.length > 0 && (
+        <div className="weft-presence-list">
+          <span className="weft-hint">Gerade dabei:</span>
+          {people.map((person) => (
+            <span key={person.peerId} className="weft-presence-list-item">
+              <span className="weft-node-viewer" style={{ background: presenceColor(person.peerId) }} />
+              {person.name}
+            </span>
+          ))}
+        </div>
       )}
       {missing > 0 && (
         <p className="weft-hint">

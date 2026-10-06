@@ -299,6 +299,7 @@ body.weft-dragging .weft-block-list button {
 }
 
 .weft-node-page {
+  position: relative;
   padding: 6px;
 }
 
@@ -3031,4 +3032,80 @@ button.weft-timeline-node-icon.is-animated:hover {
   cursor: pointer;
   color: var(--weft-text-muted, inherit);
   font-size: 12px;
+}
+
+/* ---- Presence: who else is working on the module (see core/collab/presence.ts) ---- */
+
+.weft-presence-bar {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.weft-canvas-toolbar .weft-presence-avatar {
+  width: 26px;
+  height: 26px;
+  margin-left: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--weft-panel);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.weft-canvas-toolbar .weft-presence-avatar:first-child {
+  margin-left: 0;
+}
+
+/* Dots on a slide in the sidebar: who is on it. */
+.weft-node-viewers {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 3px;
+}
+
+.weft-node-viewer {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+}
+
+.weft-presence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weft-presence-list-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* A block somebody else has selected: a frame in their colour, their name above it. */
+.weft-remote-selection {
+  position: absolute;
+  inset: -2px;
+  border: 2px solid;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.weft-remote-selection-name {
+  position: absolute;
+  top: -19px;
+  left: -2px;
+  padding: 1px 6px;
+  border-radius: 3px 3px 3px 0;
+  color: #fff;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
 }

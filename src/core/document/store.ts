@@ -7,6 +7,7 @@ import { sharesOrigin } from "../collab/origin";
 import { createId } from "../id";
 import type { WeftDocument, WeftModule } from "../types";
 import { createEmptyDocument } from "./createEmptyDocument";
+import { findNode } from "./pageTimeline";
 import { plain } from "./plain";
 
 /**
@@ -212,12 +213,50 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   select: (ref) => set({ selection: ref }),
 }));
 
+/** Whether what is selected still exists - somebody else may have deleted it since. For a selection
+ * of several blocks, only the ones that still exist are kept. */
+function validSelection(selection: SelectionRef | null, content: WeftModule): SelectionRef | null {
+  if (!selection) return null;
+  const blocksOf = (container: BlockContainerRef) =>
+    container.kind === "page" ? content.pages[container.pageId]?.blocks : content.layouts[container.layoutId]?.blocks;
+  switch (selection.type) {
+    case "page":
+      return content.pages[selection.pageId] ? selection : null;
+    case "logic":
+      return content.logicBlocks[selection.logicBlockId] ? selection : null;
+    case "layout":
+      return content.layouts[selection.layoutId] ? selection : null;
+    case "block":
+      return blocksOf(selection.container)?.[selection.blockId] ? selection : null;
+    case "blocks": {
+      const blocks = blocksOf(selection.container);
+      const blockIds = selection.blockIds.filter((id) => blocks?.[id]);
+      if (blockIds.length === selection.blockIds.length) return selection;
+      if (blockIds.length === 0) return null;
+      return blockIds.length === 1
+        ? { type: "block", container: selection.container, blockId: blockIds[0] }
+        : { ...selection, blockIds };
+    }
+    case "group": {
+      const page = content.pages[selection.pageId];
+      return page?.groups.some((g) => g.id === selection.groupId) ? selection : null;
+    }
+    case "event": {
+      const page = content.pages[selection.pageId];
+      return page && findNode(page, selection.nodeId) ? selection : null;
+    }
+  }
+}
+
 /** Makes `next` the document being edited: the store follows every change to it, whoever made it. */
 function bindHandle(next: DocHandle<WeftModule>): void {
   unbindHandle?.();
   handle = next;
   const onChange = ({ doc }: { doc: Automerge.Doc<WeftModule> }) =>
-    useDocumentStore.setState((state) => ({ doc: { ...state.doc, content: doc as WeftModule } }));
+    useDocumentStore.setState((state) => {
+      const selection = validSelection(state.selection, doc as WeftModule);
+      return { doc: { ...state.doc, content: doc as WeftModule }, ...(selection !== state.selection ? { selection } : {}) };
+    });
   next.on("change", onChange);
   unbindHandle = () => next.off("change", onChange);
 }

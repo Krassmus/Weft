@@ -2033,6 +2033,7 @@ button.weft-timeline-node-icon.is-animated:hover {
 .weft-field input[type="text"],
 .weft-field input:not([type]),
 .weft-field input[type="number"],
+.weft-field input[type="password"],
 .weft-field select,
 .weft-field textarea,
 .weft-field code {
@@ -3017,4 +3018,17 @@ button.weft-timeline-node-icon.is-animated:hover {
 .weft-edit-block-text.is-scrollable {
   overflow-x: hidden;
   overflow-y: auto;
+}
+
+/* "Netzwerk" in the collaboration section: relays and TURN, folded away - most people never need it. */
+.weft-collab-advanced {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.weft-collab-advanced > summary {
+  cursor: pointer;
+  color: var(--weft-text-muted, inherit);
+  font-size: 12px;
 }

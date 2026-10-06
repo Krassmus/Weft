@@ -794,10 +794,15 @@ function EditableRichText({
   const lastKnownHtml = useRef<string | null>(null);
 
   useEffect(() => {
-    if (ref.current && html !== lastKnownHtml.current) {
-      ref.current.innerHTML = html;
-      lastKnownHtml.current = html;
-    }
+    const el = ref.current;
+    if (!el || html === lastKnownHtml.current) return;
+    // `html` also changes when somebody else edits this very text. If the person at this keyboard has
+    // typed something that isn't committed yet (committing happens when the region loses focus), that
+    // text stays - replacing it under their fingers would eat their typing and throw the caret to
+    // the start - and it becomes the new version when it is committed.
+    if (document.activeElement === el && el.innerHTML !== lastKnownHtml.current) return;
+    el.innerHTML = html;
+    lastKnownHtml.current = html;
   }, [html]);
 
   useEffect(() => {

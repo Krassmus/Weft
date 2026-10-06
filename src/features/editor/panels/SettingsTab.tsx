@@ -231,6 +231,8 @@ function AspectRatioSketch({ aspect }: { aspect: number }) {
 
 const COLLAB_SERVER_KEY = "weft.collabServer";
 const COLLAB_DIRECT_KEY = "weft.collabDirect";
+const COLLAB_RELAYS_KEY = "weft.collabRelays";
+const COLLAB_TURN_KEY = "weft.collabTurn";
 
 function readSetting(key: string, fallback: string): string {
   try {
@@ -265,6 +267,14 @@ const DIRECT_STATUS_TEXT = {
 function CollaborationField() {
   const [server, setServer] = useState(() => readSetting(COLLAB_SERVER_KEY, ""));
   const [direct, setDirect] = useState(() => readSetting(COLLAB_DIRECT_KEY, "1") === "1");
+  const [relays, setRelays] = useState(() => readSetting(COLLAB_RELAYS_KEY, ""));
+  const [turn, setTurn] = useState(() => {
+    try {
+      return JSON.parse(readSetting(COLLAB_TURN_KEY, "{}")) as { url?: string; user?: string; password?: string };
+    } catch {
+      return {};
+    }
+  });
   const [link, setLink] = useState("");
   const [joinLink, setJoinLink] = useState("");
   const [error, setError] = useState("");
@@ -276,7 +286,20 @@ function CollaborationField() {
   const receiving = Object.values(transfers);
   const megabytes = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
   const webRtcAvailable = typeof RTCPeerConnection !== "undefined";
-  const options = { direct: direct && webRtcAvailable, serverUrl: server.trim() || undefined };
+  const options = {
+    direct: direct && webRtcAvailable,
+    serverUrl: server.trim() || undefined,
+    relayUrls: relays.split(/\s+/).filter(Boolean),
+    turnServers: turn.url?.trim()
+      ? [{ urls: turn.url.trim(), username: turn.user?.trim() || undefined, credential: turn.password || undefined }]
+      : [],
+  };
+
+  function updateTurn(patch: Partial<typeof turn>) {
+    const next = { ...turn, ...patch };
+    setTurn(next);
+    writeSetting(COLLAB_TURN_KEY, JSON.stringify(next));
+  }
 
   async function mergeFile() {
     setMergeMessage("");
@@ -334,7 +357,7 @@ function CollaborationField() {
 
   return (
     <div className="weft-field">
-      <span>Zusammenarbeit (Test)</span>
+      <span>Zusammenarbeit</span>
       <p className="weft-hint">
         Dateien: Wer eine Kopie dieser .weft-Datei weiterbearbeitet hat, kann sie hier mit dem geöffneten Lernmodul
         zusammenführen - ohne Server und ohne Internet, die Änderungen beider Seiten bleiben erhalten.
@@ -369,6 +392,41 @@ function CollaborationField() {
           }}
         />
       </label>
+      <details className="weft-collab-advanced">
+        <summary>Netzwerk (für schwierige Netze)</summary>
+        <label className="weft-field">
+          <span>Signaling-Relays (eine Adresse pro Zeile)</span>
+          <textarea
+            rows={3}
+            value={relays}
+            placeholder={"leer = öffentliche Standard-Relays\nwss://relay.example.org"}
+            onChange={(e) => {
+              setRelays(e.target.value);
+              writeSetting(COLLAB_RELAYS_KEY, e.target.value);
+            }}
+          />
+        </label>
+        <p className="weft-hint">
+          Über Relays finden sich die Teilnehmenden zuerst. Alle müssen dieselben benutzen - sie stehen deshalb im
+          Einladungslink, und wer beitritt, übernimmt die des Links.
+        </p>
+        <label className="weft-field">
+          <span>TURN-Server (Adresse)</span>
+          <input value={turn.url ?? ""} placeholder="turn:turn.example.org:3478" onChange={(e) => updateTurn({ url: e.target.value })} />
+        </label>
+        <label className="weft-field">
+          <span>TURN Benutzername</span>
+          <input value={turn.user ?? ""} onChange={(e) => updateTurn({ user: e.target.value })} />
+        </label>
+        <label className="weft-field">
+          <span>TURN Passwort</span>
+          <input type="password" value={turn.password ?? ""} onChange={(e) => updateTurn({ password: e.target.value })} />
+        </label>
+        <p className="weft-hint">
+          Ein TURN-Server leitet den Datenverkehr weiter, wenn zwei Rechner sich nicht direkt erreichen (manche
+          Uni-Netze). Er gehört nur dir und steht nicht im Link. Ohne ihn klappt die Verbindung dort womöglich nicht.
+        </p>
+      </details>
       <button type="button" className="weft-ghost-button weft-full-width" onClick={share}>
         Dokument teilen
       </button>

@@ -24,6 +24,12 @@ export interface CollabOptions {
   serverUrl?: string;
   /** Sync with other tabs of the same browser. */
   broadcast?: boolean;
+  /** Signaling relays (Nostr) the direct connection finds the others over, instead of the public
+   * defaults. Everybody has to use the same ones - so they go into the invitation link, and a
+   * joiner uses the link's. */
+  relayUrls?: string[];
+  /** TURN servers for networks in which no direct connection can be made (this person's own). */
+  turnServers?: RTCIceServer[];
 }
 
 export interface Invitation {
@@ -31,15 +37,22 @@ export interface Invitation {
   url: string;
   /** The password of the direct connection. */
   secret: string | null;
+  /** The signaling relays to use, if not the public defaults. */
+  relays: string[];
 }
 
-export function formatInvitation({ url, secret }: Invitation): string {
-  return secret ? `${url}?k=${secret}` : url;
+export function formatInvitation({ url, secret, relays }: Invitation): string {
+  const query = new URLSearchParams();
+  if (secret) query.set("k", secret);
+  for (const relay of relays) query.append("r", relay);
+  const text = query.toString();
+  return text ? `${url}?${text}` : url;
 }
 
 export function parseInvitation(text: string): Invitation {
   const [url, query = ""] = text.trim().split("?");
-  return { url, secret: new URLSearchParams(query).get("k") };
+  const params = new URLSearchParams(query);
+  return { url, secret: params.get("k"), relays: params.getAll("r") };
 }
 
 function newSecret(): string {
@@ -56,7 +69,11 @@ const attachedServers = new Set<string>();
 let directAdapter: WebRtcNetworkAdapter | null = null;
 let assetSync: AssetSync | null = null;
 
-function connect(documentId: string, secret: string | null, { direct = true, serverUrl, broadcast = false }: CollabOptions): void {
+function connect(
+  documentId: string,
+  secret: string | null,
+  { direct = true, serverUrl, broadcast = false, relayUrls, turnServers }: CollabOptions,
+): void {
   if (broadcast && !broadcastAttached) {
     repo.networkSubsystem.addNetworkAdapter(new BroadcastChannelNetworkAdapter());
     broadcastAttached = true;
@@ -69,7 +86,12 @@ function connect(documentId: string, secret: string | null, { direct = true, ser
   directAdapter?.disconnect();
   directAdapter = null;
   if (direct) {
-    directAdapter = new WebRtcNetworkAdapter({ roomId: `doc-${documentId}`, password: secret ?? undefined });
+    directAdapter = new WebRtcNetworkAdapter({
+      roomId: `doc-${documentId}`,
+      password: secret ?? undefined,
+      relayUrls: relayUrls && relayUrls.length > 0 ? relayUrls : undefined,
+      turnServers: turnServers && turnServers.length > 0 ? turnServers : undefined,
+    });
     repo.networkSubsystem.addNetworkAdapter(directAdapter);
   }
 }
@@ -92,12 +114,12 @@ export function shareCurrentDocument(options: CollabOptions = {}): string {
   allowSharing(handle.documentId);
   connect(handle.documentId, secret, options);
   syncAssets();
-  return formatInvitation({ url: handle.url, secret });
+  return formatInvitation({ url: handle.url, secret, relays: options.relayUrls ?? [] });
 }
 
 /** Opens a document somebody else is sharing, by invitation link. Resolves once it has arrived. */
 export async function joinSharedDocument(invitation: string, options: CollabOptions = {}): Promise<void> {
-  const { url, secret } = parseInvitation(invitation);
+  const { url, secret, relays } = parseInvitation(invitation);
   let documentId: string;
   try {
     documentId = parseAutomergeUrl(url as never).documentId;
@@ -106,7 +128,7 @@ export async function joinSharedDocument(invitation: string, options: CollabOpti
   }
   if (secret) secrets.set(documentId, secret);
   allowSharing(documentId);
-  connect(documentId, secret, options);
+  connect(documentId, secret, { ...options, relayUrls: relays.length > 0 ? relays : options.relayUrls });
   try {
     await openSharedDocument(url);
   } catch (error) {

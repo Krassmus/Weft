@@ -21,6 +21,7 @@ import { buildLanguageCatalog, flagForLocale, languageName } from "../../../core
 import { useTranslation } from "../../../core/i18n/useTranslation";
 import { confirmDestructive, pickDocumentFile, pickFontFile } from "../../../core/io/fileIO";
 import { useAssetTransfers } from "../../../core/collab/assetSync";
+import { useDirectConnection } from "../../../core/collab/webrtcAdapter";
 import { mergeDocumentFile } from "../../../core/collab/merge";
 import { joinSharedDocument, shareCurrentDocument } from "../../../core/collab/session";
 import { useDragReorder } from "../useDragReorder";
@@ -229,27 +230,53 @@ function AspectRatioSketch({ aspect }: { aspect: number }) {
 }
 
 const COLLAB_SERVER_KEY = "weft.collabServer";
+const COLLAB_DIRECT_KEY = "weft.collabDirect";
+
+function readSetting(key: string, fallback: string): string {
+  try {
+    return localStorage.getItem(key) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeSetting(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* not persisted - fine */
+  }
+}
+
+const DIRECT_STATUS_TEXT = {
+  off: "",
+  searching: "Direktverbindung: suche die anderen …",
+  connected: "Direktverbindung steht",
+  failed: "Direktverbindung gescheitert",
+} as const;
 
 /**
- * Spike: edit this module together with others. "Teilen" announces the document being edited to the
- * sync server (and to other tabs of this browser) and shows the link others join with; "Beitreten"
- * replaces what is open with a document somebody else shares. See core/collab/session.ts.
+ * Edit this module together with others. "Teilen" announces the document being edited and shows the
+ * invitation link others join with; "Beitreten" replaces what is open with a document somebody else
+ * shares (merging in what is only in the open copy, if it is another copy of the same module). The
+ * people are connected directly (WebRTC - no server of ours), and/or through a sync server somebody
+ * runs. "Mit Datei zusammenführen" needs no connection at all. See core/collab/.
  */
 function CollaborationField() {
-  const [server, setServer] = useState(() => {
-    try {
-      return localStorage.getItem(COLLAB_SERVER_KEY) ?? "ws://localhost:3030";
-    } catch {
-      return "ws://localhost:3030";
-    }
-  });
+  const [server, setServer] = useState(() => readSetting(COLLAB_SERVER_KEY, ""));
+  const [direct, setDirect] = useState(() => readSetting(COLLAB_DIRECT_KEY, "1") === "1");
   const [link, setLink] = useState("");
   const [joinLink, setJoinLink] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [mergeMessage, setMergeMessage] = useState("");
   const { missing, transfers } = useAssetTransfers();
+  const connection = useDirectConnection();
   const receiving = Object.values(transfers);
   const megabytes = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
+  const webRtcAvailable = typeof RTCPeerConnection !== "undefined";
+  const options = { direct: direct && webRtcAvailable, serverUrl: server.trim() || undefined };
 
   async function mergeFile() {
     setMergeMessage("");
@@ -272,27 +299,36 @@ function CollaborationField() {
     );
   }
 
-  function remember(value: string) {
-    setServer(value);
+  function share() {
+    setError("");
+    setCopied(false);
+    setLink(shareCurrentDocument(options));
+  }
+
+  async function copyLink() {
     try {
-      localStorage.setItem(COLLAB_SERVER_KEY, value);
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
     } catch {
-      /* not persisted - fine */
+      setError("Kopieren nicht möglich - den Link bitte markieren und von Hand kopieren.");
     }
   }
 
   async function join() {
     setError("");
     const ok = await confirmDestructive(
-      "Das geöffnete Lernmodul wird durch das geteilte ersetzt. Nicht gespeicherte Änderungen gehen verloren.",
+      "Das geöffnete Lernmodul wird durch das geteilte ersetzt. Änderungen daran, die nur hier sind, bleiben erhalten, wenn es eine Kopie desselben Lernmoduls ist - sonst gehen nicht gespeicherte Änderungen verloren.",
       "Beitreten",
     );
     if (!ok) return;
+    setBusy(true);
     try {
-      await joinSharedDocument(joinLink.trim(), { serverUrl: server.trim() || undefined });
+      await joinSharedDocument(joinLink, options);
       setJoinLink("");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -301,34 +337,73 @@ function CollaborationField() {
       <span>Zusammenarbeit (Test)</span>
       <p className="weft-hint">
         Dateien: Wer eine Kopie dieser .weft-Datei weiterbearbeitet hat, kann sie hier mit dem geöffneten Lernmodul
-        zusammenführen - ohne Server, die Änderungen beider Seiten bleiben erhalten.
+        zusammenführen - ohne Server und ohne Internet, die Änderungen beider Seiten bleiben erhalten.
       </p>
       <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void mergeFile()}>
         Mit Datei zusammenführen …
       </button>
       {mergeMessage && <p className="weft-hint">{mergeMessage}</p>}
+
+      <p className="weft-hint">Live: Zusammen im selben Lernmodul arbeiten.</p>
+      <label className="weft-field weft-field-inline">
+        <input
+          type="checkbox"
+          checked={direct && webRtcAvailable}
+          disabled={!webRtcAvailable}
+          onChange={(e) => {
+            setDirect(e.target.checked);
+            writeSetting(COLLAB_DIRECT_KEY, e.target.checked ? "1" : "0");
+          }}
+        />
+        <span>Direkt mit den anderen verbinden (ohne Server)</span>
+      </label>
+      {!webRtcAvailable && <p className="weft-placeholder-warning">Dieses System unterstützt keine Direktverbindung (WebRTC).</p>}
       <label className="weft-field">
-        <span>Sync-Server</span>
-        <input value={server} placeholder="ws://localhost:3030" onChange={(e) => remember(e.target.value)} />
+        <span>Sync-Server (optional)</span>
+        <input
+          value={server}
+          placeholder="wss://…"
+          onChange={(e) => {
+            setServer(e.target.value);
+            writeSetting(COLLAB_SERVER_KEY, e.target.value);
+          }}
+        />
+      </label>
+      <button type="button" className="weft-ghost-button weft-full-width" onClick={share}>
+        Dokument teilen
+      </button>
+      {link && (
+        <>
+          <input readOnly value={link} onFocus={(e) => e.currentTarget.select()} title="Diesen Link an andere weitergeben" />
+          <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void copyLink()}>
+            {copied ? "Kopiert" : "Link kopieren"}
+          </button>
+          <p className="weft-hint">
+            Wer den Link hat, kann beitreten und alles ändern. Beide müssen online sein; das Lernmodul kommt direkt von
+            Rechner zu Rechner.
+          </p>
+        </>
+      )}
+      <label className="weft-field">
+        <span>Geteiltem Dokument beitreten</span>
+        <input value={joinLink} placeholder="automerge:…" onChange={(e) => setJoinLink(e.target.value)} />
       </label>
       <button
         type="button"
         className="weft-ghost-button weft-full-width"
-        onClick={() => setLink(shareCurrentDocument({ serverUrl: server.trim() || undefined }))}
+        disabled={!joinLink.trim() || busy}
+        onClick={() => void join()}
       >
-        Dokument teilen
-      </button>
-      {link && (
-        <input readOnly value={link} onFocus={(e) => e.currentTarget.select()} title="Diesen Link an andere weitergeben" />
-      )}
-      <label className="weft-field">
-        <span>Geteiltem Dokument beitreten</span>
-        <input value={joinLink} placeholder="automerge:..." onChange={(e) => setJoinLink(e.target.value)} />
-      </label>
-      <button type="button" className="weft-ghost-button weft-full-width" disabled={!joinLink.trim()} onClick={() => void join()}>
-        Beitreten
+        {busy ? "Verbinde …" : "Beitreten"}
       </button>
       {error && <p className="weft-placeholder-warning">{error}</p>}
+      {connection.state !== "off" && (
+        <p className={connection.state === "failed" ? "weft-placeholder-warning" : "weft-hint"}>
+          {DIRECT_STATUS_TEXT[connection.state]}
+          {connection.state === "connected" && ` (${connection.peers} ${connection.peers === 1 ? "Person" : "Personen"})`}
+          {connection.error && ` - ${connection.error}`}
+        </p>
+      )}
       {missing > 0 && (
         <p className="weft-hint">
           Medien: {missing} {missing === 1 ? "Datei fehlt" : "Dateien fehlen"} noch
@@ -337,10 +412,6 @@ function CollaborationField() {
           . Sie kommen von den anderen, sobald jemand online ist, der sie hat.
         </p>
       )}
-      <p className="weft-hint">
-        Live: Geteilt wird das Lernmodul samt Bildern, Videos und Schriften - die Dateien holt sich jede Kopie von
-        den anderen, sobald jemand online ist, der sie hat. Der Server wird mit „npm run collab-server“ gestartet.
-      </p>
     </div>
   );
 }

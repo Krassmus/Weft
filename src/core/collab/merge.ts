@@ -1,4 +1,5 @@
 import { Automerge } from "./automerge";
+import { sharesOrigin } from "./origin";
 import { currentHandle, repo, useDocumentStore } from "../document/store";
 import { importArchiveAssets, unpackDocument } from "../io/unpack";
 import type { WeftModule } from "../types";
@@ -6,12 +7,6 @@ import type { WeftModule } from "../types";
 export type MergeResult =
   | { ok: true; newChanges: number }
   | { ok: false; reason: "unreadable" | "no-history" | "other-module" | "no-common-origin" };
-
-/** The hash of a document's first change: copies that go back to the same document share it. */
-function originOf(doc: Automerge.Doc<WeftModule>): string | null {
-  const first = Automerge.getAllChanges(doc)[0];
-  return first ? Automerge.decodeChange(first).hash : null;
-}
 
 /**
  * Merges another copy of the module being edited - the editing history of a .weft file somebody
@@ -33,7 +28,7 @@ export function mergeHistory(binary: Uint8Array): MergeResult {
   const handle = currentHandle();
   const mine = handle.doc();
   if (other.id !== mine.id) return { ok: false, reason: "other-module" };
-  if (originOf(other) !== originOf(mine)) return { ok: false, reason: "no-common-origin" };
+  if (!sharesOrigin(other, mine)) return { ok: false, reason: "no-common-origin" };
 
   const before = Automerge.getAllChanges(mine).length;
   const otherHandle = repo.import<WeftModule>(binary);

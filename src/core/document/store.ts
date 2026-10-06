@@ -3,6 +3,7 @@ import type { DocHandle } from "@automerge/automerge-repo";
 import { Automerge, Repo } from "../collab/automerge";
 import { applyPatches } from "../collab/applyPatches";
 import { runMutation } from "../collab/mutationScope";
+import { sharesOrigin } from "../collab/origin";
 import { createId } from "../id";
 import type { WeftDocument, WeftModule } from "../types";
 import { createEmptyDocument } from "./createEmptyDocument";
@@ -14,7 +15,22 @@ import { plain } from "./plain";
  * core/collab/). `state.doc.content` is always the current Automerge state - readable like the plain
  * JSON object it is, replaced (not mutated) by every change, local or remote.
  */
-export const repo = new Repo({ network: [] });
+const sharedDocumentIds = new Set<string>();
+
+/** Lets the document with this id be given to the peers the repo is connected to. By default a
+ * repo offers EVERY document it has to every peer - which would hand a document that was never
+ * shared (another file that happens to be open) to whoever is in the room of the one that was. */
+export function allowSharing(documentId: string): void {
+  sharedDocumentIds.add(documentId);
+}
+
+export const repo = new Repo({
+  network: [],
+  shareConfig: {
+    announce: async (_peer, documentId) => !!documentId && sharedDocumentIds.has(documentId),
+    access: async (_peer, documentId) => sharedDocumentIds.has(documentId),
+  },
+});
 let handle: DocHandle<WeftModule>;
 let unbindHandle: (() => void) | null = null;
 
@@ -208,10 +224,23 @@ function bindHandle(next: DocHandle<WeftModule>): void {
 bindHandle(handle);
 
 /** Switches the editor to a document that already exists elsewhere (a shared one), found by its URL.
- * Resolves once its content has arrived. */
-export async function openSharedDocument(url: string): Promise<void> {
-  const next = await repo.find<WeftModule>(url as never);
-  await next.whenReady();
+ * Resolves once its content has arrived; rejects with a plain message if nobody answers within
+ * `timeoutMs`. If the document being edited is another copy of the same module (same module, same
+ * beginning), what was changed in it and isn't in the shared one yet is merged in rather than lost. */
+export async function openSharedDocument(url: string, timeoutMs = 45000): Promise<void> {
+  const local = handle;
+  let next: DocHandle<WeftModule>;
+  try {
+    next = await repo.find<WeftModule>(url as never, { signal: AbortSignal.timeout(timeoutMs) });
+    await next.whenReady(undefined, { signal: AbortSignal.timeout(timeoutMs) });
+  } catch {
+    throw new Error(
+      "Das geteilte Dokument ließ sich nicht laden: Niemand hat geantwortet. Ist die andere Person online, und ist der Link vollständig?",
+    );
+  }
+  const localDoc = local.doc();
+  const sharedDoc = next.doc();
+  if (next !== local && sharedDoc.id === localDoc.id && sharesOrigin(localDoc, sharedDoc)) next.merge(local);
   bindHandle(next);
   const content = next.doc() as WeftModule;
   useDocumentStore.setState((state) => ({

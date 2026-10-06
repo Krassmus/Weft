@@ -1,26 +1,62 @@
+import { parseAutomergeUrl } from "@automerge/automerge-repo/slim";
 import { BroadcastChannelNetworkAdapter } from "@automerge/automerge-repo-network-broadcastchannel";
 import { WebSocketClientAdapter } from "@automerge/automerge-repo-network-websocket";
-import { currentHandle, openSharedDocument, repo } from "../document/store";
+import { allowSharing, currentHandle, openSharedDocument, repo } from "../document/store";
 import { AssetSync } from "./assetSync";
+import { useDirectConnection, WebRtcNetworkAdapter } from "./webrtcAdapter";
 
 /**
  * Collaboration on one document: the Automerge repo (see document/store.ts) is connected to other
- * peers over BroadcastChannel (other tabs/windows of the same app on this machine - handy for trying
- * things out) and/or a WebSocket sync server (see scripts/collab-server.mjs), and the document that is
- * being edited is announced to them. Whoever knows its URL ("automerge:...") can open it; from then
- * on every change anybody makes is merged into everyone's copy.
+ * peers - directly over WebRTC (no server of ours: see webrtcAdapter.ts), over BroadcastChannel (other
+ * tabs/windows of the same app on this machine), and/or through a WebSocket sync server of someone's
+ * own (scripts/collab-server.mjs) - and the document that is being edited is announced to them.
+ * Whoever has its invitation link can open it; from then on every change anybody makes is merged
+ * into everyone's copy.
+ *
+ * The invitation link is the document's Automerge URL plus a random secret: "automerge:...?k=...".
+ * The URL names the document, the secret is the password of the direct connection - without it the
+ * peers' introductions can't even be decrypted.
  */
 export interface CollabOptions {
-  /** ws://host:port of a sync server. */
+  /** Connect directly to the other people (WebRTC) - on by default. */
+  direct?: boolean;
+  /** ws://host:port of a sync server, if there is one. */
   serverUrl?: string;
-  /** Sync with other tabs of the same browser - on by default. */
+  /** Sync with other tabs of the same browser. */
   broadcast?: boolean;
 }
 
+export interface Invitation {
+  /** The document's Automerge URL. */
+  url: string;
+  /** The password of the direct connection. */
+  secret: string | null;
+}
+
+export function formatInvitation({ url, secret }: Invitation): string {
+  return secret ? `${url}?k=${secret}` : url;
+}
+
+export function parseInvitation(text: string): Invitation {
+  const [url, query = ""] = text.trim().split("?");
+  return { url, secret: new URLSearchParams(query).get("k") };
+}
+
+function newSecret(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+// A document keeps the secret it was first shared with for as long as this app runs, so the link
+// stays valid when it is shared again.
+const secrets = new Map<string, string>();
+
 let broadcastAttached = false;
 const attachedServers = new Set<string>();
+let directAdapter: WebRtcNetworkAdapter | null = null;
+let assetSync: AssetSync | null = null;
 
-function connect({ serverUrl, broadcast = true }: CollabOptions): void {
+function connect(documentId: string, secret: string | null, { direct = true, serverUrl, broadcast = false }: CollabOptions): void {
   if (broadcast && !broadcastAttached) {
     repo.networkSubsystem.addNetworkAdapter(new BroadcastChannelNetworkAdapter());
     broadcastAttached = true;
@@ -29,9 +65,14 @@ function connect({ serverUrl, broadcast = true }: CollabOptions): void {
     repo.networkSubsystem.addNetworkAdapter(new WebSocketClientAdapter(serverUrl));
     attachedServers.add(serverUrl);
   }
+  // One direct connection at a time: to the room of the document being edited.
+  directAdapter?.disconnect();
+  directAdapter = null;
+  if (direct) {
+    directAdapter = new WebRtcNetworkAdapter({ roomId: `doc-${documentId}`, password: secret ?? undefined });
+    repo.networkSubsystem.addNetworkAdapter(directAdapter);
+  }
 }
-
-let assetSync: AssetSync | null = null;
 
 /** (Re)starts the exchange of images, videos and fonts for the document being edited. */
 function syncAssets(): void {
@@ -40,16 +81,38 @@ function syncAssets(): void {
   assetSync.start();
 }
 
-/** Starts sharing the document being edited; returns the URL others open it with. */
+/** Starts sharing the document being edited; returns the invitation link to give to others. */
 export function shareCurrentDocument(options: CollabOptions = {}): string {
-  connect(options);
+  const handle = currentHandle();
+  let secret = secrets.get(handle.documentId);
+  if (!secret) {
+    secret = newSecret();
+    secrets.set(handle.documentId, secret);
+  }
+  allowSharing(handle.documentId);
+  connect(handle.documentId, secret, options);
   syncAssets();
-  return currentHandle().url;
+  return formatInvitation({ url: handle.url, secret });
 }
 
-/** Opens a document somebody else is sharing, replacing the one being edited. */
-export async function joinSharedDocument(url: string, options: CollabOptions = {}): Promise<void> {
-  connect(options);
-  await openSharedDocument(url);
+/** Opens a document somebody else is sharing, by invitation link. Resolves once it has arrived. */
+export async function joinSharedDocument(invitation: string, options: CollabOptions = {}): Promise<void> {
+  const { url, secret } = parseInvitation(invitation);
+  let documentId: string;
+  try {
+    documentId = parseAutomergeUrl(url as never).documentId;
+  } catch {
+    throw new Error("Das ist kein gültiger Einladungslink.");
+  }
+  if (secret) secrets.set(documentId, secret);
+  allowSharing(documentId);
+  connect(documentId, secret, options);
+  try {
+    await openSharedDocument(url);
+  } catch (error) {
+    // A direct connection that failed for a reason of its own (wrong password in the link) says why.
+    const direct = useDirectConnection.getState();
+    throw direct.state === "failed" && direct.error ? new Error(direct.error) : error;
+  }
   syncAssets();
 }

@@ -20,6 +20,7 @@ import { setLanguages } from "../../../core/document/actions";
 import { buildLanguageCatalog, flagForLocale, languageName } from "../../../core/i18n/languages";
 import { useTranslation } from "../../../core/i18n/useTranslation";
 import { confirmDestructive, pickFontFile } from "../../../core/io/fileIO";
+import { joinSharedDocument, shareCurrentDocument } from "../../../core/collab/session";
 import { useDragReorder } from "../useDragReorder";
 
 const CUSTOM_VALUE = "custom";
@@ -225,6 +226,82 @@ function AspectRatioSketch({ aspect }: { aspect: number }) {
   );
 }
 
+const COLLAB_SERVER_KEY = "weft.collabServer";
+
+/**
+ * Spike: edit this module together with others. "Teilen" announces the document being edited to the
+ * sync server (and to other tabs of this browser) and shows the link others join with; "Beitreten"
+ * replaces what is open with a document somebody else shares. See core/collab/session.ts.
+ */
+function CollaborationField() {
+  const [server, setServer] = useState(() => {
+    try {
+      return localStorage.getItem(COLLAB_SERVER_KEY) ?? "ws://localhost:3030";
+    } catch {
+      return "ws://localhost:3030";
+    }
+  });
+  const [link, setLink] = useState("");
+  const [joinLink, setJoinLink] = useState("");
+  const [error, setError] = useState("");
+
+  function remember(value: string) {
+    setServer(value);
+    try {
+      localStorage.setItem(COLLAB_SERVER_KEY, value);
+    } catch {
+      /* not persisted - fine */
+    }
+  }
+
+  async function join() {
+    setError("");
+    const ok = await confirmDestructive(
+      "Das geöffnete Lernmodul wird durch das geteilte ersetzt. Nicht gespeicherte Änderungen gehen verloren.",
+      "Beitreten",
+    );
+    if (!ok) return;
+    try {
+      await joinSharedDocument(joinLink.trim(), { serverUrl: server.trim() || undefined });
+      setJoinLink("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  return (
+    <div className="weft-field">
+      <span>Zusammenarbeit (Test)</span>
+      <label className="weft-field">
+        <span>Sync-Server</span>
+        <input value={server} placeholder="ws://localhost:3030" onChange={(e) => remember(e.target.value)} />
+      </label>
+      <button
+        type="button"
+        className="weft-ghost-button weft-full-width"
+        onClick={() => setLink(shareCurrentDocument({ serverUrl: server.trim() || undefined }))}
+      >
+        Dokument teilen
+      </button>
+      {link && (
+        <input readOnly value={link} onFocus={(e) => e.currentTarget.select()} title="Diesen Link an andere weitergeben" />
+      )}
+      <label className="weft-field">
+        <span>Geteiltem Dokument beitreten</span>
+        <input value={joinLink} placeholder="automerge:..." onChange={(e) => setJoinLink(e.target.value)} />
+      </label>
+      <button type="button" className="weft-ghost-button weft-full-width" disabled={!joinLink.trim()} onClick={() => void join()}>
+        Beitreten
+      </button>
+      {error && <p className="weft-placeholder-warning">{error}</p>}
+      <p className="weft-hint">
+        Nur das Lernmodul selbst wird geteilt, Bilder und Videos noch nicht. Der Server wird mit
+        „npm run collab-server“ gestartet.
+      </p>
+    </div>
+  );
+}
+
 export function SettingsTab() {
   const content = useDocumentStore((s) => s.doc.content);
 
@@ -240,6 +317,10 @@ export function SettingsTab() {
       <div className="weft-divider" />
 
       <LanguagesField />
+
+      <div className="weft-divider" />
+
+      <CollaborationField />
 
       <div className="weft-divider" />
 

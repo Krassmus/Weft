@@ -8,6 +8,19 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(() => ({
   plugins: [react()],
 
+  resolve: {
+    alias: [
+      // Automerge's browser entry loads its WebAssembly as a separate module (needs a bundler plugin);
+      // the embedded-base64 entry works in any bundler and inside Tauri's webview alike. automerge-repo
+      // itself only imports "@automerge/automerge/slim" and expects this entry to have set the
+      // WebAssembly up first (see core/collab/automerge.ts).
+      {
+        find: /^@automerge\/automerge$/,
+        replacement: new URL("./node_modules/@automerge/automerge/dist/mjs/entrypoints/fullfat_base64.js", import.meta.url).pathname,
+      },
+    ],
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors

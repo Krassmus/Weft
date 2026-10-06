@@ -1,4 +1,4 @@
-import { isDraft } from "immer";
+import { isSnapshot } from "../collab/mutationScope";
 import { formatTimeMMSS } from "../formatTime";
 import { orderedValues } from "./ordering";
 import type { Block, Page, PageTimeline, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode, UUID, VideoBlock } from "../types";
@@ -677,7 +677,7 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
  * until something on the page changed, so a component can call it on every render. */
 const lanesCache = new WeakMap<Page, TimelineLane[]>();
 export function getPageLanes(page: Page): TimelineLane[] {
-  if (isDraft(page)) return buildPageLanes(page).lanes;
+  if (!isSnapshot(page)) return buildPageLanes(page).lanes;
   let lanes = lanesCache.get(page);
   if (!lanes) {
     lanes = buildPageLanes(page).lanes;

@@ -7,9 +7,14 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "collab-server": "node scripts/collab-server.mjs"
   },
   "dependencies": {
+    "@automerge/automerge": "^3.5.0",
+    "@automerge/automerge-repo": "^2.5.6",
+    "@automerge/automerge-repo-network-broadcastchannel": "^2.5.6",
+    "@automerge/automerge-repo-network-websocket": "^2.5.6",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-clipboard-manager": "^2.4.0",
     "@tauri-apps/plugin-dialog": "^2.7.3",
@@ -31,8 +36,10 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
+    "@types/ws": "^8.18.2",
     "@vitejs/plugin-react": "^6.0.2",
     "typescript": "~6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "ws": "^8.22.0"
   }
 }

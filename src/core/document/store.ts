@@ -1,11 +1,27 @@
 import { create } from "zustand";
-import { applyPatches, enablePatches, produceWithPatches } from "immer";
-import type { Patch } from "immer";
+import type { DocHandle } from "@automerge/automerge-repo";
+import { Automerge, Repo } from "../collab/automerge";
+import { applyPatches } from "../collab/applyPatches";
+import { runMutation } from "../collab/mutationScope";
 import { createId } from "../id";
 import type { WeftDocument, WeftModule } from "../types";
 import { createEmptyDocument } from "./createEmptyDocument";
+import { plain } from "./plain";
 
-enablePatches();
+/**
+ * The document lives in an Automerge document, owned by a Repo: every edit is an Automerge change,
+ * so the same document can be edited by several people at once and merged without conflicts (see
+ * core/collab/). `state.doc.content` is always the current Automerge state - readable like the plain
+ * JSON object it is, replaced (not mutated) by every change, local or remote.
+ */
+export const repo = new Repo({ network: [] });
+let handle: DocHandle<WeftModule>;
+let unbindHandle: (() => void) | null = null;
+
+/** The handle of the document being edited - for the collaboration layer. */
+export function currentHandle(): DocHandle<WeftModule> {
+  return handle;
+}
 
 /** One undoable step. The undo history belongs to whoever is editing, not to the document: it is
  * not saved into the file, and (once documents are edited by several people at once) must only ever
@@ -14,8 +30,11 @@ export interface UndoEntry {
   id: string;
   label: string;
   timestamp: string;
-  patches: Patch[];
-  inversePatches: Patch[];
+  /** The document's heads just before and just after this step's change. What the step did is the
+   * difference between them (Automerge.diff), so it can be taken back - or redone - later, on top
+   * of whatever has happened since, other people's changes included. */
+  beforeHeads: Automerge.Heads;
+  afterHeads: Automerge.Heads;
 }
 
 export type BlockContainerRef = { kind: "page"; pageId: string } | { kind: "layout"; layoutId: string };
@@ -103,12 +122,14 @@ interface DocumentState {
 }
 
 const initialDocument = createEmptyDocument();
+handle = repo.create<WeftModule>(plain(initialDocument.content));
+const initialContent = handle.doc() as WeftModule;
 
 export const useDocumentStore = create<DocumentState>((set, get) => ({
-  doc: initialDocument,
+  doc: { formatVersion: initialDocument.formatVersion, content: initialContent },
   selection: null,
   filePath: null,
-  savedContent: initialDocument.content,
+  savedContent: initialContent,
   markSaved: (content) => set({ savedContent: content }),
   editingLanguage: null,
   setEditingLanguage: (language) => set({ editingLanguage: language }),
@@ -116,44 +137,87 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   undoHistory: [],
   undoIndex: -1,
 
-  edit: (label, recipe) =>
+  edit: (label, recipe) => {
+    const beforeHeads = Automerge.getHeads(handle.doc());
+    handle.change((draft) => {
+      // Only the recipe runs as a "mutation" (see runMutation); the change event that follows
+      // updates the store outside it.
+      runMutation(() => recipe(draft as WeftModule));
+      draft.modifiedAt = new Date().toISOString();
+    });
+    const afterHeads = Automerge.getHeads(handle.doc());
+    if (beforeHeads.join() === afterHeads.join()) return;
     set((state) => {
-      const [nextContent, patches, inversePatches] = produceWithPatches(state.doc.content, (draft) => {
-        recipe(draft);
-        draft.modifiedAt = new Date().toISOString();
-      });
-      if (patches.length === 0) return state;
-
       const truncated = state.undoHistory.slice(0, state.undoIndex + 1);
-      const undoHistory = [
-        ...truncated,
-        { id: createId(), label, timestamp: new Date().toISOString(), patches, inversePatches },
-      ];
+      const undoHistory = [...truncated, { id: createId(), label, timestamp: new Date().toISOString(), beforeHeads, afterHeads }];
+      return { undoHistory, undoIndex: undoHistory.length - 1 };
+    });
+  },
 
-      return { doc: { ...state.doc, content: nextContent }, undoHistory, undoIndex: undoHistory.length - 1 };
-    }),
+  undo: () => {
+    const { undoIndex, undoHistory } = get();
+    if (undoIndex < 0) return;
+    const entry = undoHistory[undoIndex];
+    const patches = Automerge.diff(handle.doc(), entry.afterHeads, entry.beforeHeads);
+    handle.change((draft) => runMutation(() => applyPatches(draft, patches)));
+    set({ undoIndex: undoIndex - 1 });
+  },
 
-  undo: () =>
-    set((state) => {
-      if (state.undoIndex < 0) return state;
-      const entry = state.undoHistory[state.undoIndex];
-      const content = applyPatches(state.doc.content, entry.inversePatches);
-      return { doc: { ...state.doc, content }, undoIndex: state.undoIndex - 1 };
-    }),
-
-  redo: () =>
-    set((state) => {
-      const nextIndex = state.undoIndex + 1;
-      if (nextIndex >= state.undoHistory.length) return state;
-      const entry = state.undoHistory[nextIndex];
-      const content = applyPatches(state.doc.content, entry.patches);
-      return { doc: { ...state.doc, content }, undoIndex: nextIndex };
-    }),
+  redo: () => {
+    const { undoIndex, undoHistory } = get();
+    const nextIndex = undoIndex + 1;
+    if (nextIndex >= undoHistory.length) return;
+    const entry = undoHistory[nextIndex];
+    const patches = Automerge.diff(handle.doc(), entry.beforeHeads, entry.afterHeads);
+    handle.change((draft) => runMutation(() => applyPatches(draft, patches)));
+    set({ undoIndex: nextIndex });
+  },
 
   canUndo: () => get().undoIndex >= 0,
   canRedo: () => get().undoIndex < get().undoHistory.length - 1,
 
-  loadDocument: (doc, filePath = null) =>
-    set({ doc, selection: null, filePath, savedContent: doc.content, undoHistory: [], undoIndex: -1 }),
+  loadDocument: (doc, filePath = null) => {
+    // A document opened from a file becomes a new Automerge document of its own - history starts
+    // here. (Joining a shared one is openSharedDocument.)
+    const next = repo.create<WeftModule>(plain(doc.content));
+    bindHandle(next);
+    const content = next.doc() as WeftModule;
+    set({
+      doc: { formatVersion: doc.formatVersion, content },
+      selection: null,
+      filePath,
+      savedContent: content,
+      undoHistory: [],
+      undoIndex: -1,
+    });
+  },
   select: (ref) => set({ selection: ref }),
 }));
+
+/** Makes `next` the document being edited: the store follows every change to it, whoever made it. */
+function bindHandle(next: DocHandle<WeftModule>): void {
+  unbindHandle?.();
+  handle = next;
+  const onChange = ({ doc }: { doc: Automerge.Doc<WeftModule> }) =>
+    useDocumentStore.setState((state) => ({ doc: { ...state.doc, content: doc as WeftModule } }));
+  next.on("change", onChange);
+  unbindHandle = () => next.off("change", onChange);
+}
+bindHandle(handle);
+
+/** Switches the editor to a document that already exists elsewhere (a shared one), found by its URL.
+ * Resolves once its content has arrived. */
+export async function openSharedDocument(url: string): Promise<void> {
+  const next = await repo.find<WeftModule>(url as never);
+  await next.whenReady();
+  bindHandle(next);
+  const content = next.doc() as WeftModule;
+  useDocumentStore.setState((state) => ({
+    doc: { formatVersion: state.doc.formatVersion, content },
+    selection: null,
+    filePath: null,
+    savedContent: content,
+    undoHistory: [],
+    undoIndex: -1,
+  }));
+}

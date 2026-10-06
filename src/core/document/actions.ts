@@ -26,6 +26,7 @@ import type {
 } from "../types";
 import { DEFAULT_CODE_THEME } from "../code/codeThemes";
 import { insertOrdered, moveOrdered, moveOrderedRun, orderedIdRecord, orderedKeys, orderedValues } from "./ordering";
+import { assignPatch, plain, removeWhere } from "./plain";
 import { branchPageIds } from "./sequence";
 import { DEFAULT_TRANSITION_DURATION_MS } from "./transitions";
 import { defaultLanguageOf, rotateDefaultLanguage } from "./translations";
@@ -105,7 +106,7 @@ export function updateVariable(id: string, patch: Partial<Omit<VariableDef, "id"
     const allowed = variable.fixed
       ? { expression: patch.expression, type: patch.type === "boolean" || patch.type === "computed" ? patch.type : undefined }
       : patch;
-    for (const [key, value] of Object.entries(allowed)) if (value !== undefined) Object.assign(variable, { [key]: value });
+    for (const [key, value] of Object.entries(allowed)) if (value !== undefined) Object.assign(variable, { [key]: plain(value) });
     if (patch.type !== undefined && patch.type === variable.type) {
       // A new type starts from that type's own empty value, and only a computed variable has a
       // formula.
@@ -118,7 +119,7 @@ export function updateVariable(id: string, patch: Partial<Omit<VariableDef, "id"
 
 export function removeVariable(id: string) {
   edit("Variable entfernen", (m) => {
-    m.variables = m.variables.filter((v) => v.id !== id || v.fixed);
+    removeWhere(m.variables, (v) => v.id === id && !v.fixed);
   });
 }
 
@@ -207,7 +208,7 @@ export function setPageTransition(pageId: string, type: TransitionType) {
 export function updatePageTransition(pageId: string, patch: Partial<Omit<Transition, "type" | "durationMs">>) {
   edit("Übergang ändern", (m) => {
     const page = m.pages[pageId];
-    if (page) Object.assign(page.transition, patch);
+    if (page) assignPatch(page.transition, patch);
   });
 }
 
@@ -271,7 +272,7 @@ export function removeBranch(logicBlockId: string, branchId: string) {
   edit("Zweig entfernen", (m) => {
     const logicBlock = m.logicBlocks[logicBlockId];
     if (!logicBlock) return;
-    logicBlock.branches = logicBlock.branches.filter((b) => b.id !== branchId);
+    removeWhere(logicBlock.branches, (b) => b.id === branchId);
     // If the removed branch was the trailing "sonst", promote the new last branch into that role.
     const newLast = logicBlock.branches[logicBlock.branches.length - 1];
     if (newLast) newLast.condition = null;
@@ -290,7 +291,7 @@ export function updateBranchCondition(logicBlockId: string, branchId: string, pa
   edit("Bedingung ändern", (m) => {
     const branch = m.logicBlocks[logicBlockId]?.branches.find((b) => b.id === branchId);
     if (!branch) return;
-    branch.condition = { ...(branch.condition ?? { variableId: "", comparator: "eq", value: 0 }), ...patch };
+    branch.condition = plain({ ...(branch.condition ?? { variableId: "", comparator: "eq", value: 0 }), ...patch });
   });
 }
 
@@ -462,7 +463,7 @@ export function updateBlock(pageId: string, blockId: string, patch: Partial<Bloc
     const page = m.pages[pageId];
     const block = page?.blocks[blockId];
     if (!block) return;
-    Object.assign(block, patch);
+    assignPatch(block, patch);
     // Only a quiz's/video's own timeline-relevant fields, or any block's entrance/exit effect
     // type (see makeBlockEffectNode's own visibility rule in pageTimeline.ts), can change what
     // the timeline should show, so skip the (cheap but pointless) resync for every other block
@@ -506,7 +507,7 @@ export function removeBlock(pageId: string, blockId: string) {
     // A removed block can't stay a member of a group it no longer exists in; a group left with
     // fewer than 2 members isn't a group anymore (see BlockGroup's own doc comment in types.ts).
     for (const group of page.groups) group.blockIds = group.blockIds.filter((id) => id !== blockId);
-    page.groups = page.groups.filter((g) => g.blockIds.length >= 2);
+    removeWhere(page.groups, (g) => g.blockIds.length < 2);
     syncPageTimelineEvents(page);
   });
 }
@@ -519,7 +520,7 @@ export function removeBlock(pageId: string, blockId: string) {
  * grouping never nests - regrouping a selection that touches old groups just replaces them). */
 function dissolveGroupsTouching(page: Page, ids: UUID[]): void {
   const idSet = new Set(ids);
-  page.groups = page.groups.filter((g) => !g.blockIds.some((id) => idSet.has(id)));
+  removeWhere(page.groups, (g) => g.blockIds.some((id) => idSet.has(id)));
 }
 
 /** The ids among `ids` that are in `blocks`, in the blocks' own stacking order. */
@@ -578,7 +579,7 @@ export function ungroupBlocks(pageId: string, groupId: string) {
   edit("Gruppe auflösen", (m) => {
     const page = m.pages[pageId];
     if (!page) return;
-    page.groups = page.groups.filter((g) => g.id !== groupId);
+    removeWhere(page.groups, (g) => g.id === groupId);
   });
 }
 
@@ -592,7 +593,7 @@ export function removeGroup(pageId: string, groupId: string) {
     const group = page.groups.find((g) => g.id === groupId);
     if (!group) return;
     for (const id of group.blockIds) delete page.blocks[id];
-    page.groups = page.groups.filter((g) => g.id !== groupId);
+    removeWhere(page.groups, (g) => g.id === groupId);
     syncPageTimelineEvents(page);
   });
 }
@@ -610,7 +611,7 @@ export function removeBlocks(container: BlockContainerRef, blockIds: string[]) {
       if (!page) return;
       for (const id of blockIds) delete page.blocks[id];
       for (const group of page.groups) group.blockIds = group.blockIds.filter((id) => !idSet.has(id));
-      page.groups = page.groups.filter((g) => g.blockIds.length >= 2);
+      removeWhere(page.groups, (g) => g.blockIds.length < 2);
       syncPageTimelineEvents(page);
     } else {
       const layout = m.layouts[container.layoutId];
@@ -629,7 +630,7 @@ export function updateBlockPositions(container: BlockContainerRef, positions: { 
     if (!blocks) return;
     for (const { id, position } of positions) {
       const block = blocks[id];
-      if (block) block.position = position;
+      if (block) block.position = plain(position);
     }
   });
 }
@@ -646,8 +647,8 @@ export function setGroupEffect(pageId: string, blockIds: string[], phase: "entra
     for (const blockId of blockIds) {
       const block = page.blocks[blockId];
       if (!block) continue;
-      if (phase === "entrance") block.entranceEffect = effect;
-      else block.exitEffect = effect;
+      if (phase === "entrance") block.entranceEffect = plain(effect);
+      else block.exitEffect = plain(effect);
       touched = true;
     }
     if (touched) syncPageTimelineEvents(page);
@@ -936,7 +937,7 @@ export async function setBlockVideo(pageId: string, blockId: string, file: File)
 export function updateLayoutBlock(layoutId: string, blockId: string, patch: Partial<Block>) {
   edit("Block bearbeiten", (m) => {
     const block = m.layouts[layoutId]?.blocks[blockId];
-    if (block) Object.assign(block, patch);
+    if (block) assignPatch(block, patch);
   });
 }
 
@@ -1152,7 +1153,7 @@ export function pastePageAfter(afterPageId: string, sourcePage: Page): string | 
       layoutId: sourcePage.layoutId,
       blocks,
       groups,
-      transition: sourcePage.transition,
+      transition: plain(sourcePage.transition),
       // Cloned first, then pruned below: edges naming the *old* blocks' ids no longer mean anything.
       timeline: structuredClone(sourcePage.timeline),
     };
@@ -1225,6 +1226,6 @@ export function addCustomFont(file: File): { id: string; family: string } {
 
 export function removeCustomFont(id: string) {
   edit("Schriftart entfernen", (m) => {
-    m.customFonts = m.customFonts.filter((f) => f.id !== id);
+    removeWhere(m.customFonts, (f) => f.id === id);
   });
 }

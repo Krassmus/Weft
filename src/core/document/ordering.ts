@@ -1,4 +1,5 @@
-import { isDraft } from "immer";
+import { isSnapshot } from "../collab/mutationScope";
+import { plain } from "./plain";
 
 /**
  * Ordered collections for a document that can be merged (CRDT-friendly): a list whose entries are
@@ -79,10 +80,7 @@ const cache = new WeakMap<object, unknown[]>();
  * component calling it every render gets the same array until something changed); anything still
  * being edited is sorted fresh every time. */
 export function orderedValues<T extends Ordered>(record: Record<string, T>): T[] {
-  const draft = isDraft(record);
-  // Only a frozen record (what an edit produces) is a snapshot that can't change under the cache -
-  // a plain object being filled in (a document that's just been parsed, a migration) can.
-  const cacheable = !draft && Object.isFrozen(record);
+  const cacheable = isSnapshot(record);
   if (cacheable) {
     const cached = cache.get(record);
     if (cached) return cached as T[];
@@ -110,7 +108,7 @@ function keyAtIndex(list: Ordered[], index: number): string {
  * top, for blocks). */
 export function insertOrdered<T extends Ordered>(record: Record<string, T>, id: string, value: WithoutOrder<T>, index?: number): void {
   const list = orderedValues(record);
-  (record as Record<string, unknown>)[id] = { ...value, order: keyAtIndex(list, index ?? list.length) };
+  (record as Record<string, unknown>)[id] = plain({ ...value, order: keyAtIndex(list, index ?? list.length) });
 }
 
 /** Moves entry `id` so that it sits at `toIndex` of the list WITHOUT it (the same convention as

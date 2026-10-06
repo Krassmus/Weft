@@ -21,7 +21,9 @@ import { buildLanguageCatalog, flagForLocale, languageName } from "../../../core
 import { useTranslation } from "../../../core/i18n/useTranslation";
 import { confirmDestructive, pickDocumentFile, pickFontFile } from "../../../core/io/fileIO";
 import { useAssetTransfers } from "../../../core/collab/assetSync";
-import { presenceColor, setLocalName, useLocalName, usePresence } from "../../../core/collab/presence";
+import { presenceColor, usePresence } from "../../../core/collab/presence";
+import { useProfileStore } from "../../../core/profile/profileStore";
+import { PersonAvatar } from "../PersonAvatar";
 import { useDirectConnection } from "../../../core/collab/webrtcAdapter";
 import { mergeDocumentFile } from "../../../core/collab/merge";
 import { joinSharedDocument, shareCurrentDocument } from "../../../core/collab/session";
@@ -284,7 +286,7 @@ function CollaborationField() {
   const [mergeMessage, setMergeMessage] = useState("");
   const { missing, transfers } = useAssetTransfers();
   const connection = useDirectConnection();
-  const localName = useLocalName((s) => s.name);
+  const profile = useProfileStore();
   const people = Object.values(usePresence((s) => s.peers));
   const receiving = Object.values(transfers);
   const megabytes = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
@@ -371,10 +373,11 @@ function CollaborationField() {
       {mergeMessage && <p className="weft-hint">{mergeMessage}</p>}
 
       <p className="weft-hint">Live: Zusammen im selben Lernmodul arbeiten.</p>
-      <label className="weft-field">
-        <span>Dein Name (für die anderen)</span>
-        <input value={localName} onChange={(e) => setLocalName(e.target.value)} />
-      </label>
+      <div className="weft-presence-self">
+        <PersonAvatar name={profile.name} color="var(--weft-accent)" avatar={profile.avatar} size={28} />
+        <span>Du erscheinst als „{profile.name}“</span>
+      </div>
+      <p className="weft-hint">Name und Bild stellst du in den App-Einstellungen ein (Menü „Einstellungen…“).</p>
       <label className="weft-field weft-field-inline">
         <input
           type="checkbox"
@@ -474,7 +477,7 @@ function CollaborationField() {
           <span className="weft-hint">Gerade dabei:</span>
           {people.map((person) => (
             <span key={person.peerId} className="weft-presence-list-item">
-              <span className="weft-node-viewer" style={{ background: presenceColor(person.peerId) }} />
+              <PersonAvatar name={person.name} color={presenceColor(person.peerId)} avatar={person.avatar} size={20} />
               {person.name}
             </span>
           ))}

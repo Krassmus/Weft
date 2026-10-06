@@ -453,6 +453,7 @@ export function BlockView({
           // Somebody else has this block selected: a frame in their colour, with their name on it.
           <div className="weft-remote-selection" style={{ borderColor: presenceColor(viewers[0].peerId) }}>
             <span className="weft-remote-selection-name" style={{ background: presenceColor(viewers[0].peerId) }}>
+              {viewers[0].avatar && <img className="weft-remote-selection-avatar" src={viewers[0].avatar} alt="" draggable={false} />}
               {viewers.map((v) => v.name).join(", ")}
             </span>
           </div>

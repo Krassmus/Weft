@@ -15,7 +15,8 @@ function isSettingsWindow(): boolean {
   try {
     return getCurrentWindow().label === "settings";
   } catch {
-    return false;
+    // No Tauri runtime (a plain browser): the same screen is reachable as /?settings.
+    return new URLSearchParams(window.location.search).has("settings");
   }
 }
 

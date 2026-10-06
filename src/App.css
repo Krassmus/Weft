@@ -3043,15 +3043,11 @@ button.weft-timeline-node-icon.is-animated:hover {
 }
 
 .weft-canvas-toolbar .weft-presence-avatar {
-  width: 26px;
-  height: 26px;
+  display: flex;
   margin-left: -6px;
   border-radius: 50%;
   border: 2px solid var(--weft-panel);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
+  background: none;
   cursor: pointer;
   padding: 0;
 }
@@ -3108,4 +3104,51 @@ button.weft-timeline-node-icon.is-animated:hover {
   font-size: 11px;
   line-height: 16px;
   white-space: nowrap;
+}
+
+/* ---- Avatars (see features/editor/PersonAvatar.tsx) ---- */
+
+.weft-person-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  overflow: hidden;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 600;
+  line-height: 1;
+  user-select: none;
+}
+
+.weft-person-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.weft-presence-self {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.weft-profile-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.weft-profile-avatar-choose {
+  cursor: pointer;
+}
+
+.weft-remote-selection-avatar {
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  border-radius: 50%;
+  object-fit: cover;
+  vertical-align: -3px;
 }

@@ -1,6 +1,7 @@
 import type { DocHandle } from "@automerge/automerge-repo";
 import { create } from "zustand";
 import { currentHandle, repo, useDocumentStore } from "../document/store";
+import { useProfileStore } from "../profile/profileStore";
 import type { SelectionRef } from "../document/store";
 import type { WeftModule } from "../types";
 
@@ -20,11 +21,12 @@ const HEARTBEAT_MS = 5000;
 // Generous: a window in the background has its timers slowed down (sometimes to one a minute), so its
 // heartbeat comes late - and leaving properly is announced (sayBye) anyway.
 const FORGET_AFTER_MS = 45000;
-const NAME_KEY = "weft.collabName";
 
 export interface PeerPresence {
   peerId: string;
   name: string;
+  /** Their avatar picture (a small data URL), if they have one and it has arrived. */
+  avatar: string | null;
   /** The slide they are on (null: none, or editing a layout). */
   pageId: string | null;
   /** The layout they are editing, if that is what they are doing. */
@@ -35,34 +37,25 @@ export interface PeerPresence {
 }
 
 type Message =
-  | { tag: typeof TAG; t: "state"; from: string; name: string; pageId: string | null; layoutId: string | null; blockIds: string[] }
-  | { tag: typeof TAG; t: "bye"; from: string };
+  | {
+      tag: typeof TAG;
+      t: "state";
+      from: string;
+      name: string;
+      pageId: string | null;
+      layoutId: string | null;
+      blockIds: string[];
+      /** Whether this person has an avatar at all. */
+      hasAvatar: boolean;
+      /** The avatar itself - only when it changed or somebody needs it, not with every heartbeat (a
+       * receiver keeps what it has). null: removed. */
+      avatar?: string | null;
+    }
+  | { tag: typeof TAG; t: "bye"; from: string }
+  /** "I'm missing your avatar" - answered with a state message that carries it. */
+  | { tag: typeof TAG; t: "want-avatar"; from: string; to: string };
 
 export const usePresence = create<{ peers: Record<string, PeerPresence> }>(() => ({ peers: {} }));
-
-function readName(): string {
-  try {
-    const stored = localStorage.getItem(NAME_KEY);
-    if (stored) return stored;
-    const generated = `Gast ${Math.floor(1000 + Math.random() * 9000)}`;
-    localStorage.setItem(NAME_KEY, generated);
-    return generated;
-  } catch {
-    return "Gast";
-  }
-}
-
-/** The name this person is shown under to the others. */
-export const useLocalName = create<{ name: string }>(() => ({ name: readName() }));
-
-export function setLocalName(name: string): void {
-  useLocalName.setState({ name });
-  try {
-    localStorage.setItem(NAME_KEY, name);
-  } catch {
-    /* not persisted - fine */
-  }
-}
 
 /** A colour that stays the same for a person (derived from their peer id) on every screen. */
 export function presenceColor(peerId: string): string {
@@ -104,6 +97,9 @@ export class PresenceSync {
   private sendTimer: ReturnType<typeof setTimeout> | null = null;
   // Where this person last was: selecting nothing doesn't take them off their slide.
   private lastPageId: string | null = null;
+  // The avatar the others have last been sent.
+  private sentAvatar: string | null = null;
+  private lastAvatarRequest = new Map<string, number>();
 
   constructor(private readonly handle: DocHandle<WeftModule>) {}
 
@@ -116,7 +112,7 @@ export class PresenceSync {
       useDocumentStore.subscribe((state, previous) => {
         if (state.selection !== previous.selection) this.scheduleSend();
       }),
-      useLocalName.subscribe(() => this.scheduleSend()),
+      useProfileStore.subscribe(() => this.scheduleSend()),
     );
     this.timer = setInterval(() => this.tick(), HEARTBEAT_MS);
     // Closing the window says goodbye (best effort - otherwise the others forget this person after a while).
@@ -170,18 +166,23 @@ export class PresenceSync {
     }, 120);
   }
 
-  private sendState(): void {
+  private sendState(withAvatar = false): void {
     const { selection } = useDocumentStore.getState();
+    const { name, avatar } = useProfileStore.getState();
+    const includeAvatar = withAvatar || avatar !== this.sentAvatar;
+    if (includeAvatar) this.sentAvatar = avatar;
     const where = describe(selection, this.handle.doc() as WeftModule);
     if (where.pageId) this.lastPageId = where.pageId;
     this.handle.broadcast({
       tag: TAG,
       t: "state",
       from: this.me,
-      name: useLocalName.getState().name,
+      name,
       pageId: where.pageId ?? (where.layoutId ? null : this.lastPageId),
       layoutId: where.layoutId,
       blockIds: where.blockIds,
+      hasAvatar: !!avatar,
+      ...(includeAvatar ? { avatar } : {}),
     } satisfies Message);
   }
 
@@ -196,6 +197,11 @@ export class PresenceSync {
   private onMessage = ({ message }: { message: unknown }): void => {
     const m = message as Message | null;
     if (!m || m.tag !== TAG || m.from === this.me) return;
+    if ("to" in m && m.to !== this.me) return;
+    if (m.t === "want-avatar") {
+      this.sendState(true);
+      return;
+    }
     if (m.t === "bye") {
       usePresence.setState((s) => {
         const { [m.from]: _gone, ...peers } = s.peers;
@@ -203,15 +209,31 @@ export class PresenceSync {
       });
       return;
     }
-    const known = m.from in usePresence.getState().peers;
+    const previous = usePresence.getState().peers[m.from];
+    const avatar = "avatar" in m ? (m.avatar ?? null) : (previous?.avatar ?? null);
     usePresence.setState((s) => ({
       peers: {
         ...s.peers,
-        [m.from]: { peerId: m.from, name: m.name, pageId: m.pageId, layoutId: m.layoutId, blockIds: m.blockIds, lastSeen: Date.now() },
+        [m.from]: {
+          peerId: m.from,
+          name: m.name,
+          avatar,
+          pageId: m.pageId,
+          layoutId: m.layoutId,
+          blockIds: m.blockIds,
+          lastSeen: Date.now(),
+        },
       },
     }));
-    // Somebody new: tell them where we are right away instead of making them wait for the next beat.
-    if (!known) this.sendState();
+    // Somebody new: tell them where we are (and what we look like) right away instead of making them
+    // wait for the next beat.
+    if (!previous) this.sendState(true);
+    // They have an avatar that never reached us (a lost message, or we joined in between): ask for it -
+    // not more than once in a while.
+    if (m.hasAvatar && !avatar && Date.now() - (this.lastAvatarRequest.get(m.from) ?? 0) > HEARTBEAT_MS) {
+      this.lastAvatarRequest.set(m.from, Date.now());
+      this.handle.broadcast({ tag: TAG, t: "want-avatar", from: this.me, to: m.from } satisfies Message);
+    }
   };
 }
 

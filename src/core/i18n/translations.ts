@@ -51,6 +51,13 @@ const en = {
   "settings.language.de": "German",
   "settings.language.en": "English",
   "settings.language.hint": "Changes apply immediately, in every open window.",
+  "settings.profile.legend": "Your profile",
+  "settings.profile.name": "Name",
+  "settings.profile.avatar": "Picture",
+  "settings.profile.choose": "Choose picture…",
+  "settings.profile.remove": "Remove",
+  "settings.profile.error": "This file can't be used as a picture.",
+  "settings.profile.hint": "Shown to the people you work with on a module, next to your changes. Stored on this computer only.",
 } as const;
 
 const de: Record<keyof typeof en, string> = {
@@ -91,6 +98,13 @@ const de: Record<keyof typeof en, string> = {
   "settings.language.de": "Deutsch",
   "settings.language.en": "Englisch",
   "settings.language.hint": "Änderungen wirken sofort, in allen offenen Fenstern.",
+  "settings.profile.legend": "Dein Profil",
+  "settings.profile.name": "Name",
+  "settings.profile.avatar": "Bild",
+  "settings.profile.choose": "Bild wählen …",
+  "settings.profile.remove": "Entfernen",
+  "settings.profile.error": "Diese Datei lässt sich nicht als Bild verwenden.",
+  "settings.profile.hint": "Wird den Leuten gezeigt, mit denen du an einem Lernmodul arbeitest, neben deinen Änderungen. Wird nur auf diesem Computer gespeichert.",
 };
 
 export type TranslationKey = keyof typeof en;

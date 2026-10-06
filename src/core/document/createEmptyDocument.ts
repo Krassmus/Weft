@@ -1,16 +1,26 @@
 import { createId } from "../id";
+import { CURRENT_FORMAT_VERSION } from "../types";
 import type {
   Branch,
+  NewBlock,
+  SequenceEntry,
+  SequenceNodeRef,
   Layout,
   LogicBlock,
   Page,
-  SequenceNodeRef,
   WeftDocument,
   WeftModule,
 } from "../types";
+import { orderedRecord, orderedRecordBy } from "./ordering";
+import { sequenceKey } from "./sequence";
 import { defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
 import { createDefaultPageTimeline, syncPageTimelineEvents } from "./pageTimeline";
 import { ensureBuiltinVariables } from "./variables";
+
+/** A page's/layout's blocks keyed by id, stacked in the order given (the last one on top). */
+function blockRecord<T extends NewBlock>(blocks: T[]): Record<string, T & { order: string }> {
+  return orderedRecord(blocks.map((b) => ({ ...b })));
+}
 
 /**
  * Builds a small but complete demo module (title, content, one branch, one ending slide)
@@ -22,7 +32,7 @@ export function createEmptyDocument(): WeftDocument {
   const layout: Layout = {
     id: createId(),
     name: "Standard",
-    blocks: [
+    blocks: blockRecord([
       {
         id: createId(),
         kind: "text",
@@ -31,7 +41,7 @@ export function createEmptyDocument(): WeftDocument {
         entranceEffect: defaultEntranceEffect(),
         exitEffect: defaultExitEffect(),
       },
-    ],
+    ]),
   };
 
   const scoreVariableId = createId();
@@ -39,7 +49,7 @@ export function createEmptyDocument(): WeftDocument {
   const titlePage: Page = {
     id: createId(),
     layoutId: layout.id,
-    blocks: [
+    blocks: blockRecord([
       {
         id: createId(),
         kind: "text",
@@ -48,7 +58,7 @@ export function createEmptyDocument(): WeftDocument {
         entranceEffect: defaultEntranceEffect(),
         exitEffect: defaultExitEffect(),
       },
-    ],
+    ]),
     groups: [],
     transition: { type: "none", durationMs: 500 },
     timeline: createDefaultPageTimeline(),
@@ -60,7 +70,7 @@ export function createEmptyDocument(): WeftDocument {
   const branchAPage: Page = {
     id: createId(),
     layoutId: layout.id,
-    blocks: [
+    blocks: blockRecord([
       {
         id: createId(),
         kind: "quiz",
@@ -78,7 +88,7 @@ export function createEmptyDocument(): WeftDocument {
         entranceEffect: defaultEntranceEffect(),
         exitEffect: defaultExitEffect(),
       },
-    ],
+    ]),
     groups: [],
     transition: { type: "none", durationMs: 500 },
     timeline: createDefaultPageTimeline(),
@@ -90,7 +100,7 @@ export function createEmptyDocument(): WeftDocument {
   const branchBPage: Page = {
     id: createId(),
     layoutId: layout.id,
-    blocks: [
+    blocks: blockRecord([
       {
         id: createId(),
         kind: "text",
@@ -99,7 +109,7 @@ export function createEmptyDocument(): WeftDocument {
         entranceEffect: defaultEntranceEffect(),
         exitEffect: defaultExitEffect(),
       },
-    ],
+    ]),
     groups: [],
     transition: { type: "none", durationMs: 500 },
     timeline: createDefaultPageTimeline(),
@@ -110,9 +120,9 @@ export function createEmptyDocument(): WeftDocument {
       id: branchAId,
       label: "Zweig A",
       condition: { variableId: scoreVariableId, comparator: "gte", value: 1 },
-      pageIds: [branchAPage.id],
+      pages: orderedRecord([{ id: branchAPage.id }]),
     },
-    { id: createId(), label: "Zweig B (sonst)", condition: null, pageIds: [branchBPage.id] },
+    { id: createId(), label: "Zweig B (sonst)", condition: null, pages: orderedRecord([{ id: branchBPage.id }]) },
   ];
 
   const logicBlock: LogicBlock = {
@@ -124,7 +134,7 @@ export function createEmptyDocument(): WeftDocument {
   const finalPage: Page = {
     id: createId(),
     layoutId: layout.id,
-    blocks: [
+    blocks: blockRecord([
       {
         id: createId(),
         kind: "text",
@@ -133,7 +143,7 @@ export function createEmptyDocument(): WeftDocument {
         entranceEffect: defaultEntranceEffect(),
         exitEffect: defaultExitEffect(),
       },
-    ],
+    ]),
     groups: [],
     transition: { type: "none", durationMs: 500 },
     timeline: createDefaultPageTimeline(),
@@ -146,11 +156,14 @@ export function createEmptyDocument(): WeftDocument {
     [finalPage.id]: finalPage,
   };
 
-  const sequence: SequenceNodeRef[] = [
-    { kind: "page", pageId: titlePage.id },
-    { kind: "logic", logicBlockId: logicBlock.id },
-    { kind: "page", pageId: finalPage.id },
-  ];
+  const sequence = orderedRecordBy<SequenceNodeRef>(
+    [
+      { kind: "page", pageId: titlePage.id },
+      { kind: "logic", logicBlockId: logicBlock.id },
+      { kind: "page", pageId: finalPage.id },
+    ],
+    sequenceKey,
+  ) as Record<string, SequenceEntry>;
 
   const content: WeftModule = {
     id: createId(),
@@ -171,9 +184,7 @@ export function createEmptyDocument(): WeftDocument {
   ensureBuiltinVariables(content.variables);
 
   return {
-    formatVersion: 2,
+    formatVersion: CURRENT_FORMAT_VERSION,
     content,
-    undoHistory: [],
-    undoIndex: -1,
   };
 }

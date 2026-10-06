@@ -11,6 +11,8 @@ import type {
   Branch,
   CustomFont,
   Layout,
+  NewBlock,
+  NewStaticBlock,
   Page,
   StaticBlock,
   TimelineEdgeKind,
@@ -23,11 +25,13 @@ import type {
   WeftModule,
 } from "../types";
 import { DEFAULT_CODE_THEME } from "../code/codeThemes";
+import { insertOrdered, moveOrdered, moveOrderedRun, orderedIdRecord, orderedKeys, orderedValues } from "./ordering";
+import { branchPageIds } from "./sequence";
 import { DEFAULT_TRANSITION_DURATION_MS } from "./transitions";
 import { defaultLanguageOf, rotateDefaultLanguage } from "./translations";
 import { defaultInitialValue } from "./variables";
 import { defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
-import { blockEffectNodeId, createDefaultPageTimeline, syncPageTimelineEvents, withTriggerEdge } from "./pageTimeline";
+import { blockEffectNodeId, createDefaultPageTimeline, setTriggerEdge, syncPageTimelineEvents } from "./pageTimeline";
 import { defaultShapeCornerRadii, defaultShapeFill, defaultShapeShadow, defaultShapeStroke } from "./shapeDefaults";
 import type { BlockContainerRef } from "./store";
 import { useDocumentStore } from "./store";
@@ -40,7 +44,7 @@ function emptyPage(layoutId: string | null): Page {
   return {
     id: createId(),
     layoutId,
-    blocks: [],
+    blocks: {},
     groups: [],
     transition: { type: "none", durationMs: 500 },
     timeline: createDefaultPageTimeline(),
@@ -124,19 +128,19 @@ export function addPageToSequence(afterIndex: number, layoutId: string | null) {
   const page = emptyPage(layoutId);
   edit("Folie hinzufügen", (m) => {
     m.pages[page.id] = page;
-    m.sequence.splice(afterIndex + 1, 0, { kind: "page", pageId: page.id });
+    insertOrdered(m.sequence, page.id, { kind: "page", pageId: page.id }, afterIndex + 1);
   });
   return page.id;
 }
 
 export function addLogicBlockToSequence(afterIndex: number, layoutId: string | null) {
   const branchPage = emptyPage(layoutId);
-  const branch: Branch = { id: createId(), label: "Zweig 1", condition: null, pageIds: [branchPage.id] };
+  const branch: Branch = { id: createId(), label: "Zweig 1", condition: null, pages: orderedIdRecord([branchPage.id]) };
   const logicBlockId = createId();
   edit("Logikblock hinzufügen", (m) => {
     m.pages[branchPage.id] = branchPage;
     m.logicBlocks[logicBlockId] = { id: logicBlockId, name: "Verzweigung", branches: [branch] };
-    m.sequence.splice(afterIndex + 1, 0, { kind: "logic", logicBlockId });
+    insertOrdered(m.sequence, logicBlockId, { kind: "logic", logicBlockId }, afterIndex + 1);
   });
   return logicBlockId;
 }
@@ -144,21 +148,21 @@ export function addLogicBlockToSequence(afterIndex: number, layoutId: string | n
 export function moveSequenceNode(from: number, to: number) {
   if (from === to) return;
   edit("Reihenfolge ändern", (m) => {
-    const [node] = m.sequence.splice(from, 1);
-    m.sequence.splice(to, 0, node);
+    const id = orderedKeys(m.sequence)[from];
+    if (id !== undefined) moveOrdered(m.sequence, id, to);
   });
 }
 
 export function removeSequenceNodeAt(index: number) {
   edit("Element entfernen", (m) => {
-    m.sequence.splice(index, 1);
+    const id = orderedKeys(m.sequence)[index];
+    if (id !== undefined) delete m.sequence[id];
   });
 }
 
 export function removeLogicBlock(logicBlockId: string) {
   edit("Verzweigung löschen", (m) => {
-    const index = m.sequence.findIndex((n) => n.kind === "logic" && n.logicBlockId === logicBlockId);
-    if (index !== -1) m.sequence.splice(index, 1);
+    delete m.sequence[logicBlockId];
   });
 }
 
@@ -171,10 +175,10 @@ export function removePage(pageId: string) {
     const location = locatePage(m, pageId);
     if (!location) return;
     if (location.kind === "top") {
-      m.sequence.splice(location.index, 1);
+      delete m.sequence[pageId];
     } else {
       const branch = m.logicBlocks[location.logicBlockId]?.branches.find((b) => b.id === location.branchId);
-      branch?.pageIds.splice(location.index, 1);
+      if (branch) delete branch.pages[pageId];
     }
   });
 }
@@ -215,7 +219,7 @@ export function setPageTransitionDuration(pageId: string, durationMs: number) {
 }
 
 export function addLayout(name: string) {
-  const layout: Layout = { id: createId(), name, blocks: [] };
+  const layout: Layout = { id: createId(), name, blocks: {} };
   edit("Layout hinzufügen", (m) => {
     m.layouts[layout.id] = layout;
   });
@@ -256,7 +260,7 @@ export function addBranch(logicBlockId: string, layoutId: string | null) {
       id: branchId,
       label: "Neuer Zweig",
       condition: { variableId: m.variables[0]?.id ?? "", comparator: "eq", value: 0 },
-      pageIds: [page.id],
+      pages: orderedIdRecord([page.id]),
     };
     logicBlock.branches.splice(Math.max(logicBlock.branches.length - 1, 0), 0, branch);
   });
@@ -294,7 +298,8 @@ export function addPageToBranch(logicBlockId: string, branchId: string, layoutId
   const page = emptyPage(layoutId);
   edit("Folie zu Zweig hinzufügen", (m) => {
     m.pages[page.id] = page;
-    m.logicBlocks[logicBlockId]?.branches.find((b) => b.id === branchId)?.pageIds.push(page.id);
+    const branch = m.logicBlocks[logicBlockId]?.branches.find((b) => b.id === branchId);
+    if (branch) insertOrdered(branch.pages, page.id, {});
   });
   return page.id;
 }
@@ -302,7 +307,7 @@ export function addPageToBranch(logicBlockId: string, branchId: string, layoutId
 export function removePageFromBranch(logicBlockId: string, branchId: string, pageId: string) {
   edit("Folie aus Zweig entfernen", (m) => {
     const branch = m.logicBlocks[logicBlockId]?.branches.find((b) => b.id === branchId);
-    if (branch) branch.pageIds = branch.pageIds.filter((id) => id !== pageId);
+    if (branch) delete branch.pages[pageId];
   });
 }
 
@@ -330,17 +335,26 @@ export function movePageTo(pageId: string, target: PageContainerRef, toIndex: nu
     const from = locatePage(m, pageId);
     if (!from) return;
 
-    if (from.kind === "top") m.sequence.splice(from.index, 1);
-    else m.logicBlocks[from.logicBlockId]?.branches.find((b) => b.id === from.branchId)?.pageIds.splice(from.index, 1);
+    const fromBranch = from.kind === "branch" ? m.logicBlocks[from.logicBlockId]?.branches.find((b) => b.id === from.branchId) : undefined;
+    const targetBranch = target.kind === "branch" ? m.logicBlocks[target.logicBlockId]?.branches.find((b) => b.id === target.branchId) : undefined;
+    if (target.kind === "branch" && !targetBranch) return;
 
-    if (target.kind === "top") m.sequence.splice(toIndex, 0, { kind: "page", pageId });
-    else m.logicBlocks[target.logicBlockId]?.branches.find((b) => b.id === target.branchId)?.pageIds.splice(toIndex, 0, pageId);
+    // Within one list it's only the page's own order key that changes (so a move made at the same
+    // time by someone else can't leave two copies); between lists it leaves one and joins the other.
+    if (from.kind === "top" && target.kind === "top") moveOrdered(m.sequence, pageId, toIndex);
+    else if (fromBranch && fromBranch === targetBranch) moveOrdered(fromBranch.pages, pageId, toIndex);
+    else {
+      if (from.kind === "top") delete m.sequence[pageId];
+      else if (fromBranch) delete fromBranch.pages[pageId];
+      if (target.kind === "top") insertOrdered(m.sequence, pageId, { kind: "page", pageId }, toIndex);
+      else if (targetBranch) insertOrdered(targetBranch.pages, pageId, {}, toIndex);
+    }
   });
 }
 
 // ---- Blocks ----------------------------------------------------------------
 
-function defaultBlockFor(kind: Block["kind"]): Block {
+function defaultBlockFor(kind: Block["kind"]): NewBlock {
   const position = { x: 10, y: 40, width: 80, height: 20 };
   const base = { id: createId(), entranceEffect: defaultEntranceEffect(), exitEffect: defaultExitEffect() };
   switch (kind) {
@@ -406,16 +420,17 @@ export function addBlockToPage(pageId: string, kind: Block["kind"]) {
   edit("Block hinzufügen", (m) => {
     const page = m.pages[pageId];
     if (!page) return;
-    page.blocks.push(block);
+    insertOrdered(page.blocks, block.id, block);
     syncPageTimelineEvents(page);
   });
   return block.id;
 }
 
 export function addBlockToLayout(layoutId: string, kind: StaticBlock["kind"]) {
-  const block = defaultBlockFor(kind) as StaticBlock;
+  const block = defaultBlockFor(kind) as NewStaticBlock;
   edit("Block zu Layout hinzufügen", (m) => {
-    m.layouts[layoutId]?.blocks.push(block);
+    const layout = m.layouts[layoutId];
+    if (layout) insertOrdered(layout.blocks, block.id, block);
   });
   return block.id;
 }
@@ -426,16 +441,17 @@ export function addBlockToLayout(layoutId: string, kind: StaticBlock["kind"]) {
  * paste. Unified across page/layout via BlockContainerRef like the layer-order actions above,
  * since there's nothing page-only here beyond syncPageTimelineEvents. */
 export function pasteTextBlockInto(container: BlockContainerRef, html: string): string {
-  const block = defaultBlockFor("text") as Block & { kind: "text" };
+  const block = defaultBlockFor("text") as NewBlock & { kind: "text" };
   block.html = html;
   edit("Text einfügen", (m) => {
     if (container.kind === "page") {
       const page = m.pages[container.pageId];
       if (!page) return;
-      page.blocks.push(block);
+      insertOrdered(page.blocks, block.id, block);
       syncPageTimelineEvents(page);
     } else {
-      m.layouts[container.layoutId]?.blocks.push(block);
+      const layout = m.layouts[container.layoutId];
+      if (layout) insertOrdered(layout.blocks, block.id, block as NewStaticBlock);
     }
   });
   return block.id;
@@ -444,7 +460,7 @@ export function pasteTextBlockInto(container: BlockContainerRef, html: string): 
 export function updateBlock(pageId: string, blockId: string, patch: Partial<Block>) {
   edit("Block bearbeiten", (m) => {
     const page = m.pages[pageId];
-    const block = page?.blocks.find((b) => b.id === blockId);
+    const block = page?.blocks[blockId];
     if (!block) return;
     Object.assign(block, patch);
     // Only a quiz's/video's own timeline-relevant fields, or any block's entrance/exit effect
@@ -477,7 +493,7 @@ export function setEventTrigger(
   edit("Auslöser bearbeiten", (m) => {
     const page = m.pages[pageId];
     if (!page) return;
-    page.timeline.triggerEdges = withTriggerEdge(page.timeline.triggerEdges, targetNodeId, from, delayMs, kind);
+    setTriggerEdge(page.timeline, targetNodeId, from, delayMs, kind);
     syncPageTimelineEvents(page);
   });
 }
@@ -486,7 +502,7 @@ export function removeBlock(pageId: string, blockId: string) {
   edit("Block entfernen", (m) => {
     const page = m.pages[pageId];
     if (!page) return;
-    page.blocks = page.blocks.filter((b) => b.id !== blockId);
+    delete page.blocks[blockId];
     // A removed block can't stay a member of a group it no longer exists in; a group left with
     // fewer than 2 members isn't a group anymore (see BlockGroup's own doc comment in types.ts).
     for (const group of page.groups) group.blockIds = group.blockIds.filter((id) => id !== blockId);
@@ -506,30 +522,32 @@ function dissolveGroupsTouching(page: Page, ids: UUID[]): void {
   page.groups = page.groups.filter((g) => !g.blockIds.some((id) => idSet.has(id)));
 }
 
-/** Removes `ids` from `blocks` and re-splices them back in as one contiguous run, in their
- * original relative order, at the stacking position their previously topmost (last-rendered)
- * member held - so forming a group doesn't silently reorder the page's visual stack. Contiguity
- * itself is the invariant groupBlocks has to establish and then maintain (PagePanel.tsx's sidebar
- * bracket rendering relies on every group's members sitting next to each other in page.blocks). */
-function spliceGroupToTopmostPosition(blocks: Block[], ids: UUID[]): void {
+/** The ids among `ids` that are in `blocks`, in the blocks' own stacking order. */
+function inStackingOrder(blocks: Record<UUID, Block>, ids: UUID[]): UUID[] {
   const idSet = new Set(ids);
-  const topmostOriginalIndex = blocks.reduce((max, b, i) => (idSet.has(b.id) ? i : max), -1);
-  if (topmostOriginalIndex === -1) return;
-  const members = blocks.filter((b) => idSet.has(b.id));
-  const rest = blocks.filter((b) => !idSet.has(b.id));
-  const insertAt = blocks.slice(0, topmostOriginalIndex).filter((b) => !idSet.has(b.id)).length;
-  const next = [...rest.slice(0, insertAt), ...members, ...rest.slice(insertAt)];
-  blocks.splice(0, blocks.length, ...next);
+  return orderedKeys(blocks).filter((id) => idSet.has(id));
+}
+
+/** Makes `ids` one contiguous run, in their original relative order, at the stacking position
+ * their previously topmost (last-rendered) member held - so forming a group doesn't silently
+ * reorder the page's visual stack. Contiguity itself is the invariant groupBlocks has to establish
+ * and then maintain (PagePanel.tsx's sidebar bracket rendering relies on every group's members
+ * sitting next to each other in the page's block order). Returns the members in that order. */
+function groupToTopmostPosition(blocks: Record<UUID, Block>, ids: UUID[]): UUID[] {
+  const members = inStackingOrder(blocks, ids);
+  if (members.length === 0) return members;
+  const memberSet = new Set(members);
+  const order = orderedKeys(blocks);
+  const topmostOriginalIndex = order.reduce((max, id, i) => (memberSet.has(id) ? i : max), -1);
+  const insertAt = order.slice(0, topmostOriginalIndex).filter((id) => !memberSet.has(id)).length;
+  moveOrderedRun(blocks, members, insertAt);
+  return members;
 }
 
 /** Moves every one of `ids` to one edge of `blocks` together, as one contiguous run in their
  * relative order - the group equivalent of bringBlockToFront/sendBlockToBack below. */
-function moveGroupToEdge(blocks: Block[], ids: UUID[], edge: "front" | "back"): void {
-  const idSet = new Set(ids);
-  const members = blocks.filter((b) => idSet.has(b.id));
-  const rest = blocks.filter((b) => !idSet.has(b.id));
-  const next = edge === "front" ? [...rest, ...members] : [...members, ...rest];
-  blocks.splice(0, blocks.length, ...next);
+function moveGroupToEdge(blocks: Record<UUID, Block>, ids: UUID[], edge: "front" | "back"): void {
+  moveOrderedRun(blocks, inStackingOrder(blocks, ids), edge === "front" ? Number.MAX_SAFE_INTEGER : 0);
 }
 
 /**
@@ -544,12 +562,11 @@ export function groupBlocks(pageId: string, blockIds: string[]): string | null {
   edit("Objekte gruppieren", (m) => {
     const page = m.pages[pageId];
     if (!page) return;
-    const existingIds = new Set(page.blocks.map((b) => b.id));
-    const ids = blockIds.filter((id) => existingIds.has(id));
+    const ids = blockIds.filter((id) => id in page.blocks);
     if (ids.length < 2) return;
     dissolveGroupsTouching(page, ids);
-    spliceGroupToTopmostPosition(page.blocks, ids);
-    page.groups.push({ id: groupId, blockIds: ids });
+    const members = groupToTopmostPosition(page.blocks, ids);
+    page.groups.push({ id: groupId, blockIds: members });
     created = true;
   });
   return created ? groupId : null;
@@ -574,8 +591,7 @@ export function removeGroup(pageId: string, groupId: string) {
     if (!page) return;
     const group = page.groups.find((g) => g.id === groupId);
     if (!group) return;
-    const idSet = new Set(group.blockIds);
-    page.blocks = page.blocks.filter((b) => !idSet.has(b.id));
+    for (const id of group.blockIds) delete page.blocks[id];
     page.groups = page.groups.filter((g) => g.id !== groupId);
     syncPageTimelineEvents(page);
   });
@@ -592,14 +608,14 @@ export function removeBlocks(container: BlockContainerRef, blockIds: string[]) {
     if (container.kind === "page") {
       const page = m.pages[container.pageId];
       if (!page) return;
-      page.blocks = page.blocks.filter((b) => !idSet.has(b.id));
+      for (const id of blockIds) delete page.blocks[id];
       for (const group of page.groups) group.blockIds = group.blockIds.filter((id) => !idSet.has(id));
       page.groups = page.groups.filter((g) => g.blockIds.length >= 2);
       syncPageTimelineEvents(page);
     } else {
       const layout = m.layouts[container.layoutId];
       if (!layout) return;
-      layout.blocks = layout.blocks.filter((b) => !idSet.has(b.id));
+      for (const id of blockIds) delete layout.blocks[id];
     }
   });
 }
@@ -609,12 +625,11 @@ export function removeBlocks(container: BlockContainerRef, blockIds: string[]) {
  * undo step, rather than one updateBlock call per member. */
 export function updateBlockPositions(container: BlockContainerRef, positions: { id: string; position: BlockPosition }[]) {
   edit("Position ändern", (m) => {
-    const byId = new Map(positions.map((p) => [p.id, p.position]));
-    const blocks = container.kind === "page" ? m.pages[container.pageId]?.blocks : m.layouts[container.layoutId]?.blocks;
+    const blocks: Record<UUID, Block> | undefined = container.kind === "page" ? m.pages[container.pageId]?.blocks : m.layouts[container.layoutId]?.blocks;
     if (!blocks) return;
-    for (const block of blocks) {
-      const next = byId.get(block.id);
-      if (next) block.position = next;
+    for (const { id, position } of positions) {
+      const block = blocks[id];
+      if (block) block.position = position;
     }
   });
 }
@@ -627,10 +642,10 @@ export function setGroupEffect(pageId: string, blockIds: string[], phase: "entra
   edit("Animation ändern", (m) => {
     const page = m.pages[pageId];
     if (!page) return;
-    const idSet = new Set(blockIds);
     let touched = false;
-    for (const block of page.blocks) {
-      if (!idSet.has(block.id)) continue;
+    for (const blockId of blockIds) {
+      const block = page.blocks[blockId];
+      if (!block) continue;
       if (phase === "entrance") block.entranceEffect = effect;
       else block.exitEffect = effect;
       touched = true;
@@ -654,14 +669,14 @@ export function setGroupEventTrigger(
     const page = m.pages[pageId];
     if (!page) return;
     for (const blockId of blockIds) {
-      page.timeline.triggerEdges = withTriggerEdge(page.timeline.triggerEdges, blockEffectNodeId(blockId, phase), from, delayMs, kind);
+      setTriggerEdge(page.timeline, blockEffectNodeId(blockId, phase), from, delayMs, kind);
     }
     syncPageTimelineEvents(page);
   });
 }
 
 /** "Ganz nach vorne" for a whole group (see bringBlockToFront below) - moves every member to the
- * end of the page's blocks array together, preserving their relative order, so the group stays on
+ * end of the page's stacking order together, preserving their relative order, so the group stays on
  * top as one contiguous run. */
 export function bringGroupToFront(pageId: string, groupId: string) {
   edit("Ganz nach vorne", (m) => {
@@ -682,53 +697,42 @@ export function sendGroupToBack(pageId: string, groupId: string) {
   });
 }
 
-// ---- Layer order - a page's/layout's blocks array IS its stacking order, later renders on top
-// of earlier (see BlockView.tsx: no block ever carries an explicit z-index), so "move" here always
-// means "move within that one array" - unified across both container kinds via BlockContainerRef
-// rather than page/layout getting their own separate pair of functions (like most other block
-// actions in this file do), since there's no page-only concern like syncPageTimelineEvents to keep
-// separate for these three specifically. ------------------------------------------------------
+// ---- Layer order - a page's/layout's blocks are stacked by their own `order` key, later renders on
+// top of earlier (see BlockView.tsx: no block ever carries an explicit z-index), so "move" here
+// always means "change that one block's order" - unified across both container kinds via
+// BlockContainerRef rather than page/layout getting their own separate pair of functions (like most
+// other block actions in this file do), since there's no page-only concern like
+// syncPageTimelineEvents to keep separate for these three specifically. --------------------------
 
-function blockArray(m: WeftModule, container: BlockContainerRef): { id: UUID }[] | undefined {
+function blockRecord(m: WeftModule, container: BlockContainerRef): Record<UUID, Block> | undefined {
   return container.kind === "page" ? m.pages[container.pageId]?.blocks : m.layouts[container.layoutId]?.blocks;
 }
 
-/** Moves one block to `toIndex` within its own container's blocks array - used by the sidebar's
- * drag-reorder (see useDragReorder's own "block" kind in PagePanel.tsx/LayoutPanel.tsx), which
- * already computes the target index the same way page/logic-block reordering does. */
+/** Moves one block to `toIndex` in its container's stacking order (counted without the block
+ * itself) - used by the sidebar's drag-reorder (see useDragReorder's own "block" kind in
+ * PagePanel.tsx/LayoutPanel.tsx), which already computes the target index the same way page/
+ * logic-block reordering does. */
 export function reorderBlock(container: BlockContainerRef, blockId: string, toIndex: number) {
   edit("Element verschieben", (m) => {
-    const blocks = blockArray(m, container);
-    if (!blocks) return;
-    const fromIndex = blocks.findIndex((b) => b.id === blockId);
-    if (fromIndex === -1) return;
-    const [block] = blocks.splice(fromIndex, 1);
-    blocks.splice(Math.min(Math.max(toIndex, 0), blocks.length), 0, block);
+    const blocks = blockRecord(m, container);
+    if (blocks) moveOrdered(blocks, blockId, toIndex);
   });
 }
 
 /** "Ganz nach vorne" in a block's right-click menu (see BlockView.tsx) - moves it to the very end
- * of its container's blocks array, i.e. on top of every other block on this page/layout. */
+ * of its container's stacking order, i.e. on top of every other block on this page/layout. */
 export function bringBlockToFront(container: BlockContainerRef, blockId: string) {
   edit("Ganz nach vorne", (m) => {
-    const blocks = blockArray(m, container);
-    if (!blocks) return;
-    const index = blocks.findIndex((b) => b.id === blockId);
-    if (index === -1) return;
-    const [block] = blocks.splice(index, 1);
-    blocks.push(block);
+    const blocks = blockRecord(m, container);
+    if (blocks) moveOrdered(blocks, blockId, Number.MAX_SAFE_INTEGER);
   });
 }
 
 /** "Ganz nach hinten" - the mirror of bringBlockToFront above. */
 export function sendBlockToBack(container: BlockContainerRef, blockId: string) {
   edit("Ganz nach hinten", (m) => {
-    const blocks = blockArray(m, container);
-    if (!blocks) return;
-    const index = blocks.findIndex((b) => b.id === blockId);
-    if (index === -1) return;
-    const [block] = blocks.splice(index, 1);
-    blocks.unshift(block);
+    const blocks = blockRecord(m, container);
+    if (blocks) moveOrdered(blocks, blockId, 0);
   });
 }
 
@@ -906,7 +910,7 @@ export async function setBlockImage(pageId: string, blockId: string, file: File)
   const percentRatio = percentRatioForAspect(await imageAspectRatio(file));
   edit("Bild setzen", (m) => {
     m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
-    const block = m.pages[pageId]?.blocks.find((b) => b.id === blockId);
+    const block = m.pages[pageId]?.blocks[blockId];
     if (block && block.kind === "image") {
       block.assetId = assetId;
       block.position = fitToAspect(block.position, percentRatio);
@@ -920,7 +924,7 @@ export async function setBlockVideo(pageId: string, blockId: string, file: File)
   useAssetStore.getState().setAsset(assetId, resolved.file);
   edit("Video setzen", (m) => {
     m.assets.push({ id: assetId, fileName: resolved.file.name, mimeType: resolved.file.type || "video/mp4" });
-    const block = m.pages[pageId]?.blocks.find((b) => b.id === blockId);
+    const block = m.pages[pageId]?.blocks[blockId];
     if (block && block.kind === "video") {
       block.assetId = assetId;
       block.position = fitToAspect(block.position, percentRatioForAspect(resolved.aspect));
@@ -931,7 +935,7 @@ export async function setBlockVideo(pageId: string, blockId: string, file: File)
 
 export function updateLayoutBlock(layoutId: string, blockId: string, patch: Partial<Block>) {
   edit("Block bearbeiten", (m) => {
-    const block = m.layouts[layoutId]?.blocks.find((b) => b.id === blockId);
+    const block = m.layouts[layoutId]?.blocks[blockId];
     if (block) Object.assign(block, patch);
   });
 }
@@ -939,7 +943,7 @@ export function updateLayoutBlock(layoutId: string, blockId: string, patch: Part
 export function removeLayoutBlock(layoutId: string, blockId: string) {
   edit("Block entfernen", (m) => {
     const layout = m.layouts[layoutId];
-    if (layout) layout.blocks = layout.blocks.filter((b) => b.id !== blockId);
+    if (layout) delete layout.blocks[blockId];
   });
 }
 
@@ -949,7 +953,7 @@ export async function setLayoutBlockImage(layoutId: string, blockId: string, fil
   const percentRatio = percentRatioForAspect(await imageAspectRatio(file));
   edit("Bild setzen", (m) => {
     m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
-    const block = m.layouts[layoutId]?.blocks.find((b) => b.id === blockId);
+    const block = m.layouts[layoutId]?.blocks[blockId];
     if (block && block.kind === "image") {
       block.assetId = assetId;
       block.position = fitToAspect(block.position, percentRatio);
@@ -963,7 +967,7 @@ export async function setLayoutBlockVideo(layoutId: string, blockId: string, fil
   useAssetStore.getState().setAsset(assetId, resolved.file);
   edit("Video setzen", (m) => {
     m.assets.push({ id: assetId, fileName: resolved.file.name, mimeType: resolved.file.type || "video/mp4" });
-    const block = m.layouts[layoutId]?.blocks.find((b) => b.id === blockId);
+    const block = m.layouts[layoutId]?.blocks[blockId];
     if (block && block.kind === "video") {
       block.assetId = assetId;
       block.position = fitToAspect(block.position, percentRatioForAspect(resolved.aspect));
@@ -984,7 +988,7 @@ export async function addImageBlockToPage(pageId: string, file: File, position: 
   const percentRatio = percentRatioForAspect(await imageAspectRatio(file));
   edit("Bild hinzufügen", (m) => {
     m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
-    m.pages[pageId]?.blocks.push({
+    pushBlock(m.pages[pageId], {
       id: blockId,
       kind: "image",
       position: fitToAspect(position, percentRatio),
@@ -1004,7 +1008,7 @@ export async function addImageBlockToLayout(layoutId: string, file: File, positi
   const percentRatio = percentRatioForAspect(await imageAspectRatio(file));
   edit("Bild hinzufügen", (m) => {
     m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
-    m.layouts[layoutId]?.blocks.push({
+    pushBlock(m.layouts[layoutId], {
       id: blockId,
       kind: "image",
       position: fitToAspect(position, percentRatio),
@@ -1032,7 +1036,7 @@ export async function addVideoBlockToPage(
     m.assets.push({ id: assetId, fileName: resolved.file.name, mimeType: resolved.file.type || "video/mp4" });
     const page = m.pages[pageId];
     if (!page) return;
-    page.blocks.push({
+    pushBlock(page, {
       id: blockId,
       kind: "video",
       position: fitToAspect(position, percentRatioForAspect(resolved.aspect)),
@@ -1061,7 +1065,7 @@ export async function addVideoBlockToLayout(
   useAssetStore.getState().setAsset(assetId, resolved.file);
   edit("Video hinzufügen", (m) => {
     m.assets.push({ id: assetId, fileName: resolved.file.name, mimeType: resolved.file.type || "video/mp4" });
-    m.layouts[layoutId]?.blocks.push({
+    pushBlock(m.layouts[layoutId], {
       id: blockId,
       kind: "video",
       position: fitToAspect(position, percentRatioForAspect(resolved.aspect)),
@@ -1085,15 +1089,19 @@ type PageLocation =
   | { kind: "branch"; logicBlockId: string; branchId: string; index: number };
 
 function locatePage(m: WeftModule, pageId: string): PageLocation | null {
-  const topIndex = m.sequence.findIndex((n) => n.kind === "page" && n.pageId === pageId);
-  if (topIndex !== -1) return { kind: "top", index: topIndex };
+  if (pageId in m.sequence) return { kind: "top", index: orderedKeys(m.sequence).indexOf(pageId) };
   for (const logicBlock of Object.values(m.logicBlocks)) {
     for (const branch of logicBlock.branches) {
-      const branchIndex = branch.pageIds.indexOf(pageId);
+      const branchIndex = branchPageIds(branch).indexOf(pageId);
       if (branchIndex !== -1) return { kind: "branch", logicBlockId: logicBlock.id, branchId: branch.id, index: branchIndex };
     }
   }
   return null;
+}
+
+/** Adds `block` on top of a page's/layout's stack. */
+function pushBlock(container: { blocks: Record<UUID, Block> } | undefined, block: NewBlock): void {
+  if (container) insertOrdered(container.blocks, block.id, block);
 }
 
 function cloneBlockWithNewId(block: Block): Block {
@@ -1128,11 +1136,13 @@ export function pastePageAfter(afterPageId: string, sourcePage: Page): string | 
     // remapped onto the freshly cloned ones below - a pasted page's groups need to survive the
     // copy pointing at the right (new) blocks, exactly like its quiz/video timeline events do.
     const idMap = new Map<UUID, UUID>();
-    const blocks = sourcePage.blocks.map((block) => {
+    // The clones keep their `order` keys, so the pasted page stacks exactly like the original.
+    const blocks: Record<UUID, Block> = {};
+    for (const block of orderedValues(sourcePage.blocks)) {
       const cloned = cloneBlockWithNewId(block);
       idMap.set(block.id, cloned.id);
-      return cloned;
-    });
+      blocks[cloned.id] = cloned;
+    }
     const groups: BlockGroup[] = sourcePage.groups.map((group) => ({
       id: createId(),
       blockIds: group.blockIds.map((id) => idMap.get(id)).filter((id): id is UUID => id !== undefined),
@@ -1143,17 +1153,16 @@ export function pastePageAfter(afterPageId: string, sourcePage: Page): string | 
       blocks,
       groups,
       transition: sourcePage.transition,
-      // Deep-cloned first so any future extra lanes survive the copy untouched, then rebuilt below
-      // since its quiz/video-event nodes still pointed at the *old* block ids.
+      // Cloned first, then pruned below: edges naming the *old* blocks' ids no longer mean anything.
       timeline: structuredClone(sourcePage.timeline),
     };
     syncPageTimelineEvents(newPage);
     m.pages[newPageId] = newPage;
     if (location.kind === "top") {
-      m.sequence.splice(location.index + 1, 0, { kind: "page", pageId: newPageId });
+      insertOrdered(m.sequence, newPageId, { kind: "page", pageId: newPageId }, location.index + 1);
     } else {
       const branch = m.logicBlocks[location.logicBlockId]?.branches.find((b) => b.id === location.branchId);
-      branch?.pageIds.splice(location.index + 1, 0, newPageId);
+      if (branch) insertOrdered(branch.pages, newPageId, {}, location.index + 1);
     }
     inserted = true;
   });
@@ -1177,12 +1186,12 @@ export function pasteBlockInto(
     if (target.kind === "page") {
       const page = m.pages[target.pageId];
       if (!page) return;
-      page.blocks.push(newBlock);
+      insertOrdered(page.blocks, newBlock.id, newBlock);
       syncPageTimelineEvents(page);
     } else {
       const layout = m.layouts[target.layoutId];
       if (!layout) return;
-      layout.blocks.push(newBlock as StaticBlock);
+      insertOrdered(layout.blocks, newBlock.id, newBlock as StaticBlock);
     }
     inserted = true;
   });

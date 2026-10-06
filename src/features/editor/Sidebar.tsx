@@ -22,6 +22,8 @@ import { SettingsTab } from "./panels/SettingsTab";
 import { VariablesTab } from "./panels/VariablesTab";
 import { SlideThumbnail } from "./SlideThumbnail";
 import { useDragReorder } from "./useDragReorder";
+import { orderedValues } from "../../core/document/ordering";
+import { branchPageIds, sequenceOf } from "../../core/document/sequence";
 
 type DragBind = ReturnType<typeof useDragReorder>["bind"];
 
@@ -98,7 +100,7 @@ function LayoutList() {
             onClick={() => select({ type: "layout", layoutId: layout.id })}
           >
             <div className="weft-node-layout-body">
-              <SlideThumbnail blocks={layout.blocks} />
+              <SlideThumbnail blocks={orderedValues(layout.blocks)} />
               <span className="weft-node-title">{layout.name}</span>
             </div>
           </button>
@@ -121,7 +123,8 @@ function SequenceTree({ openMenu, bind }: { openMenu: ReturnType<typeof useConte
   const doc = useDocumentStore((s) => s.doc);
   const selection = useDocumentStore((s) => s.selection);
   const select = useDocumentStore((s) => s.select);
-  const { sequence, logicBlocks } = doc.content;
+  const { logicBlocks } = doc.content;
+  const sequence = sequenceOf(doc.content);
   // The page a selected block (or an event on its own timeline - see Timeline.tsx) lives on -
   // either kind of selection means the page itself isn't the active sidebar entry anymore, but
   // it's still useful to see at a glance which page's canvas you're looking at, so its row gets a
@@ -235,7 +238,7 @@ function PageRow({
       {...dragAttrs}
     >
       <span className="weft-node-index">{index}</span>
-      <SlideThumbnail blocks={[...(layout?.blocks ?? []), ...page.blocks]} />
+      <SlideThumbnail blocks={[...orderedValues(layout?.blocks ?? {}), ...orderedValues(page.blocks)]} />
     </button>
   );
 }
@@ -301,8 +304,8 @@ function LogicBlockRow({
               <span>{branch.label}</span>
             </div>
             <div className="weft-branch-pages">
-              {branch.pageIds.length === 0 && <EmptyBranchDropZone bind={bind} logicBlockId={logicBlock.id} branchId={branch.id} />}
-              {branch.pageIds.map((pageId, pageIndex) => (
+              {Object.keys(branch.pages).length === 0 && <EmptyBranchDropZone bind={bind} logicBlockId={logicBlock.id} branchId={branch.id} />}
+              {branchPageIds(branch).map((pageId, pageIndex) => (
                 <PageRow
                   key={pageId}
                   pageId={pageId}

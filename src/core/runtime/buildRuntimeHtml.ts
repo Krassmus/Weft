@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import vanillaLmSource from "../../../mockups/VanillaLM.js?raw";
 import playerRuntimeSource from "./player.runtime.js?raw";
 import playerRuntimeCss from "./player.runtime.css?raw";
+import { toRuntimeModule } from "./runtimeModule";
 import { parseExpression } from "../document/expressions";
 import { autonymLabel } from "../i18n/languages";
 import { playerStringsFor } from "../i18n/playerStrings";
@@ -49,7 +50,7 @@ export async function buildRuntimeHtml(
 
   // Escaping every "<" keeps the embedded JSON from ever containing a literal "</script>",
   // while remaining valid JSON (< decodes back to "<" on JSON.parse).
-  const moduleJson = JSON.stringify(module).replace(/</g, "\\u003c");
+  const moduleJson = JSON.stringify(toRuntimeModule(module)).replace(/</g, "\\u003c");
   const assetUrlsJson = JSON.stringify(assetUrls).replace(/</g, "\\u003c");
   const qrCodeSvgsJson = JSON.stringify(qrCodeSvgs).replace(/</g, "\\u003c");
   const texHtmlJson = JSON.stringify(texHtml).replace(/</g, "\\u003c");
@@ -113,8 +114,8 @@ function buildComputedExpressions(module: WeftModule): Record<string, Expr | nul
  * highlighter. */
 function buildCodeHtml(module: WeftModule): { codeHtml: Record<string, string>; codeThemeIds: Set<string> } {
   const blocks: Block[] = [
-    ...Object.values(module.pages).flatMap((page) => page.blocks),
-    ...Object.values(module.layouts).flatMap((layout) => layout.blocks),
+    ...Object.values(module.pages).flatMap((page) => Object.values(page.blocks)),
+    ...Object.values(module.layouts).flatMap((layout) => Object.values(layout.blocks)),
   ];
   const codeHtml: Record<string, string> = {};
   const codeThemeIds = new Set<string>();
@@ -131,10 +132,10 @@ function buildCodeHtml(module: WeftModule): { codeHtml: Record<string, string>; 
 function buildTexHtml(module: WeftModule): Record<string, string> {
   const blocks: TexBlock[] = [];
   for (const page of Object.values(module.pages)) {
-    for (const block of page.blocks) if (block.kind === "tex" && block.tex.trim()) blocks.push(block);
+    for (const block of Object.values(page.blocks)) if (block.kind === "tex" && block.tex.trim()) blocks.push(block);
   }
   for (const layout of Object.values(module.layouts)) {
-    for (const block of layout.blocks) if (block.kind === "tex" && block.tex.trim()) blocks.push(block);
+    for (const block of Object.values(layout.blocks)) if (block.kind === "tex" && block.tex.trim()) blocks.push(block);
   }
   return Object.fromEntries(blocks.map((block) => [block.id, renderTexToHtml(block.tex)]));
 }
@@ -143,10 +144,10 @@ function buildTexHtml(module: WeftModule): Record<string, string> {
 async function buildQrCodeSvgs(module: WeftModule): Promise<Record<string, string>> {
   const blocks: IframeBlock[] = [];
   for (const page of Object.values(module.pages)) {
-    for (const block of page.blocks) if (block.kind === "iframe" && block.qrCode && block.url) blocks.push(block);
+    for (const block of Object.values(page.blocks)) if (block.kind === "iframe" && block.qrCode && block.url) blocks.push(block);
   }
   for (const layout of Object.values(module.layouts)) {
-    for (const block of layout.blocks) if (block.kind === "iframe" && block.qrCode && block.url) blocks.push(block);
+    for (const block of Object.values(layout.blocks)) if (block.kind === "iframe" && block.qrCode && block.url) blocks.push(block);
   }
 
   const entries = await Promise.all(

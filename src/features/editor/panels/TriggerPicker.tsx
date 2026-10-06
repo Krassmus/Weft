@@ -1,4 +1,4 @@
-import { computeAdvanceChainTail } from "../../../core/document/pageTimeline";
+import { canTriggerFrom, computeAdvanceChainTail } from "../../../core/document/pageTimeline";
 import type { ResolvedTrigger } from "../../../core/document/pageTimeline";
 import type { Page, TimelineEdgeKind } from "../../../core/types";
 
@@ -42,6 +42,10 @@ export function TriggerPicker({
   onChange: (from: string | null, delayMs: number, kind: TimelineEdgeKind) => void;
 }) {
   const mainValue = trigger?.kind === "advance" ? ADVANCE_SENTINEL : (trigger?.from ?? "");
+  // Nothing that already waits for this event (directly or further up its own chain) can be what
+  // triggers it - that would be a loop of events each waiting for the next, none of which would ever
+  // happen. The current source stays listed regardless, so the select always shows what's stored.
+  const sources = options.filter((event) => event.id === trigger?.from || canTriggerFrom(page, event.id, targetNodeId));
 
   function handleMainChange(value: string) {
     if (value === ADVANCE_SENTINEL) onChange(computeAdvanceChainTail(page, targetNodeId), 0, "advance");
@@ -56,7 +60,7 @@ export function TriggerPicker({
         <select value={mainValue} onChange={(e) => handleMainChange(e.target.value)}>
           {allowNoTrigger && <option value="">{noTriggerLabel}</option>}
           <option value={ADVANCE_SENTINEL}>Weiter</option>
-          {options.map((event) => (
+          {sources.map((event) => (
             <option key={event.id} value={event.id}>
               {event.label}
             </option>
@@ -67,7 +71,7 @@ export function TriggerPicker({
         <label className="weft-field">
           <span>Nach welchem Ereignis</span>
           <select value={trigger.from} onChange={(e) => onChange(e.target.value, 0, "advance")}>
-            {options.map((event) => (
+            {sources.map((event) => (
               <option key={event.id} value={event.id}>
                 {event.label}
               </option>

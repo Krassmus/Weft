@@ -117,8 +117,8 @@ export function buttonTextPatch(block: ButtonBlock, language: string | null, def
  */
 export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, newDefault: string): void {
   const blocks = [
-    ...Object.values(content.pages).flatMap((page) => page.blocks),
-    ...Object.values(content.layouts).flatMap((layout) => layout.blocks),
+    ...Object.values(content.pages).flatMap((page) => Object.values(page.blocks)),
+    ...Object.values(content.layouts).flatMap((layout) => Object.values(layout.blocks)),
   ];
   for (const block of blocks) {
     if (block.kind !== "text" && block.kind !== "quiz" && block.kind !== "button") continue;

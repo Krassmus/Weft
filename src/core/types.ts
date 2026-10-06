@@ -1,6 +1,8 @@
-import type { Patch } from "immer";
-
 export type UUID = string;
+
+/** Position among the siblings of an ordered collection (a page's blocks, the page sequence, a
+ * branch's pages) - a fractional key, see core/document/ordering.ts. */
+export type OrderKey = string;
 
 /** "W:H" - one of the presets in core/aspectRatio.ts ("16:9", "9:16", ...) or any custom pair of positive
  * numbers, e.g. "21:9" or "1.85:1". */
@@ -53,7 +55,7 @@ export type BlockPosition = {
  * nothing there to configure or point at. "none" is a DIFFERENT thing: a real Aufbau/Abbau DOES
  * exist, it just shows/hides instantly rather than animating - still has its own trigger (default
  * "Weiter" for entrance), still shows up in the graph, same as "fade"/"move" do. */
-export type BlockEffectType = "off" | "none" | "fade" | "move";
+export type BlockEffectType = "off" | "none" | "fade" | "move" | "iris" | "wipe" | "anvil" | "blur";
 
 /** A block's own Aufbau or Abbau (see BaseBlock.entranceEffect/exitEffect below, and
  * BlockEffectEditor in features/editor/panels/BlockPanel.tsx) - independent of the page-level
@@ -68,12 +70,18 @@ export type BlockEffectType = "off" | "none" | "fade" | "move";
  * back to "none"/"fade"/"move" later picks it back up unchanged). */
 export interface BlockEffect {
   type: BlockEffectType;
-  /** Only meaningful when `type` is "fade" or "move". */
+  /** Only meaningful when `type` isn't "none" (which always shows/hides instantly). */
   durationMs: number;
+  /** "wipe" only: the way the wipe travels (an Aufbau "Nach rechts" uncovers the block from its left
+   * edge towards the right one, an Abbau covers it up the same way). Absent = "right" - optional so
+   * a module saved before it existed still loads. */
+  direction?: TransitionDirection;
 }
 
 interface BaseBlock {
   id: UUID;
+  /** Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts. */
+  order: OrderKey;
   position: BlockPosition;
   /** How this block appears - defaults to "off" (see BlockEffectType's own doc comment): just
    * there from the moment the slide is, i.e. exactly how every block behaved before this field
@@ -107,6 +115,10 @@ export interface TextBlock extends BaseBlock {
   html: string;
   /** Other languages' wording, by locale ("fr_FR") - see BlockTranslation. */
   translations?: Record<string, BlockTranslation>;
+  /** Text longer than the block can be scrolled vertically (never horizontally). Off by default -
+   * and absent on every block saved before this existed, which therefore stay unscrollable: the
+   * overflowing text is simply cut off at the block's edge. */
+  scrollable?: boolean;
 }
 
 /** A drop-down with which a learner picks the language of the module (it sets `userlanguage`) -
@@ -339,10 +351,16 @@ export interface ShapeBlock extends BaseBlock {
 export type StaticBlock = TextBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock;
 export type Block = StaticBlock | QuizBlock;
 
+/** A block as it's first made, before it has been put somewhere (and so given its `order`). */
+export type NewBlock = Block extends infer B ? (B extends Block ? Omit<B, "order"> : never) : never;
+export type NewStaticBlock = StaticBlock extends infer B ? (B extends StaticBlock ? Omit<B, "order"> : never) : never;
+
 export interface Layout {
   id: UUID;
   name: string;
-  blocks: StaticBlock[];
+  /** By block id; the stacking order is each block's own `order` (see ordering.ts's
+   * orderedValues). Not an array so that moving a block is a change of one field. */
+  blocks: Record<UUID, StaticBlock>;
 }
 
 /** Every kind of transition Weft knows how to animate the move to the *next* node with - "none"
@@ -467,35 +485,39 @@ export interface TimelineNode {
 
 /** One horizontal row in the timeline UI: a chain of nodes joined by edges. Events with no
  * causal relationship to this lane's events get their own additional lane instead of sharing
- * this one - see PageTimeline.lanes. */
+ * this one - see getPageLanes in document/pageTimeline.ts. */
 export interface TimelineLane {
   nodes: TimelineNode[];
   edges: TimelineEdge[];
 }
 
-/** A page's timeline, stored per-page rather than computed by scanning its blocks at render
- * time. Two parts, kept deliberately separate so there's only ever one place - `triggerEdges` -
- * that records "who fires this", instead of that living partly here and partly on whichever
- * block happens to own the effect (see BlockEffect's own doc comment):
+/** What causes one event of a page (see PageTimeline.triggerEdges, stored under the id of the event
+ * it causes - so there is no `to` here). */
+export interface TriggerEdge {
+  from: string;
+  kind: TimelineEdgeKind;
+  /** Only meaningful when `kind` is "timed": how long after `from` this fires, in milliseconds. */
+  delayMs?: number;
+}
+
+/** What a page's timeline stores: every trigger relationship the author has actually chosen - a
+ * block's own Aufbau/Abbau, a video's own non-autoplay start, "Nächste Folie"'s own, or a
+ * free-standing "event X also fires event Y" link created directly in EventPanel.tsx - keyed by the
+ * id of the event it causes. At most one edge per event (an event has at most one thing that
+ * causes it - see findTriggerEdge in document/pageTimeline.ts), which is exactly what the keying
+ * says: setting or removing one edge touches only that entry, so two people changing different
+ * triggers of the same page never overwrite each other (a list that is replaced whole would).
+ * The key may only ever be a node whose eventType is in TRIGGERABLE_EVENT_TYPES (document/
+ * pageTimeline.ts) - see that set's own doc comment for which events can actually be caused this
+ * way, and why most can't - or "end". syncPageTimelineEvents prunes entries whose event or source
+ * no longer exists.
  *
- * - `lanes`: this page's own structural skeleton - the base "start"->"end" line every page has,
- *   plus one lane per quiz outcome and one per video block - entirely recomputed from scratch by
- *   syncPageTimelineEvents (document/pageTimeline.ts) whenever a relevant block changes. Never
- *   written to directly by any UI - only ever replaced wholesale. Lane 0 always starts with a
- *   "start" node and ends with an "end" node - see createDefaultPageTimeline().
- * - `triggerEdges`: every trigger relationship the author has actually chosen, in one flat,
- *   uniform list, regardless of what caused it to be added - a block's own Aufbau/Abbau, a
- *   video's own non-autoplay start, or a free-standing "event X also fires event Y" link created
- *   directly in EventPanel.tsx. At most one edge per `to` (see findTriggerEdge in
- *   document/pageTimeline.ts) - an event has at most one thing that causes it. `to` may only ever
- *   be a node whose eventType is in TRIGGERABLE_EVENT_TYPES (document/pageTimeline.ts) - see that
- *   set's own doc comment for which events can actually be caused this way, and why most can't.
- *   syncPageTimelineEvents both reads this (to know which trigger lanes to render, appended after
- *   `lanes` above) and prunes it (dropping any edge whose `to`/`from` no longer exists).
- */
+ * Deliberately NOT stored: the rows of the graph the editor draws (TimelineLane) - the page's
+ * start->end line plus one row per quiz outcome / video / chain of triggered events. They follow
+ * entirely from the page's blocks and these edges, so they are computed (getPageLanes in
+ * document/pageTimeline.ts), never saved. */
 export interface PageTimeline {
-  lanes: TimelineLane[];
-  triggerEdges: TimelineEdge[];
+  triggerEdges: Record<string, TriggerEdge>;
 }
 
 /** Several of a page's own blocks, bundled so they move (and resize, together,
@@ -509,11 +531,10 @@ export interface PageTimeline {
  * and to the data a member block carries on its own.
  *
  * `blockIds` are always kept contiguous, in this exact order, within the owning Page's own
- * `blocks` array (see groupBlocks) - what lets the sidebar (PagePanel.tsx) render a clean
+ * block stacking order (see groupBlocks) - what lets the sidebar (PagePanel.tsx) render a clean
  * indented bracket under one group header, and keeps "the group's own stacking position" (see
  * bringGroupToFront/sendGroupToBack) well-defined even though there's no explicit z-index
- * anywhere in this app (block array order already doubles as that, see BlockContainerRef's own
- * doc comment in document/store.ts). Groups are page-only - a Layout has no timeline/graded state
+ * anywhere in this app (the blocks' `order` keys already double as that, see ordering.ts). Groups are page-only - a Layout has no timeline/graded state
  * and nothing about grouping needs either, so there was no reason to extend Layout the same way.
  */
 export interface BlockGroup {
@@ -524,7 +545,8 @@ export interface BlockGroup {
 export interface Page {
   id: UUID;
   layoutId: UUID | null;
-  blocks: Block[];
+  /** By block id - see Layout.blocks. */
+  blocks: Record<UUID, Block>;
   /** This page's own groups (see BlockGroup) - empty for the vast majority of pages, which never
    * group anything. */
   groups: BlockGroup[];
@@ -557,7 +579,9 @@ export interface Branch {
    * unconditional "sonst" fallback taken when none of the earlier conditions matched.
    */
   condition: VariableCondition | null;
-  pageIds: UUID[];
+  /** The pages of this branch, by page id; the order they're played in is each entry's own
+   * `order` (see ordering.ts) - not an array so that moving a page is a change of one field. */
+  pages: Record<UUID, { order: OrderKey }>;
 }
 
 export interface LogicBlock {
@@ -570,6 +594,9 @@ export interface LogicBlock {
 export type SequenceNodeRef =
   | { kind: "page"; pageId: UUID }
   | { kind: "logic"; logicBlockId: UUID };
+
+/** One entry of WeftModule.sequence: a node plus its position in the main sequence. */
+export type SequenceEntry = SequenceNodeRef & { order: OrderKey };
 
 export interface AssetMeta {
   id: UUID;
@@ -599,7 +626,9 @@ export interface WeftModule {
   layouts: Record<UUID, Layout>;
   pages: Record<UUID, Page>;
   logicBlocks: Record<UUID, LogicBlock>;
-  sequence: SequenceNodeRef[];
+  /** The main sequence, by the id of the page / logic block each entry stands for; played in each
+   * entry's own `order` (see ordering.ts's orderedValues, and sequenceOf in document/sequence.ts). */
+  sequence: Record<UUID, SequenceEntry>;
   assets: AssetMeta[];
   customFonts: CustomFont[];
   /** The languages this module is offered in, as locales ("de_DE", "en_US" - see
@@ -614,28 +643,31 @@ export interface WeftModule {
   keyboardNavigationEnabled: boolean;
 }
 
-export interface UndoEntry {
-  id: UUID;
-  label: string;
-  timestamp: string;
-  patches: Patch[];
-  inversePatches: Patch[];
-}
-
 /**
  * The root object that is serialized to weft.json. Save format and export format are the
  * same on purpose: exporting is just packing this plus a generated index.html into a zip.
  *
- * `formatVersion` 2: Weiter-as-a-trigger/"off" effect type exist (see migrateMissingAdvanceTriggers
- * in io/unpack.ts) - a document saved at 1 predates them, so its "no trigger edge" states still
- * mean the OLD defaults (immediate) and get frozen into explicit edges once on load; a document at
- * 2 was authored with the new dynamic defaults ("no edge" = "Weiter, after everything else"),
- * which that migration must never touch - re-running it would silently rewrite them.
+ * `formatVersion` says which shape `content` has, and which of the migrations in io/unpack.ts have
+ * already been applied to it - those run exactly once, when a file of an older version is opened,
+ * never on a document that is already current (re-running one would silently rewrite what the
+ * author has since changed - and, in a document edited by several people at once, every one of them
+ * would apply it and the copies would conflict). A file with a HIGHER version than this build knows
+ * is refused rather than opened half-understood.
+ *  - 1: before "Weiter" was a trigger (see migrateMissingAdvanceTriggers) - "no trigger edge" still
+ *    means the OLD defaults (immediate).
+ *  - 2: dynamic Weiter defaults ("no edge" = "Weiter, after everything else").
+ *  - 3: mergeable shape - blocks, the page sequence and a branch's pages are keyed by id and carry
+ *    an `order` key instead of being arrays (see core/document/ordering.ts), a page's trigger edges
+ *    are keyed by the event they cause, the timeline's lanes are computed instead of stored, and the
+ *    undo history is no longer part of the file (it is local to whoever is editing: see UndoEntry
+ *    in document/store.ts).
+ * Only migrations that CHANGE data (the conversion to the mergeable shape, the Weiter freeze) are
+ * gated on this number. The small "field missing? give it its default" backfills in io/unpack.ts
+ * run on every load - they write nothing at all to a document that already has the field.
  */
+export const CURRENT_FORMAT_VERSION = 3;
+
 export interface WeftDocument {
-  formatVersion: 1 | 2;
+  formatVersion: number;
   content: WeftModule;
-  undoHistory: UndoEntry[];
-  /** Index of the last applied entry; -1 means the document is at its initial state. */
-  undoIndex: number;
 }

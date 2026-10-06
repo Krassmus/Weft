@@ -18,13 +18,13 @@ function assetIdOf(block: Block | StaticBlock): string | null {
 export function usedAssetIds(module: WeftModule): Set<string> {
   const ids = new Set<string>();
   for (const page of Object.values(module.pages)) {
-    for (const block of page.blocks) {
+    for (const block of Object.values(page.blocks)) {
       const id = assetIdOf(block);
       if (id) ids.add(id);
     }
   }
   for (const layout of Object.values(module.layouts)) {
-    for (const block of layout.blocks) {
+    for (const block of Object.values(layout.blocks)) {
       const id = assetIdOf(block);
       if (id) ids.add(id);
     }

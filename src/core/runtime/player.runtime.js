@@ -896,36 +896,63 @@
     }
     return "start";
   }
-  // Where every page block with no EXPLICIT entrance edge of its own currently sits in the Weiter
-  // queue, keyed by block id - two blocks both still at their own untouched default have to end up
-  // queued one after another (in page.blocks array order), not both racing to be "right after
-  // Start der Folie" independently.
-  function computeImplicitEntranceChain(page) {
-    var tail = computeExplicitAdvanceChainTail(page, null);
-    var result = {};
+  // Whether event startId can only happen after event targetId has - following what causes what:
+  // the stored trigger edge of a node, or else the (not yet stored) default implicitFrom (by node id)
+  // already hands it. Chaining targetId after something for which this is true would close a loop of
+  // events each waiting for the next, none of which could ever fire. Mirrors waitsOn in
+  // document/pageTimeline.ts.
+  function waitsOn(page, startId, targetId, implicitFrom) {
+    var seen = {};
+    var id = startId;
+    while (id !== undefined && !seen[id]) {
+      if (id === targetId) return true;
+      seen[id] = true;
+      var edge = findTriggerEdge(page, id);
+      id = edge ? edge.from : implicitFrom[id];
+    }
+    return false;
+  }
+  // The Weiter queue as it stands: where every block still at its default Aufbau trigger sits in it
+  // (entranceFrom, by block id) and the queue's end (tail) - two blocks both at their untouched
+  // default are queued one after another (in block order), not both racing to be "right after Start
+  // der Folie". A block the end of the queue already waits for (the author chained other events onto
+  // its Aufbau by hand) can't go after that end - it'd wait for something that waits for it - and is
+  // queued right after "start" instead, in front of that chain. Mirrors walkAdvanceQueue in
+  // document/pageTimeline.ts.
+  function walkAdvanceQueue(page, excludeNodeId) {
+    var tail = computeExplicitAdvanceChainTail(page, excludeNodeId);
+    var entranceFrom = {};
+    var implicitFrom = {};
     for (var i = 0; i < page.blocks.length; i++) {
       var block = page.blocks[i];
       if (block.entranceEffect.type === "off") continue; // no Aufbau at all - never part of the queue
       var nodeId = blockEffectEventId(block.id, "entrance");
-      if (findTriggerEdge(page, nodeId)) continue;
-      result[block.id] = tail;
-      tail = nodeId;
+      if (nodeId === excludeNodeId || findTriggerEdge(page, nodeId)) continue;
+      if (waitsOn(page, tail, nodeId, implicitFrom)) {
+        entranceFrom[block.id] = "start";
+        implicitFrom[nodeId] = "start";
+      } else {
+        entranceFrom[block.id] = tail;
+        implicitFrom[nodeId] = tail;
+        tail = nodeId;
+      }
     }
-    return result;
+    return { entranceFrom: entranceFrom, tail: tail };
+  }
+  function computeImplicitEntranceChain(page) {
+    return walkAdvanceQueue(page, null).entranceFrom;
   }
   // The current true end of this page's whole Weiter queue, explicit edges and every
   // still-at-its-own-implicit-default block both accounted for - "start" if the queue is entirely
-  // empty. `excludeNodeId` leaves one node out of consideration entirely (pass null to not
-  // exclude anything).
+  // empty, and also "start" if that end already waits for the node itself (it can't go there).
+  // `excludeNodeId` leaves one node out of consideration entirely (pass null to not exclude
+  // anything).
   function computeAdvanceChainTail(page, excludeNodeId) {
-    var tail = computeExplicitAdvanceChainTail(page, excludeNodeId);
-    for (var i = 0; i < page.blocks.length; i++) {
-      if (page.blocks[i].entranceEffect.type === "off") continue; // no Aufbau at all
-      var nodeId = blockEffectEventId(page.blocks[i].id, "entrance");
-      if (nodeId === excludeNodeId || findTriggerEdge(page, nodeId)) continue;
-      tail = nodeId;
-    }
-    return tail;
+    var walk = walkAdvanceQueue(page, excludeNodeId);
+    if (excludeNodeId === null) return walk.tail;
+    var implicitFrom = {};
+    for (var blockId in walk.entranceFrom) implicitFrom[blockEffectEventId(blockId, "entrance")] = walk.entranceFrom[blockId];
+    return waitsOn(page, walk.tail, excludeNodeId, implicitFrom) ? "start" : walk.tail;
   }
   // null means no Aufbau at all (entranceEffect.type "off" - see BlockEffectType's own doc
   // comment in core/types.ts) - short-circuits here regardless of whatever trigger edge might
@@ -971,6 +998,51 @@
     return edge.kind === "advance" ? { kind: "advance", from: edge.from } : null;
   }
 
+  // The keyframes of one block animation as an Aufbau (hidden -> shown); an Abbau plays them
+  // backwards (effectFrames with phase "exit"), except where the opposite isn't simply the reverse.
+  // translate/clip-path/filter (not transform): composes with a block's own rotate().
+  var WIPE_HIDDEN = {
+    right: "inset(0 100% 0 0)", // uncovered from the left edge towards the right one
+    left: "inset(0 0 0 100%)",
+    down: "inset(0 0 100% 0)",
+    up: "inset(100% 0 0 0)",
+  };
+  function effectFrames(wrap, effect, phase) {
+    var type = effect.type;
+    var frames = null;
+    if (type === "fade") {
+      frames = [{ opacity: 0 }, { opacity: 1 }];
+    } else if (type === "move") {
+      frames = [{ translate: "100% 0" }, { translate: "0 0" }];
+    } else if (type === "iris") {
+      // 75% of the circle's reference length (the diagonal / sqrt 2) is past every corner.
+      frames = [{ clipPath: "circle(0% at 50% 50%)" }, { clipPath: "circle(75% at 50% 50%)" }];
+    } else if (type === "wipe") {
+      var hidden = WIPE_HIDDEN[effect.direction || "right"] || WIPE_HIDDEN.right;
+      frames = [{ clipPath: hidden }, { clipPath: "inset(0 0 0 0)" }];
+      // Abbau: covered up the way the wipe travels, i.e. from the edge the Aufbau started at.
+      if (phase === "exit") {
+        var covered = { right: "inset(0 0 0 100%)", left: "inset(0 100% 0 0)", down: "inset(100% 0 0 0)", up: "inset(0 0 100% 0)" };
+        return [{ clipPath: "inset(0 0 0 0)" }, { clipPath: covered[effect.direction || "right"] || covered.right }];
+      }
+    } else if (type === "blur") {
+      frames = [{ opacity: 0, filter: "blur(24px)" }, { opacity: 1, filter: "blur(0px)" }];
+    } else if (type === "anvil") {
+      // Falls in from above the slide (down to the block's own bottom edge, however low it sits),
+      // lands hard and settles with a small bounce. The Abbau is the opposite: it shoots upwards.
+      var rise = "0 -" + (wrap.offsetTop + wrap.offsetHeight + 8) + "px";
+      if (phase === "exit") return [{ translate: "0 0", easing: "cubic-bezier(.5,0,1,.6)" }, { translate: rise }];
+      return [
+        { translate: rise, offset: 0, easing: "cubic-bezier(.5,0,1,.5)" },
+        { translate: "0 0", offset: 0.7, easing: "ease-out" },
+        { translate: "0 -3%", offset: 0.82, easing: "ease-in" },
+        { translate: "0 0", offset: 1 },
+      ];
+    }
+    if (frames && phase === "exit") frames.reverse();
+    return frames;
+  }
+
   /**
    * Wires up one block's own Aufbau/Abbau (see BaseBlock.entranceEffect/exitEffect in
    * core/types.ts, and PageTimeline.triggerEdges for who triggers it and after what delay, or
@@ -1013,12 +1085,14 @@
         // back for a long time, or never get - so the effect is completed by the animation's end OR a
         // timer just after its duration, whichever is first (once()): inline state cleaned up, and the
         // entrance event fired that the next build in the Weiter chain is waiting for.
-        var animateIn = function (from, to) {
+        var frames = effectFrames(wrap, entrance, "entrance");
+        if (frames) {
           var duration = entrance.durationMs || 500;
-          var animation = wrap.animate(
-            [Object.assign({ visibility: "visible" }, from), Object.assign({ visibility: "visible" }, to)],
-            { duration: duration, easing: "ease", fill: "both" }
-          );
+          var visible = frames.map(function (frame) {
+            return Object.assign({ visibility: "visible" }, frame);
+          });
+          // Anvil lands on its own timing curves; the others ease as a whole.
+          var animation = wrap.animate(visible, { duration: duration, easing: entrance.type === "anvil" ? "linear" : "ease", fill: "both" });
           var complete = once(function () {
             wrap.style.visibility = "";
             animation.cancel();
@@ -1026,12 +1100,6 @@
           });
           animation.onfinish = complete;
           setTimeout(complete, duration + 100);
-        };
-        if (entrance.type === "fade") {
-          animateIn({ opacity: 0 }, { opacity: 1 });
-        } else if (entrance.type === "move") {
-          // translate (not transform): composes with a block's own rotate() instead of replacing it.
-          animateIn({ translate: "100% 0" }, { translate: "0 0" });
         } else {
           wrap.style.visibility = "";
           done();
@@ -1061,14 +1129,9 @@
         // fill: "forwards" keeps the end state until hideExit hides the block - no frame at the
         // original state in between.
         var animation = null;
-        if (exit.type === "fade") {
-          animation = wrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: duration, easing: "ease", fill: "forwards" });
-        } else if (exit.type === "move") {
-          animation = wrap.animate([{ translate: "0 0" }, { translate: "100% 0" }], {
-            duration: duration,
-            easing: "ease",
-            fill: "forwards",
-          });
+        var frames = effectFrames(wrap, exit, "exit");
+        if (frames) {
+          animation = wrap.animate(frames, { duration: duration, easing: exit.type === "anvil" ? "linear" : "ease", fill: "forwards" });
         }
         if (animation) {
           animation.onfinish = hideExit;
@@ -1372,6 +1435,7 @@
   function renderStaticBlock(block, page) {
     var wrap = el("div", { class: "weft-block weft-block-" + block.kind, style: positionStyle(block.position) });
     if (block.kind === "text") {
+      if (block.scrollable) wrap.classList.add("is-scrollable");
       var fillText = function () {
         wrap.innerHTML = blockHtml(block);
         applyVariablesToNode(wrap);

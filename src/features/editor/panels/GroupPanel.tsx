@@ -4,6 +4,7 @@ import { useDocumentStore } from "../../../core/document/store";
 import type { BlockGroup, Page } from "../../../core/types";
 import { listPageTriggerEvents } from "../Timeline";
 import { BlockEffectEditor } from "./BlockPanel";
+import { orderedValues } from "../../../core/document/ordering";
 
 /**
  * A formed BlockGroup, selected as a whole (SelectionRef's "group" variant). Its own Aufbau/Abbau
@@ -14,7 +15,7 @@ import { BlockEffectEditor } from "./BlockPanel";
  */
 export function GroupPanel({ page, group }: { page: Page; group: BlockGroup }) {
   const select = useDocumentStore((s) => s.select);
-  const firstMember = page.blocks.find((b) => group.blockIds.includes(b.id));
+  const firstMember = orderedValues(page.blocks).find((b) => group.blockIds.includes(b.id));
   if (!firstMember) return null;
 
   const ownEffectNodeIds = new Set(group.blockIds.flatMap((id) => [blockEffectNodeId(id, "entrance"), blockEffectNodeId(id, "exit")]));
@@ -32,6 +33,7 @@ export function GroupPanel({ page, group }: { page: Page; group: BlockGroup }) {
         Gruppe auflösen
       </button>
       <BlockEffectEditor
+        key={group.id + "-entrance"}
         title="Aufbau"
         page={page}
         targetNodeId={blockEffectNodeId(firstMember.id, "entrance")}
@@ -42,6 +44,7 @@ export function GroupPanel({ page, group }: { page: Page; group: BlockGroup }) {
         onTriggerChange={(from, delayMs, kind) => setGroupEventTrigger(page.id, group.blockIds, "entrance", from, delayMs, kind)}
       />
       <BlockEffectEditor
+        key={group.id + "-exit"}
         title="Abbau"
         page={page}
         targetNodeId={blockEffectNodeId(firstMember.id, "exit")}

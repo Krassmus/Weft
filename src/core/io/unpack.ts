@@ -1,8 +1,10 @@
 import { strFromU8, unzipSync } from "fflate";
+import { CURRENT_FORMAT_VERSION } from "../types";
 import type { Block, WeftDocument } from "../types";
 import { useAssetStore } from "../assets/assetStore";
 import { defaultEntranceEffect, defaultExitEffect } from "../document/blockEffects";
 import { blockEffectNodeId, createDefaultPageTimeline, syncPageTimelineEvents } from "../document/pageTimeline";
+import { orderedIdRecord, orderedRecord, orderedRecordBy } from "../document/ordering";
 import { ensureBuiltinVariables } from "../document/variables";
 import { assetZipPath, customFontZipPath } from "./pack";
 
@@ -21,7 +23,7 @@ function escapeHtml(value: string): string {
 // QuizBlock.questionHtml/option.html can stay simple, always-present, always-already-HTML fields.
 function migrateLegacyQuizHtml(doc: WeftDocument) {
   for (const page of Object.values(doc.content.pages)) {
-    for (const block of page.blocks) {
+    for (const block of Object.values(page.blocks)) {
       if (block.kind !== "quiz") continue;
       const legacy = block as unknown as { question?: string; options: { text?: string; html?: string }[] };
       if (block.questionHtml === undefined) block.questionHtml = `<p>${escapeHtml(legacy.question ?? "")}</p>`;
@@ -58,14 +60,14 @@ function migrateMissingTimelines(doc: WeftDocument) {
 // stopsVideo on them yet - backfill to true, matching the only thing a stop point did before.
 function migrateMissingVideoStopPoints(doc: WeftDocument) {
   for (const page of Object.values(doc.content.pages)) {
-    for (const block of page.blocks) {
+    for (const block of Object.values(page.blocks)) {
       if (block.kind !== "video") continue;
       block.stopPoints ??= [];
       for (const sp of block.stopPoints) sp.stopsVideo ??= true;
     }
   }
   for (const layout of Object.values(doc.content.layouts)) {
-    for (const block of layout.blocks) {
+    for (const block of Object.values(layout.blocks)) {
       if (block.kind !== "video") continue;
       block.stopPoints ??= [];
       for (const sp of block.stopPoints) sp.stopsVideo ??= true;
@@ -78,13 +80,13 @@ function migrateMissingVideoStopPoints(doc: WeftDocument) {
 // behaved before this existed (see defaultEntranceEffect/defaultExitEffect's own doc comments).
 function migrateMissingBlockEffects(doc: WeftDocument) {
   for (const page of Object.values(doc.content.pages)) {
-    for (const block of page.blocks) {
+    for (const block of Object.values(page.blocks)) {
       block.entranceEffect ??= defaultEntranceEffect();
       block.exitEffect ??= defaultExitEffect();
     }
   }
   for (const layout of Object.values(doc.content.layouts)) {
-    for (const block of layout.blocks) {
+    for (const block of Object.values(layout.blocks)) {
       block.entranceEffect ??= defaultEntranceEffect();
       block.exitEffect ??= defaultExitEffect();
     }
@@ -99,17 +101,16 @@ function migrateMissingBlockEffects(doc: WeftDocument) {
 // tolerating their presence.
 function migrateBlockEffectTriggers(doc: WeftDocument) {
   for (const page of Object.values(doc.content.pages)) {
-    page.timeline.triggerEdges ??= [];
-    for (const block of page.blocks) {
+    page.timeline.triggerEdges ??= {};
+    for (const block of Object.values(page.blocks)) {
       const legacyEntrance = block.entranceEffect as unknown as { triggerEventId?: string | null; delayMs?: number };
       if (legacyEntrance.triggerEventId !== undefined) {
         if (legacyEntrance.triggerEventId && !(legacyEntrance.triggerEventId === "start" && (legacyEntrance.delayMs ?? 0) === 0)) {
-          page.timeline.triggerEdges.push({
+          page.timeline.triggerEdges[blockEffectNodeId(block.id, "entrance")] = {
             from: legacyEntrance.triggerEventId,
-            to: blockEffectNodeId(block.id, "entrance"),
             kind: "timed",
             delayMs: legacyEntrance.delayMs ?? 0,
-          });
+          };
         }
         delete legacyEntrance.triggerEventId;
         delete legacyEntrance.delayMs;
@@ -117,12 +118,11 @@ function migrateBlockEffectTriggers(doc: WeftDocument) {
       const legacyExit = block.exitEffect as unknown as { triggerEventId?: string | null; delayMs?: number };
       if (legacyExit.triggerEventId !== undefined) {
         if (legacyExit.triggerEventId) {
-          page.timeline.triggerEdges.push({
+          page.timeline.triggerEdges[blockEffectNodeId(block.id, "exit")] = {
             from: legacyExit.triggerEventId,
-            to: blockEffectNodeId(block.id, "exit"),
             kind: "timed",
             delayMs: legacyExit.delayMs ?? 0,
-          });
+          };
         }
         delete legacyExit.triggerEventId;
         delete legacyExit.delayMs;
@@ -152,8 +152,8 @@ function migrateLegacyShapeCornerRadius(doc: WeftDocument) {
       delete legacy.cornerRadius;
     }
   }
-  for (const page of Object.values(doc.content.pages)) migrateBlocks(page.blocks);
-  for (const layout of Object.values(doc.content.layouts)) migrateBlocks(layout.blocks);
+  for (const page of Object.values(doc.content.pages)) migrateBlocks(Object.values(page.blocks));
+  for (const layout of Object.values(doc.content.layouts)) migrateBlocks(Object.values(layout.blocks));
 }
 
 // Every save predating the quiz/video timeline events (or made with an older build's actions,
@@ -201,24 +201,72 @@ function migrateMissingGroups(doc: WeftDocument) {
 // never durably persist per-page anyway, migrating them would be pointless).
 function migrateMissingAdvanceTriggers(doc: WeftDocument) {
   for (const page of Object.values(doc.content.pages)) {
-    if (!page.timeline.triggerEdges.some((e) => e.to === "end")) {
-      page.timeline.triggerEdges.push({ from: "start", to: "end", kind: "advance" });
+    if (!page.timeline.triggerEdges["end"]) {
+      page.timeline.triggerEdges["end"] = { from: "start", kind: "advance" };
     }
-    for (const block of page.blocks) {
+    for (const block of Object.values(page.blocks)) {
       const entranceId = blockEffectNodeId(block.id, "entrance");
-      if (!page.timeline.triggerEdges.some((e) => e.to === entranceId)) {
+      if (!page.timeline.triggerEdges[entranceId]) {
         if (block.entranceEffect.type === "none") {
           block.entranceEffect.type = "off";
         } else if (block.entranceEffect.type !== "off") {
-          page.timeline.triggerEdges.push({ from: "start", to: entranceId, kind: "timed", delayMs: 0 });
+          page.timeline.triggerEdges[entranceId] = { from: "start", kind: "timed", delayMs: 0 };
         }
       }
       const exitId = blockEffectNodeId(block.id, "exit");
-      if (block.exitEffect.type === "none" && !page.timeline.triggerEdges.some((e) => e.to === exitId)) {
+      if (block.exitEffect.type === "none" && !page.timeline.triggerEdges[exitId]) {
         block.exitEffect.type = "off";
       }
     }
   }
+}
+
+// Documents before formatVersion 3 keep their blocks, the page sequence and a branch's pages as
+// arrays, store the timeline's lanes, and carry the undo history in the file. Version 3 is the
+// mergeable shape (see WeftDocument.formatVersion, core/document/ordering.ts): the same data as
+// keyed collections with `order` keys, the lanes left out (they are computed, see getPageLanes), and
+// no undo history (it is local to the editor, see store.ts). Purely structural - fields that older
+// saves lack are still backfilled by the migrations that follow. Runs exactly once per file: on a
+// version-3 document it must never run again.
+function migrateToMergeableShape(doc: WeftDocument) {
+  type Legacy = {
+    sequence?: unknown;
+    pages: Record<string, { blocks: unknown; timeline?: { lanes?: unknown; triggerEdges?: unknown } }>;
+    layouts: Record<string, { blocks: unknown }>;
+    logicBlocks: Record<string, { branches: { pageIds?: string[]; pages?: unknown }[] }>;
+  };
+  const content = doc.content as unknown as Legacy;
+  const asRecord = (blocks: unknown) => (Array.isArray(blocks) ? orderedRecord(blocks as { id: string }[]) : blocks);
+
+  if (Array.isArray(content.sequence)) {
+    const nodes = content.sequence as { kind: "page" | "logic"; pageId?: string; logicBlockId?: string }[];
+    content.sequence = orderedRecordBy(nodes, (node) => (node.kind === "page" ? node.pageId : node.logicBlockId) as string);
+  }
+  for (const page of Object.values(content.pages)) {
+    page.blocks = asRecord(page.blocks);
+    if (page.timeline) {
+      delete page.timeline.lanes;
+      // The edges become a map by the event they cause (there was at most one per event; should an
+      // old file somehow hold two, the later one wins).
+      if (Array.isArray(page.timeline.triggerEdges)) {
+        const byTarget: Record<string, unknown> = {};
+        for (const { to, ...edge } of page.timeline.triggerEdges as { to: string }[]) byTarget[to] = edge;
+        page.timeline.triggerEdges = byTarget;
+      }
+    }
+  }
+  for (const layout of Object.values(content.layouts)) layout.blocks = asRecord(layout.blocks);
+  for (const logicBlock of Object.values(content.logicBlocks)) {
+    for (const branch of logicBlock.branches) {
+      if (Array.isArray(branch.pageIds)) {
+        branch.pages = orderedIdRecord(branch.pageIds);
+        delete branch.pageIds;
+      }
+    }
+  }
+  const legacyDoc = doc as unknown as { undoHistory?: unknown; undoIndex?: unknown };
+  delete legacyDoc.undoHistory;
+  delete legacyDoc.undoIndex;
 }
 
 export function unpackDocument(zipBytes: Uint8Array): WeftDocument {
@@ -227,6 +275,14 @@ export function unpackDocument(zipBytes: Uint8Array): WeftDocument {
   const jsonBytes = files["weft.json"];
   if (!jsonBytes) throw new Error("weft.json fehlt im Archiv – das ist keine gültige Weft-Datei.");
   const doc = JSON.parse(strFromU8(jsonBytes)) as WeftDocument;
+  const fileVersion = doc.formatVersion ?? 1;
+  if (fileVersion > CURRENT_FORMAT_VERSION) {
+    throw new Error(
+      "Diese Datei wurde mit einer neueren Version von Weft gespeichert und lässt sich hier nicht öffnen. Bitte Weft aktualisieren.",
+    );
+  }
+  // The shape conversion comes first: every migration below works on the current shape.
+  if (fileVersion < 3) migrateToMergeableShape(doc);
   // Older saves predate custom fonts - default rather than leave undefined, since every
   // customFonts.map/forEach elsewhere assumes an array.
   doc.content.customFonts ??= [];
@@ -251,8 +307,8 @@ export function unpackDocument(zipBytes: Uint8Array): WeftDocument {
   // behavior - see WeftDocument.formatVersion. Running this on an already-current document would
   // misread its (intentional) "no edge yet = Weiter" blocks as legacy and freeze them to "Start
   // der Folie" on every single reopen.
-  if (doc.formatVersion < 2) migrateMissingAdvanceTriggers(doc);
-  doc.formatVersion = 2;
+  if (fileVersion < 2) migrateMissingAdvanceTriggers(doc);
+  doc.formatVersion = CURRENT_FORMAT_VERSION;
   syncAllPageTimelineEvents(doc);
 
   const setAsset = useAssetStore.getState().setAsset;

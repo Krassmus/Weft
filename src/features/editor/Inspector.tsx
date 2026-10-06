@@ -78,7 +78,7 @@ function InspectorBody({
 
   if (selection.container.kind === "page") {
     const page = doc.content.pages[selection.container.pageId];
-    const block = page?.blocks.find((b) => b.id === selection.blockId);
+    const block = page?.blocks[selection.blockId];
     if (!page || !block) return <EmptyState />;
     return (
       <BlockPanel
@@ -92,7 +92,7 @@ function InspectorBody({
   }
 
   const layout = doc.content.layouts[selection.container.layoutId];
-  const block = layout?.blocks.find((b) => b.id === selection.blockId);
+  const block = layout?.blocks[selection.blockId];
   if (!layout || !block) return <EmptyState />;
   return (
     <BlockPanel

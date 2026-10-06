@@ -3011,3 +3011,10 @@ button.weft-timeline-node-icon.is-animated:hover {
 .weft-language-picker-list button:hover {
   background: var(--weft-panel-raised);
 }
+
+/* A text block set to "Scrollbar": scrolls vertically (never sideways), in the editor as in the
+   player. Without it the text that doesn't fit is cut off at the block's edge. */
+.weft-edit-block-text.is-scrollable {
+  overflow-x: hidden;
+  overflow-y: auto;
+}

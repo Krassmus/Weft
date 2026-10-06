@@ -3,6 +3,7 @@ import { addLayout, setPageLayout } from "../../../core/document/actions";
 import { useDocumentStore } from "../../../core/document/store";
 import type { Page } from "../../../core/types";
 import { SlideThumbnail } from "../SlideThumbnail";
+import { orderedValues } from "../../../core/document/ordering";
 
 /**
  * The current layout shown as a clickable thumbnail (not a text title - a page's layout is a
@@ -24,7 +25,7 @@ export function LayoutPicker({ page }: { page: Page }) {
     <div className="weft-layout-picker">
       <button type="button" className="weft-layout-current" onClick={() => setOpen((v) => !v)}>
         {currentLayout ? (
-          <SlideThumbnail blocks={currentLayout.blocks} />
+          <SlideThumbnail blocks={orderedValues(currentLayout.blocks)} />
         ) : (
           <div className="weft-layout-thumb-empty">Kein Layout</div>
         )}
@@ -38,7 +39,7 @@ export function LayoutPicker({ page }: { page: Page }) {
           </button>
           {Object.values(layouts).map((layout) => (
             <button key={layout.id} type="button" className="weft-layout-grid-item" onClick={() => choose(layout.id)}>
-              <SlideThumbnail blocks={layout.blocks} />
+              <SlideThumbnail blocks={orderedValues(layout.blocks)} />
               <span>{layout.name}</span>
             </button>
           ))}

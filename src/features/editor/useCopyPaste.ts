@@ -28,9 +28,9 @@ function isEditableTarget(el: Element | null): boolean {
 
 function resolveSelectedBlock(content: WeftModule, selection: Extract<SelectionRef, { type: "block" }>): Block | null {
   if (selection.container.kind === "page") {
-    return content.pages[selection.container.pageId]?.blocks.find((b) => b.id === selection.blockId) ?? null;
+    return content.pages[selection.container.pageId]?.blocks[selection.blockId] ?? null;
   }
-  return content.layouts[selection.container.layoutId]?.blocks.find((b) => b.id === selection.blockId) ?? null;
+  return content.layouts[selection.container.layoutId]?.blocks[selection.blockId] ?? null;
 }
 
 /** Which page a "paste page" should land next to, given what's currently selected. */

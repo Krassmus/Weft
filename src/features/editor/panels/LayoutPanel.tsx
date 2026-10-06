@@ -5,6 +5,7 @@ import { useTranslation } from "../../../core/i18n/useTranslation";
 import type { Layout, StaticBlock } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
 import { useDragReorder } from "../useDragReorder";
+import { orderedValues } from "../../../core/document/ordering";
 
 const STATIC_BLOCK_KINDS = Object.keys(BLOCK_KIND_KEYS).filter((kind) => kind !== "quiz") as StaticBlock["kind"][];
 
@@ -25,10 +26,10 @@ export function LayoutPanel({ layout }: { layout: Layout }) {
         </label>
       </Collapsible>
 
-      <Collapsible title={`${t("panel.elements")} (${layout.blocks.length})`}>
-        {layout.blocks.length > 1 && <p className="weft-hint">Ziehen zum Sortieren - weiter unten liegt weiter vorne.</p>}
+      <Collapsible title={`${t("panel.elements")} (${Object.keys(layout.blocks).length})`}>
+        {Object.keys(layout.blocks).length > 1 && <p className="weft-hint">Ziehen zum Sortieren - weiter unten liegt weiter vorne.</p>}
         <ul className="weft-block-list">
-          {layout.blocks.map((block, index) => {
+          {orderedValues(layout.blocks).map((block, index) => {
             const { dragClassName, ...dragAttrs } = bind("block", layout.id, index, (_containerId, toIndex) =>
               reorderBlock({ kind: "layout", layoutId: layout.id }, block.id, toIndex),
             );

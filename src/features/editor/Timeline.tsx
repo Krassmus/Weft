@@ -9,7 +9,7 @@ import stopIconSvg from "../../../mockups/icons/stop.svg?raw";
 import pauseIconSvg from "../../../mockups/icons/pause.svg?raw";
 import visibilityVisibleIconSvg from "../../../mockups/icons/visibility-visible.svg?raw";
 import visibilityInvisibleIconSvg from "../../../mockups/icons/visibility-invisible.svg?raw";
-import { isTriggerableNode, listAllNodes } from "../../core/document/pageTimeline";
+import { getPageLanes, isTriggerableNode, listAllNodes } from "../../core/document/pageTimeline";
 import { useDocumentStore } from "../../core/document/store";
 import { TRANSITION_LABELS } from "../../core/document/transitions";
 import type { Page, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode } from "../../core/types";
@@ -152,7 +152,7 @@ function groupForkedLanes(lanes: TimelineLane[]): TimelineGroup[] {
  * here ever selects the block behind an event or performs some other action directly.
  */
 export function Timeline({ page }: { page: Page }) {
-  const groups = groupForkedLanes(page.timeline.lanes);
+  const groups = groupForkedLanes(getPageLanes(page));
   return (
     <div className="weft-timeline">
       {groups.map((group, i) =>
@@ -293,6 +293,11 @@ function TimelineLaneRow({
   // still need the edge it would have carried, from that unrendered node to the next, so the line
   // right after the blank lead gets the right dashed/solid treatment.
   const startIndex = leadOverride ? 1 : 0;
+  // A lane that runs from "start" all the way to "end" (the page's own main line, with its Aufbau/
+  // Abbau events in between) spaces all of its events evenly across the full row, so the line
+  // reads symmetrically - rather than clustering them next to "start" with only the last stretch
+  // up to "end" growing (see .weft-timeline-line.is-to-end).
+  const spansStartToEnd = !leadOverride && lane.nodes[0]?.kind === "start" && lane.nodes[lane.nodes.length - 1]?.kind === "end";
   const leadEdge = leadOverride ? lane.edges.find((e) => e.from === lane.nodes[0]?.id && e.to === lane.nodes[1]?.id) : undefined;
 
   return (
@@ -364,7 +369,7 @@ function TimelineLaneRow({
                 className={
                   "weft-timeline-line" +
                   (edge ? edgeKindClass(edge.kind) : " is-none") +
-                  (isIndependent ? " is-distributed" : nextNode.kind === "end" ? " is-to-end" : " is-detached")
+                  (isIndependent ? " is-distributed" : nextNode.kind === "end" || spansStartToEnd ? " is-to-end" : " is-detached")
                 }
               />
             )}

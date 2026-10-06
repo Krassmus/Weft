@@ -1,12 +1,15 @@
-import { setEventTrigger } from "../../../core/document/actions";
+import { setEventTrigger, updateBlock } from "../../../core/document/actions";
 import {
+  canTriggerFrom,
   computeAdvanceChainTail,
   findNode,
   getBlockEntranceTrigger,
   getBlockExitTrigger,
   getEndTrigger,
+  blockEffectNodeId,
   getVideoStartTrigger,
   isTriggerableNode,
+  triggerEdgeList,
 } from "../../../core/document/pageTimeline";
 import { useDocumentStore } from "../../../core/document/store";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
@@ -14,6 +17,7 @@ import { useTranslation } from "../../../core/i18n/useTranslation";
 import type { Page, TimelineEdge, TimelineEventType, TimelineNode, VideoBlock } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
 import { listPageTriggerEvents, listTriggerableNodes, nodeLabel } from "../Timeline";
+import { BlockEffectEditor } from "./BlockPanel";
 import { TransitionPanel } from "./TransitionPanel";
 import { TriggerPicker } from "./TriggerPicker";
 
@@ -65,7 +69,7 @@ export function EventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
   // edit the CHILD it stands in for - matching what the graph itself visually shows there.
   const node = rawNode.inlineChild && rawNode.children?.length === 1 ? rawNode.children[0].node : rawNode;
 
-  const sourceBlock = node.sourceBlockId ? page.blocks.find((b) => b.id === node.sourceBlockId) : undefined;
+  const sourceBlock = node.sourceBlockId ? page.blocks[node.sourceBlockId] : undefined;
 
   return (
     <>
@@ -113,7 +117,30 @@ function TriggerSection({ page, node }: { page: Page; node: TimelineNode }) {
     );
   }
 
-  const sourceBlock = node.sourceBlockId ? page.blocks.find((b) => b.id === node.sourceBlockId) : undefined;
+  const sourceBlock = node.sourceBlockId ? page.blocks[node.sourceBlockId] : undefined;
+
+  // A block's own Aufbau/Abbau node edits exactly what that block's own panel does - the same
+  // "Aufbau"/"Abbau" section (animation, duration, direction, trigger), not just the trigger.
+  if ((node.eventType === "block-entrance" || node.eventType === "block-exit") && sourceBlock) {
+    const phase = node.eventType === "block-entrance" ? "entrance" : "exit";
+    const ownEffectNodeIds = new Set([blockEffectNodeId(sourceBlock.id, "entrance"), blockEffectNodeId(sourceBlock.id, "exit")]);
+    return (
+      <BlockEffectEditor
+        key={node.id}
+        title={phase === "entrance" ? "Aufbau" : "Abbau"}
+        page={page}
+        targetNodeId={node.id}
+        effect={phase === "entrance" ? sourceBlock.entranceEffect : sourceBlock.exitEffect}
+        trigger={phase === "entrance" ? getBlockEntranceTrigger(page, sourceBlock) : getBlockExitTrigger(page, sourceBlock)}
+        events={listPageTriggerEvents(page).filter((e) => !ownEffectNodeIds.has(e.id))}
+        onEffectChange={(effect) =>
+          updateBlock(page.id, sourceBlock.id, phase === "entrance" ? { entranceEffect: effect } : { exitEffect: effect })
+        }
+        onTriggerChange={(from, delayMs, kind) => setEventTrigger(page.id, node.id, from, delayMs, kind)}
+      />
+    );
+  }
+
   const trigger =
     node.eventType === "block-entrance" && sourceBlock
       ? getBlockEntranceTrigger(page, sourceBlock)
@@ -157,7 +184,8 @@ function TriggerSection({ page, node }: { page: Page; node: TimelineNode }) {
  */
 function EndTriggerSection({ page }: { page: Page }) {
   const trigger = getEndTrigger(page);
-  const options = listPageTriggerEvents(page);
+  // Never something that already waits for "end" (see canTriggerFrom); the current source stays.
+  const options = listPageTriggerEvents(page).filter((e) => e.id === trigger?.from || canTriggerFrom(page, e.id, "end"));
 
   return (
     <div className="weft-event-section">
@@ -198,7 +226,7 @@ function EndTriggerSection({ page }: { page: Page }) {
 
 function outgoingTriggers(page: Page, nodeId: string): { edge: TimelineEdge; targetNode: TimelineNode }[] {
   const results: { edge: TimelineEdge; targetNode: TimelineNode }[] = [];
-  for (const edge of page.timeline.triggerEdges) {
+  for (const edge of triggerEdgeList(page.timeline)) {
     if (edge.from !== nodeId) continue;
     const targetNode = findNode(page, edge.to);
     if (targetNode) results.push({ edge, targetNode });
@@ -227,7 +255,7 @@ function OutgoingTriggersSection({ page, node }: { page: Page; node: TimelineNod
       ) : (
         <ul className="weft-event-trigger-list">
           {outgoing.map(({ edge, targetNode }) => {
-            const targetBlock = targetNode.sourceBlockId ? page.blocks.find((b) => b.id === targetNode.sourceBlockId) : undefined;
+            const targetBlock = targetNode.sourceBlockId ? page.blocks[targetNode.sourceBlockId] : undefined;
             return (
               <li key={targetNode.id} className="weft-event-trigger-row-wrap">
                 <button

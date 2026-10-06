@@ -8,6 +8,7 @@ import { addCustomFont, setEventTrigger } from "../../../core/document/actions";
 import type { VideoUploadResult } from "../../../core/document/actions";
 import { blockEffectNodeId, getBlockEntranceTrigger, getBlockExitTrigger } from "../../../core/document/pageTimeline";
 import type { ResolvedTrigger } from "../../../core/document/pageTimeline";
+import { DIRECTION_LABELS } from "../../../core/document/transitions";
 import { useAssetStore } from "../../../core/assets/assetStore";
 import { formatTimeMMSS } from "../../../core/formatTime";
 import { useDocumentStore } from "../../../core/document/store";
@@ -22,6 +23,7 @@ import type {
   Block,
   BlockEffect,
   BlockEffectType,
+  TransitionDirection,
   ButtonBlock,
   CodeBlock,
   IframeBlock,
@@ -98,7 +100,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, page }: Bl
       {/* Same formatting toolbar for both - a quiz's question and options are rich text edited
           directly on the canvas exactly like a text block's own content, just several regions
           sharing one block instead of one filling it (see EditableRichText in BlockView.tsx). */}
-      {(block.kind === "text" || block.kind === "quiz") && <TextEditor block={block.kind === "text" ? block : undefined} />}
+      {(block.kind === "text" || block.kind === "quiz") && <TextEditor block={block.kind === "text" ? block : undefined} onUpdate={onUpdate} />}
       {block.kind === "code" && <CodeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "tex" && <TexEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "image" && <ImageEditor block={block} onUpdate={onUpdate} onSetImage={onSetImage} />}
@@ -110,6 +112,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, page }: Bl
       {page && (
         <>
           <BlockEffectEditor
+            key={block.id + "-entrance"}
             title="Aufbau"
             page={page}
             targetNodeId={blockEffectNodeId(block.id, "entrance")}
@@ -122,6 +125,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, page }: Bl
             }
           />
           <BlockEffectEditor
+            key={block.id + "-exit"}
             title="Abbau"
             page={page}
             targetNodeId={blockEffectNodeId(block.id, "exit")}
@@ -141,13 +145,19 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, page }: Bl
   );
 }
 
-const BLOCK_EFFECT_TYPES: BlockEffectType[] = ["off", "none", "fade", "move"];
+const BLOCK_EFFECT_DIRECTIONS: TransitionDirection[] = ["right", "left", "down", "up"];
 
-const BLOCK_EFFECT_LABELS: Record<Exclude<BlockEffectType, "off">, string> = {
-  none: "Keine Animation",
-  fade: "Fade",
-  move: "Move",
+// "off" is listed separately (its label depends on Aufbau/Abbau, see BlockEffectEditor).
+const BLOCK_EFFECT_LABELS: Record<Exclude<BlockEffectType, "off">, { entrance: string; exit: string }> = {
+  none: { entrance: "Keine Animation", exit: "Keine Animation" },
+  fade: { entrance: "Fade", exit: "Fade" },
+  move: { entrance: "Move", exit: "Move" },
+  iris: { entrance: "Irisblende", exit: "Irisblende" },
+  wipe: { entrance: "Wischen", exit: "Wischen" },
+  anvil: { entrance: "Amboss", exit: "Amboss (nach oben weg)" },
+  blur: { entrance: "Weichzeichnen", exit: "Weichzeichnen" },
 };
+const BLOCK_EFFECT_ORDER: Exclude<BlockEffectType, "off">[] = ["none", "fade", "move", "iris", "wipe", "anvil", "blur"];
 
 /**
  * Editor for one block's Aufbau or Abbau - the animation itself (BaseBlock.entranceEffect/
@@ -183,20 +193,21 @@ export function BlockEffectEditor({
   onEffectChange: (effect: BlockEffect) => void;
   onTriggerChange: (from: string | null, delayMs: number, kind: TimelineEdgeKind) => void;
 }) {
-  const offLabel = title === "Aufbau" ? "Kein Aufbau" : "Kein Abbau";
+  const phase = title === "Aufbau" ? "entrance" : "exit";
+  const offLabel = phase === "entrance" ? "Kein Aufbau" : "Kein Abbau";
   return (
-    <Collapsible title={title} defaultOpen={false}>
-      {BLOCK_EFFECT_TYPES.map((type) => (
-        <label key={type} className="weft-field weft-field-inline">
-          <input
-            type="radio"
-            name={`weft-block-effect-${title}`}
-            checked={effect.type === type}
-            onChange={() => onEffectChange({ ...effect, type })}
-          />
-          <span>{type === "off" ? offLabel : BLOCK_EFFECT_LABELS[type]}</span>
-        </label>
-      ))}
+    <Collapsible title={title} defaultOpen={effect.type !== "off"}>
+      <label className="weft-field">
+        <span>Art</span>
+        <select value={effect.type} onChange={(e) => onEffectChange({ ...effect, type: e.target.value as BlockEffectType })}>
+          <option value="off">{offLabel}</option>
+          {BLOCK_EFFECT_ORDER.map((type) => (
+            <option key={type} value={type}>
+              {BLOCK_EFFECT_LABELS[type][phase]}
+            </option>
+          ))}
+        </select>
+      </label>
       {effect.type !== "off" && (
         <>
           {effect.type !== "none" && (
@@ -213,6 +224,21 @@ export function BlockEffectEditor({
                   onEffectChange({ ...effect, durationMs: Math.round(seconds * 1000) });
                 }}
               />
+            </label>
+          )}
+          {effect.type === "wipe" && (
+            <label className="weft-field">
+              <span>Wischrichtung</span>
+              <select
+                value={effect.direction ?? "right"}
+                onChange={(e) => onEffectChange({ ...effect, direction: e.target.value as TransitionDirection })}
+              >
+                {BLOCK_EFFECT_DIRECTIONS.map((direction) => (
+                  <option key={direction} value={direction}>
+                    {DIRECTION_LABELS[direction]}
+                  </option>
+                ))}
+              </select>
             </label>
           )}
           <TriggerPicker
@@ -317,7 +343,7 @@ function formatButtonClass(state: TriState): string {
  * handler checks to keep richText.ts's notion of "the active editor" alive across that focus hop
  * instead of tearing it down.
  */
-function TextEditor({ block }: { block?: TextBlock }) {
+function TextEditor({ block, onUpdate }: { block?: TextBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
   const snapshot = useFormatSnapshot();
   const customFonts = useDocumentStore((s) => s.doc.content.customFonts);
   const sortedOtherFonts = CURATED_FONT_FAMILIES.filter((family) => family !== DEFAULT_FONT_FAMILY).sort((a, b) =>
@@ -487,6 +513,22 @@ function TextEditor({ block }: { block?: TextBlock }) {
           </label>
         </div>
       </div>
+      {block && (
+        <>
+          <label className="weft-field weft-field-inline">
+            <input
+              type="checkbox"
+              checked={!!block.scrollable}
+              onChange={(e) => onUpdate({ scrollable: e.target.checked })}
+            />
+            <span>Scrollbar</span>
+          </label>
+          <p className="weft-hint">
+            Zu langer Text lässt sich dann senkrecht scrollen. Ohne diese Option wird er am Rand des Blocks
+            abgeschnitten.
+          </p>
+        </>
+      )}
     </Collapsible>
   );
 }

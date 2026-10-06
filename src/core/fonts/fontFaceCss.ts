@@ -19,7 +19,7 @@ export const DEFAULT_FONT_FAMILY = "Open Sans";
 function allTextHtml(module: WeftModule): string {
   const html: string[] = [];
   for (const page of Object.values(module.pages)) {
-    for (const block of page.blocks) {
+    for (const block of Object.values(page.blocks)) {
       if (block.kind === "text") html.push(block.html);
       else if (block.kind === "quiz") {
         html.push(block.questionHtml);
@@ -28,7 +28,7 @@ function allTextHtml(module: WeftModule): string {
     }
   }
   for (const layout of Object.values(module.layouts)) {
-    for (const block of layout.blocks) if (block.kind === "text") html.push(block.html);
+    for (const block of Object.values(layout.blocks)) if (block.kind === "text") html.push(block.html);
   }
   return html.join("\n");
 }

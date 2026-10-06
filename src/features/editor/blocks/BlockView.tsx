@@ -99,7 +99,7 @@ interface BlockViewProps {
    * other on-canvas way to remove one at all. */
   onDelete?: () => void;
   /** "Ganz nach vorne"/"Ganz nach hinten" in the right-click menu below - moves this block to the
-   * very end/start of its container's own blocks array, which IS its stacking order (see
+   * very end/start of its container's stacking order (the blocks' `order` keys) (see
    * reorderBlock's own doc comment in document/actions.ts: no block ever carries an explicit
    * z-index). Absent (rather than a no-op) wherever a block can't be reordered at all - the
    * read-only layout preview underneath a page's own blocks (see Canvas.tsx) - same convention
@@ -487,7 +487,7 @@ function BlockContent({
     case "text":
       return (
         <EditableRichText
-          className="weft-edit-block-text"
+          className={"weft-edit-block-text" + (block.scrollable ? " is-scrollable" : "")}
           html={textHtml(block, lang, defaultLang)}
           editable={selected}
           onCommit={(html) => onUpdate?.(textHtmlPatch(block, lang, defaultLang, html))}

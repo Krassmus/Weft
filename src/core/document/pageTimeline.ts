@@ -1,4 +1,6 @@
+import { isDraft } from "immer";
 import { formatTimeMMSS } from "../formatTime";
+import { orderedValues } from "./ordering";
 import type { Block, Page, PageTimeline, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode, UUID, VideoBlock } from "../types";
 
 /**
@@ -8,16 +10,9 @@ import type { Block, Page, PageTimeline, QuizBlock, TimelineEdge, TimelineEdgeKi
  * trigger edges at all.
  */
 export function createDefaultPageTimeline(): PageTimeline {
+  // No lanes: the graph's rows are computed from the page's blocks and trigger edges whenever
+  // they're needed (see getPageLanes), never stored.
   return {
-    lanes: [
-      {
-        nodes: [
-          { id: "start", kind: "start" },
-          { id: "end", kind: "end" },
-        ],
-        edges: [{ from: "start", to: "end", kind: "unknown" }],
-      },
-    ],
     // No explicit "Nächste Folie" edge needed - getEndTrigger's own fallback (no edge at all)
     // already dynamically computes "Weiter, appended after everything else on the page", exactly
     // the same way an unconfigured block's own Aufbau does (see computeAdvanceChainTail) - a
@@ -26,7 +21,7 @@ export function createDefaultPageTimeline(): PageTimeline {
     // backs an EXPLICIT edge onto every *older* page instead, since those have to keep behaving
     // exactly as they already did regardless of what gets added to them later - see that
     // function's own doc comment for why a dynamic default would be wrong there.
-    triggerEdges: [],
+    triggerEdges: {},
   };
 }
 
@@ -215,7 +210,7 @@ export function isTriggerableNode(node: TimelineNode): boolean {
  * other reader (findNode, listAllNodes below) can just call this instead of reimplementing the
  * walk themselves. */
 function forEachNode(page: Page, visit: (node: TimelineNode) => void): void {
-  for (const lane of page.timeline.lanes) {
+  for (const lane of getPageLanes(page)) {
     for (const node of lane.nodes) {
       visit(node);
       for (const child of node.children ?? []) visit(child.node);
@@ -247,8 +242,18 @@ export function listAllNodes(page: Page): TimelineNode[] {
   return Array.from(seen.values());
 }
 
+/** The trigger edges as a list (each with its `to`), ordered by `to` so that every reader - the
+ * editor and, via toRuntimeModule, the exported player - walks them in the same order wherever the
+ * stored map happens to enumerate them. */
+export function triggerEdgeList(timeline: PageTimeline): TimelineEdge[] {
+  return Object.keys(timeline.triggerEdges)
+    .sort()
+    .map((to) => ({ ...timeline.triggerEdges[to], to }));
+}
+
 function findTriggerEdge(timeline: PageTimeline, targetNodeId: string): TimelineEdge | undefined {
-  return timeline.triggerEdges.find((e) => e.to === targetNodeId);
+  const edge = timeline.triggerEdges[targetNodeId];
+  return edge ? { ...edge, to: targetNodeId } : undefined;
 }
 
 /** What actually causes a trigger to fire, as read back from one `TimelineEdge` - either a fixed
@@ -272,7 +277,7 @@ function resolvedTriggerFromEdge(edge: TimelineEdge): ResolvedTrigger {
  * this half only exists because computeImplicitEntranceChain itself needs this same explicit-only
  * answer as ITS OWN starting point, without recursing into itself. */
 function computeExplicitAdvanceChainTail(page: Page, excludeNodeId: string | null): string {
-  const advanceEdges = page.timeline.triggerEdges.filter((e) => e.kind === "advance" && e.to !== excludeNodeId);
+  const advanceEdges = triggerEdgeList(page.timeline).filter((e) => e.kind === "advance" && e.to !== excludeNodeId);
   const froms = new Set(advanceEdges.map((e) => e.from));
   for (const edge of advanceEdges) {
     if (!froms.has(edge.to)) return edge.to;
@@ -280,47 +285,90 @@ function computeExplicitAdvanceChainTail(page: Page, excludeNodeId: string | nul
   return "start";
 }
 
-/** Where every PAGE block with no EXPLICIT entrance edge of its own currently sits in the Weiter
- * queue, keyed by block id - the dynamic default getBlockEntranceTrigger falls back to. Computed
- * for every such block at once, in page.blocks array order, rather than one at a time in
- * isolation: two freshly added images, both still at their own untouched default, have to end up
- * queued one after another (the second appended right after the first), not both racing to be
- * "right after Start der Folie" independently - which is exactly what calling
- * computeExplicitAdvanceChainTail alone, per block, used to get wrong (it only ever sees REAL
- * edges, and an untouched block has none). Starts from computeExplicitAdvanceChainTail's own
- * answer - anything the author already explicitly arranged always comes first, regardless of
- * where in page.blocks it happens to sit. */
-function computeImplicitEntranceChain(page: Page): Map<UUID, string> {
-  let tail = computeExplicitAdvanceChainTail(page, null);
-  const result = new Map<UUID, string>();
-  for (const block of page.blocks) {
+/** Whether event `startId` can only happen after event `targetId` has - following what causes what:
+ * the stored trigger edge of a node, or else the (not yet stored) default `implicitFrom` already
+ * hands it. A node with neither is a root (an event nothing on the page waits for). Chaining
+ * `targetId` after something for which this is true would close a loop - a set of events each
+ * waiting for the next, none of which could ever fire. */
+function waitsOn(page: Page, startId: string, targetId: string, implicitFrom: Map<string, string>): boolean {
+  const seen = new Set<string>();
+  let id: string | undefined = startId;
+  while (id !== undefined && !seen.has(id)) {
+    if (id === targetId) return true;
+    seen.add(id);
+    id = page.timeline.triggerEdges[id]?.from ?? implicitFrom.get(id);
+  }
+  return false;
+}
+
+/** Whether `candidateId` may be offered as the source of `targetId`'s trigger: not itself, and not
+ * anything that already waits on it (see waitsOn) - either would be a loop. The defaults of events
+ * with no stored trigger of their own aren't known here and can't matter: such a default is itself
+ * chosen so as never to wait on what waits on it (see walkAdvanceQueue). */
+export function canTriggerFrom(page: Page, candidateId: string, targetId: string): boolean {
+  return !waitsOn(page, candidateId, targetId, new Map());
+}
+
+/** The Weiter queue as it stands: where every block that is still at its default Aufbau trigger
+ * sits in it (`entranceFrom`, by block id), and the queue's end (`tail`). Walks every PAGE block
+ * with no EXPLICIT entrance edge of its own, in the page's block order, appending each one after
+ * the previous - rather than one at a time in isolation: two freshly added images, both still at
+ * their own untouched default, have to end up queued one after another (the second right after the
+ * first), not both racing to be "right after Start der Folie" independently. Starts from
+ * computeExplicitAdvanceChainTail's answer - anything the author already explicitly arranged comes
+ * first, regardless of where in the page's blocks it happens to sit.
+ *
+ * Appending a block after the end of the queue is only possible if that end doesn't (somewhere up
+ * its own chain, through any kind of explicit edge) wait for the block itself - otherwise it would
+ * wait for something that waits for it, and neither would ever happen. That's the case when the
+ * author has chained other events onto this block's Aufbau by hand (say "B appears 1s after A, C
+ * appears on Weiter after B", with A left at its default): the explicit chain's end is C, which
+ * depends on A. Such a block is queued right after "start" instead - it is upstream of the explicit
+ * chain, so it belongs in front of it - and the end of the queue stays where it was.
+ * `excludeNodeId` leaves one node out entirely (the node currently being (re)configured). */
+function walkAdvanceQueue(page: Page, excludeNodeId: string | null): { entranceFrom: Map<UUID, string>; tail: string } {
+  let tail = computeExplicitAdvanceChainTail(page, excludeNodeId);
+  const entranceFrom = new Map<UUID, string>();
+  const implicitFrom = new Map<string, string>(); // by node id, for waitsOn
+  for (const block of orderedValues(page.blocks)) {
     if (block.entranceEffect.type === "off") continue; // no Aufbau at all - never part of the queue
     const nodeId = blockEffectNodeId(block.id, "entrance");
-    if (findTriggerEdge(page.timeline, nodeId)) continue; // explicit - not part of this map
-    result.set(block.id, tail);
-    tail = nodeId;
+    if (nodeId === excludeNodeId || findTriggerEdge(page.timeline, nodeId)) continue; // explicit - not part of this walk
+    if (waitsOn(page, tail, nodeId, implicitFrom)) {
+      entranceFrom.set(block.id, "start");
+      implicitFrom.set(nodeId, "start");
+    } else {
+      entranceFrom.set(block.id, tail);
+      implicitFrom.set(nodeId, tail);
+      tail = nodeId;
+    }
   }
-  return result;
+  return { entranceFrom, tail };
+}
+
+/** Where every PAGE block with no EXPLICIT entrance edge of its own currently sits in the Weiter
+ * queue, keyed by block id - the dynamic default getBlockEntranceTrigger falls back to (see
+ * walkAdvanceQueue). */
+function computeImplicitEntranceChain(page: Page): Map<UUID, string> {
+  return walkAdvanceQueue(page, null).entranceFrom;
 }
 
 /** The current true end of this page's whole Weiter queue, EXPLICIT edges and every
- * still-at-its-own-implicit-default block both accounted for (see computeExplicitAdvanceChainTail/
- * computeImplicitEntranceChain) - "start" if the queue is entirely empty. Used as the smart
- * default `from` the instant a TriggerPicker switches a trigger to "Weiter" (or whenever
- * getEndTrigger/getBlockEntranceTrigger themselves need it): the new one slots in after
- * EVERYTHING already queued, explicit or not, rather than racing whatever's already first in
- * line. `excludeNodeId` leaves one node out of consideration entirely (the node currently being
- * (re)configured, so re-picking "Weiter" for something already chained doesn't try to chain it
- * onto itself) - pass null to not exclude anything. */
+ * still-at-its-own-implicit-default block both accounted for (see walkAdvanceQueue) - "start" if
+ * the queue is entirely empty. Used as the smart default `from` the instant a TriggerPicker
+ * switches a trigger to "Weiter" (or whenever getEndTrigger/getBlockExitTrigger themselves need
+ * it): the new one slots in after EVERYTHING already queued, explicit or not, rather than racing
+ * whatever's already first in line - unless that end already waits for the node itself (see
+ * waitsOn), in which case it can't go there and goes right after "start". `excludeNodeId` leaves
+ * one node out of consideration entirely (the node currently being (re)configured, so re-picking
+ * "Weiter" for something already chained doesn't try to chain it onto itself) - pass null to not
+ * exclude anything. */
 export function computeAdvanceChainTail(page: Page, excludeNodeId: string | null): string {
-  let tail = computeExplicitAdvanceChainTail(page, excludeNodeId);
-  for (const block of page.blocks) {
-    if (block.entranceEffect.type === "off") continue; // no Aufbau at all - never part of the queue
-    const nodeId = blockEffectNodeId(block.id, "entrance");
-    if (nodeId === excludeNodeId || findTriggerEdge(page.timeline, nodeId)) continue;
-    tail = nodeId;
-  }
-  return tail;
+  const { entranceFrom, tail } = walkAdvanceQueue(page, excludeNodeId);
+  if (excludeNodeId === null) return tail;
+  const implicitFrom = new Map<string, string>();
+  for (const [blockId, from] of entranceFrom) implicitFrom.set(blockEffectNodeId(blockId, "entrance"), from);
+  return waitsOn(page, tail, excludeNodeId, implicitFrom) ? "start" : tail;
 }
 
 /** A block's own Aufbau trigger - null when there's no Aufbau at all (`entranceEffect.type ===
@@ -340,7 +388,7 @@ export function getBlockEntranceTrigger(page: Page, block: Block): ResolvedTrigg
   if (block.entranceEffect.type === "off") return null;
   const edge = findTriggerEdge(page.timeline, blockEffectNodeId(block.id, "entrance"));
   if (edge) return resolvedTriggerFromEdge(edge);
-  if (!page.blocks.some((b) => b.id === block.id)) return { kind: "timed", from: "start", delayMs: 0 };
+  if (!(block.id in page.blocks)) return { kind: "timed", from: "start", delayMs: 0 };
   return { kind: "advance", from: computeImplicitEntranceChain(page).get(block.id) ?? "start" };
 }
 
@@ -356,7 +404,7 @@ export function getBlockExitTrigger(page: Page, block: Block): ResolvedTrigger |
   if (block.exitEffect.type === "off") return null;
   const edge = findTriggerEdge(page.timeline, blockEffectNodeId(block.id, "exit"));
   if (edge) return resolvedTriggerFromEdge(edge);
-  if (!page.blocks.some((b) => b.id === block.id)) return null;
+  if (!(block.id in page.blocks)) return null;
   const nodeId = blockEffectNodeId(block.id, "exit");
   return { kind: "advance", from: computeAdvanceChainTail(page, nodeId) };
 }
@@ -404,30 +452,29 @@ export function getEndTrigger(page: Page): ResolvedTrigger | null {
   return edge.kind === "advance" ? { kind: "advance", from: edge.from } : null;
 }
 
-/** Replaces whatever edge currently targets `to` (there's ever at most one, see PageTimeline.
- * triggerEdges' own doc comment) with a new one from `from` (`kind` "timed" by default, matching
- * every existing call site; pass "advance" explicitly for a Weiter-triggered one - `delayMs` is
- * simply ignored for that kind), or removes it entirely when `from` is null - the one place this
- * bookkeeping happens, shared by every UI that can create/edit/remove a trigger edge (see
- * setEventTrigger in document/actions.ts, the only caller). */
-export function withTriggerEdge(
-  edges: TimelineEdge[],
+/** Sets the edge that causes `to` (there's ever at most one, see PageTimeline.triggerEdges) to one
+ * from `from` (`kind` "timed" by default, matching every existing call site; pass "advance"
+ * explicitly for a Weiter-triggered one - `delayMs` is simply ignored for that kind), or removes it
+ * entirely when `from` is null - the one place this bookkeeping happens, shared by every UI that can
+ * create/edit/remove a trigger edge (see setEventTrigger in document/actions.ts, the only caller).
+ * Writes only that one entry. */
+export function setTriggerEdge(
+  timeline: PageTimeline,
   to: string,
   from: string | null,
   delayMs: number,
   kind: TimelineEdgeKind = "timed",
-): TimelineEdge[] {
-  const rest = edges.filter((e) => e.to !== to);
-  return from ? [...rest, { from, to, kind, delayMs }] : rest;
+): void {
+  if (from) timeline.triggerEdges[to] = { from, kind, delayMs };
+  else delete timeline.triggerEdges[to];
 }
 
 /**
- * Keeps a page's timeline in sync with its blocks - call this after any action that adds,
- * removes, or reconfigures a block, or after page.timeline.triggerEdges itself changes (see
- * actions.ts). The whole thing is recomputed from scratch each time rather than patched, so it
- * can never end up with a stale/orphaned node.
+ * Builds a page's event graph from scratch out of its blocks and trigger edges (see getPageLanes,
+ * which is what everything else calls) - recomputed rather than patched, so it can never end up
+ * with a stale/orphaned node.
  *
- * `page.timeline.lanes` (the structural skeleton) is built in three passes, in this order, and
+ * The lanes (the structural skeleton) are built in three passes, in this order, and
  * the order matters: (1) the page's own permanent start->end bypass lane - a quiz is never
  * mandatory, the learner can always move on regardless of it (see the keyboard-nav gate in
  * player.runtime.js) - plus one lane per quiz outcome that's actually wired to auto-advance
@@ -454,16 +501,11 @@ export function withTriggerEdge(
  * detached one per link - only actually branching into separate rows where the data itself forks
  * (two different things both triggered by the very same event), rendered via the exact same
  * groupForkedLanes fork-handling Timeline.tsx already uses for two quiz outcomes.
- *
- * Finally, page.timeline.triggerEdges itself - the author-facing single source of truth for every
- * one of these triggers (see PageTimeline's own doc comment) - is pruned: any edge whose `to` no
- * longer names a block/video still on this page, or whose `from` no longer names any node that
- * still exists, is dropped (e.g. the block or video either end of it used to point at was
- * deleted).
  */
-export function syncPageTimelineEvents(page: Page): void {
-  const quizzes = page.blocks.filter((b): b is QuizBlock => b.kind === "quiz");
-  const videos = page.blocks.filter((b): b is VideoBlock => b.kind === "video");
+function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<string, TimelineNode> } {
+  const blocks = orderedValues(page.blocks);
+  const quizzes = blocks.filter((b): b is QuizBlock => b.kind === "quiz");
+  const videos = blocks.filter((b): b is VideoBlock => b.kind === "video");
 
   const startNode: TimelineNode = { id: "start", kind: "start" };
   const endNode: TimelineNode = { id: "end", kind: "end" };
@@ -490,12 +532,12 @@ export function syncPageTimelineEvents(page: Page): void {
   // simply having one left is enough to earn a visible node; no need to separately special-case
   // "none" the way this used to.
   const entranceTargets: { block: Block; trigger: ResolvedTrigger }[] = [];
-  for (const block of page.blocks) {
+  for (const block of blocks) {
     const trigger = getBlockEntranceTrigger(page, block);
     if (trigger) entranceTargets.push({ block, trigger });
   }
   const exitTargets: { block: Block; trigger: ResolvedTrigger }[] = [];
-  for (const block of page.blocks) {
+  for (const block of blocks) {
     const trigger = getBlockExitTrigger(page, block);
     if (trigger) exitTargets.push({ block, trigger });
   }
@@ -626,13 +668,43 @@ export function syncPageTimelineEvents(page: Page): void {
     }
   }
 
-  page.timeline.lanes = lanes;
+  return { lanes, nodesById };
+}
 
+/** The rows of a page's event graph (see TimelineLane) - computed from the page's blocks and its
+ * trigger edges, not stored in the document (so two people editing the same page never have to
+ * agree on - or merge - a derived structure). Memoized per page snapshot: the same array comes back
+ * until something on the page changed, so a component can call it on every render. */
+const lanesCache = new WeakMap<Page, TimelineLane[]>();
+export function getPageLanes(page: Page): TimelineLane[] {
+  if (isDraft(page)) return buildPageLanes(page).lanes;
+  let lanes = lanesCache.get(page);
+  if (!lanes) {
+    lanes = buildPageLanes(page).lanes;
+    lanesCache.set(page, lanes);
+  }
+  return lanes;
+}
+
+/**
+ * Drops every trigger edge on the page that can no longer mean anything: its `to` no longer names a
+ * block/video still on this page (or "end"), or its `from` no longer names any node that still
+ * exists (e.g. the block or video either end of it used to point at was deleted). Call this after
+ * any action that removes or reconfigures a block, or after page.timeline.triggerEdges itself
+ * changes (see actions.ts). Only this housekeeping is stored - the graph itself (getPageLanes) is
+ * derived, and already ignores such edges, so a page that skipped this would merely carry dead data.
+ */
+export function syncPageTimelineEvents(page: Page): void {
+  const { nodesById } = buildPageLanes(page);
   const validTargets = new Set<string>(["end"]);
-  for (const block of page.blocks) {
+  const blocks = orderedValues(page.blocks);
+  for (const block of blocks) {
     validTargets.add(blockEffectNodeId(block.id, "entrance"));
     validTargets.add(blockEffectNodeId(block.id, "exit"));
+    if (block.kind === "video") validTargets.add(videoStartNodeId(block.id));
   }
-  for (const video of videos) validTargets.add(videoStartNodeId(video.id));
-  page.timeline.triggerEdges = page.timeline.triggerEdges.filter((e) => validTargets.has(e.to) && nodesById.has(e.from));
+  // Only entries that really are dead are touched - an unchanged page stays an unchanged object.
+  for (const [to, edge] of Object.entries(page.timeline.triggerEdges)) {
+    if (!validTargets.has(to) || !nodesById.has(edge.from)) delete page.timeline.triggerEdges[to];
+  }
 }

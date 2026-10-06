@@ -33,6 +33,8 @@ import { BlockView } from "./blocks/BlockView";
 import type { HandleId } from "./blocks/resizeMath";
 import { clampGroupMove, clampMove, groupBoundingBox, HANDLES, resizeFromHandle, round, scalePositionWithinBox } from "./blocks/resizeMath";
 import { Timeline } from "./Timeline";
+import { orderedValues } from "../../core/document/ordering";
+import { branchPageIds, sequenceOf } from "../../core/document/sequence";
 
 const ARROW_STEP_PERCENT = 1;
 const ARROW_STEP_PERCENT_FAST = 5;
@@ -157,8 +159,8 @@ function useArrowMove(doc: WeftDocument, selection: ReturnType<typeof useDocumen
       const { container, blockId } = selection;
       const block =
         container.kind === "page"
-          ? doc.content.pages[container.pageId]?.blocks.find((b) => b.id === blockId)
-          : doc.content.layouts[container.layoutId]?.blocks.find((b) => b.id === blockId);
+          ? doc.content.pages[container.pageId]?.blocks[blockId]
+          : doc.content.layouts[container.layoutId]?.blocks[blockId];
       if (!block) return;
 
       e.preventDefault();
@@ -284,14 +286,14 @@ function resolveEditTarget(
     if (page) return pageTarget(content, page);
   }
 
-  const first = content.sequence[0];
+  const first = sequenceOf(content)[0];
   if (!first) return null;
   if (first.kind === "page") {
     const page = content.pages[first.pageId];
     return page ? pageTarget(content, page) : null;
   }
   const logicBlock = content.logicBlocks[first.logicBlockId];
-  const firstPageId = logicBlock?.branches[0]?.pageIds[0];
+  const firstPageId = logicBlock?.branches[0] ? branchPageIds(logicBlock.branches[0])[0] : undefined;
   const page = firstPageId ? content.pages[firstPageId] : null;
   return page ? pageTarget(content, page) : null;
 }
@@ -366,7 +368,7 @@ function GroupResizeOverlay({
   stageRef: RefObject<HTMLDivElement | null>;
   onLiveChange: (positions: GroupLivePositions | null) => void;
 }) {
-  const members = page.blocks.filter((b) => group.blockIds.includes(b.id));
+  const members = orderedValues(page.blocks).filter((b) => group.blockIds.includes(b.id));
   const [liveBox, setLiveBox] = useState<BlockPosition | null>(null);
   const box = liveBox ?? groupBoundingBox(members.map((m) => m.position));
 
@@ -473,7 +475,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
   // Move-snapping candidates for a page block: the (locked, read-only) layout blocks showing
   // through underneath it are visually part of the same slide, so they're worth snapping against
   // too, not just the page's own blocks.
-  const pageSiblingBlocks = target?.kind === "page" ? [...(target.layout?.blocks ?? []), ...target.page.blocks] : [];
+  const pageSiblingBlocks = target?.kind === "page" ? [...orderedValues(target.layout?.blocks ?? {}), ...orderedValues(target.page.blocks)] : [];
   // The active "group"/"blocks" selection's own member ids, if the current page target is what
   // it's actually selected on - computed once here rather than re-derived per block below, since
   // several things (each block's groupSelected/isPartOfCurrentSelection, the stage's own group-
@@ -512,9 +514,9 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
    * lastPageIdRef, which only ever records pages) - or, if that's gone or there never was one, the
    * module's first page. */
   function leaveLayoutEditing() {
-    const { pages, sequence } = doc.content;
+    const { pages } = doc.content;
     const lastId = lastPageIdRef.current;
-    const firstPageNode = sequence.find((node) => node.kind === "page");
+    const firstPageNode = sequenceOf(doc.content).find((node) => node.kind === "page");
     const pageId =
       lastId && pages[lastId] ? lastId : firstPageNode?.kind === "page" ? firstPageNode.pageId : (Object.keys(pages)[0] ?? null);
     select(pageId ? { type: "page", pageId } : null);
@@ -570,7 +572,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
     const stage = stageRef.current?.getBoundingClientRect();
     if (!stage) return;
     e.preventDefault();
-    const startPositions: GroupLivePositions = page.blocks.filter((b) => memberIds.includes(b.id)).map((b) => ({ id: b.id, position: b.position }));
+    const startPositions: GroupLivePositions = orderedValues(page.blocks).filter((b) => memberIds.includes(b.id)).map((b) => ({ id: b.id, position: b.position }));
     const startClientX = e.clientX;
     const startClientY = e.clientY;
     let started = false;
@@ -656,7 +658,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
       const cur = toPercent(ev.clientX, ev.clientY);
       const rect: MarqueeRect = { x0: Math.min(start.x, cur.x), y0: Math.min(start.y, cur.y), x1: Math.max(start.x, cur.x), y1: Math.max(start.y, cur.y) };
       setMarqueeRect(rect);
-      const hitBlockIds = page.blocks.filter((b) => positionIntersectsMarquee(b.position, rect)).map((b) => b.id);
+      const hitBlockIds = orderedValues(page.blocks).filter((b) => positionIntersectsMarquee(b.position, rect)).map((b) => b.id);
       const idSet = new Set<string>();
       for (const id of hitBlockIds) {
         const group = findGroupForBlock(page, id);
@@ -808,7 +810,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                 )
               }
             >
-              {target.layout.blocks.map((block) => (
+              {orderedValues(target.layout.blocks).map((block) => (
                 <BlockView
                   key={block.id}
                   block={block}
@@ -829,7 +831,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                   }}
                   onBringToFront={() => bringBlockToFront({ kind: "layout", layoutId: target.layout.id }, block.id)}
                   onSendToBack={() => sendBlockToBack({ kind: "layout", layoutId: target.layout.id }, block.id)}
-                  siblingPositions={target.layout.blocks.filter((b) => b.id !== block.id).map((b) => b.position)}
+                  siblingPositions={orderedValues(target.layout.blocks).filter((b) => b.id !== block.id).map((b) => b.position)}
                 />
               ))}
             </div>
@@ -854,8 +856,8 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                 )
               }
             >
-              {target.layout?.blocks.map((block) => <BlockView key={block.id} block={block} selected={false} locked />)}
-              {target.page.blocks.map((block) => {
+              {orderedValues(target.layout?.blocks ?? {}).map((block) => <BlockView key={block.id} block={block} selected={false} locked />)}
+              {orderedValues(target.page.blocks).map((block) => {
                 const group = findGroupForBlock(target.page, block.id);
                 const isSoloSelected =
                   selection?.type === "block" &&

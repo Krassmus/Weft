@@ -6,6 +6,7 @@ import type { Block, Page } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
 import { useDragReorder } from "../useDragReorder";
 import { LayoutPicker } from "./LayoutPicker";
+import { orderedValues } from "../../../core/document/ordering";
 
 const BLOCK_KINDS = Object.keys(BLOCK_KIND_KEYS) as Block["kind"][];
 
@@ -29,10 +30,10 @@ export function PagePanel({ page }: { page: Page }) {
         <LayoutPicker page={page} />
       </Collapsible>
 
-      <Collapsible title={`${t("panel.elements")} (${page.blocks.length})`}>
-        {page.blocks.length > 1 && <p className="weft-hint">Ziehen zum Sortieren - weiter unten liegt weiter vorne.</p>}
+      <Collapsible title={`${t("panel.elements")} (${Object.keys(page.blocks).length})`}>
+        {Object.keys(page.blocks).length > 1 && <p className="weft-hint">Ziehen zum Sortieren - weiter unten liegt weiter vorne.</p>}
         <ul className="weft-block-list">
-          {page.blocks.map((block, index) => {
+          {orderedValues(page.blocks).map((block, index) => {
             const group = page.groups.find((g) => g.blockIds.includes(block.id));
             if (group) {
               if (renderedGroupIds.has(group.id)) return null;
@@ -62,7 +63,7 @@ export function PagePanel({ page }: { page: Page }) {
                   </div>
                   <ul className="weft-block-group-members">
                     {group.blockIds.map((memberId) => {
-                      const memberBlock = page.blocks.find((b) => b.id === memberId);
+                      const memberBlock = page.blocks[memberId];
                       if (!memberBlock) return null;
                       const isMemberActive =
                         selection?.type === "block" && selection.container.kind === "page" && selection.blockId === memberId;

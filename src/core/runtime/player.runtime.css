@@ -113,10 +113,10 @@ body {
 }
 
 .weft-block {
-  /* Hidden unless a block kind opts in to scrolling (only text does - see below): a block that
-     merely fills its box (image, video, iframe, ...) should never grow a scrollbar, which a single
-     pixel of overflow - an inline image's baseline gap, a rotated or rounded edge - used to make
-     flash up. Quiz and code scroll internally (.weft-quiz, .weft-code), not as a whole. */
+  /* Hidden unless a block opts in to scrolling (a text block set to "Scrollbar" - see below): a block
+     that merely fills its box (image, video, iframe, ...) should never grow a scrollbar, which a
+     single pixel of overflow - an inline image's baseline gap, a rotated or rounded edge - used to
+     make flash up. Quiz and code scroll internally (.weft-quiz, .weft-code), not as a whole. */
   overflow: hidden;
   /* Base size for all block content; headings/etc keep the browser's normal em-relative
      multiples of this (h1 = 2em, p = 1em, ...), so the whole type scale rides along with it.
@@ -129,7 +129,12 @@ body {
 
 .weft-block-text {
   padding: 4px;
-  overflow: auto;
+}
+
+/* Only a text block that was set to "Scrollbar" scrolls, and only vertically. */
+.weft-block-text.is-scrollable {
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .weft-block-text > :first-child {

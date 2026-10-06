@@ -19,7 +19,9 @@ import { useDocumentStore } from "../../../core/document/store";
 import { setLanguages } from "../../../core/document/actions";
 import { buildLanguageCatalog, flagForLocale, languageName } from "../../../core/i18n/languages";
 import { useTranslation } from "../../../core/i18n/useTranslation";
-import { confirmDestructive, pickFontFile } from "../../../core/io/fileIO";
+import { confirmDestructive, pickDocumentFile, pickFontFile } from "../../../core/io/fileIO";
+import { useAssetTransfers } from "../../../core/collab/assetSync";
+import { mergeDocumentFile } from "../../../core/collab/merge";
 import { joinSharedDocument, shareCurrentDocument } from "../../../core/collab/session";
 import { useDragReorder } from "../useDragReorder";
 
@@ -244,6 +246,31 @@ function CollaborationField() {
   const [link, setLink] = useState("");
   const [joinLink, setJoinLink] = useState("");
   const [error, setError] = useState("");
+  const [mergeMessage, setMergeMessage] = useState("");
+  const { missing, transfers } = useAssetTransfers();
+  const receiving = Object.values(transfers);
+  const megabytes = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
+
+  async function mergeFile() {
+    setMergeMessage("");
+    const picked = await pickDocumentFile("Datei zum Zusammenführen auswählen");
+    if (!picked) return;
+    const result = mergeDocumentFile(picked.bytes);
+    setMergeMessage(
+      result.ok
+        ? result.newChanges > 0
+          ? `Zusammengeführt: ${result.newChanges} Änderungen übernommen.`
+          : "Diese Datei enthält nichts Neues - alle ihre Änderungen sind schon da."
+        : {
+            unreadable: "Die Datei lässt sich nicht lesen.",
+            "no-history":
+              "Diese Datei hat keinen Änderungsverlauf (sie stammt aus einer älteren Weft-Version). Sie lässt sich nur öffnen, nicht zusammenführen.",
+            "other-module": "Das ist ein anderes Lernmodul.",
+            "no-common-origin":
+              "Die Datei geht nicht auf dieselbe Ausgangsdatei zurück. Zusammenführen geht nur mit Kopien einer Datei, die mit dieser Weft-Version gespeichert wurde.",
+          }[result.reason],
+    );
+  }
 
   function remember(value: string) {
     setServer(value);
@@ -272,6 +299,14 @@ function CollaborationField() {
   return (
     <div className="weft-field">
       <span>Zusammenarbeit (Test)</span>
+      <p className="weft-hint">
+        Dateien: Wer eine Kopie dieser .weft-Datei weiterbearbeitet hat, kann sie hier mit dem geöffneten Lernmodul
+        zusammenführen - ohne Server, die Änderungen beider Seiten bleiben erhalten.
+      </p>
+      <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void mergeFile()}>
+        Mit Datei zusammenführen …
+      </button>
+      {mergeMessage && <p className="weft-hint">{mergeMessage}</p>}
       <label className="weft-field">
         <span>Sync-Server</span>
         <input value={server} placeholder="ws://localhost:3030" onChange={(e) => remember(e.target.value)} />
@@ -294,9 +329,17 @@ function CollaborationField() {
         Beitreten
       </button>
       {error && <p className="weft-placeholder-warning">{error}</p>}
+      {missing > 0 && (
+        <p className="weft-hint">
+          Medien: {missing} {missing === 1 ? "Datei fehlt" : "Dateien fehlen"} noch
+          {receiving.length > 0 &&
+            ` - ${megabytes(receiving.reduce((sum, t) => sum + Math.min(t.size, t.received * 48 * 1024), 0))} von ${megabytes(receiving.reduce((sum, t) => sum + t.size, 0))} MB werden übertragen`}
+          . Sie kommen von den anderen, sobald jemand online ist, der sie hat.
+        </p>
+      )}
       <p className="weft-hint">
-        Nur das Lernmodul selbst wird geteilt, Bilder und Videos noch nicht. Der Server wird mit
-        „npm run collab-server“ gestartet.
+        Live: Geteilt wird das Lernmodul samt Bildern, Videos und Schriften - die Dateien holt sich jede Kopie von
+        den anderen, sobald jemand online ist, der sie hat. Der Server wird mit „npm run collab-server“ gestartet.
       </p>
     </div>
   );

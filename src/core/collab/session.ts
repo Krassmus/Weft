@@ -1,6 +1,7 @@
 import { BroadcastChannelNetworkAdapter } from "@automerge/automerge-repo-network-broadcastchannel";
 import { WebSocketClientAdapter } from "@automerge/automerge-repo-network-websocket";
 import { currentHandle, openSharedDocument, repo } from "../document/store";
+import { AssetSync } from "./assetSync";
 
 /**
  * Collaboration on one document: the Automerge repo (see document/store.ts) is connected to other
@@ -30,9 +31,19 @@ function connect({ serverUrl, broadcast = true }: CollabOptions): void {
   }
 }
 
+let assetSync: AssetSync | null = null;
+
+/** (Re)starts the exchange of images, videos and fonts for the document being edited. */
+function syncAssets(): void {
+  assetSync?.stop();
+  assetSync = new AssetSync(currentHandle());
+  assetSync.start();
+}
+
 /** Starts sharing the document being edited; returns the URL others open it with. */
 export function shareCurrentDocument(options: CollabOptions = {}): string {
   connect(options);
+  syncAssets();
   return currentHandle().url;
 }
 
@@ -40,4 +51,5 @@ export function shareCurrentDocument(options: CollabOptions = {}): string {
 export async function joinSharedDocument(url: string, options: CollabOptions = {}): Promise<void> {
   connect(options);
   await openSharedDocument(url);
+  syncAssets();
 }

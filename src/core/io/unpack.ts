@@ -1,12 +1,13 @@
 import { strFromU8, unzipSync } from "fflate";
+import { Automerge } from "../collab/automerge";
 import { CURRENT_FORMAT_VERSION } from "../types";
-import type { Block, WeftDocument } from "../types";
+import type { Block, WeftDocument, WeftModule } from "../types";
 import { useAssetStore } from "../assets/assetStore";
 import { defaultEntranceEffect, defaultExitEffect } from "../document/blockEffects";
 import { blockEffectNodeId, createDefaultPageTimeline, syncPageTimelineEvents } from "../document/pageTimeline";
 import { orderedIdRecord, orderedRecord, orderedRecordBy } from "../document/ordering";
 import { ensureBuiltinVariables } from "../document/variables";
-import { assetZipPath, customFontZipPath } from "./pack";
+import { assetZipPath, customFontZipPath, HISTORY_FILE } from "./pack";
 
 function escapeHtml(value: string): string {
   return value
@@ -269,7 +270,40 @@ function migrateToMergeableShape(doc: WeftDocument) {
   delete legacyDoc.undoIndex;
 }
 
-export function unpackDocument(zipBytes: Uint8Array): WeftDocument {
+/** The editing history stored next to weft.json (see HISTORY_FILE in pack.ts) - if it is there, can be
+ * read, and describes the very same state weft.json does (same module, same last change). Anything
+ * else (a file written by an older version, one whose weft.json was edited by hand) is ignored, and
+ * the document then simply starts a new history from weft.json. */
+function readHistory(bytes: Uint8Array | undefined, marker: { id: string; modifiedAt: string }): Uint8Array | undefined {
+  if (!bytes) return undefined;
+  try {
+    const loaded = Automerge.load<WeftModule>(bytes);
+    return loaded.id === marker.id && loaded.modifiedAt === marker.modifiedAt ? bytes : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Puts the binary assets (images, videos, fonts) the archive carries for `content` into the asset
+ * store. unpackDocument does this itself; a merge (collab/merge.ts) does it only once it has
+ * succeeded, for what the merged module references. */
+export function importArchiveAssets(zipBytes: Uint8Array, content: Pick<WeftModule, "assets" | "customFonts">): void {
+  importAssets(unzipSync(zipBytes), content);
+}
+
+function importAssets(files: Record<string, Uint8Array>, content: Pick<WeftModule, "assets" | "customFonts">): void {
+  const setAsset = useAssetStore.getState().setAsset;
+  for (const meta of content.assets) {
+    const bytes = files[assetZipPath(meta.id, meta.fileName)];
+    if (bytes) setAsset(meta.id, new Blob([bytes as BlobPart], { type: meta.mimeType }));
+  }
+  for (const font of content.customFonts) {
+    const bytes = files[customFontZipPath(font.id, font.fileName)];
+    if (bytes) setAsset(font.id, new Blob([bytes as BlobPart], { type: font.mimeType }));
+  }
+}
+
+export function unpackDocument(zipBytes: Uint8Array, options: { importAssets?: boolean } = {}): WeftDocument {
   const files = unzipSync(zipBytes);
 
   const jsonBytes = files["weft.json"];
@@ -281,6 +315,8 @@ export function unpackDocument(zipBytes: Uint8Array): WeftDocument {
       "Diese Datei wurde mit einer neueren Version von Weft gespeichert und lässt sich hier nicht öffnen. Bitte Weft aktualisieren.",
     );
   }
+  // What the history, if there is one, has to agree with to be trusted (see readHistory).
+  const jsonContentMarker = { id: doc.content.id, modifiedAt: doc.content.modifiedAt };
   // The shape conversion comes first: every migration below works on the current shape.
   if (fileVersion < 3) migrateToMergeableShape(doc);
   // Older saves predate custom fonts - default rather than leave undefined, since every
@@ -310,16 +346,9 @@ export function unpackDocument(zipBytes: Uint8Array): WeftDocument {
   if (fileVersion < 2) migrateMissingAdvanceTriggers(doc);
   doc.formatVersion = CURRENT_FORMAT_VERSION;
   syncAllPageTimelineEvents(doc);
+  if (fileVersion === CURRENT_FORMAT_VERSION) doc.history = readHistory(files[HISTORY_FILE], jsonContentMarker);
 
-  const setAsset = useAssetStore.getState().setAsset;
-  for (const meta of doc.content.assets) {
-    const bytes = files[assetZipPath(meta.id, meta.fileName)];
-    if (bytes) setAsset(meta.id, new Blob([bytes], { type: meta.mimeType }));
-  }
-  for (const font of doc.content.customFonts) {
-    const bytes = files[customFontZipPath(font.id, font.fileName)];
-    if (bytes) setAsset(font.id, new Blob([bytes], { type: font.mimeType }));
-  }
+  if (options.importAssets !== false) importAssets(files, doc.content);
 
   return doc;
 }

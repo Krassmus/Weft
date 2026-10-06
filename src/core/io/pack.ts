@@ -1,10 +1,14 @@
 import { strToU8, zip } from "fflate";
 import type { AsyncZippable } from "fflate";
-import type { WeftDocument } from "../types";
+import type { WeftDocument, WeftModule } from "../types";
 import { useAssetStore } from "../assets/assetStore";
+import { Automerge } from "../collab/automerge";
 import { usedAssetIds } from "../document/usedAssets";
 import { buildInlineFontFaceCss } from "../runtime/buildInlineFontFaceCss";
 import { buildRuntimeHtml } from "../runtime/buildRuntimeHtml";
+
+/** The Automerge history of the module inside the archive. */
+export const HISTORY_FILE = "weft.automerge";
 
 export function assetZipPath(assetId: string, fileName: string): string {
   return `assets/${assetId}_${fileName}`;
@@ -48,7 +52,7 @@ export async function packDocument(doc: WeftDocument): Promise<Uint8Array> {
   const usedIds = usedAssetIds(doc.content);
   const usedAssets = doc.content.assets.filter((meta) => usedIds.has(meta.id));
   const content = { ...doc.content, assets: usedAssets };
-  const docToSave: WeftDocument = { ...doc, content };
+  const docToSave: WeftDocument = { formatVersion: doc.formatVersion, content };
 
   // Every font is inlined into index.html as a data: URI, not shipped as a file next to it: a host
   // LMS may run the module in a sandboxed iframe without allow-same-origin, whose opaque origin the
@@ -59,6 +63,14 @@ export async function packDocument(doc: WeftDocument): Promise<Uint8Array> {
     "weft.json": strToU8(JSON.stringify(docToSave, null, 2)),
     "index.html": strToU8(await buildRuntimeHtml(content, {}, fontFaceCss)),
   };
+  // The editing history, so that this file can later be merged with other copies of the same module
+  // (see mergeHistory in document/store.ts) instead of only ever being replaced by them. weft.json
+  // stays the readable description of the same state (and what older versions and other tools
+  // read); on opening, the history is used only if it still describes exactly that state.
+  // Already compressed - stored as is.
+  if (Automerge.getObjectId(doc.content) !== null) {
+    files[HISTORY_FILE] = [Automerge.save(doc.content as Automerge.Doc<WeftModule>), { level: 0 }];
+  }
   const addFile = (path: string, data: Uint8Array) => {
     files[path] = ALREADY_COMPRESSED.test(path) ? [data, { level: 0 }] : data;
   };

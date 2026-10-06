@@ -133,14 +133,15 @@ export async function exportAsHtmlModule(doc: WeftDocument): Promise<string | nu
   return writeBytes(bytes, suggestedFileName(doc.content.title, EXPORT_EXTENSION), "Lernmodul exportieren", "zip");
 }
 
-export async function openDocument(): Promise<{ doc: WeftDocument; path: string | null } | null> {
+/** Lets the user pick a .weft / exported .weft.zip file and returns its raw bytes (and its path, in
+ * the desktop app). */
+export async function pickDocumentFile(title = "Lernmodul öffnen"): Promise<{ bytes: Uint8Array; path: string | null } | null> {
   if (isTauri()) {
     // .weft (saved), .weft.zip / plain .zip (exported) are all just zip archives underneath
     // (unpackDocument doesn't care about the name), so all of them stay openable here.
-    const path = await open({ multiple: false, filters: [{ name: "Weft-Lernmodul", extensions: ["weft", "zip"] }] });
+    const path = await open({ title, multiple: false, filters: [{ name: "Weft-Lernmodul", extensions: ["weft", "zip"] }] });
     if (!path || Array.isArray(path)) return null;
-    const bytes = await readFile(path);
-    return { doc: unpackDocument(bytes), path };
+    return { bytes: await readFile(path), path };
   }
   return new Promise((resolve) => {
     const input = document.createElement("input");
@@ -149,11 +150,15 @@ export async function openDocument(): Promise<{ doc: WeftDocument; path: string 
     input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) return resolve(null);
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      resolve({ doc: unpackDocument(bytes), path: null });
+      resolve({ bytes: new Uint8Array(await file.arrayBuffer()), path: null });
     };
     input.click();
   });
+}
+
+export async function openDocument(): Promise<{ doc: WeftDocument; path: string | null } | null> {
+  const picked = await pickDocumentFile();
+  return picked ? { doc: unpackDocument(picked.bytes), path: picked.path } : null;
 }
 
 /** Re-opens a specific, already-known path with no dialog - used to restore the last-opened

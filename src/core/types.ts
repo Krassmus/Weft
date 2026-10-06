@@ -670,4 +670,9 @@ export const CURRENT_FORMAT_VERSION = 3;
 export interface WeftDocument {
   formatVersion: number;
   content: WeftModule;
+  /** The document's full editing history (Automerge's binary format), set only on a document that
+   * has just been read from a file that carries one - what lets the same lineage be merged with
+   * other copies of it (see mergeHistory in document/store.ts). Never part of weft.json itself;
+   * loadDocument consumes it. */
+  history?: Uint8Array;
 }

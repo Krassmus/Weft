@@ -177,9 +177,11 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   canRedo: () => get().undoIndex < get().undoHistory.length - 1,
 
   loadDocument: (doc, filePath = null) => {
-    // A document opened from a file becomes a new Automerge document of its own - history starts
-    // here. (Joining a shared one is openSharedDocument.)
-    const next = repo.create<WeftModule>(plain(doc.content));
+    // A document opened from a file becomes an Automerge document of its own. (Joining a shared
+    // one is openSharedDocument.)
+    // With the editing history from the file, it goes on from there - that is what lets this copy
+    // be merged with other copies of the same file later; without one, history starts here.
+    const next = doc.history ? repo.import<WeftModule>(doc.history) : repo.create<WeftModule>(plain(doc.content));
     bindHandle(next);
     const content = next.doc() as WeftModule;
     set({

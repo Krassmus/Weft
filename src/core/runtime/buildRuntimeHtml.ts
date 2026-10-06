@@ -5,6 +5,8 @@ import vanillaLmSource from "../../../mockups/VanillaLM.js?raw";
 import playerRuntimeSource from "./player.runtime.js?raw";
 import playerRuntimeCss from "./player.runtime.css?raw";
 import { parseExpression } from "../document/expressions";
+import { autonymLabel } from "../i18n/languages";
+import { playerStringsFor } from "../i18n/playerStrings";
 import type { Expr } from "../document/expressions";
 import { isComputedVariable } from "../document/variables";
 import { buildCodeThemeCss } from "../code/codeThemes";
@@ -19,7 +21,7 @@ import type { Block, IframeBlock, TexBlock, WeftModule } from "../types";
  * and for the editor's live sandboxed-iframe preview (assetUrls pre-resolved to data: URIs,
  * since a sandboxed srcDoc iframe has an opaque origin and can't reach the app's blob: URLs).
  * fontFaceCss is built the same asymmetric way - see core/fonts/fontFaceCss.ts and its two
- * callers (pack.ts for export, buildPreviewFontUrls.ts for preview).
+ * callers (pack.ts for export, buildInlineFontFaceCss.ts for both).
  *
  * startPageId is preview-only (pack.ts's own export call never passes one, so a real exported
  * module always starts from its actual beginning like a real learner would) - it's the page
@@ -27,12 +29,17 @@ import type { Block, IframeBlock, TexBlock, WeftModule } from "../types";
  * Canvas.tsx/PresentationView.tsx). Kept out of the `module` object itself (a plain sibling
  * script tag instead, same as assetUrls/qrCodeSvgs) since it's a preview-session detail, not
  * document content - it has no business being part of WeftModule's own persisted shape.
+ *
+ * startLanguage is preview-only in the same way: the language the editor was showing, so "Abspielen"
+ * starts in it. A real export never passes one - the player then picks the learner's browser language
+ * (or the module's default).
  */
 export async function buildRuntimeHtml(
   module: WeftModule,
   assetUrls: Record<string, string> = {},
   fontFaceCss = "",
   startPageId: string | null = null,
+  startLanguage: string | null = null,
 ): Promise<string> {
   const qrCodeSvgs = await buildQrCodeSvgs(module);
   const texHtml = buildTexHtml(module);
@@ -48,6 +55,16 @@ export async function buildRuntimeHtml(
   const texHtmlJson = JSON.stringify(texHtml).replace(/</g, "\\u003c");
   const codeHtmlJson = JSON.stringify(codeHtml).replace(/</g, "\\u003c");
   const computedJson = JSON.stringify(computedExpressions).replace(/</g, "\\u003c");
+  const languageLabelsJson = JSON.stringify(Object.fromEntries(module.languages.map((l) => [l, autonymLabel(l)]))).replace(
+    /</g,
+    "\\u003c",
+  );
+  // The player's own fixed texts (see playerStrings.ts), for exactly the languages this module offers
+  // ("" = a module without languages, which keeps its German).
+  const uiStringsJson = JSON.stringify(
+    Object.fromEntries((module.languages.length > 0 ? module.languages : [null]).map((l) => [l ?? "", playerStringsFor(l)])),
+  ).replace(/</g, "\\u003c");
+  const startLanguageJson = JSON.stringify(startLanguage).replace(/</g, "\\u003c");
   const startPageIdJson = JSON.stringify(startPageId).replace(/</g, "\\u003c");
 
   return `<!doctype html>
@@ -68,6 +85,9 @@ ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` 
 <script id="weft-code-html" type="application/json">${codeHtmlJson}</script>
 <script id="weft-tex-html" type="application/json">${texHtmlJson}</script>
 <script id="weft-start-page" type="application/json">${startPageIdJson}</script>
+<script id="weft-languages" type="application/json">${languageLabelsJson}</script>
+<script id="weft-ui-strings" type="application/json">${uiStringsJson}</script>
+<script id="weft-start-language" type="application/json">${startLanguageJson}</script>
 <script>${vanillaLmSource.replace(/<\/script/gi, "<\\/script")}</script>
 <script>${playerRuntimeSource}</script>
 </body>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { addVariable, removeVariable, updateVariable } from "../../../core/document/actions";
 import { useDocumentStore } from "../../../core/document/store";
 import { computedVariableProblems, isComputedVariable } from "../../../core/document/variables";
-import { VIRTUAL_VARIABLES, VIRTUAL_VARIABLE_NAMES } from "../../../core/document/virtualVariables";
+import { virtualVariableNamesFor, virtualVariablesFor } from "../../../core/document/virtualVariables";
 import type { VariableDef, VariableType } from "../../../core/types";
 
 const TYPE_LABELS: Record<VariableType, string> = {
@@ -14,7 +14,11 @@ const TYPE_LABELS: Record<VariableType, string> = {
 
 export function VariablesTab() {
   const variables = useDocumentStore((s) => s.doc.content.variables);
-  const problems = useMemo(() => computedVariableProblems(variables, VIRTUAL_VARIABLE_NAMES), [variables]);
+  const languages = useDocumentStore((s) => s.doc.content.languages);
+  const problems = useMemo(
+    () => computedVariableProblems(variables, virtualVariableNamesFor(languages)),
+    [variables, languages],
+  );
   // The always-present ones come first - `success`, then the virtual ones like `progress` - and the
   // author's own variables below them, all in one list.
   const builtin = variables.filter((v) => v.fixed);
@@ -30,7 +34,7 @@ export function VariablesTab() {
         {builtin.map((v) => (
           <VariableRow key={v.id} variable={v} problem={problems.get(v.id)} />
         ))}
-        {VIRTUAL_VARIABLES.map((v) => (
+        {virtualVariablesFor(languages).map((v) => (
           <VirtualVariableRow key={v.name} name={v.name} range={v.range} description={v.description} />
         ))}
         {custom.map((v) => (

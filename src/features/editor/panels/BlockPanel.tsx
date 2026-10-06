@@ -36,6 +36,7 @@ import type {
   ShapeKind,
   ShapeShadow,
   ShapeStroke,
+  TextBlock,
   TimelineEdgeKind,
   VariableDef,
   VariableEffect,
@@ -49,6 +50,9 @@ import { listPageTriggerEvents } from "../Timeline";
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
+import { buttonText, buttonTextPatch, quizOptionHtml } from "../../../core/document/translations";
+import { useEditingLanguage } from "../useEditingLanguage";
+import { LanguageSelect } from "./LanguageSelect";
 import { TexEditor } from "./TexEditor";
 import { TriggerPicker } from "./TriggerPicker";
 
@@ -94,7 +98,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, page }: Bl
       {/* Same formatting toolbar for both - a quiz's question and options are rich text edited
           directly on the canvas exactly like a text block's own content, just several regions
           sharing one block instead of one filling it (see EditableRichText in BlockView.tsx). */}
-      {(block.kind === "text" || block.kind === "quiz") && <TextEditor />}
+      {(block.kind === "text" || block.kind === "quiz") && <TextEditor block={block.kind === "text" ? block : undefined} />}
       {block.kind === "code" && <CodeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "tex" && <TexEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "image" && <ImageEditor block={block} onUpdate={onUpdate} onSetImage={onSetImage} />}
@@ -313,7 +317,7 @@ function formatButtonClass(state: TriState): string {
  * handler checks to keep richText.ts's notion of "the active editor" alive across that focus hop
  * instead of tearing it down.
  */
-function TextEditor() {
+function TextEditor({ block }: { block?: TextBlock }) {
   const snapshot = useFormatSnapshot();
   const customFonts = useDocumentStore((s) => s.doc.content.customFonts);
   const sortedOtherFonts = CURATED_FONT_FAMILIES.filter((family) => family !== DEFAULT_FONT_FAMILY).sort((a, b) =>
@@ -345,6 +349,7 @@ function TextEditor() {
 
   return (
     <Collapsible title="Inhalt">
+      {block && <LanguageSelect block={block} />}
       <p className="weft-hint">Text direkt auf der Folie eingeben. Markierten Text hier formatieren.</p>
       <div className="weft-format-toolbar" data-weft-format-control>
         <div className="weft-format-row">
@@ -874,11 +879,16 @@ function IframeEditor({ block, onUpdate }: { block: IframeBlock; onUpdate: Block
 }
 
 function ButtonEditor({ block, onUpdate }: { block: ButtonBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const { lang, defaultLang } = useEditingLanguage();
   return (
     <Collapsible title="Inhalt">
+      <LanguageSelect block={block} />
       <label className="weft-field">
         <span>Text</span>
-        <input value={block.text} onChange={(e) => onUpdate({ text: e.target.value })} />
+        <input
+          value={buttonText(block, lang, defaultLang)}
+          onChange={(e) => onUpdate(buttonTextPatch(block, lang, defaultLang, e.target.value))}
+        />
       </label>
       <label className="weft-field">
         <span>Aktion</span>
@@ -1319,10 +1329,12 @@ function stripHtml(html: string): string {
 
 function QuizEditor({ block, onUpdate }: { block: QuizBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
   const variables = useDocumentStore((s) => s.doc.content.variables);
+  const { lang, defaultLang } = useEditingLanguage();
 
   return (
     <>
       <Collapsible title="Frage & Antworten">
+        <LanguageSelect block={block} />
         <p className="weft-hint">Frage und Antworten direkt auf der Folie eingeben. Markierten Text hier formatieren.</p>
 
         {block.options.map((opt) => (
@@ -1338,7 +1350,7 @@ function QuizEditor({ block, onUpdate }: { block: QuizBlock; onUpdate: BlockPane
                 onUpdate({ correctOptionIds });
               }}
             />
-            <span className="weft-quiz-option-row-label">{stripHtml(opt.html) || "(leer)"}</span>
+            <span className="weft-quiz-option-row-label">{stripHtml(quizOptionHtml(block, opt.id, lang, defaultLang)) || "(leer)"}</span>
             <button
               type="button"
               className="weft-icon-button"

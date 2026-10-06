@@ -12,6 +12,8 @@ const BLOCK_KINDS = Object.keys(BLOCK_KIND_KEYS) as Block["kind"][];
 export function PagePanel({ page }: { page: Page }) {
   const { t } = useTranslation();
   const selection = useDocumentStore((s) => s.selection);
+  // A language switch only makes sense in a module that offers more than one language.
+  const languageCount = useDocumentStore((s) => s.doc.content.languages.length);
   const select = useDocumentStore((s) => s.select);
   const { bind } = useDragReorder();
 
@@ -131,7 +133,7 @@ export function PagePanel({ page }: { page: Page }) {
           })}
         </ul>
         <div className="weft-add-block-row">
-          {BLOCK_KINDS.map((kind) => (
+          {BLOCK_KINDS.filter((kind) => kind !== "language" || languageCount > 1).map((kind) => (
             <button key={kind} type="button" onClick={() => addBlockToPage(page.id, kind)}>
               + {t(BLOCK_KIND_KEYS[kind])}
             </button>

@@ -165,6 +165,7 @@ export function createEmptyDocument(): WeftDocument {
     sequence,
     assets: [],
     customFonts: [],
+    languages: [],
     keyboardNavigationEnabled: true,
   };
   ensureBuiltinVariables(content.variables);

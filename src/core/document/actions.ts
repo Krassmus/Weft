@@ -1,5 +1,5 @@
 import { createId } from "../id";
-import { ASPECT_RATIO_NUMERIC } from "../aspectRatio";
+import { aspectRatioNumeric } from "../aspectRatio";
 import { useAssetStore } from "../assets/assetStore";
 import { isFfmpegAvailable, transcodeToH264 } from "../io/videoTranscode";
 import type {
@@ -24,6 +24,7 @@ import type {
 } from "../types";
 import { DEFAULT_CODE_THEME } from "../code/codeThemes";
 import { DEFAULT_TRANSITION_DURATION_MS } from "./transitions";
+import { defaultLanguageOf, rotateDefaultLanguage } from "./translations";
 import { defaultInitialValue } from "./variables";
 import { defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
 import { blockEffectNodeId, createDefaultPageTimeline, syncPageTimelineEvents, withTriggerEdge } from "./pageTimeline";
@@ -57,6 +58,21 @@ export function setModuleTitle(title: string) {
 export function setAspectRatio(aspectRatio: AspectRatio) {
   edit("Seitenverhältnis ändern", (m) => {
     m.aspectRatio = aspectRatio;
+  });
+}
+
+/**
+ * Sets the languages the module is offered in (ordered - the first is the default). Changing which
+ * language is first also swaps every block's own wording to the new default's (see
+ * rotateDefaultLanguage), so what the blocks' plain fields hold is always the default language's
+ * text. One undo step, however many blocks that touches.
+ */
+export function setLanguages(languages: string[]) {
+  edit("Sprachen ändern", (m) => {
+    const oldDefault = defaultLanguageOf(m.languages);
+    const newDefault = defaultLanguageOf(languages);
+    if (oldDefault && newDefault && oldDefault !== newDefault) rotateDefaultLanguage(m, oldDefault, newDefault);
+    m.languages = languages;
   });
 }
 
@@ -330,6 +346,8 @@ function defaultBlockFor(kind: Block["kind"]): Block {
   switch (kind) {
     case "text":
       return { ...base, kind, position, html: "<p>Neuer Text</p>" };
+    case "language":
+      return { ...base, kind, position: { x: 74, y: 3, width: 23, height: 7 } };
     case "code":
       return {
         ...base,
@@ -851,7 +869,7 @@ async function resolvePlayableVideo(file: File): Promise<{ file: File; aspect: n
  * aren't equal-scale unless the stage itself is square, so this isn't just the file's raw
  * ratio). */
 function percentRatioForAspect(mediaAspect: number): number {
-  const stageAspect = ASPECT_RATIO_NUMERIC[useDocumentStore.getState().doc.content.aspectRatio];
+  const stageAspect = aspectRatioNumeric(useDocumentStore.getState().doc.content.aspectRatio);
   return mediaAspect / stageAspect;
 }
 

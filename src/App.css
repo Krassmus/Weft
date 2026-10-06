@@ -918,6 +918,8 @@ img.weft-thumb-block {
      since the margins simply collapse to 0 (ordinary top/left-anchored overflow) once the item
      no longer fits, rather than clipping the far side symmetrically. */
   display: flex;
+  /* cqh in .weft-canvas-stage-zoom's width below refers to this box. */
+  container-type: size;
 }
 
 .weft-canvas-empty {
@@ -943,7 +945,10 @@ img.weft-thumb-block {
    rendering uses throughout (see .weft-stage's own comment), so zooming in genuinely enlarges
    text/icons, not just the picture of them. */
 .weft-canvas-stage-zoom {
-  width: calc(min(100%, 920px) * var(--zoom, 1));
+  /* Also never taller than the visible canvas at zoom 1: --ar (the slide's width/height, set on
+     the wrap by Canvas.tsx) turns the wrap's own content height (cqh - see its container-type) into
+     the widest slide that still fits it, which only matters for a portrait slide like 9:16. */
+  width: calc(min(100%, 920px, 100cqh * var(--ar, 1.78)) * var(--zoom, 1));
   margin: auto;
   /* .weft-canvas-stage-wrap is a flex container now (see its own comment - needed so this
      margin:auto centers on both axes, not just horizontally), and a flex item's default
@@ -2843,4 +2848,166 @@ button.weft-timeline-node-icon.is-animated:hover {
 .weft-variable-row-spacer {
   flex: 0 0 28px;
   width: 28px;
+}
+
+/* ---- Aspect ratio setting (panels/SettingsTab.tsx's AspectRatioField) ---- */
+
+.weft-aspect-custom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.weft-aspect-custom input[type="number"] {
+  width: 64px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--weft-border);
+  background: var(--weft-input-bg);
+  border-radius: var(--weft-radius-sm);
+}
+
+/* The sketch: a square box with the slide shape drawn in it as a light rectangle. */
+.weft-aspect-sketch {
+  margin-left: auto;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  padding: 3px;
+  box-sizing: border-box;
+}
+
+.weft-aspect-sketch > .weft-aspect-sketch-slide {
+  background: #fff;
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+/* ---- Language switch block (editor canvas preview; the real select is in the player) ---- */
+
+.weft-edit-block-language {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5em;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0 0.7em;
+  border: 1px solid #d4d4d8;
+  border-radius: 4px;
+  background: #fff;
+  color: #18181b;
+  font-size: 1.7cqw;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* ---- Language list in the Einstellungen (panels/SettingsTab.tsx's LanguagesField) ---- */
+
+.weft-language-list,
+.weft-language-picker-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weft-language-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px 5px 9px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-input-bg);
+  font-size: 12px;
+  cursor: grab;
+  /* Pointer-events drag (useDragReorder): touch scrolling has to be suppressed by hand. */
+  touch-action: none;
+}
+
+.weft-language-row.is-dragging {
+  opacity: 0.4;
+}
+
+.weft-language-row.is-drop-before {
+  border-top-color: var(--weft-accent);
+}
+
+.weft-language-row.is-drop-after {
+  border-bottom-color: var(--weft-accent);
+}
+
+.weft-language-row-flag {
+  flex-shrink: 0;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.weft-language-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weft-language-row-default {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--weft-accent-soft);
+  color: var(--weft-accent);
+  font-size: 10.5px;
+}
+
+.weft-language-row-code {
+  margin-left: auto;
+  color: var(--weft-text-faint);
+  font-size: 11px;
+}
+
+.weft-language-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.weft-language-picker input {
+  padding: 6px 8px;
+  border: 1px solid var(--weft-border);
+  background: var(--weft-input-bg);
+  border-radius: var(--weft-radius-sm);
+}
+
+.weft-language-picker-list {
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0;
+  gap: 0;
+}
+
+.weft-language-picker-list button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--weft-text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.weft-language-picker-list button:hover {
+  background: var(--weft-panel-raised);
 }

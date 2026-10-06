@@ -1,8 +1,11 @@
-import { ASPECT_RATIO_CSS } from "../../core/aspectRatio";
+import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
 import { useAssetStore } from "../../core/assets/assetStore";
 import { useDocumentStore } from "../../core/document/store";
 import type { Block } from "../../core/types";
 import { ShapeSvg } from "./blocks/ShapeSvg";
+import { buttonText, quizOptionHtml, quizQuestionHtml, textHtml } from "../../core/document/translations";
+import { playerStringsFor } from "../../core/i18n/playerStrings";
+import { useEditingLanguage } from "./useEditingLanguage";
 import { CodeView } from "./blocks/CodeView";
 import { TexView } from "./blocks/TexView";
 // Same "this is a video, not a button" watermark as the editor canvas (see BlockView.tsx) - kept
@@ -14,6 +17,8 @@ import qrIconSvg from "../../../mockups/icons/code-qr.svg?raw";
 import checkboxCheckedSvg from "../../../mockups/icons/checkbox-checked.svg?raw";
 import checkboxUncheckedSvg from "../../../mockups/icons/checkbox-unchecked.svg?raw";
 import acceptSvg from "../../../mockups/icons/accept.svg?raw";
+
+const THUMB_MAX_HEIGHT_PX = 150;
 
 /**
  * A small, inert preview of a block list (a page's layout+own blocks combined, or just a
@@ -27,9 +32,13 @@ import acceptSvg from "../../../mockups/icons/accept.svg?raw";
  */
 export function SlideThumbnail({ blocks }: { blocks: Block[] }) {
   const aspectRatio = useDocumentStore((s) => s.doc.content.aspectRatio);
+  const numeric = aspectRatioNumeric(aspectRatio);
+  // A portrait slide at the full width of the sidebar would be a huge tower - it is capped at the
+  // height a landscape one has anyway and sits narrower instead.
+  const portraitCap = numeric < 1 ? { flex: "0 1 auto", width: `min(100%, ${THUMB_MAX_HEIGHT_PX * numeric}px)`, marginInline: "auto" } : undefined;
 
   return (
-    <div className="weft-thumb" style={{ aspectRatio: ASPECT_RATIO_CSS[aspectRatio] }}>
+    <div className="weft-thumb" style={{ aspectRatio: aspectRatioCss(aspectRatio), ...portraitCap }}>
       <div className="weft-thumb-stage">
         {blocks.map((block) => (
           <ThumbBlock key={block.id} block={block} />
@@ -40,6 +49,7 @@ export function SlideThumbnail({ blocks }: { blocks: Block[] }) {
 }
 
 function ThumbBlock({ block }: { block: Block }) {
+  const { lang, defaultLang } = useEditingLanguage();
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
   const style = {
     left: `${block.position.x}%`,
@@ -50,7 +60,14 @@ function ThumbBlock({ block }: { block: Block }) {
   };
 
   if (block.kind === "text") {
-    return <div className="weft-thumb-block weft-thumb-block-text" style={style} dangerouslySetInnerHTML={{ __html: block.html }} />;
+    return <div className="weft-thumb-block weft-thumb-block-text" style={style} dangerouslySetInnerHTML={{ __html: textHtml(block, lang, defaultLang) }} />;
+  }
+  if (block.kind === "language") {
+    return (
+      <div className="weft-thumb-block weft-thumb-block-placeholder" style={style}>
+        🌐
+      </div>
+    );
   }
   if (block.kind === "code") {
     return (
@@ -100,7 +117,7 @@ function ThumbBlock({ block }: { block: Block }) {
   if (block.kind === "button") {
     return (
       <div className="weft-thumb-block weft-thumb-block-button" style={style}>
-        {block.text || "Weiter"}
+        {buttonText(block, lang, defaultLang) || playerStringsFor(lang).next}
       </div>
     );
   }
@@ -112,7 +129,7 @@ function ThumbBlock({ block }: { block: Block }) {
     // differently-laid-out preview.
     return (
       <div className="weft-thumb-block weft-thumb-block-quiz" style={style}>
-        <div className="weft-thumb-block-quiz-question" dangerouslySetInnerHTML={{ __html: block.questionHtml }} />
+        <div className="weft-thumb-block-quiz-question" dangerouslySetInnerHTML={{ __html: quizQuestionHtml(block, lang, defaultLang) }} />
         <div className="weft-thumb-block-quiz-options">
           {block.options.map((opt) => {
             const isCorrect = block.correctOptionIds.includes(opt.id);
@@ -122,14 +139,14 @@ function ThumbBlock({ block }: { block: Block }) {
                   className="weft-thumb-block-quiz-option-checkbox"
                   dangerouslySetInnerHTML={{ __html: isCorrect ? checkboxCheckedSvg : checkboxUncheckedSvg }}
                 />
-                <span className="weft-thumb-block-quiz-option-text" dangerouslySetInnerHTML={{ __html: opt.html }} />
+                <span className="weft-thumb-block-quiz-option-text" dangerouslySetInnerHTML={{ __html: quizOptionHtml(block, opt.id, lang, defaultLang) }} />
               </div>
             );
           })}
         </div>
         <div className="weft-thumb-block-quiz-submit">
           <span className="weft-thumb-block-quiz-submit-icon" dangerouslySetInnerHTML={{ __html: acceptSvg }} />
-          Abschicken
+          {playerStringsFor(lang).submit}
         </div>
       </div>
     );

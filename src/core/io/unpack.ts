@@ -241,6 +241,8 @@ export function unpackDocument(zipBytes: Uint8Array): WeftDocument {
   migrateBlockEffectTriggers(doc);
   migrateLegacyShapeCornerRadius(doc);
   migrateMissingGroups(doc);
+  // Older saves predate languages: a single-language module.
+  doc.content.languages ??= [];
   // The built-in `success` variable exists in every module - older saves predate it.
   ensureBuiltinVariables(doc.content.variables);
   // The old per-module "LMS-Anbindung" setting no longer exists (VanillaLM is always active).

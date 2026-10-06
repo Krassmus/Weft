@@ -12,6 +12,7 @@ export function LayoutPanel({ layout }: { layout: Layout }) {
   const { t } = useTranslation();
   const selection = useDocumentStore((s) => s.selection);
   const select = useDocumentStore((s) => s.select);
+  const languageCount = useDocumentStore((s) => s.doc.content.languages.length);
   const { bind } = useDragReorder();
 
   return (
@@ -70,7 +71,7 @@ export function LayoutPanel({ layout }: { layout: Layout }) {
           })}
         </ul>
         <div className="weft-add-block-row">
-          {STATIC_BLOCK_KINDS.map((kind) => (
+          {STATIC_BLOCK_KINDS.filter((kind) => kind !== "language" || languageCount > 1).map((kind) => (
             <button key={kind} type="button" onClick={() => addBlockToLayout(layout.id, kind)}>
               + {t(BLOCK_KIND_KEYS[kind])}
             </button>

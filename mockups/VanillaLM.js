@@ -161,7 +161,84 @@ VanillaLM = {
             //Now the request is sent to the LMS and we wait for a response ...
         });
     },
-    
+    getStyle: function (callable) {
+        var session = JSON.parse(VanillaLM.storage.getItem("VanillaLM.sessionStorage") || "{}");
+        VanillaLM.state = Object.assign(session, VanillaLM.state);
+        VanillaLM.storage.setItem("VanillaLM.sessionStorage", JSON.stringify(VanillaLM.state));
+        return new Promise(function (resolve, reject) {
+            var opener = window.opener || window.parent;
+            var request_id = Math.floor(Math.random() * 1000000);
+            opener.postMessage(JSON.stringify({
+                secret: VanillaLM.state.secret,
+                request: "/style",
+                request_id: request_id
+            }), "*");
+            VanillaLM.openRequests[request_id] = {
+                "resolve": resolve,
+                "reject": reject,
+                "callable": callable,
+                "time": new Date()
+            };
+            //Now the request is sent to the LMS and we wait for a response ...
+        });
+    },
+    /**
+     * Invites other persons into a game. The maximum number of persons into this game is max. All the
+     * parameters are defined by the learning-module.
+     * @param max
+     * @param parameter
+     * @param callable
+     * @returns {*}
+     */
+    invite: function (max, parameter, callable) {
+        var session = JSON.parse(VanillaLM.storage.getItem("VanillaLM.sessionStorage") || "{}");
+        VanillaLM.state = Object.assign(session, VanillaLM.state);
+        VanillaLM.storage.setItem("VanillaLM.sessionStorage", JSON.stringify(VanillaLM.state));
+        return new Promise(function (resolve, reject) {
+            var opener = window.opener || window.parent;
+            var request_id = Math.floor(Math.random() * 1000000);
+            opener.postMessage(JSON.stringify({
+                "secret": VanillaLM.state.secret,
+                "request": "/invite",
+                "request_id": request_id,
+                "max": max,
+                "parameter": parameter
+            }), "*");
+            VanillaLM.openRequests[request_id] = {
+                "resolve": resolve,
+                "reject": reject,
+                "callable": callable,
+                "time": new Date()
+            };
+            //Now the request is sent to the LMS and we wait for a response ...
+        });
+    },
+    terminateInvitation: function (vanillalm_game_id, callable) {
+        var session = JSON.parse(VanillaLM.storage.getItem("VanillaLM.sessionStorage") || "{}");
+        VanillaLM.state = Object.assign(session, VanillaLM.state);
+        VanillaLM.storage.setItem("VanillaLM.sessionStorage", JSON.stringify(VanillaLM.state));
+        return new Promise(function (resolve, reject) {
+            var opener = window.opener || window.parent;
+            var request_id = Math.floor(Math.random() * 1000000);
+            opener.postMessage(JSON.stringify({
+                "secret": VanillaLM.state.secret,
+                "request": "/terminateInvitation",
+                "request_id": request_id,
+                "vanillalm_game_id": vanillalm_game_id
+            }), "*");
+            VanillaLM.openRequests[request_id] = {
+                "resolve": resolve,
+                "reject": reject,
+                "callable": callable,
+                "time": new Date()
+            };
+            //Now the request is sent to the LMS and we wait for a response ...
+        });
+    },
+    /**
+     * Posts a message to the timeline of the user. Like a blubber-message or a facebook posting.
+     * @param message
+     */
     postTimelineMessage: function (message) {
         var opener = window.opener || window.parent;
         opener.postMessage(JSON.stringify({
@@ -248,4 +325,18 @@ document.addEventListener("DOMContentLoaded", function(event) {
         VanillaLM.state.secret = secret;
         VanillaLM.storage.setItem("VanillaLM.sessionStorage", JSON.stringify(VanillaLM.state));
     }
+
+    VanillaLM.getStyle().then(function (style) {
+        //set styles to CSS custom attributes (CSS variables):
+        var root = document.querySelector(':root');
+        root.style.setProperty("--vanillalm-color", style["color"]);
+        if (style["background-color"]) { //only if the LMS actually sent one, otherwise the CSS fallback applies
+            root.style.setProperty("--vanillalm-background-color", style["background-color"]);
+        }
+        root.style.setProperty("--vanillalm-font-family", style["font-family"]);
+        root.style.setProperty("--vanillalm-link-color", style["color_a"]);
+        //root.style.setProperty("--vanillalm-link-color-hover", style["color_a_hover"]); //adly it's not possible to retrieve the hover-color with JS.
+    }).catch(function () {
+        //no LMS answered (e.g. the module runs stand-alone): nothing to set, the CSS fallbacks apply
+    });
 });

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { buildPreviewAssetUrls } from "../../core/runtime/buildPreviewAssetUrls";
-import { buildPreviewFontFaceCss } from "../../core/runtime/buildPreviewFontUrls";
+import { effectiveLanguage } from "../../core/document/translations";
+import { useDocumentStore } from "../../core/document/store";
+import { buildInlineFontFaceCss } from "../../core/runtime/buildInlineFontFaceCss";
 import { buildRuntimeHtml } from "../../core/runtime/buildRuntimeHtml";
 import type { WeftModule } from "../../core/types";
 
@@ -12,18 +14,21 @@ import type { WeftModule } from "../../core/types";
  */
 export function PreviewFrame({ module, startPageId = null }: { module: WeftModule; startPageId?: string | null }) {
   const [srcDoc, setSrcDoc] = useState<string | null>(null);
+  // Plays in the language the editor was showing.
+  const editingLanguage = useDocumentStore((s) => s.editingLanguage);
+  const startLanguage = effectiveLanguage(module.languages, editingLanguage);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([buildPreviewAssetUrls(module), buildPreviewFontFaceCss(module)])
-      .then(([assetUrls, fontFaceCss]) => buildRuntimeHtml(module, assetUrls, fontFaceCss, startPageId))
+    Promise.all([buildPreviewAssetUrls(module), buildInlineFontFaceCss(module)])
+      .then(([assetUrls, fontFaceCss]) => buildRuntimeHtml(module, assetUrls, fontFaceCss, startPageId, startLanguage))
       .then((html) => {
         if (!cancelled) setSrcDoc(html);
       });
     return () => {
       cancelled = true;
     };
-  }, [module, startPageId]);
+  }, [module, startPageId, startLanguage]);
 
   if (!srcDoc) return <div className="weft-preview-loading">Vorschau wird geladen …</div>;
 

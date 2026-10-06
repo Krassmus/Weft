@@ -44,10 +44,9 @@ export function usedCuratedFonts(module: WeftModule): CuratedFont[] {
 
 /**
  * Builds the @font-face CSS for every curated font this document uses plus every custom font it
- * carries, resolving each underlying file to a URL through the given callbacks - a relative
- * "fonts/…" zip path for the real export, or a data: URI for the sandboxed preview iframe (an
- * opaque-origin srcDoc can't fetch a relative path at all, same reason images go through
- * buildPreviewAssetUrls instead of a plain <img src="assets/…">).
+ * carries, resolving each underlying file to a URL through the given callbacks - in practice a
+ * data: URI for both the preview and the export (see buildInlineFontFaceCss.ts for why a relative
+ * path doesn't work for a page without an origin of its own).
  */
 export async function buildFontFaceCss(
   module: WeftModule,
@@ -57,11 +56,24 @@ export async function buildFontFaceCss(
   const rules: string[] = [];
 
   for (const font of usedCuratedFonts(module)) {
+    // The regular and bold faces of a variable font are one and the same file - a single rule covering
+    // the whole weight range says that, instead of repeating the file (which, inlined as a data: URI,
+    // would mean carrying its bytes twice).
+    const groups = new Map<string, { file: string; style: string; unicodeRange: string | null; weights: number[] }>();
     for (const face of font.faces) {
-      const url = await resolveCuratedFile(face.file);
-      const unicodeRange = face.unicodeRange ? `unicode-range:${face.unicodeRange};` : "";
+      const key = `${face.file}|${face.style}|${face.unicodeRange ?? ""}`;
+      const group = groups.get(key) ?? { file: face.file, style: face.style, unicodeRange: face.unicodeRange ?? null, weights: [] };
+      group.weights.push(face.weight);
+      groups.set(key, group);
+    }
+    for (const group of groups.values()) {
+      const url = await resolveCuratedFile(group.file);
+      const unicodeRange = group.unicodeRange ? `unicode-range:${group.unicodeRange};` : "";
+      const lowest = Math.min(...group.weights);
+      const highest = Math.max(...group.weights);
+      const weight = lowest === highest ? `${lowest}` : `${lowest} ${highest}`;
       rules.push(
-        `@font-face{font-family:'${escapeFontFamily(font.family)}';font-style:${face.style};font-weight:${face.weight};font-display:swap;src:url('${url}') format('woff2');${unicodeRange}}`,
+        `@font-face{font-family:'${escapeFontFamily(font.family)}';font-style:${group.style};font-weight:${weight};font-display:swap;src:url('${url}') format('woff2');${unicodeRange}}`,
       );
     }
   }

@@ -2,7 +2,9 @@ import type { Patch } from "immer";
 
 export type UUID = string;
 
-export type AspectRatio = "16:9" | "4:3" | "1:1" | "3:2";
+/** "W:H" - one of the presets in core/aspectRatio.ts ("16:9", "9:16", ...) or any custom pair of positive
+ * numbers, e.g. "21:9" or "1.85:1". */
+export type AspectRatio = `${number}:${number}`;
 
 /** "computed" is a variable whose value is never stored: it is worked out from other variables by
  * its `expression` every time it is read (see core/document/expressions.ts for the language). */
@@ -83,9 +85,34 @@ interface BaseBlock {
   exitEffect: BlockEffect;
 }
 
+/**
+ * What one block says in a language OTHER than the module's default one (see WeftModule.languages) -
+ * only the fields that have been translated; anything missing is shown in the default language's
+ * wording instead. The block's own plain fields (html, questionHtml, text, ...) ARE the default
+ * language's wording, so a module that never uses languages has none of this at all.
+ */
+export interface BlockTranslation {
+  /** TextBlock. */
+  html?: string;
+  /** QuizBlock. */
+  questionHtml?: string;
+  /** QuizBlock: each option's html by option id. */
+  options?: Record<UUID, string>;
+  /** ButtonBlock. */
+  text?: string;
+}
+
 export interface TextBlock extends BaseBlock {
   kind: "text";
   html: string;
+  /** Other languages' wording, by locale ("fr_FR") - see BlockTranslation. */
+  translations?: Record<string, BlockTranslation>;
+}
+
+/** A drop-down with which a learner picks the language of the module (it sets `userlanguage`) -
+ * addable only while the module offers more than one language. */
+export interface LanguageBlock extends BaseBlock {
+  kind: "language";
 }
 
 /** Program code with syntax highlighting (highlight.js) - works like a text block (typed straight
@@ -175,6 +202,7 @@ export interface IframeBlock extends BaseBlock {
 
 export interface QuizBlock extends BaseBlock {
   kind: "quiz";
+  translations?: Record<string, BlockTranslation>;
   /** Rich HTML, exactly like TextBlock.html - edited in place on the canvas with the same
    * bold/italic/underline/font/size/color toolbar (see EditableText/TextEditor). A module saved
    * before this held HTML is migrated on load (see unpack.ts) by escaping its old plain text
@@ -194,6 +222,7 @@ export interface QuizBlock extends BaseBlock {
 export interface ButtonBlock extends BaseBlock {
   kind: "button";
   text: string;
+  translations?: Record<string, BlockTranslation>;
   /** "prev" is disabled on the first slide; "next"/"advance" both turn into a restart once the
    * module ended. "next" always jumps straight to the next page, regardless of any pending
    * "Weiter"-triggered builds still queued on the current one (see player.runtime.js's
@@ -307,7 +336,7 @@ export interface ShapeBlock extends BaseBlock {
  * navigation button (or a shape, which carries no state at all) has nothing graded to exclude, so
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
-export type StaticBlock = TextBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock;
+export type StaticBlock = TextBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock;
 export type Block = StaticBlock | QuizBlock;
 
 export interface Layout {
@@ -573,6 +602,10 @@ export interface WeftModule {
   sequence: SequenceNodeRef[];
   assets: AssetMeta[];
   customFonts: CustomFont[];
+  /** The languages this module is offered in, as locales ("de_DE", "en_US" - see
+   * core/i18n/languages.ts), the first being the default one. Empty (the default) means a
+   * single-language module: no `userlanguage` variable, no language switchers, nothing translated. */
+  languages: string[];
   /** On by default (matches every module saved before this existed - see unpack.ts's migration).
    * Switched off, the player ignores Space/←/→ entirely - only an author-placed button block or a
    * quiz's own onCorrect/onIncorrect effects can move the learner forward or back. The main

@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { ASPECT_RATIO_NUMERIC } from "../../../core/aspectRatio";
+import { aspectRatioNumeric } from "../../../core/aspectRatio";
 import { useDocumentStore } from "../../../core/document/store";
 import type { ShapeBlock, ShapeGradient, ShapeStrokeStyle } from "../../../core/types";
 import { pointsAttr, regularPolygonPoints, roundedRectPath, starOutlinePoints } from "./shapeGeometry";
@@ -66,7 +66,7 @@ export function ShapeSvg({ block }: { block: ShapeBlock }) {
   // alone, which are percent of the slide's own width and height respectively - different physical
   // scales unless the slide itself is square) - see roundedRectPath's own doc comment for why a
   // rounded rectangle's corners need this to stay circular instead of turning elliptical.
-  const slideAspect = useDocumentStore((s) => ASPECT_RATIO_NUMERIC[s.doc.content.aspectRatio]);
+  const slideAspect = useDocumentStore((s) => aspectRatioNumeric(s.doc.content.aspectRatio));
   const boxAspect = block.position.height > 0 ? (block.position.width / block.position.height) * slideAspect : 1;
 
   const fillValue = fill.type === "none" ? "none" : fill.type === "gradient" ? `url(#${gradientId})` : fill.color;

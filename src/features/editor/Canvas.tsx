@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties, DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent, RefObject } from "react";
 import playIconSvg from "../../../mockups/icons/play.svg?raw";
-import { ASPECT_RATIO_CSS } from "../../core/aspectRatio";
+import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
 import {
   addImageBlockToLayout,
   addImageBlockToPage,
@@ -469,7 +469,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
 
   const target = resolveEditTarget(doc, selection, lastPageIdRef.current);
   if (target?.kind === "page") lastPageIdRef.current = target.page.id;
-  const aspect = ASPECT_RATIO_CSS[doc.content.aspectRatio];
+  const aspect = aspectRatioCss(doc.content.aspectRatio);
   // Move-snapping candidates for a page block: the (locked, read-only) layout blocks showing
   // through underneath it are visually part of the same slide, so they're worth snapping against
   // too, not just the page's own blocks.
@@ -746,7 +746,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
       <div
         ref={stageWrapRef}
         className="weft-canvas-stage-wrap"
-        style={{ "--zoom": zoom } as CSSProperties}
+        style={{ "--zoom": zoom, "--ar": aspectRatioNumeric(doc.content.aspectRatio) } as CSSProperties}
         onPointerDownCapture={(e) => {
           pressStartedInBlockRef.current = !!(e.target as HTMLElement).closest(".weft-edit-block");
         }}

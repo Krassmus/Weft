@@ -1,1 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title>animation-outline</title><path fill="currentColor" d="M4 2a2 2 0 0 0-2 2v10h2V4h10V2zm4 4a2 2 0 0 0-2 2v10h2V8h10V6zm12 6v8h-8v-8zm0-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2"/></svg>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 12 12" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <path d="M2,1C1.451,1 1,1.451 1,2L1,7L2,7L2,2L7,2L7,1L2,1ZM4,3C3.451,3 3,3.451 3,4L3,9L4,9L4,4L9,4L9,3L4,3ZM10,6L10,10L6,10L6,6L10,6ZM10,5L6,5C5.451,5 5,5.451 5,6L5,10C5,10.549 5.451,11 6,11L10,11C10.549,11 11,10.549 11,10L11,6C11,5.451 10.549,5 10,5" style="fill:rgb(41,73,124);fill-rule:nonzero;"/>
+</svg>

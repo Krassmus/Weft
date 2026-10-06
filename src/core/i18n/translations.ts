@@ -35,6 +35,7 @@ const en = {
   "panel.layout.name": "Name",
 
   "block.text": "Text",
+  "block.language": "Language switch",
   "block.code": "Code",
   "block.tex": "Formula",
   "block.image": "Image",
@@ -74,6 +75,7 @@ const de: Record<keyof typeof en, string> = {
   "panel.layout.name": "Name",
 
   "block.text": "Text",
+  "block.language": "Sprachschalter",
   "block.code": "Code",
   "block.tex": "Formel",
   "block.image": "Bild",
@@ -103,6 +105,7 @@ export const translations: Record<Language, Record<TranslationKey, string>> = { 
  * the same way it already would in each of those three files' own label records. */
 export const BLOCK_KIND_KEYS: Record<Block["kind"], Extract<TranslationKey, `block.${string}`>> = {
   text: "block.text",
+  language: "block.language",
   code: "block.code",
   tex: "block.tex",
   image: "block.image",

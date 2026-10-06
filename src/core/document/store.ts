@@ -66,6 +66,13 @@ interface DocumentState {
    * exactly "there are unsaved changes" - what automatic saving (core/io/autosave.ts) keys on. */
   savedContent: WeftModule;
   markSaved: (content: WeftModule) => void;
+  /** The language the editor currently shows and edits texts in (a locale from
+   * WeftModule.languages) - UI state only, shared by every language switch in the sidebar, the
+   * canvas, the thumbnails and the preview's starting language. null = whatever the module's default
+   * language is; a language that isn't (any more) in the module's list counts as that, too (see
+   * effectiveLanguage). */
+  editingLanguage: string | null;
+  setEditingLanguage: (language: string | null) => void;
 
   /** Applies `recipe` to the content, records one undo entry (unless it was a no-op). */
   edit: (label: string, recipe: (draft: WeftModule) => void) => void;
@@ -86,6 +93,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   filePath: null,
   savedContent: initialDocument.content,
   markSaved: (content) => set({ savedContent: content }),
+  editingLanguage: null,
+  setEditingLanguage: (language) => set({ editingLanguage: language }),
 
   edit: (label, recipe) =>
     set((state) => {

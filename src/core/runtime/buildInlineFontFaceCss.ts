@@ -26,10 +26,14 @@ function resolveCuratedFile(fileName: string): Promise<string> {
   return cached;
 }
 
-/** @font-face CSS for the sandboxed preview iframe - every URL pre-resolved to a data: URI,
- * since an opaque-origin srcDoc can't fetch a relative path (same reason images go through
- * buildPreviewAssetUrls instead of a plain relative <img src>). */
-export async function buildPreviewFontFaceCss(module: WeftModule): Promise<string> {
+/** @font-face CSS with every font file inlined as a data: URI - for the sandboxed preview iframe
+ * AND for the exported index.html. A page without an origin of its own (a srcDoc preview, or a
+ * module an LMS runs in an iframe with sandbox but without allow-same-origin) can't use a relative
+ * font URL at all: the browser always loads fonts as CORS requests, and an opaque origin is never
+ * allowed without an Access-Control-Allow-Origin header the server would have to send. A data: URI
+ * needs no request, so it works everywhere. (Images and videos are no such problem - they load
+ * without CORS - which is why only fonts are inlined.) */
+export async function buildInlineFontFaceCss(module: WeftModule): Promise<string> {
   const blobs = useAssetStore.getState().blobs;
   return buildFontFaceCss(module, resolveCuratedFile, async (font) => {
     const blob = blobs.get(font.id);

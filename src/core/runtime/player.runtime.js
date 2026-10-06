@@ -20,6 +20,18 @@
   // variable id - see evalExpression.
   var computedEl = document.getElementById("weft-computed");
   var computed = computedEl ? JSON.parse(computedEl.textContent || "{}") : {};
+  // The module's languages (locales like "de_DE", the first being the default), how each is labelled in
+  // the language switch (its own name and flag, made at export - buildRuntimeHtml.ts), and - in the
+  // editor's preview only - the language to start in.
+  var languages = module.languages || [];
+  var languageLabelsEl = document.getElementById("weft-languages");
+  var languageLabels = languageLabelsEl ? JSON.parse(languageLabelsEl.textContent || "{}") : {};
+  // The player's own fixed texts per language (see core/i18n/playerStrings.ts) - made at export for
+  // exactly the module's languages ("" = no languages: German).
+  var uiStringsEl = document.getElementById("weft-ui-strings");
+  var uiStrings = uiStringsEl ? JSON.parse(uiStringsEl.textContent || "{}") : {};
+  var startLanguageEl = document.getElementById("weft-start-language");
+  var startLanguage = startLanguageEl ? JSON.parse(startLanguageEl.textContent || "null") : null;
   var codeHtmlEl = document.getElementById("weft-code-html");
   var codeHtml = codeHtmlEl ? JSON.parse(codeHtmlEl.textContent || "{}") : {};
   var texHtmlEl = document.getElementById("weft-tex-html");
@@ -207,6 +219,82 @@
     return false;
   }
 
+  // ---- languages ----
+  // A multilingual module (module.languages non-empty) shows each text in `currentLanguage`: the first
+  // language's wording IS the block's own fields, every other one's is in block.translations[locale]
+  // (only the fields that were translated - the rest falls back to the default wording). Mirrors
+  // core/document/translations.ts, kept in sync by hand. `userlanguage` is the current language as a
+  // virtual variable; a language switch block changes it - texts are refilled in place (see
+  // languageRefreshers), so nothing else on the slide (a half-answered quiz, revealed builds) is lost.
+  function pickInitialLanguage() {
+    if (languages.length === 0) return null;
+    if (startLanguage && languages.indexOf(startLanguage) !== -1) return startLanguage;
+    var preferred = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""];
+    for (var i = 0; i < preferred.length; i++) {
+      var wanted = String(preferred[i]).replace("-", "_");
+      if (languages.indexOf(wanted) !== -1) return wanted;
+      var base = wanted.split("_")[0];
+      for (var j = 0; j < languages.length; j++) {
+        if (languages[j].split("_")[0] === base) return languages[j];
+      }
+    }
+    return languages[0];
+  }
+
+  var currentLanguage = pickInitialLanguage();
+  if (currentLanguage) document.documentElement.setAttribute("lang", currentLanguage.split("_")[0]);
+
+  // The block's wording in a non-default language, if the current one is such and has any.
+  function currentTranslation(block) {
+    if (!currentLanguage || currentLanguage === languages[0] || !block.translations) return undefined;
+    return block.translations[currentLanguage];
+  }
+
+  function blockHtml(block) {
+    var t = currentTranslation(block);
+    return t && t.html !== undefined ? t.html : block.html;
+  }
+
+  function quizQuestionHtml(block) {
+    var t = currentTranslation(block);
+    return t && t.questionHtml !== undefined ? t.questionHtml : block.questionHtml;
+  }
+
+  function quizOptionHtml(block, option) {
+    var t = currentTranslation(block);
+    return t && t.options && t.options[option.id] !== undefined ? t.options[option.id] : option.html;
+  }
+
+  function buttonLabel(block) {
+    var t = currentTranslation(block);
+    return (t && t.text !== undefined ? t.text : block.text) || uiString("next");
+  }
+
+  // One of the player's own fixed texts in the current language.
+  function uiString(key) {
+    var strings = uiStrings[currentLanguage || ""] || uiStrings[""] || {};
+    return strings[key] || "";
+  }
+
+  // Functions that refill the texts of the blocks on the page being shown, and the language
+  // switches on it - both reset with every page (see renderStage), like every other page-scoped list.
+  var languageRefreshers = [];
+  var languageSwitches = [];
+
+  function setLanguage(locale) {
+    if (locale === currentLanguage || languages.indexOf(locale) === -1) return;
+    currentLanguage = locale;
+    document.documentElement.setAttribute("lang", locale.split("_")[0]);
+    languageRefreshers.forEach(function (refill) {
+      refill();
+    });
+    languageSwitches.forEach(function (select) {
+      select.value = locale;
+    });
+    refreshVariableDisplays();
+    syncLms();
+  }
+
   // ---- {{variable}} placeholders in texts ----
   // Matched per TEXT NODE, never across element boundaries: a name with formatting in the middle
   // ({{meine<b>variable</b>}}) is split over several nodes and so simply isn't recognised - it
@@ -255,6 +343,7 @@
     var def = variableByName(name);
     if (def) return { value: variableValue(def) };
     if (name === "progress") return { value: progressValue() };
+    if (name === "userlanguage" && languages.length > 0) return { value: currentLanguage };
     return null;
   }
 
@@ -544,6 +633,14 @@
         changed = true;
       }
     }
+    // Likewise the virtual `userlanguage` (only a multilingual module has it).
+    if (languages.length > 0 && !variableByName("userlanguage") && lmsSnapshot.__userlanguage !== currentLanguage) {
+      lmsSnapshot.__userlanguage = currentLanguage;
+      lmsCall(function () {
+        VanillaLM.setAttribute("userlanguage", currentLanguage);
+      });
+      changed = true;
+    }
     if (successNow) {
       lmsSend();
     } else if (changed && !lmsSendQueued) {
@@ -605,17 +702,24 @@
   // Numeric [width, height] ratios (not a CSS aspect-ratio string) - stageStyle() below turns
   // these into --ar-w/--ar-h custom properties, which the CSS uses in a calc() to size the
   // stage to the largest box of that ratio that still fits the viewport (see player.runtime.css).
-  var ASPECT_MAP = { "16:9": [16, 9], "4:3": [4, 3], "1:1": [1, 1], "3:2": [3, 2] };
+  // "W:H" (any pair of positive numbers - see core/aspectRatio.ts's parseAspectRatio, kept in sync by
+  // hand); 16:9 for anything unreadable.
+  function parseAspectRatio() {
+    var parts = String(module.aspectRatio || "").split(":");
+    var width = Number(parts[0]);
+    var height = Number(parts[1]);
+    return width > 0 && height > 0 && isFinite(width) && isFinite(height) ? [width, height] : [16, 9];
+  }
 
-  // Numeric width/height - same value core/aspectRatio.ts's ASPECT_RATIO_NUMERIC gives, used by
+  // Numeric width/height - same value core/aspectRatio.ts's aspectRatioNumeric gives, used by
   // shapeSvgMarkup below to correct a rounded rectangle's corners (see roundedRectPath).
   function slideAspectNumeric() {
-    var ratio = ASPECT_MAP[module.aspectRatio] || ASPECT_MAP["16:9"];
+    var ratio = parseAspectRatio();
     return ratio[0] / ratio[1];
   }
 
   function stageStyle() {
-    var ratio = ASPECT_MAP[module.aspectRatio] || ASPECT_MAP["16:9"];
+    var ratio = parseAspectRatio();
     return "--ar-w:" + ratio[0] + ";--ar-h:" + ratio[1] + ";";
   }
 
@@ -626,6 +730,17 @@
     })[0];
     if (!meta) return "";
     return "assets/" + meta.id + "_" + meta.fileName;
+  }
+
+  // A function that runs its body only the first time it is called - for completions that more than
+  // one thing (an animation's end, a timer) may try to trigger.
+  function once(fn) {
+    var called = false;
+    return function () {
+      if (called) return;
+      called = true;
+      fn();
+    };
   }
 
   function el(tag, attrs, children) {
@@ -889,28 +1004,34 @@
         var done = function () {
           fireTriggerableEventOnce(blockEffectEventId(block.id, "entrance"));
         };
-        // The animation's own starting state is set inline BEFORE the block becomes visible (and
-        // kept by fill: "backwards" until the animation really runs): otherwise there can be a
-        // frame - a heavier block like a TeX formula makes it visible - where the block is already
-        // shown at its final state but the animation hasn't started yet, which flickers.
-        var animateIn = function (property, from, to) {
-          var original = wrap.style[property];
-          wrap.style[property] = from;
-          wrap.style.visibility = "";
-          var animation = wrap.animate([{ [property]: from }, { [property]: to }], {
-            duration: entrance.durationMs || 500,
-            easing: "ease",
-            fill: "backwards",
-          });
-          animation.onfinish = function () {
-            wrap.style[property] = original;
+        // The block stays visibility:hidden inline until the effect is over, and the animation itself
+        // says "visible" (visibility is animatable, and fill: "both" keeps both ends in force): so the
+        // block is already shown - at its starting state - from the very first frame of the animation
+        // (no flash of the finished block before it begins), and stays shown at its end state however
+        // late the "finish" event is delivered.
+        // That event comes with a rendered frame, which a page in a throttled or hidden iframe can hold
+        // back for a long time, or never get - so the effect is completed by the animation's end OR a
+        // timer just after its duration, whichever is first (once()): inline state cleaned up, and the
+        // entrance event fired that the next build in the Weiter chain is waiting for.
+        var animateIn = function (from, to) {
+          var duration = entrance.durationMs || 500;
+          var animation = wrap.animate(
+            [Object.assign({ visibility: "visible" }, from), Object.assign({ visibility: "visible" }, to)],
+            { duration: duration, easing: "ease", fill: "both" }
+          );
+          var complete = once(function () {
+            wrap.style.visibility = "";
+            animation.cancel();
             done();
-          };
+          });
+          animation.onfinish = complete;
+          setTimeout(complete, duration + 100);
         };
         if (entrance.type === "fade") {
-          animateIn("opacity", "0", "1");
+          animateIn({ opacity: 0 }, { opacity: 1 });
         } else if (entrance.type === "move") {
-          animateIn("transform", "translateX(100%)", "translateX(0)");
+          // translate (not transform): composes with a block's own rotate() instead of replacing it.
+          animateIn({ translate: "100% 0" }, { translate: "0 0" });
         } else {
           wrap.style.visibility = "";
           done();
@@ -929,21 +1050,29 @@
     // "off" block's entrance anyway (see syncPageTimelineEvents: it never gets a node at all).
 
     if (exitTrigger) {
-      function hideExit() {
+      // Idempotent, and also run by a timer shortly after the animation's duration - see showEntrance
+      // for why a "finish" event alone can't be relied on.
+      var hideExit = once(function () {
         wrap.style.visibility = "hidden";
         fireTriggerableEventOnce(blockEffectEventId(block.id, "exit"));
-      }
+      });
       var runExit = function () {
+        var duration = exit.durationMs || 500;
+        // fill: "forwards" keeps the end state until hideExit hides the block - no frame at the
+        // original state in between.
+        var animation = null;
         if (exit.type === "fade") {
-          // fill: "forwards" keeps the end state until hideExit hides the block - no frame at the
-          // original state in between.
-          wrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: exit.durationMs || 500, easing: "ease", fill: "forwards" }).onfinish = hideExit;
+          animation = wrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: duration, easing: "ease", fill: "forwards" });
         } else if (exit.type === "move") {
-          wrap.animate([{ transform: "translateX(0)" }, { transform: "translateX(100%)" }], {
-            duration: exit.durationMs || 500,
+          animation = wrap.animate([{ translate: "0 0" }, { translate: "100% 0" }], {
+            duration: duration,
             easing: "ease",
             fill: "forwards",
-          }).onfinish = hideExit;
+          });
+        }
+        if (animation) {
+          animation.onfinish = hideExit;
+          setTimeout(hideExit, duration + 100);
         } else {
           hideExit();
         }
@@ -1176,7 +1305,7 @@
   // BlockView.tsx's IframeFrame in the editor exactly.
   function iframeEl(block, src) {
     var w = block.forcedViewportWidth || DEFAULT_VIEWPORT_WIDTH;
-    var ratio = ASPECT_MAP[module.aspectRatio] || ASPECT_MAP["16:9"];
+    var ratio = parseAspectRatio();
     var stageHeightOverWidth = ratio[1] / ratio[0];
     var wrapHeightOverWidth = stageHeightOverWidth * (block.position.height / block.position.width);
     var h = w * wrapHeightOverWidth;
@@ -1243,8 +1372,26 @@
   function renderStaticBlock(block, page) {
     var wrap = el("div", { class: "weft-block weft-block-" + block.kind, style: positionStyle(block.position) });
     if (block.kind === "text") {
-      wrap.innerHTML = block.html;
-      applyVariablesToNode(wrap);
+      var fillText = function () {
+        wrap.innerHTML = blockHtml(block);
+        applyVariablesToNode(wrap);
+      };
+      fillText();
+      languageRefreshers.push(fillText);
+    } else if (block.kind === "language") {
+      var languageSelect = el("select", { class: "weft-language-select", "aria-label": uiString("language") }, []);
+      languageRefreshers.push(function () {
+        languageSelect.setAttribute("aria-label", uiString("language"));
+      });
+      languages.forEach(function (locale) {
+        languageSelect.appendChild(el("option", { value: locale }, [document.createTextNode(languageLabels[locale] || locale)]));
+      });
+      languageSelect.value = currentLanguage;
+      languageSelect.addEventListener("change", function () {
+        setLanguage(languageSelect.value);
+      });
+      languageSwitches.push(languageSelect);
+      wrap.appendChild(languageSelect);
     } else if (block.kind === "code") {
       // Same markup and font-size math as the editor's CodeView.tsx.
       var codeBox = el("div", {
@@ -1264,7 +1411,7 @@
       if (block.color) wrap.style.color = block.color;
       fitTexBlock(texBox, texInner);
     } else if (block.kind === "image") {
-      wrap.appendChild(el("img", { src: assetSrc(block.assetId), alt: block.alt, style: "width:100%;height:100%;object-fit:contain;" }, []));
+      wrap.appendChild(el("img", { src: assetSrc(block.assetId), alt: block.alt, style: "display:block;width:100%;height:100%;object-fit:contain;" }, []));
     } else if (block.kind === "video") {
       var videoWrap = el("div", { class: "weft-video-wrap" }, []);
       var videoEl = el("video", {
@@ -1319,7 +1466,10 @@
       // starts (by a click here or, once it lands, a successful autoplay), then hidden again on
       // pause/end so it doesn't sit on top of the video's own controls bar (if block.controls
       // enabled one) fighting over the same "play" affordance while it's already playing.
-      var playButton = el("button", { type: "button", class: "weft-video-play", "aria-label": "Abspielen" }, []);
+      var playButton = el("button", { type: "button", class: "weft-video-play", "aria-label": uiString("play") }, []);
+      languageRefreshers.push(function () {
+        playButton.setAttribute("aria-label", uiString("play"));
+      });
       playButton.innerHTML = PLAY_ICON_SVG;
       playButton.addEventListener("click", function (ev) {
         ev.stopPropagation();
@@ -1382,10 +1532,13 @@
 
   function renderButtonBlock(block) {
     var wrap = el("div", { class: "weft-block weft-block-button", style: positionStyle(block.position) });
-    var button = el("button", { type: "button", class: "weft-block-button-el" }, [
-      document.createTextNode(block.text || "Weiter"),
-    ]);
-    applyVariablesToNode(button);
+    var button = el("button", { type: "button", class: "weft-block-button-el" }, []);
+    var fillButton = function () {
+      button.textContent = buttonLabel(block);
+      applyVariablesToNode(button);
+    };
+    fillButton();
+    languageRefreshers.push(fillButton);
     if (block.action === "prev") {
       button.disabled = pos <= 0;
       button.addEventListener("click", goPrev);
@@ -1426,8 +1579,18 @@
     var form = el("form", { class: "weft-quiz" }, []);
 
     var question = el("div", { class: "weft-quiz-question" }, []);
-    question.innerHTML = block.questionHtml;
+    var optionTexts = [];
+    var fillQuiz = function () {
+      question.innerHTML = quizQuestionHtml(block);
+      applyVariablesToNode(question);
+      optionTexts.forEach(function (entry) {
+        entry.element.innerHTML = quizOptionHtml(block, entry.option);
+        applyVariablesToNode(entry.element);
+      });
+    };
+    question.innerHTML = quizQuestionHtml(block);
     applyVariablesToNode(question);
+    languageRefreshers.push(fillQuiz);
     form.appendChild(question);
 
     var optionsWrap = el("div", { class: "weft-quiz-options" }, []);
@@ -1450,8 +1613,9 @@
       checkboxWrap.appendChild(uncheckedIcon);
       checkboxWrap.appendChild(checkedIcon);
       var text = el("span", { class: "weft-quiz-option-text" }, []);
-      text.innerHTML = opt.html;
+      text.innerHTML = quizOptionHtml(block, opt);
       applyVariablesToNode(text);
+      optionTexts.push({ element: text, option: opt });
       optionLabel.appendChild(checkboxWrap);
       optionLabel.appendChild(text);
       optionsWrap.appendChild(optionLabel);
@@ -1472,8 +1636,19 @@
     var submitIcon = el("span", { class: "weft-quiz-submit-icon" }, []);
     submitIcon.innerHTML = QUIZ_SUBMIT_ICON_SVG;
     submit.appendChild(submitIcon);
-    submit.appendChild(document.createTextNode("Abschicken"));
+    var submitLabel = document.createTextNode(uiString("submit"));
+    submit.appendChild(submitLabel);
     form.appendChild(submit);
+    // answered: null until the quiz was submitted, then whether it was right - so the feedback text
+    // follows a language change made afterwards, too.
+    var answered = null;
+    var showFeedbackTitle = function () {
+      feedbackTitle.textContent = uiString(answered ? "correct" : "incorrect");
+    };
+    languageRefreshers.push(function () {
+      submitLabel.nodeValue = uiString("submit");
+      if (answered !== null) showFeedbackTitle();
+    });
 
     // Hidden until submitted, and takes the submit button's place rather than sitting next to it
     // (see the submit handler) - there's nothing left to submit once it's showing.
@@ -1516,7 +1691,8 @@
         input.disabled = true;
       });
       feedbackIcon.innerHTML = correct ? QUIZ_CORRECT_ICON_SVG : QUIZ_INCORRECT_ICON_SVG;
-      feedbackTitle.textContent = correct ? "Das war richtig!" : "Das war leider nicht richtig.";
+      answered = correct;
+      showFeedbackTitle();
       feedback.className = "weft-quiz-feedback " + (correct ? "is-correct" : "is-incorrect");
       feedback.hidden = false;
 
@@ -1552,6 +1728,8 @@
     eventListeners = {};
     firedTriggerableEvents = {};
     advanceQueue = [];
+    languageRefreshers = [];
+    languageSwitches = [];
     var page = module.pages[pageId];
     var stage = el("div", { class: "weft-stage", style: stageStyle() }, []);
     var layout = page.layoutId ? module.layouts[page.layoutId] : null;
@@ -1582,11 +1760,11 @@
 
     if (pos >= history.length) {
       var restartBtn = el("button", { type: "button", class: "weft-block-button-el weft-done-restart" }, [
-        document.createTextNode("Neu starten"),
+        document.createTextNode(uiString("restart")),
       ]);
       restartBtn.addEventListener("click", restart);
       var doneStage = el("div", { class: "weft-stage weft-stage-done", style: stageStyle() }, [
-        el("div", { class: "weft-done-message" }, [document.createTextNode("Lernmodul abgeschlossen.")]),
+        el("div", { class: "weft-done-message" }, [document.createTextNode(uiString("done"))]),
         restartBtn,
       ]);
       wrap.appendChild(doneStage);

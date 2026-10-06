@@ -161,6 +161,7 @@ function buildVideoLane(video: VideoBlock): TimelineLane {
 
 const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
   text: "Text",
+  language: "Sprachschalter",
   code: "Code",
   tex: "Formel",
   image: "Bild",

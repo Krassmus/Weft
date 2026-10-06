@@ -1,5 +1,5 @@
 ## Mehr Animationen (Aufbau)
-- 
+
 
 
 ## Dateien
@@ -13,11 +13,6 @@ Man exportiert eine Weft-Datei oder .weft.zip, die keine Metadaten enthält und 
 
 ## Moderatornotizen
 
+# Fragen
 
-
-## Weitere Seitenverhältnisse
-
-Oben links in den Einstellungen kann man das Seitenverhältnis des Lernmoduls einstellen. Dort fehlt noch die Möglichkeit, eine typische Mobilansicht "9:16 (Smartphone)" zu erzeugen. Und wem das nicht reicht, der soll die Möglichkeit bekommen, ein Seitenverhältnis völlig frei zu definieren. Es wird eine weitere Option "Anderes Verhältnis" angeboten, mit dem man zwei beliebige Zahlen angeben kann. Daneben soll schematisch gezeigt werden, wie das Seitenverhältnis dann aussehen würde.
-
-
-
+Soll bei VanillaLM neben der background-color auch eine outside-color definiert werden, die dann die Farbe der schwarzen Ränder definiert? Die background-color ist ja eigentlich eine Information über die Hintergrundfarbe des Inhaltes. Andererseits sollte die Outside-Color immer Schwarz sein, wenn das Modul im Vollbildmodus bzw. auf dem Beamer gezeigt wird.

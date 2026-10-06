@@ -10,7 +10,19 @@ import checkboxCheckedSvg from "../../../../mockups/icons/checkbox-checked.svg?r
 import checkboxUncheckedSvg from "../../../../mockups/icons/checkbox-unchecked.svg?raw";
 import acceptSvg from "../../../../mockups/icons/accept.svg?raw";
 import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
-import { ASPECT_RATIO_NUMERIC } from "../../../core/aspectRatio";
+import { aspectRatioNumeric } from "../../../core/aspectRatio";
+import {
+  buttonText,
+  quizOptionHtml,
+  quizOptionPatch,
+  quizQuestionHtml,
+  quizQuestionPatch,
+  textHtml,
+  textHtmlPatch,
+} from "../../../core/document/translations";
+import { autonymLabel } from "../../../core/i18n/languages";
+import { playerStringsFor } from "../../../core/i18n/playerStrings";
+import { useEditingLanguage } from "../useEditingLanguage";
 import { useAssetStore } from "../../../core/assets/assetStore";
 import { useDocumentStore } from "../../../core/document/store";
 import { createId } from "../../../core/id";
@@ -171,7 +183,7 @@ export function BlockView({
   // .weft-edit-block-iframe-wrap iframe's pointer-events:none in App.css), so it can be grabbed
   // and moved from anywhere - including on the very first click, before it's even selected, see
   // handlePointerDownMove/handlePointerMoveHover below.
-  const isFreelyMovableBlock = block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "iframe" || block.kind === "shape";
+  const isFreelyMovableBlock = block.kind === "language" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "iframe" || block.kind === "shape";
   // Only an image or video has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
   // given, so unlike image/video it keeps the full edge+corner handle set below instead of being
@@ -468,16 +480,27 @@ function BlockContent({
   onSendToBack?: () => void;
 }) {
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
+  // The language texts are shown and edited in (null: the module has none) - see useEditingLanguage.
+  const { lang, defaultLang } = useEditingLanguage();
 
   switch (block.kind) {
     case "text":
       return (
         <EditableRichText
           className="weft-edit-block-text"
-          html={block.html}
+          html={textHtml(block, lang, defaultLang)}
           editable={selected}
-          onCommit={(html) => onUpdate?.({ html })}
+          onCommit={(html) => onUpdate?.(textHtmlPatch(block, lang, defaultLang, html))}
         />
+      );
+    case "language":
+      // What a learner will get: a drop-down showing the current language by its own name. Inert here
+      // (see isFreelyMovableBlock) - the real one lives in the player.
+      return (
+        <div className="weft-edit-block-language">
+          {lang ? autonymLabel(lang) : "🌐"}
+          <span aria-hidden>▾</span>
+        </div>
       );
     case "code":
       return <CodeView block={block} editable={selected} onCommit={(code) => onUpdate?.({ code })} />;
@@ -524,7 +547,7 @@ function BlockContent({
     case "button":
       return (
         <button type="button" className="weft-edit-block-button" tabIndex={-1}>
-          {block.text || "Weiter"}
+          {buttonText(block, lang, defaultLang) || playerStringsFor(lang).next}
         </button>
       );
     case "quiz":
@@ -572,6 +595,7 @@ function QuizBlockCanvas({
   onSendToBack?: () => void;
 }) {
   const contextMenu = useContextMenu();
+  const { lang, defaultLang } = useEditingLanguage();
   // Right-clicking anywhere on a quiz block opens ITS OWN, more specific menu (option add/
   // remove) instead of letting the click bubble up to BlockView's generic "Löschen"/layer-order
   // one - so those have to be offered here too, tacked onto both of this component's own menus, or
@@ -601,10 +625,10 @@ function QuizBlockCanvas({
     >
       <EditableRichText
         className="weft-edit-block-quiz-question"
-        html={block.questionHtml}
+        html={quizQuestionHtml(block, lang, defaultLang)}
         editable={selected}
         autoFocus={false}
-        onCommit={(html) => onUpdate?.({ questionHtml: html })}
+        onCommit={(html) => onUpdate?.(quizQuestionPatch(block, lang, defaultLang, html))}
       />
       <div className="weft-edit-block-quiz-options">
         {block.options.map((opt) => {
@@ -640,12 +664,10 @@ function QuizBlockCanvas({
               />
               <EditableRichText
                 className="weft-edit-block-quiz-option-text"
-                html={opt.html}
+                html={quizOptionHtml(block, opt.id, lang, defaultLang)}
                 editable={selected}
                 autoFocus={false}
-                onCommit={(html) =>
-                  onUpdate?.({ options: block.options.map((o) => (o.id === opt.id ? { ...o, html } : o)) })
-                }
+                onCommit={(html) => onUpdate?.(quizOptionPatch(block, opt.id, lang, defaultLang, html))}
               />
               <button
                 type="button"
@@ -661,7 +683,7 @@ function QuizBlockCanvas({
       </div>
       <div className="weft-edit-block-quiz-submit">
         <span className="weft-edit-block-quiz-submit-icon" dangerouslySetInnerHTML={{ __html: acceptSvg }} />
-        Abschicken
+        {playerStringsFor(lang).submit}
       </div>
       <ContextMenu menu={contextMenu.menu} onClose={contextMenu.close} />
     </div>
@@ -700,7 +722,7 @@ const DEFAULT_VIEWPORT_WIDTH = 768;
 function IframeFrame({ block }: { block: IframeBlock }) {
   const aspectRatio = useDocumentStore((s) => s.doc.content.aspectRatio);
   const width = block.forcedViewportWidth ?? DEFAULT_VIEWPORT_WIDTH;
-  const stageHeightOverWidth = 1 / ASPECT_RATIO_NUMERIC[aspectRatio];
+  const stageHeightOverWidth = 1 / aspectRatioNumeric(aspectRatio);
   const wrapHeightOverWidth = stageHeightOverWidth * (block.position.height / block.position.width);
   const height = width * wrapHeightOverWidth;
 

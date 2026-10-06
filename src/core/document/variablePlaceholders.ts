@@ -10,12 +10,22 @@ const IN_TEXT = /\{\{([^{}]*)\}\}/g;
  * all as HTML - a button's plain label is escaped first, so it parses as the text it is. */
 export function placeholderSources(block: Block): string[] {
   switch (block.kind) {
+    // Every language's wording, not just the default's - a placeholder is just as wrong in French.
     case "text":
-      return [block.html];
+      return [block.html, ...Object.values(block.translations ?? {}).flatMap((t) => (t.html !== undefined ? [t.html] : []))];
     case "quiz":
-      return [block.questionHtml, ...block.options.map((o) => o.html)];
+      return [
+        block.questionHtml,
+        ...block.options.map((o) => o.html),
+        ...Object.values(block.translations ?? {}).flatMap((t) => [
+          ...(t.questionHtml !== undefined ? [t.questionHtml] : []),
+          ...Object.values(t.options ?? {}),
+        ]),
+      ];
     case "button":
-      return [block.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")];
+      return [block.text, ...Object.values(block.translations ?? {}).flatMap((t) => (t.text !== undefined ? [t.text] : []))].map(
+        (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"),
+      );
     default:
       return [];
   }

@@ -242,8 +242,11 @@ fn show_settings_window(app_handle: &AppHandle) {
     }
     let _ = WebviewWindowBuilder::new(app_handle, "settings", WebviewUrl::App("index.html".into()))
         .title("Weft")
-        .inner_size(420.0, 320.0)
-        .resizable(false)
+        // Tall enough for everything on it (language, profile with its picture) - and resizable with a
+        // floor, because a font size, a translation or a screen can still need more room than this.
+        .inner_size(460.0, 580.0)
+        .min_inner_size(380.0, 320.0)
+        .resizable(true)
         .minimizable(false)
         .build();
 }

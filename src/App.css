@@ -2538,9 +2538,13 @@ button.weft-timeline-node-icon.is-animated:hover {
    weft-shell, so it needs its own padding/layout rather than relying on the editor's grid. ---- */
 
 .weft-settings-window {
+  box-sizing: border-box;
   padding: 20px;
   height: 100%;
   background: var(--weft-bg);
+  /* The app shell itself never scrolls (html/body are overflow:hidden), so a window too small for
+     its content has to scroll here, or the rest is simply cut off. */
+  overflow-y: auto;
 }
 
 .weft-settings-window-title {

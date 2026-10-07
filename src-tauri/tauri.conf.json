@@ -27,6 +27,13 @@
       }
     }
   },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["weft"]
+      }
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

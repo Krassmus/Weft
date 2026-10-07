@@ -36,6 +36,10 @@ serde_json = "1"
 tauri-plugin-fs = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"
+# Registers the "weft:" link scheme with the operating system (see the "deep-link" entry in
+# tauri.conf.json), so that clicking an invitation link opens Weft and joins - the link then reaches the
+# frontend (core/deepLink.ts) as an event.
+tauri-plugin-deep-link = "2"
 # navigator.clipboard.read() in the desktop app's WKWebView (macOS) reliably returns plain text
 # but not image data copied from other apps or Finder - confirmed against the real app, not just
 # a platform-support guess - so pasting an image (see useCopyPaste.ts) goes through this plugin's
@@ -55,6 +59,13 @@ tauri-plugin-clipboard-manager = "2"
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
 arboard = "3"
 
+
+# Windows and Linux start a NEW process for a clicked link (with the link as an argument), where macOS
+# hands it to the one already running - so there, a second launch has to pass the link on to the first
+# and end (its "deep-link" feature does exactly that). Deliberately not on macOS, where starting the
+# program a second time on purpose (to try collaboration on one computer) keeps working.
+[target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

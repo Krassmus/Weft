@@ -253,7 +253,24 @@ fn show_settings_window(app_handle: &AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let app = tauri::Builder::default()
+    #[cfg_attr(not(any(target_os = "windows", target_os = "linux")), allow(unused_mut))]
+    let mut builder = tauri::Builder::default();
+
+    // First of all the plugins (it has to be): a second start of the program - which is what a click on
+    // a "weft:" link is on Windows and Linux - hands its arguments (the link) to the running one, which
+    // the deep-link plugin picks up, and ends. All it needs to do itself is show the window.
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }));
+    }
+
+    let app = builder
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -278,6 +295,14 @@ pub fn run() {
             cancel_exit
         ])
         .setup(|_app| {
+            // Windows (unpackaged/dev) and Linux (AppImage) don't have an installer that registers the link
+            // scheme, so the program does it itself. (macOS: it is part of the app bundle's Info.plist.)
+            #[cfg(any(windows, target_os = "linux"))]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                _app.deep_link().register_all()?;
+            }
+
             // No native menu bar on mobile (see this file's own header comment) - nothing here to
             // build at startup, and nothing to wire menu-item clicks to. Every menu action this
             // would otherwise dispatch (open/save/export/undo/redo, settings) is still reachable

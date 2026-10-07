@@ -9,6 +9,7 @@ import { useDocumentStore } from "../../core/document/store";
 import { useCustomFontRegistration } from "../../core/fonts/registerCustomFonts";
 import { useSyncMenuLanguage } from "../../core/i18n/useSyncMenuLanguage";
 import { useTranslation } from "../../core/i18n/useTranslation";
+import { startDeepLinks } from "../../core/deepLink";
 import { flushAutosave, startAutosave } from "../../core/io/autosave";
 import {
   clearRecoveryCopy,
@@ -149,22 +150,30 @@ export function EditorShell() {
   // that's since been moved/renamed/deleted just falls back to the normal blank document rather
   // than greeting a returning user with an error dialog for something that isn't their fault
   // right now; it also forgets that path so this doesn't keep silently failing every launch.
+  const restoredRef = useRef<Promise<unknown>>(Promise.resolve());
   useEffect(() => {
     const lastPath = readLastPath();
     if (!lastPath) {
       // Nothing was ever saved to a file - but a module that was being worked on may have been
       // autosaved to the recovery copy (see core/io/fileIO.ts), so pick up where it left off.
-      void readRecoveryCopy().then((doc) => {
-        if (doc && useDocumentStore.getState().filePath === null) loadDocument(doc, null);
-      });
+      restoredRef.current = readRecoveryCopy()
+        .then((doc) => {
+          if (doc && useDocumentStore.getState().filePath === null) loadDocument(doc, null);
+        })
+        .catch(() => undefined);
       return;
     }
-    void openDocumentAtPath(lastPath)
+    restoredRef.current = openDocumentAtPath(lastPath)
       .then((doc) => {
         if (doc && useDocumentStore.getState().filePath === null) loadDocument(doc, lastPath);
       })
       .catch(() => forgetLastPath());
   }, []);
+
+  // A click on an invitation link ("weft:...") anywhere on the computer opens Weft and joins (see
+  // core/deepLink.ts) - after the module that was open last has been restored, which a join would
+  // otherwise be replaced by.
+  useEffect(() => (isTauri() ? startDeepLinks(restoredRef.current) : undefined), []);
 
   // A module that is synced with a shared folder (see core/collab/folder/) picks that up again whenever
   // it is opened - and the sync of the module that was open before ends.

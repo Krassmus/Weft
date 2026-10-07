@@ -294,6 +294,25 @@ function bindHandle(next: DocHandle<WeftModule>): void {
 }
 bindHandle(handle);
 
+/** Replaces the document being edited by a copy of its current state with a history of its own - the old
+ * history is dropped, and with it everything that only lives there: every earlier version of every
+ * text, and what was deleted. What it can no longer do is merge with other copies of the old document
+ * (they no longer share their beginning) - see core/collab/compact.ts, which also ends whatever
+ * connected this document to others. The undo history goes too (it is made of that history). */
+export function startFreshHistory(): void {
+  const old = handle;
+  const next = repo.create<WeftModule>(plain(old.doc() as WeftModule));
+  bindHandle(next);
+  useDocumentStore.setState((state) => ({
+    doc: { ...state.doc, content: next.doc() as WeftModule },
+    undoHistory: [],
+    undoIndex: -1,
+    documentKey: state.documentKey + 1,
+    live: null,
+  }));
+  repo.delete(old.documentId);
+}
+
 /** Switches the editor to a document that already exists elsewhere (a shared one), found by its URL.
  * Resolves once its content has arrived; rejects with a plain message if nobody answers within
  * `timeoutMs`. If the document being edited is another copy of the same module (same module, same

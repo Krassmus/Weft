@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ASPECT_RATIO_PRESETS,
   aspectRatioNumeric,
@@ -21,6 +21,8 @@ import { buildLanguageCatalog, flagForLocale, languageName } from "../../../core
 import { useTranslation } from "../../../core/i18n/useTranslation";
 import { confirmDestructive, pickDocumentFile, pickFontFile } from "../../../core/io/fileIO";
 import { useAssetTransfers } from "../../../core/collab/assetSync";
+import { compactHistory, historyStats } from "../../../core/collab/compact";
+import type { HistoryStats } from "../../../core/collab/compact";
 import {
   chooseSyncFolder,
   listModulesInFolder,
@@ -358,6 +360,65 @@ function FolderSyncField() {
   );
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`;
+}
+
+/**
+ * The module remembers every change that was ever made to it (that is what lets copies of it be merged
+ * and worked on together) - earlier versions of every text included, and what was deleted. "Verlauf
+ * verkleinern" keeps only the current state; see core/collab/compact.ts for what that costs.
+ */
+function HistoryField() {
+  const content = useDocumentStore((s) => s.doc.content);
+  const live = useDocumentStore((s) => s.live);
+  const folderActive = useFolderSync((s) => s.active);
+  const [stats, setStats] = useState<HistoryStats | null>(null);
+
+  // Packing the module twice is not for every keystroke: worked out once the editing pauses.
+  useEffect(() => {
+    const timer = setTimeout(() => setStats(historyStats()), 1200);
+    return () => clearTimeout(timer);
+  }, [content]);
+
+  async function compact() {
+    const together = live !== null || folderActive;
+    const ok = await confirmDestructive(
+      "Der Änderungsverlauf wird verkleinert: Danach gibt es nur noch den jetzigen Stand - frühere Fassungen von Texten und Gelöschtes sind endgültig weg, und Rückgängig-Schritte gibt es erst wieder für neue Änderungen." +
+        "\n\nKopien dieses Lernmoduls, die vorher entstanden sind, lassen sich danach nicht mehr einmischen." +
+        (together
+          ? "\n\nDie Verbindung zu den anderen (Datei als Einladung, Ordner-Abgleich) wird beendet. Zum gemeinsamen Arbeiten schaltest du sie danach wieder ein und gibst die neue Datei weiter."
+          : ""),
+      "Verlauf verkleinern",
+    );
+    if (!ok) return;
+    compactHistory();
+    setStats(null);
+  }
+
+  return (
+    <div className="weft-field">
+      <span>Änderungsverlauf</span>
+      <p className="weft-hint">
+        Das Lernmodul merkt sich jede Änderung (dadurch lassen sich Kopien zusammenführen), auch frühere Fassungen
+        von Texten und Gelöschtes. Das wächst mit der Zeit.
+      </p>
+      <p className="weft-hint">
+        {stats
+          ? `${stats.changes.toLocaleString("de-DE")} Änderungen, ${formatBytes(stats.bytes)}` +
+            (stats.bytes - stats.compactedBytes > Math.max(4096, stats.bytes * 0.1)
+              ? ` - ohne Verlauf wären es ${formatBytes(stats.compactedBytes)}.`
+              : " - der Verlauf ist kurz, Verkleinern bringt kaum etwas.")
+          : "Berechne …"}
+      </p>
+      <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void compact()}>
+        Verlauf verkleinern …
+      </button>
+    </div>
+  );
+}
+
 const DIRECT_STATUS_TEXT = {
   off: "",
   searching: "Direktverbindung: suche die anderen …",
@@ -630,6 +691,10 @@ export function SettingsTab() {
       <div className="weft-divider" />
 
       <CollaborationField />
+
+      <div className="weft-divider" />
+
+      <HistoryField />
 
       <div className="weft-divider" />
 

@@ -28,10 +28,12 @@ import { useAssetStore } from "../../../core/assets/assetStore";
 import { useDocumentStore } from "../../../core/document/store";
 import { createId } from "../../../core/id";
 import { confirmDestructive } from "../../../core/io/fileIO";
-import type { Block, BlockPosition, IframeBlock, QuizBlock } from "../../../core/types";
+import type { ArrowPoint, Block, BlockPosition, IframeBlock, QuizBlock } from "../../../core/types";
 import { ContextMenu, useContextMenu } from "../ContextMenu";
 import type { ContextMenuItem } from "../ContextMenu";
 import { registerActiveEditable, saveSelection } from "./richText";
+import { ArrowHandles } from "./ArrowHandles";
+import { ArrowSvg } from "./ArrowSvg";
 import { ShapeSvg } from "./ShapeSvg";
 import { CodeView } from "./CodeView";
 import { TexView } from "./TexView";
@@ -174,6 +176,9 @@ export function BlockView({
 }: BlockViewProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [liveOverride, setLiveOverride] = useState<BlockPosition | null>(null);
+  // The waypoints of an arrow while one is being dragged (see ArrowHandles).
+  const [livePoints, setLivePoints] = useState<ArrowPoint[] | null>(null);
+  const slideAspect = useDocumentStore((s) => aspectRatioNumeric(s.doc.content.aspectRatio));
   const [nearEdge, setNearEdge] = useState(false);
   const [snapGuides, setSnapGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
   const contextMenu = useContextMenu();
@@ -185,7 +190,7 @@ export function BlockView({
   // .weft-edit-block-iframe-wrap iframe's pointer-events:none in App.css), so it can be grabbed
   // and moved from anywhere - including on the very first click, before it's even selected, see
   // handlePointerDownMove/handlePointerMoveHover below.
-  const isFreelyMovableBlock = block.kind === "language" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "iframe" || block.kind === "shape";
+  const isFreelyMovableBlock = block.kind === "language" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow";
   // Only an image or video has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
   // given, so unlike image/video it keeps the full edge+corner handle set below instead of being
@@ -432,9 +437,9 @@ export function BlockView({
         onPointerMove={handlePointerMoveHover}
         onPointerLeave={() => setNearEdge(false)}
       >
-        <div className={"weft-edit-block-inner" + (block.kind === "shape" ? " weft-edit-block-inner-shape" : "")}>
+        <div className={"weft-edit-block-inner" + (block.kind === "shape" || block.kind === "arrow" ? " weft-edit-block-inner-shape" : "")}>
           <BlockContent
-            block={block}
+            block={block.kind === "arrow" && livePoints ? { ...block, points: livePoints } : block}
             selected={selected}
             onUpdate={onUpdate}
             onDelete={onDelete}
@@ -457,6 +462,15 @@ export function BlockView({
               {viewers.map((v) => v.name).join(", ")}
             </span>
           </div>
+        )}
+        {selected && !locked && !groupSelected && block.kind === "arrow" && (
+          <ArrowHandles
+            block={livePoints ? { ...block, points: livePoints } : block}
+            slideAspect={slideAspect}
+            stageRect={stageRect}
+            onLive={setLivePoints}
+            onCommit={(patch) => onUpdate?.(patch)}
+          />
         )}
         {selected &&
           !locked &&
@@ -574,6 +588,8 @@ function BlockContent({
       );
     case "shape":
       return <ShapeSvg block={block} />;
+    case "arrow":
+      return <ArrowSvg block={block} />;
   }
 }
 

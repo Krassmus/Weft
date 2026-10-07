@@ -2,6 +2,7 @@ import QRCode from "qrcode";
 // The LMS client library (Stud.IP counterpart lives in its plugin) - embedded unchanged, ahead of the
 // player, which talks to it (see syncLms in player.runtime.js).
 import vanillaLmSource from "../../../mockups/VanillaLM.js?raw";
+import arrowGeometrySource from "./arrowGeometry.js?raw";
 import playerRuntimeSource from "./player.runtime.js?raw";
 import playerRuntimeCss from "./player.runtime.css?raw";
 import { toRuntimeModule } from "./runtimeModule";
@@ -90,6 +91,7 @@ ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` 
 <script id="weft-ui-strings" type="application/json">${uiStringsJson}</script>
 <script id="weft-start-language" type="application/json">${startLanguageJson}</script>
 <script>${vanillaLmSource.replace(/<\/script/gi, "<\\/script")}</script>
+<script>${arrowGeometrySource.replace(/^export /gm, "")}</script>
 <script>${playerRuntimeSource}</script>
 </body>
 </html>

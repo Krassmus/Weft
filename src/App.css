@@ -3180,3 +3180,42 @@ button.weft-timeline-node-icon.is-animated:hover {
   gap: 8px;
   margin-top: 4px;
 }
+
+/* ---- Arrow blocks: the waypoint handles of a selected arrow (ArrowHandles.tsx) ---- */
+.weft-arrow-handles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.weft-arrow-point,
+.weft-arrow-add {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+}
+
+.weft-arrow-point {
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+  border: 2px solid var(--weft-accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.weft-arrow-add {
+  width: 8px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px dashed var(--weft-accent);
+  opacity: 0.8;
+}
+
+.weft-arrow-add:hover {
+  opacity: 1;
+  background: #ffffff;
+}

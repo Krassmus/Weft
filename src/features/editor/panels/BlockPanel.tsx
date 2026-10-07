@@ -30,6 +30,8 @@ import type {
   ImageBlock,
   Page,
   QuizBlock,
+  ArrowBlock,
+  ArrowStyle,
   ShapeBlock,
   ShapeCornerRadii,
   ShapeFill,
@@ -109,6 +111,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, page }: Bl
       {block.kind === "button" && <ButtonEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "quiz" && <QuizEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "shape" && <ShapeEditor block={block} onUpdate={onUpdate} />}
+      {block.kind === "arrow" && <ArrowEditor block={block} onUpdate={onUpdate} />}
       {page && (
         <>
           <BlockEffectEditor
@@ -952,6 +955,49 @@ function ButtonEditor({ block, onUpdate }: { block: ButtonBlock; onUpdate: Block
           Auf der ersten Folie automatisch deaktiviert – der Player merkt sich dazu den bisherigen Lernpfad.
         </p>
       )}
+    </Collapsible>
+  );
+}
+
+const ARROW_STYLE_LABELS: Record<ArrowStyle, string> = {
+  plain: "Nüchtern",
+  sketch: "Handgemalt",
+  ornate: "Verschnörkelt (Jugendstil)",
+};
+
+function ArrowEditor({ block, onUpdate }: { block: ArrowBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
+  return (
+    <Collapsible title="Pfeil">
+      <label className="weft-field">
+        <span>Stil</span>
+        <select value={block.arrowStyle} onChange={(e) => onUpdate({ arrowStyle: e.target.value as ArrowStyle })}>
+          {(Object.keys(ARROW_STYLE_LABELS) as ArrowStyle[]).map((style) => (
+            <option key={style} value={style}>
+              {ARROW_STYLE_LABELS[style]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="weft-field">
+        <span>Dicke ({block.width.toFixed(1).replace(".", ",")})</span>
+        <input type="range" min={0.2} max={4} step={0.1} value={block.width} onChange={(e) => onUpdate({ width: Number(e.target.value) })} />
+      </label>
+      <label className="weft-field weft-field-inline">
+        <span>Farbe</span>
+        <input type="color" value={block.color} onChange={(e) => onUpdate({ color: e.target.value })} />
+      </label>
+      <label className="weft-field weft-field-inline">
+        <input type="checkbox" checked={block.startHead} onChange={(e) => onUpdate({ startHead: e.target.checked })} />
+        <span>Pfeilspitze am Anfang</span>
+      </label>
+      <label className="weft-field weft-field-inline">
+        <input type="checkbox" checked={block.endHead} onChange={(e) => onUpdate({ endHead: e.target.checked })} />
+        <span>Pfeilspitze am Ende</span>
+      </label>
+      <p className="weft-hint">
+        Die Linie läuft als Kurve durch alle Wegpunkte. Auf der Folie: Punkt ziehen verschiebt ihn, am Mittelpunkt
+        zwischen zwei Punkten ziehen macht einen neuen Wegpunkt, Doppelklick auf einen Punkt entfernt ihn.
+      </p>
     </Collapsible>
   );
 }

@@ -1590,6 +1590,11 @@
       }
     } else if (block.kind === "shape") {
       wrap.innerHTML = shapeSvgMarkup(block);
+    } else if (block.kind === "arrow") {
+      // arrowSvgMarkup is core/runtime/arrowGeometry.js, embedded ahead of this script (buildRuntimeHtml.ts) -
+      // the very code the editor draws the arrow with. boxAspect: the block's real width : height on the slide.
+      var arrowBoxAspect = block.position.height > 0 ? (block.position.width / block.position.height) * slideAspectNumeric() : 1;
+      wrap.innerHTML = arrowSvgMarkup(block, arrowBoxAspect);
     }
     return wrap;
   }

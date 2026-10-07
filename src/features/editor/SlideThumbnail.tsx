@@ -2,6 +2,7 @@ import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
 import { useAssetStore } from "../../core/assets/assetStore";
 import { useDocumentStore } from "../../core/document/store";
 import type { Block } from "../../core/types";
+import { ArrowSvg } from "./blocks/ArrowSvg";
 import { ShapeSvg } from "./blocks/ShapeSvg";
 import { buttonText, quizOptionHtml, quizQuestionHtml, textHtml } from "../../core/document/translations";
 import { playerStringsFor } from "../../core/i18n/playerStrings";
@@ -111,6 +112,13 @@ function ThumbBlock({ block }: { block: Block }) {
     return (
       <div className="weft-thumb-block weft-thumb-block-shape" style={style}>
         <ShapeSvg block={block} />
+      </div>
+    );
+  }
+  if (block.kind === "arrow") {
+    return (
+      <div className="weft-thumb-block weft-thumb-block-shape" style={style}>
+        <ArrowSvg block={block} />
       </div>
     );
   }

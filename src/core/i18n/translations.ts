@@ -44,6 +44,7 @@ const en = {
   "block.button": "Button",
   "block.quiz": "Quiz",
   "block.shape": "Shape",
+  "block.arrow": "Arrow",
 
   "settings.window.title": "Settings",
   "settings.language.legend": "Language",
@@ -101,6 +102,7 @@ const de: Record<keyof typeof en, string> = {
   "block.button": "Button",
   "block.quiz": "Quiz",
   "block.shape": "Form",
+  "block.arrow": "Pfeil",
 
   "settings.window.title": "Einstellungen",
   "settings.language.legend": "Sprache",
@@ -148,4 +150,5 @@ export const BLOCK_KIND_KEYS: Record<Block["kind"], Extract<TranslationKey, `blo
   button: "block.button",
   quiz: "block.quiz",
   shape: "block.shape",
+  arrow: "block.arrow",
 };

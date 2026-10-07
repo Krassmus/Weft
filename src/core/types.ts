@@ -343,12 +343,38 @@ export interface ShapeBlock extends BaseBlock {
   shadow: ShapeShadow;
 }
 
+/** How an arrow is drawn: a plain line, as if drawn by hand, or in the curls of Art Nouveau. */
+export type ArrowStyle = "plain" | "sketch" | "ornate";
+
+/** One waypoint of an arrow, in percent of the arrow block's own box (0,0 = its top left corner) - not
+ * necessarily within it while the arrow is being edited. */
+export interface ArrowPoint {
+  x: number;
+  y: number;
+}
+
+/** An arrow: a curve through its waypoints (two or more; the first and last are its ends), with an arrowhead
+ * at either end if wanted. The block's box is the box around the waypoints (the editor keeps them
+ * in step - see core/document/arrow.ts), so moving, rotating, scaling and the entrance/exit effects work
+ * on it like on any other block. Drawn by runtime/arrowGeometry.js, the same code in the editor and the
+ * player. */
+export interface ArrowBlock extends BaseBlock {
+  kind: "arrow";
+  points: ArrowPoint[];
+  arrowStyle: ArrowStyle;
+  color: string;
+  /** Line thickness in cqw (percent of the slide's width). */
+  width: number;
+  startHead: boolean;
+  endHead: boolean;
+}
+
 /** Blocks a Layout may contain. Quiz (or any future graded/interactive block) is deliberately
  * excluded here: a Layout is a page template, and templates must not carry graded state. A
  * navigation button (or a shape, which carries no state at all) has nothing graded to exclude, so
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
-export type StaticBlock = TextBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock;
+export type StaticBlock = TextBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock | ArrowBlock;
 export type Block = StaticBlock | QuizBlock;
 
 /** A block as it's first made, before it has been put somewhere (and so given its `order`). */

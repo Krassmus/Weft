@@ -33,6 +33,7 @@ import { defaultLanguageOf, rotateDefaultLanguage } from "./translations";
 import { defaultInitialValue } from "./variables";
 import { defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
 import { blockEffectNodeId, createDefaultPageTimeline, setTriggerEdge, syncPageTimelineEvents } from "./pageTimeline";
+import { defaultArrowColor } from "./arrow";
 import { defaultShapeCornerRadii, defaultShapeFill, defaultShapeShadow, defaultShapeStroke } from "./shapeDefaults";
 import type { BlockContainerRef } from "./store";
 import { useDocumentStore } from "./store";
@@ -396,6 +397,22 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
         fill: defaultShapeFill(),
         stroke: defaultShapeStroke(),
         shadow: defaultShapeShadow(),
+      };
+    case "arrow":
+      return {
+        ...base,
+        kind,
+        position: { x: 20, y: 35, width: 60, height: 30 },
+        points: [
+          { x: 0, y: 80 },
+          { x: 45, y: 25 },
+          { x: 100, y: 50 },
+        ],
+        arrowStyle: "plain",
+        color: defaultArrowColor(),
+        width: 0.8,
+        startHead: false,
+        endHead: true,
       };
     case "quiz":
       return {

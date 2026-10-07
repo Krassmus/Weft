@@ -30,6 +30,17 @@ const PLAYER_STYLE = "<style>.weft-stage{border-radius:var(--weft-stage-radius,1
 const PLAYER_SCRIPT =
   '<script>window.addEventListener("message",function(e){var d=e.data;if(e.source===window.parent&&d&&d.source==="weft-host"&&d.type==="stage-radius")document.documentElement.style.setProperty("--weft-stage-radius",String(d.value));});</script>';
 
+/** The page of a player file as Weft's player shows it: with the rounded slide (see PLAYER_STYLE). Done when it is
+ * shown, not when the file is read, so that it is always the current version of this that is shown. */
+export function withPlayerChrome(html: string): string {
+  // The real closing tags: the head's is the last one before <body> (the player's script, further down, may mention
+  // them in a string), the body's the last one of the page.
+  const head = html.lastIndexOf("</head>", html.indexOf("<body>"));
+  const body = html.lastIndexOf("</body>");
+  if (head < 0 || body < 0) return html;
+  return `${html.slice(0, head)}${PLAYER_STYLE}\n${html.slice(head, body)}${PLAYER_SCRIPT}\n${html.slice(body)}`;
+}
+
 /**
  * Makes a player file playable inside Weft: a sandboxed frame has no folder to read media from next to its page,
  * so every file of the archive is handed to the page directly (the player's own `weft-asset-urls` - the same
@@ -65,5 +76,5 @@ export async function loadPlayerFile(zipBytes: Uint8Array): Promise<PlayerFile> 
   html = html
     .replace(ASSET_URLS_TAG, (_, open: string, close: string) => open + JSON.stringify(urls).replace(/</g, "\\u003c") + close)
     .replace(SAVE_VIA_HOST_TAG, (_, open: string, close: string) => open + "true" + close);
-  return { html: html.replace("</head>", () => `${PLAYER_STYLE}\n</head>`).replace("</body>", () => `${PLAYER_SCRIPT}\n</body>`), title: module.title ?? "" };
+  return { html, title: module.title ?? "" };
 }

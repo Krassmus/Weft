@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { enterFullscreenPreview, exitFullscreenPreview, watchFullscreenExit } from "../../core/window/fullscreen";
+import { withPlayerChrome } from "../../core/io/playerFile";
 import type { PlayerFile } from "../../core/io/playerFile";
 import { ModuleFrame } from "../editor/ModuleFrame";
 
@@ -12,6 +13,7 @@ export function PlayerShell({ file }: { file: PlayerFile }) {
   const [fullscreen, setFullscreen] = useState(false);
   const fullscreenRef = useRef(false);
   const frameRef = useRef<HTMLIFrameElement>(null);
+  const srcDoc = useMemo(() => withPlayerChrome(file.html), [file.html]);
   fullscreenRef.current = fullscreen;
 
   // Full screen left by other means (Escape, the window's own button) - the button follows.
@@ -49,7 +51,7 @@ export function PlayerShell({ file }: { file: PlayerFile }) {
         </button>
       </div>
       <div className="weft-player-stage">
-        <ModuleFrame srcDoc={file.html} title={file.title || "Lernmodul"} frameRef={frameRef} />
+        <ModuleFrame srcDoc={srcDoc} title={file.title || "Lernmodul"} frameRef={frameRef} />
       </div>
     </div>
   );

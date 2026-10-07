@@ -19,6 +19,29 @@ export function assetZipPath(assetId: string, fileName: string): string {
   return `assets/${assetId}_${fileName}`;
 }
 
+/** An asset of a password-protected files block (see filesActions.ts): its bytes are ciphertext. */
+export function isEncryptedAsset(fileName: string): boolean {
+  return fileName.endsWith(".enc");
+}
+
+/** Where an exported module keeps an encrypted asset: as a script file that hands its bytes (as base64) to the player
+ * (weftEncryptedFile in player.runtime.js). A page opened from a folder may not fetch() a file next to it, but
+ * any page may load a script - this is what lets protected downloads work from a plain index.html on a disk. */
+export function encryptedScriptPath(assetId: string, fileName: string): string {
+  return `${assetZipPath(assetId, fileName)}.js`;
+}
+
+function toBase64(bytes: Uint8Array): string {
+  let text = "";
+  for (let i = 0; i < bytes.length; i += 8192) text += String.fromCharCode(...bytes.subarray(i, i + 8192));
+  return btoa(text);
+}
+
+/** The script of an encrypted asset (see encryptedScriptPath) for `bytes`. */
+export function encryptedScript(assetId: string, bytes: Uint8Array): Uint8Array {
+  return strToU8(`weftEncryptedFile(${JSON.stringify(assetId)},"${toBase64(bytes)}");\n`);
+}
+
 /** Custom fonts are identified by id, exactly like assetZipPath, since two uploads could share a file
  * name. (Curated fonts have no file in the archive - see packDocument.) */
 export function customFontZipPath(fontId: string, fileName: string): string {
@@ -95,7 +118,11 @@ export async function packDocument(doc: WeftDocument, options: { forExport?: boo
   for (const meta of usedAssets) {
     const blob = blobs.get(meta.id);
     if (!blob) continue;
-    addFile(assetZipPath(meta.id, meta.fileName), new Uint8Array(await blob.arrayBuffer()));
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    // In an export an encrypted file is only a script (see encryptedScriptPath); in a saved module it stays raw, which
+    // is what Weft opens it from.
+    if (options.forExport && isEncryptedAsset(meta.fileName)) addFile(encryptedScriptPath(meta.id, meta.fileName), encryptedScript(meta.id, bytes));
+    else addFile(assetZipPath(meta.id, meta.fileName), bytes);
   }
 
   for (const font of content.customFonts) {

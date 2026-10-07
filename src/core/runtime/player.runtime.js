@@ -1616,6 +1616,42 @@
   var savesViaHostEl = document.getElementById("weft-save-via-host");
   var savesViaHost = savesViaHostEl ? JSON.parse(savesViaHostEl.textContent || "false") === true : false;
 
+  // The bytes of an encrypted file. An export keeps them as a script next to the page that calls weftEncryptedFile
+  // (a page opened from a folder may not fetch() them, but may load a script); the editor's preview has them as a
+  // data: URL, and a module that was saved rather than exported has them raw - those are fetched.
+  var encryptedFiles = {};
+  window.weftEncryptedFile = function (id, base64) {
+    encryptedFiles[id] = base64;
+  };
+
+  function fetchBytes(url) {
+    return fetch(url)
+      .then(function (response) {
+        if (!response.ok) throw new Error("download");
+        return response.arrayBuffer();
+      })
+      .then(function (buffer) {
+        return new Uint8Array(buffer);
+      });
+  }
+
+  function loadEncryptedBytes(file) {
+    if (assetUrlOverrides[file.id]) return fetchBytes(assetUrlOverrides[file.id]);
+    return new Promise(function (resolve, reject) {
+      if (encryptedFiles[file.id]) return resolve(filesFromBase64(encryptedFiles[file.id]));
+      var script = document.createElement("script");
+      script.src = assetSrc(file.id) + ".js";
+      script.onload = function () {
+        if (encryptedFiles[file.id]) resolve(filesFromBase64(encryptedFiles[file.id]));
+        else reject(new Error("download"));
+      };
+      script.onerror = function () {
+        fetchBytes(assetSrc(file.id)).then(resolve, reject);
+      };
+      document.head.appendChild(script);
+    });
+  }
+
   function filesSave(bytes, file) {
     if (savesViaHost && window.parent !== window) {
       window.parent.postMessage({ source: "weft-module", type: "save-file", name: file.name, mimeType: file.mimeType || "application/octet-stream", bytes: bytes }, "*");
@@ -1653,14 +1689,9 @@
           action.addEventListener("click", function () {
             message.textContent = "";
             action.disabled = true;
-            fetch(assetSrc(file.id))
-              .then(function (response) {
-                if (!response.ok) throw new Error("download");
-                return response.arrayBuffer();
-              })
-              .then(function (buffer) {
-                return key ? filesDecrypt(key, buffer) : new Uint8Array(buffer);
-              })
+            (key ? loadEncryptedBytes(file).then(function (stored) {
+              return filesDecrypt(key, stored);
+            }) : fetchBytes(assetSrc(file.id)))
               .then(function (bytes) {
                 filesSave(bytes, file);
               })

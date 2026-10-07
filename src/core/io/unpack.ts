@@ -7,7 +7,7 @@ import { defaultEntranceEffect, defaultExitEffect } from "../document/blockEffec
 import { blockEffectNodeId, createDefaultPageTimeline, syncPageTimelineEvents } from "../document/pageTimeline";
 import { orderedIdRecord, orderedRecord, orderedRecordBy } from "../document/ordering";
 import { ensureBuiltinVariables } from "../document/variables";
-import { assetZipPath, COLLAB_FILE, customFontZipPath, HISTORY_FILE } from "./pack";
+import { assetZipPath, COLLAB_FILE, customFontZipPath, encryptedScriptPath, HISTORY_FILE } from "./pack";
 
 function escapeHtml(value: string): string {
   return value
@@ -291,10 +291,21 @@ export function importArchiveAssets(zipBytes: Uint8Array, content: Pick<WeftModu
   importAssets(unzipSync(zipBytes), content);
 }
 
+/** The bytes in the script an export keeps an encrypted file in (see encryptedScript in pack.ts), if it is one. */
+function bytesOfEncryptedScript(script: Uint8Array | undefined): Uint8Array | undefined {
+  if (!script) return undefined;
+  const base64 = /"([A-Za-z0-9+/=]*)"\);\s*$/.exec(strFromU8(script))?.[1];
+  if (base64 === undefined) return undefined;
+  const text = atob(base64);
+  const bytes = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i);
+  return bytes;
+}
+
 function importAssets(files: Record<string, Uint8Array>, content: Pick<WeftModule, "assets" | "customFonts">): void {
   const setAsset = useAssetStore.getState().setAsset;
   for (const meta of content.assets) {
-    const bytes = files[assetZipPath(meta.id, meta.fileName)];
+    const bytes = files[assetZipPath(meta.id, meta.fileName)] ?? bytesOfEncryptedScript(files[encryptedScriptPath(meta.id, meta.fileName)]);
     if (bytes) setAsset(meta.id, new Blob([bytes as BlobPart], { type: meta.mimeType }));
   }
   for (const font of content.customFonts) {

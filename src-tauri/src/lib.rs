@@ -63,9 +63,11 @@ fn cancel_exit() {
 struct MenuStrings {
     file: &'static str,
     open: &'static str,
+    join: &'static str,
     save: &'static str,
     save_as: &'static str,
     export: &'static str,
+    merge: &'static str,
     settings: &'static str,
     edit: &'static str,
     undo: &'static str,
@@ -78,9 +80,11 @@ fn menu_strings(lang: &str) -> MenuStrings {
         MenuStrings {
             file: "Datei",
             open: "Öffnen…",
+            join: "Einladung beitreten…",
             save: "Speichern",
             save_as: "Speichern unter…",
             export: "Exportieren…",
+            merge: "Mit Datei zusammenführen…",
             settings: "Einstellungen…",
             edit: "Bearbeiten",
             undo: "Rückgängig",
@@ -90,9 +94,11 @@ fn menu_strings(lang: &str) -> MenuStrings {
         MenuStrings {
             file: "File",
             open: "Open…",
+            join: "Join Invitation…",
             save: "Save",
             save_as: "Save As…",
             export: "Export…",
+            merge: "Merge with File…",
             settings: "Settings…",
             edit: "Edit",
             undo: "Undo",
@@ -136,14 +142,20 @@ fn build_menu(app_handle: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
 
     file_menu.set_text(strings.file)?;
     let open_item = MenuItem::with_id(app_handle, "weft-open", strings.open, true, Some("CmdOrCtrl+O"))?;
+    // Working together: joining somebody's invitation (a link) belongs right next to opening a file, merging
+    // a copy of the file somebody else changed next to exporting one.
+    let join_item = MenuItem::with_id(app_handle, "weft-join", strings.join, true, None::<&str>)?;
+    let merge_item = MenuItem::with_id(app_handle, "weft-merge", strings.merge, true, None::<&str>)?;
     let save_item = MenuItem::with_id(app_handle, "weft-save", strings.save, true, Some("CmdOrCtrl+S"))?;
     let save_as_item = MenuItem::with_id(app_handle, "weft-save-as", strings.save_as, true, Some("CmdOrCtrl+Shift+S"))?;
     let export_item = MenuItem::with_id(app_handle, "weft-export", strings.export, true, Some("CmdOrCtrl+E"))?;
     file_menu.prepend_items(&[
         &open_item,
+        &join_item,
         &save_item,
         &save_as_item,
         &export_item,
+        &merge_item,
         &PredefinedMenuItem::separator(app_handle)?,
     ])?;
 
@@ -320,6 +332,12 @@ pub fn run() {
                 _app.on_menu_event(|app_handle, event| match event.id().as_ref() {
                     "weft-open" => {
                         let _ = app_handle.emit("weft://menu-open", ());
+                    }
+                    "weft-join" => {
+                        let _ = app_handle.emit("weft://menu-join", ());
+                    }
+                    "weft-merge" => {
+                        let _ = app_handle.emit("weft://menu-merge", ());
                     }
                     "weft-save" => {
                         let _ = app_handle.emit("weft://menu-save", ());

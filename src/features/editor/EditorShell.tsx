@@ -24,6 +24,8 @@ import {
 } from "../../core/io/fileIO";
 import { enterFullscreenPreview, watchFullscreenExit } from "../../core/window/fullscreen";
 import { Canvas } from "./Canvas";
+import { CollabDialogs } from "./CollabDialogs";
+import { useCollabDialog } from "./collabDialogStore";
 import { Inspector } from "./Inspector";
 import { PresentationView } from "./PresentationView";
 import { Sidebar } from "./Sidebar";
@@ -261,11 +263,19 @@ export function EditorShell() {
     const unlistenOpen = listen("weft://menu-open", () => {
       if (!presentingRef.current) handleOpenRef.current();
     });
+    const unlistenJoin = listen("weft://menu-join", () => {
+      if (!presentingRef.current) useCollabDialog.getState().show("join");
+    });
+    const unlistenMerge = listen("weft://menu-merge", () => {
+      if (!presentingRef.current) useCollabDialog.getState().show("merge");
+    });
     return () => {
       void unlistenSave.then((fn) => fn());
       void unlistenSaveAs.then((fn) => fn());
       void unlistenExport.then((fn) => fn());
       void unlistenOpen.then((fn) => fn());
+      void unlistenJoin.then((fn) => fn());
+      void unlistenMerge.then((fn) => fn());
     };
   }, []);
 
@@ -346,6 +356,7 @@ export function EditorShell() {
         <Canvas onPresent={handlePresent} />
         <Inspector />
       </div>
+      <CollabDialogs />
     </div>
   );
 }

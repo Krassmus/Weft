@@ -19,7 +19,7 @@ import { useDocumentStore } from "../../../core/document/store";
 import { setLanguages } from "../../../core/document/actions";
 import { buildLanguageCatalog, flagForLocale, languageName } from "../../../core/i18n/languages";
 import { useTranslation } from "../../../core/i18n/useTranslation";
-import { confirmDestructive, pickDocumentFile, pickFontFile } from "../../../core/io/fileIO";
+import { confirmDestructive, pickFontFile } from "../../../core/io/fileIO";
 import { useAssetTransfers } from "../../../core/collab/assetSync";
 import { compactHistory, historyStats } from "../../../core/collab/compact";
 import type { HistoryStats } from "../../../core/collab/compact";
@@ -34,10 +34,8 @@ import {
 } from "../../../core/collab/folder/folderSession";
 import type { FolderModule } from "../../../core/collab/folder/folderSync";
 import { presenceColor, usePresence } from "../../../core/collab/presence";
-import { useProfileStore } from "../../../core/profile/profileStore";
 import { PersonAvatar } from "../PersonAvatar";
 import { useDirectConnection } from "../../../core/collab/webrtcAdapter";
-import { mergeDocumentFile } from "../../../core/collab/merge";
 import {
   COLLAB_DIRECT_KEY,
   COLLAB_RELAYS_KEY,
@@ -52,7 +50,6 @@ import {
   connectLiveCollaboration,
   disableLiveCollaboration,
   enableLiveCollaboration,
-  joinSharedDocument,
   invitationLink,
 } from "../../../core/collab/session";
 import { useDragReorder } from "../useDragReorder";
@@ -438,53 +435,19 @@ function CollaborationField() {
   const [direct, setDirect] = useState(() => readSetting(COLLAB_DIRECT_KEY, "1") === "1");
   const [relays, setRelays] = useState(() => readSetting(COLLAB_RELAYS_KEY, ""));
   const [turn, setTurn] = useState<TurnSetting>(readTurnSetting);
-  const [joinLink, setJoinLink] = useState("");
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [mergeMessage, setMergeMessage] = useState("");
   const { missing, transfers } = useAssetTransfers();
   const connection = useDirectConnection();
   const live = useDocumentStore((s) => s.live);
-  const profile = useProfileStore();
   const people = Object.values(usePresence((s) => s.peers));
   const receiving = Object.values(transfers);
   const megabytes = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
   const webRtcAvailable = typeof RTCPeerConnection !== "undefined";
-  const options = {
-    direct: direct && webRtcAvailable,
-    serverUrl: server.trim() || undefined,
-    relayUrls: relays.split(/\s+/).filter(Boolean),
-    turnServers: turn.url?.trim()
-      ? [{ urls: turn.url.trim(), username: turn.user?.trim() || undefined, credential: turn.password || undefined }]
-      : [],
-  };
-
   function updateTurn(patch: Partial<typeof turn>) {
     const next = { ...turn, ...patch };
     setTurn(next);
     writeSetting(COLLAB_TURN_KEY, JSON.stringify(next));
-  }
-
-  async function mergeFile() {
-    setMergeMessage("");
-    const picked = await pickDocumentFile("Datei zum Zusammenführen auswählen");
-    if (!picked) return;
-    const result = mergeDocumentFile(picked.bytes);
-    setMergeMessage(
-      result.ok
-        ? result.newChanges > 0
-          ? `Zusammengeführt: ${result.newChanges} Änderungen übernommen.`
-          : "Diese Datei enthält nichts Neues - alle ihre Änderungen sind schon da."
-        : {
-            unreadable: "Die Datei lässt sich nicht lesen.",
-            "no-history":
-              "Diese Datei hat keinen Änderungsverlauf (sie stammt aus einer älteren Weft-Version). Sie lässt sich nur öffnen, nicht zusammenführen.",
-            "other-module": "Das ist ein anderes Lernmodul.",
-            "no-common-origin":
-              "Die Datei geht nicht auf dieselbe Ausgangsdatei zurück. Zusammenführen geht nur mit Kopien einer Datei, die mit dieser Weft-Version gespeichert wurde.",
-          }[result.reason],
-    );
   }
 
   async function copyLink() {
@@ -496,36 +459,12 @@ function CollaborationField() {
     }
   }
 
-  async function join() {
-    setError("");
-    const ok = await confirmDestructive(
-      "Das geöffnete Lernmodul wird durch das geteilte ersetzt. Änderungen daran, die nur hier sind, bleiben erhalten, wenn es eine Kopie desselben Lernmoduls ist - sonst gehen nicht gespeicherte Änderungen verloren.",
-      "Beitreten",
-    );
-    if (!ok) return;
-    setBusy(true);
-    try {
-      await joinSharedDocument(joinLink, options);
-      setJoinLink("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <div className="weft-field">
       <span>Zusammenarbeit</span>
       <p className="weft-hint">
-        Dateien: Wer eine Kopie dieser .weft-Datei weiterbearbeitet hat, kann sie hier mit dem geöffneten Lernmodul
-        zusammenführen - ohne Server und ohne Internet, die Änderungen beider Seiten bleiben erhalten.
+        Einer Einladung beitreten und die Änderungen einer Dateikopie übernehmen: Menü „Datei“.
       </p>
-      <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void mergeFile()}>
-        Mit Datei zusammenführen …
-      </button>
-      {mergeMessage && <p className="weft-hint">{mergeMessage}</p>}
-
       <p className="weft-hint">Live: Zusammen im selben Lernmodul arbeiten.</p>
       <label className="weft-field weft-field-inline">
         <input
@@ -560,11 +499,6 @@ function CollaborationField() {
           Jetzt verbinden
         </button>
       )}
-      <div className="weft-presence-self">
-        <PersonAvatar name={profile.name} color="var(--weft-accent)" avatar={profile.avatar} size={28} />
-        <span>Du erscheinst als „{profile.name}“</span>
-      </div>
-      <p className="weft-hint">Name und Bild stellst du in den App-Einstellungen ein (Menü „Einstellungen…“).</p>
       <label className="weft-field weft-field-inline">
         <input
           type="checkbox"
@@ -625,18 +559,6 @@ function CollaborationField() {
           Uni-Netze). Er gehört nur dir und steht nicht im Link. Ohne ihn klappt die Verbindung dort womöglich nicht.
         </p>
       </details>
-      <label className="weft-field">
-        <span>Mit einem Einladungslink beitreten</span>
-        <input value={joinLink} placeholder="weft://…" onChange={(e) => setJoinLink(e.target.value)} />
-      </label>
-      <button
-        type="button"
-        className="weft-ghost-button weft-full-width"
-        disabled={!joinLink.trim() || busy}
-        onClick={() => void join()}
-      >
-        {busy ? "Verbinde …" : "Beitreten"}
-      </button>
       {error && <p className="weft-placeholder-warning">{error}</p>}
       {connection.state !== "off" && (
         <p className={connection.state === "failed" ? "weft-placeholder-warning" : "weft-hint"}>

@@ -292,7 +292,7 @@ export function importArchiveAssets(zipBytes: Uint8Array, content: Pick<WeftModu
 }
 
 /** The bytes in the script an export keeps an encrypted file in (see encryptedScript in pack.ts), if it is one. */
-function bytesOfEncryptedScript(script: Uint8Array | undefined): Uint8Array | undefined {
+export function bytesOfEncryptedScript(script: Uint8Array | undefined): Uint8Array | undefined {
   if (!script) return undefined;
   const base64 = /"([A-Za-z0-9+/=]*)"\);\s*$/.exec(strFromU8(script))?.[1];
   if (base64 === undefined) return undefined;

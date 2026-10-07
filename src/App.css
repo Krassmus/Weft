@@ -3303,3 +3303,68 @@ button.weft-timeline-node-icon.is-animated:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ---- Player file: the module alone in a wide black frame (features/player/PlayerShell.tsx) ---- */
+.weft-player-shell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+}
+
+.weft-player-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  height: 48px;
+  padding: 0 24px;
+}
+
+.weft-player-fullscreen {
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.weft-player-fullscreen:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.weft-player-stage {
+  flex: 1;
+  min-height: 0;
+  margin: 0 48px 48px;
+}
+
+.weft-player-stage .weft-preview-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Full screen: the frame is all there is; the button stays in the corner, faint until the pointer is near. */
+.weft-player-shell.is-fullscreen .weft-player-bar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: auto;
+  padding: 12px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.weft-player-shell.is-fullscreen .weft-player-bar:hover {
+  opacity: 1;
+}
+
+.weft-player-shell.is-fullscreen .weft-player-stage {
+  margin: 0;
+}

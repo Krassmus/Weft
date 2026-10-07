@@ -73,6 +73,7 @@ struct MenuStrings {
     save: &'static str,
     save_as: &'static str,
     export: &'static str,
+    export_player: &'static str,
     merge: &'static str,
     settings: &'static str,
     edit: &'static str,
@@ -94,6 +95,7 @@ fn menu_strings(lang: &str) -> MenuStrings {
             save: "Speichern",
             save_as: "Speichern unter…",
             export: "Exportieren…",
+            export_player: "Player-Datei exportieren…",
             merge: "Mit Datei zusammenführen…",
             settings: "Einstellungen…",
             edit: "Bearbeiten",
@@ -112,6 +114,7 @@ fn menu_strings(lang: &str) -> MenuStrings {
             save: "Save",
             save_as: "Save As…",
             export: "Export…",
+            export_player: "Export Player File…",
             merge: "Merge with File…",
             settings: "Settings…",
             edit: "Edit",
@@ -128,6 +131,9 @@ fn menu_strings(lang: &str) -> MenuStrings {
 struct MenuState {
     lang: Mutex<String>,
     recent: Mutex<Vec<String>>,
+    /// Weft is showing a player file (see src/features/player/): the items that act on the module being edited
+    /// - which then isn't on screen - are greyed out.
+    player: Mutex<bool>,
 }
 
 /// The menu text of a recent file: its file name, with the folder it is in when another recent file
@@ -151,7 +157,7 @@ fn recent_label(path: &str, all: &[String]) -> String {
 /// this needs to be idempotent - which Menu::default() already is, since it always constructs a
 /// brand new menu rather than mutating shared state.
 #[cfg(desktop)]
-fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String]) -> tauri::Result<Menu<Wry>> {
+fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String], player: bool) -> tauri::Result<Menu<Wry>> {
     let strings = menu_strings(lang);
     let menu = Menu::default(app_handle)?;
     let items = menu.items()?;
@@ -179,7 +185,8 @@ fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String]) -> tauri::R
 
     file_menu.set_text(strings.file)?;
     let new_item = MenuItem::with_id(app_handle, "weft-new", strings.new, true, Some("CmdOrCtrl+N"))?;
-    let duplicate_item = MenuItem::with_id(app_handle, "weft-duplicate", strings.duplicate, true, None::<&str>)?;
+    let editing = !player;
+    let duplicate_item = MenuItem::with_id(app_handle, "weft-duplicate", strings.duplicate, editing, None::<&str>)?;
     let open_item = MenuItem::with_id(app_handle, "weft-open", strings.open, true, Some("CmdOrCtrl+O"))?;
     // The files opened or saved last (ids "weft-recent-<position>", see on_menu_event).
     let recent_items: Vec<MenuItem<Wry>> = if recent.is_empty() {
@@ -196,10 +203,11 @@ fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String]) -> tauri::R
     // Working together: joining somebody's invitation (a link) belongs next to opening a file, merging
     // a copy of the file somebody else changed next to exporting one.
     let join_item = MenuItem::with_id(app_handle, "weft-join", strings.join, true, None::<&str>)?;
-    let merge_item = MenuItem::with_id(app_handle, "weft-merge", strings.merge, true, None::<&str>)?;
-    let save_item = MenuItem::with_id(app_handle, "weft-save", strings.save, true, Some("CmdOrCtrl+S"))?;
-    let save_as_item = MenuItem::with_id(app_handle, "weft-save-as", strings.save_as, true, Some("CmdOrCtrl+Shift+S"))?;
-    let export_item = MenuItem::with_id(app_handle, "weft-export", strings.export, true, Some("CmdOrCtrl+E"))?;
+    let merge_item = MenuItem::with_id(app_handle, "weft-merge", strings.merge, editing, None::<&str>)?;
+    let save_item = MenuItem::with_id(app_handle, "weft-save", strings.save, editing, Some("CmdOrCtrl+S"))?;
+    let save_as_item = MenuItem::with_id(app_handle, "weft-save-as", strings.save_as, editing, Some("CmdOrCtrl+Shift+S"))?;
+    let export_item = MenuItem::with_id(app_handle, "weft-export", strings.export, editing, Some("CmdOrCtrl+E"))?;
+    let export_player_item = MenuItem::with_id(app_handle, "weft-export-player", strings.export_player, editing, None::<&str>)?;
     file_menu.prepend_items(&[
         &new_item,
         &duplicate_item,
@@ -209,6 +217,7 @@ fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String]) -> tauri::R
         &save_item,
         &save_as_item,
         &export_item,
+        &export_player_item,
         &merge_item,
         &PredefinedMenuItem::separator(app_handle)?,
     ])?;
@@ -255,12 +264,33 @@ fn set_menu_language(#[cfg_attr(not(desktop), allow(unused_variables))] app: App
         let state = app.state::<MenuState>();
         *state.lang.lock().unwrap() = lang.clone();
         let recent = state.recent.lock().unwrap().clone();
-        let menu = build_menu(&app, &lang, &recent).map_err(|e| e.to_string())?;
+        let player = *state.player.lock().unwrap();
+        let menu = build_menu(&app, &lang, &recent, player).map_err(|e| e.to_string())?;
         app.set_menu(menu).map_err(|e| e.to_string())?;
     }
     #[cfg(not(desktop))]
     {
         let _ = lang;
+    }
+    Ok(())
+}
+
+/// Whether Weft is showing a player file right now (see src/features/player/): the menu items that act on the module
+/// being edited are greyed out while it does. A no-op on mobile.
+#[tauri::command]
+fn set_player_mode(#[cfg_attr(not(desktop), allow(unused_variables))] app: AppHandle, active: bool) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        let state = app.state::<MenuState>();
+        *state.player.lock().unwrap() = active;
+        let lang = state.lang.lock().unwrap().clone();
+        let recent = state.recent.lock().unwrap().clone();
+        let menu = build_menu(&app, &lang, &recent, active).map_err(|e| e.to_string())?;
+        app.set_menu(menu).map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = active;
     }
     Ok(())
 }
@@ -275,7 +305,8 @@ fn set_recent_files(#[cfg_attr(not(desktop), allow(unused_variables))] app: AppH
         let state = app.state::<MenuState>();
         *state.recent.lock().unwrap() = paths.clone();
         let lang = state.lang.lock().unwrap().clone();
-        let menu = build_menu(&app, &lang, &paths).map_err(|e| e.to_string())?;
+        let player = *state.player.lock().unwrap();
+        let menu = build_menu(&app, &lang, &paths, player).map_err(|e| e.to_string())?;
         app.set_menu(menu).map_err(|e| e.to_string())?;
     }
     #[cfg(not(desktop))]
@@ -347,7 +378,7 @@ pub fn run() {
 
     #[cfg(desktop)]
     {
-        builder = builder.manage(MenuState { lang: Mutex::new("de".to_string()), recent: Mutex::new(Vec::new()) });
+        builder = builder.manage(MenuState { lang: Mutex::new("de".to_string()), recent: Mutex::new(Vec::new()), player: Mutex::new(false) });
     }
 
     // First of all the plugins (it has to be): a second start of the program - which is what a click on
@@ -385,6 +416,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             set_menu_language,
             set_recent_files,
+            set_player_mode,
             read_clipboard_file_paths,
             exit_app,
             cancel_exit
@@ -409,7 +441,7 @@ pub fn run() {
                 // German by default at boot, purely as a starting point - the main window calls
                 // set_menu_language with the actually-resolved language (system/de/en) within its
                 // first render, correcting this before the user has any real chance to notice.
-                let menu = build_menu(handle, "de", &[])?;
+                let menu = build_menu(handle, "de", &[], false)?;
                 _app.set_menu(menu)?;
 
                 _app.on_menu_event(|app_handle, event| match event.id().as_ref() {
@@ -444,6 +476,9 @@ pub fn run() {
                     }
                     "weft-export" => {
                         let _ = app_handle.emit("weft://menu-export", ());
+                    }
+                    "weft-export-player" => {
+                        let _ = app_handle.emit("weft://menu-export-player", ());
                     }
                     "weft-undo" => {
                         let _ = app_handle.emit("weft://menu-undo", ());

@@ -15,6 +15,9 @@ export const HISTORY_FILE = "weft.automerge";
  * file the same every time it is opened. */
 export const COLLAB_FILE = "weft.collab.json";
 
+/** What marks an archive as a player file (see exportPlayerFile): it is all there is to say about it. */
+export const PLAYER_MARKER_FILE = "weft-player.json";
+
 export function assetZipPath(assetId: string, fileName: string): string {
   return `assets/${assetId}_${fileName}`;
 }
@@ -75,7 +78,10 @@ function zipInWorker(files: AsyncZippable): Promise<Uint8Array> {
  * (which still holds every text that was deleted or rewritten along the way) nor the id of the
  * document it was edited as. It opens again as a module of its own, with a history starting there.
  */
-export async function packDocument(doc: WeftDocument, options: { forExport?: boolean } = {}): Promise<Uint8Array> {
+export async function packDocument(doc: WeftDocument, options: { forExport?: boolean; playerOnly?: boolean } = {}): Promise<Uint8Array> {
+  // A player file is an export that goes further: nothing Weft could edit it from - no weft.json, no history
+  // - just the page that plays the module, and what it plays (see PLAYER_MARKER_FILE).
+  const forExport = options.forExport || options.playerOnly;
   // doc.content.assets is append-only during editing (see usedAssetIds' own comment) - a block
   // deleted or a file replaced mid-session leaves its old asset behind, still listed, still
   // bundled, forever, unless filtered back down to only what's still actually referenced right
@@ -91,15 +97,16 @@ export async function packDocument(doc: WeftDocument, options: { forExport?: boo
   const fontFaceCss = await buildInlineFontFaceCss(content);
 
   const files: AsyncZippable = {
-    "weft.json": strToU8(JSON.stringify(docToSave, null, 2)),
     "index.html": strToU8(await buildRuntimeHtml(content, {}, fontFaceCss)),
   };
+  if (options.playerOnly) files[PLAYER_MARKER_FILE] = strToU8(JSON.stringify({ format: "weft-player", version: 1 }));
+  else files["weft.json"] = strToU8(JSON.stringify(docToSave, null, 2));
   // The editing history, so that this file can later be merged with other copies of the same module
   // (see mergeHistory in document/store.ts) instead of only ever being replaced by them. weft.json
   // stays the readable description of the same state (and what older versions and other tools
   // read); on opening, the history is used only if it still describes exactly that state.
   // Already compressed - stored as is.
-  if (!options.forExport && Automerge.getObjectId(doc.content) !== null) {
+  if (!forExport && Automerge.getObjectId(doc.content) !== null) {
     files[HISTORY_FILE] = [Automerge.save(doc.content as Automerge.Doc<WeftModule>), { level: 0 }];
     // ...and under which id it was edited, so that opening it later - on any computer - is the same
     // document again (see loadDocument in document/store.ts).
@@ -121,11 +128,12 @@ export async function packDocument(doc: WeftDocument, options: { forExport?: boo
     const bytes = new Uint8Array(await blob.arrayBuffer());
     // In an export an encrypted file is only a script (see encryptedScriptPath); in a saved module it stays raw, which
     // is what Weft opens it from.
-    if (options.forExport && isEncryptedAsset(meta.fileName)) addFile(encryptedScriptPath(meta.id, meta.fileName), encryptedScript(meta.id, bytes));
+    if (forExport && isEncryptedAsset(meta.fileName)) addFile(encryptedScriptPath(meta.id, meta.fileName), encryptedScript(meta.id, bytes));
     else addFile(assetZipPath(meta.id, meta.fileName), bytes);
   }
 
-  for (const font of content.customFonts) {
+  // (The fonts are inside index.html already; their files are only for opening the module in Weft again.)
+  for (const font of options.playerOnly ? [] : content.customFonts) {
     const blob = blobs.get(font.id);
     if (!blob) continue;
     addFile(customFontZipPath(font.id, font.fileName), new Uint8Array(await blob.arrayBuffer()));

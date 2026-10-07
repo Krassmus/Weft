@@ -9,6 +9,7 @@ import { createEmptyDocument } from "../../core/document/createEmptyDocument";
 import { plain } from "../../core/document/plain";
 import { useDocumentStore } from "../../core/document/store";
 import { createId } from "../../core/id";
+import { usePlayerStore } from "../../core/player/playerStore";
 import { useCustomFontRegistration } from "../../core/fonts/registerCustomFonts";
 import { useSyncMenuLanguage } from "../../core/i18n/useSyncMenuLanguage";
 import { useTranslation } from "../../core/i18n/useTranslation";
@@ -18,6 +19,7 @@ import {
   clearRecoveryCopy,
   confirmDestructive,
   exportAsHtmlModule,
+  exportPlayerFile,
   isTauri,
   openDocument,
   openDocumentAtPath,
@@ -34,6 +36,7 @@ import { CollabDialogs } from "./CollabDialogs";
 import { useCollabDialog } from "./collabDialogStore";
 import { Inspector } from "./Inspector";
 import { PresentationView } from "./PresentationView";
+import { PlayerShell } from "../player/PlayerShell";
 import { Sidebar } from "./Sidebar";
 import { useCopyPaste } from "./useCopyPaste";
 import { useDeleteSelection } from "./useDeleteSelection";
@@ -85,6 +88,13 @@ export function EditorShell() {
   const undo = useDocumentStore((s) => s.undo);
   const redo = useDocumentStore((s) => s.redo);
   const loadDocument = useDocumentStore((s) => s.loadDocument);
+  const documentKey = useDocumentStore((s) => s.documentKey);
+  // A player file Weft is playing instead of showing the editor (see features/player/): while it is, nothing
+  // here may act on the module that is open underneath.
+  const player = usePlayerStore((s) => s.player);
+  const openPlayer = usePlayerStore((s) => s.open);
+  const playerRef = useRef(player);
+  playerRef.current = player;
   const [presenting, setPresenting] = useState(false);
   // Which page "Abspielen" should open on - captured once when it's clicked (see Canvas.tsx,
   // which resolves it from whatever's currently selected), not read live while presenting, since
@@ -124,8 +134,8 @@ export function EditorShell() {
 
   // Disabled while presenting: there's no selection UI to copy/paste against there, and the
   // listener would otherwise silently act on whatever was selected before presenting started.
-  useCopyPaste(!presenting);
-  useDeleteSelection(!presenting);
+  useCopyPaste(!presenting && !player);
+  useDeleteSelection(!presenting && !player);
   useCustomFontRegistration();
 
   // Keeps the native title bar (next to the traffic-light buttons) showing which module is
@@ -134,7 +144,7 @@ export function EditorShell() {
   // fights over the title with anything else.
   useEffect(() => {
     if (!isTauri()) return;
-    const title = doc.content.title.trim();
+    const title = (player ? player.title : doc.content.title).trim();
     // Needs its own explicit "core:window:allow-set-title" capability grant (see
     // src-tauri/capabilities/default.json) - Tauri 2's default core permissions don't include
     // it, so without that this call is silently denied and the title bar just never updates,
@@ -143,16 +153,24 @@ export function EditorShell() {
     getCurrentWindow()
       .setTitle(title ? `Weft - ${title}` : "Weft")
       .catch((err: unknown) => console.error("Failed to update window title:", err));
-  }, [doc.content.title]);
+  }, [doc.content.title, player]);
 
   // Whichever file Öffnen/Speichern most recently pointed at - not "Exportieren", which never
   // touches filePath at all, matching that an export is a delivery artifact, not "the module
   // you're working on". Re-saving the same reference on every render would be harmless but
   // pointless, so this only fires when filePath itself actually changes.
-  useEffect(() => rememberLastPath(filePath), [filePath]);
+  // (A player file counts as the file open, too: that is what the next launch comes back to.)
+  const currentPath = player ? player.path : filePath;
+  useEffect(() => rememberLastPath(currentPath), [currentPath]);
   // The same file goes to the top of "Datei > Zuletzt bearbeitet" (also once on launch, which is what
   // fills the native menu with the list of the last session).
-  useEffect(() => syncRecentMenu(rememberRecentFile(filePath)), [filePath]);
+  useEffect(() => syncRecentMenu(rememberRecentFile(currentPath)), [currentPath]);
+  // Any module that gets loaded takes the window back from the player.
+  useEffect(() => usePlayerStore.getState().close(), [documentKey]);
+  // The menu items that act on the module being edited are greyed out while a player file is shown.
+  useEffect(() => {
+    if (isTauri()) void invoke("set_player_mode", { active: player !== null }).catch(() => undefined);
+  }, [player !== null]);
 
   // Silently re-opens whatever was last open, once, on launch - only in Tauri (see
   // openDocumentAtPath) and only if nothing has already loaded a real document in the meantime
@@ -175,8 +193,10 @@ export function EditorShell() {
       return;
     }
     restoredRef.current = openDocumentAtPath(lastPath)
-      .then((doc) => {
-        if (doc && useDocumentStore.getState().filePath === null) loadDocument(doc, lastPath);
+      .then((opened) => {
+        if (!opened || useDocumentStore.getState().filePath !== null) return;
+        if (opened.kind === "player") openPlayer(opened.player, lastPath);
+        else loadDocument(opened.doc, lastPath);
       })
       .catch(() => forgetLastPath());
   }, []);
@@ -188,7 +208,6 @@ export function EditorShell() {
 
   // A module that is synced with a shared folder (see core/collab/folder/) picks that up again whenever
   // it is opened - and the sync of the module that was open before ends.
-  const documentKey = useDocumentStore((s) => s.documentKey);
   useEffect(() => {
     void syncFolderForCurrentDocument();
     // ...and a file that is an invitation to live collaboration connects (see core/collab/session.ts).
@@ -235,6 +254,7 @@ export function EditorShell() {
   const handleSaveRef = useRef<() => void>(() => {});
   const handleSaveAsRef = useRef<() => void>(() => {});
   const handleExportRef = useRef<() => void>(() => {});
+  const handleExportPlayerRef = useRef<() => void>(() => {});
   const handleOpenRef = useRef<() => void>(() => {});
   const handleNewRef = useRef<() => void>(() => {});
   const handleDuplicateRef = useRef<() => void>(() => {});
@@ -250,10 +270,10 @@ export function EditorShell() {
   useEffect(() => {
     if (!isTauri()) return;
     const unlistenUndo = listen("weft://menu-undo", () => {
-      if (!presentingRef.current) undo();
+      if (!presentingRef.current && !playerRef.current) undo();
     });
     const unlistenRedo = listen("weft://menu-redo", () => {
-      if (!presentingRef.current) redo();
+      if (!presentingRef.current && !playerRef.current) redo();
     });
     return () => {
       void unlistenUndo.then((fn) => fn());
@@ -263,14 +283,20 @@ export function EditorShell() {
 
   useEffect(() => {
     if (!isTauri()) return;
+    // (The items that act on the module being edited are greyed out while a player file is shown - see
+    // set_player_mode - and ignored here as well, in case a shortcut still gets through.)
+    const idle = () => presentingRef.current || playerRef.current !== null;
     const unlistenSave = listen("weft://menu-save", () => {
-      if (!presentingRef.current) handleSaveRef.current();
+      if (!idle()) handleSaveRef.current();
     });
     const unlistenSaveAs = listen("weft://menu-save-as", () => {
-      if (!presentingRef.current) handleSaveAsRef.current();
+      if (!idle()) handleSaveAsRef.current();
     });
     const unlistenExport = listen("weft://menu-export", () => {
-      if (!presentingRef.current) handleExportRef.current();
+      if (!idle()) handleExportRef.current();
+    });
+    const unlistenExportPlayer = listen("weft://menu-export-player", () => {
+      if (!idle()) handleExportPlayerRef.current();
     });
     const unlistenOpen = listen("weft://menu-open", () => {
       if (!presentingRef.current) handleOpenRef.current();
@@ -279,7 +305,7 @@ export function EditorShell() {
       if (!presentingRef.current) handleNewRef.current();
     });
     const unlistenDuplicate = listen("weft://menu-duplicate", () => {
-      if (!presentingRef.current) handleDuplicateRef.current();
+      if (!idle()) handleDuplicateRef.current();
     });
     const unlistenOpenRecent = listen<string>("weft://menu-open-recent", (event) => {
       if (!presentingRef.current) handleOpenRecentRef.current(event.payload);
@@ -288,12 +314,13 @@ export function EditorShell() {
       if (!presentingRef.current) useCollabDialog.getState().show("join");
     });
     const unlistenMerge = listen("weft://menu-merge", () => {
-      if (!presentingRef.current) useCollabDialog.getState().show("merge");
+      if (!idle()) useCollabDialog.getState().show("merge");
     });
     return () => {
       void unlistenSave.then((fn) => fn());
       void unlistenSaveAs.then((fn) => fn());
       void unlistenExport.then((fn) => fn());
+      void unlistenExportPlayer.then((fn) => fn());
       void unlistenOpen.then((fn) => fn());
       void unlistenNew.then((fn) => fn());
       void unlistenDuplicate.then((fn) => fn());
@@ -362,6 +389,15 @@ export function EditorShell() {
   }
   handleExportRef.current = handleExport;
 
+  async function handleExportPlayer() {
+    try {
+      await exportPlayerFile(doc);
+    } catch (err) {
+      alert(`${t("toolbar.exportFailed")}\n${errorMessage(err)}`);
+    }
+  }
+  handleExportPlayerRef.current = handleExportPlayer;
+
   // Switching to another module replaces the one that is open: what is saved in its file already (the
   // pending autosave is written first), what is not asks first - a module that was never saved has only
   // the recovery copy, which the next one takes over.
@@ -422,7 +458,9 @@ export function EditorShell() {
     try {
       if (!(await confirmLeave())) return;
       const result = await openDocument();
-      if (result) loadDocument(result.doc, result.path);
+      if (!result) return;
+      if (result.kind === "player") openPlayer(result.player, result.path);
+      else loadDocument(result.doc, result.path);
     } catch (err) {
       alert(`${t("toolbar.openFailed")}\n${errorMessage(err)}`);
     }
@@ -433,13 +471,24 @@ export function EditorShell() {
     try {
       if (!(await confirmLeave())) return;
       const opened = await openDocumentAtPath(path);
-      if (opened) loadDocument(opened, path);
+      if (!opened) return;
+      if (opened.kind === "player") openPlayer(opened.player, path);
+      else loadDocument(opened.doc, path);
     } catch (err) {
       syncRecentMenu(forgetRecentFile(path));
       alert(`${t("toolbar.openFailed")}\n${path}\n${errorMessage(err)}`);
     }
   }
   handleOpenRecentRef.current = handleOpenRecent;
+
+  if (player) {
+    return (
+      <div className="weft-shell">
+        <PlayerShell file={player} />
+        <CollabDialogs />
+      </div>
+    );
+  }
 
   return (
     <div className="weft-shell">

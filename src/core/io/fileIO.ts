@@ -7,6 +7,8 @@ import { useAssetStore } from "../assets/assetStore";
 import { usedAssetIds } from "../document/usedAssets";
 import { useDocumentStore } from "../document/store";
 import { packDocument } from "./pack";
+import { isPlayerArchive, loadPlayerFile } from "./playerFile";
+import type { PlayerFile } from "./playerFile";
 import { unpackDocument } from "./unpack";
 
 export function isTauri(): boolean {
@@ -214,6 +216,13 @@ function guessMimeType(fileName: string): string {
   return MIME_BY_EXTENSION[fileName.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream";
 }
 
+/** "Player-Datei exportieren": a .weft file that Weft only plays - for people who are to see the module and not edit it
+ * (see PLAYER_MARKER_FILE in pack.ts). */
+export async function exportPlayerFile(doc: WeftDocument): Promise<string | null> {
+  const bytes = await packDocument(doc, { playerOnly: true });
+  return writeBytes(bytes, suggestedFileName(`${doc.content.title.trim() || "lernmodul"} player`, SAVE_EXTENSION), "Player-Datei exportieren", SAVE_EXTENSION);
+}
+
 /** Lets the user pick a .weft / exported .weft.zip file and returns its raw bytes (and its path, in
  * the desktop app). */
 export async function pickDocumentFile(title = "Lernmodul öffnen"): Promise<{ bytes: Uint8Array; path: string | null } | null> {
@@ -237,9 +246,17 @@ export async function pickDocumentFile(title = "Lernmodul öffnen"): Promise<{ b
   });
 }
 
-export async function openDocument(): Promise<{ doc: WeftDocument; path: string | null } | null> {
+/** What a .weft file turned out to be: a module to edit, or a player file (see exportPlayerFile) to play. */
+export type OpenedFile = { kind: "document"; doc: WeftDocument; path: string | null } | { kind: "player"; player: PlayerFile; path: string | null };
+
+async function openBytes(bytes: Uint8Array, path: string | null): Promise<OpenedFile> {
+  if (isPlayerArchive(bytes)) return { kind: "player", player: await loadPlayerFile(bytes), path };
+  return { kind: "document", doc: unpackDocument(bytes), path };
+}
+
+export async function openDocument(): Promise<OpenedFile | null> {
   const picked = await pickDocumentFile();
-  return picked ? { doc: unpackDocument(picked.bytes), path: picked.path } : null;
+  return picked ? openBytes(picked.bytes, picked.path) : null;
 }
 
 /** Re-opens a specific, already-known path with no dialog - used to restore the last-opened
@@ -248,10 +265,9 @@ export async function openDocument(): Promise<{ doc: WeftDocument; path: string 
  * which is exactly what this is trying to avoid), so it's a no-op outside it. Lets a stale path
  * (the file since moved, renamed, or deleted) fail with a plain thrown error rather than
  * swallowing it - the caller decides how to handle that not being available anymore. */
-export async function openDocumentAtPath(path: string): Promise<WeftDocument | null> {
+export async function openDocumentAtPath(path: string): Promise<OpenedFile | null> {
   if (!isTauri()) return null;
-  const bytes = await readFile(path);
-  return unpackDocument(bytes);
+  return openBytes(await readFile(path), path);
 }
 
 const FONT_MIME_TYPES: Record<string, string> = {

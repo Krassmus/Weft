@@ -3,7 +3,7 @@ import { useAssetStore } from "../assets/assetStore";
 import { usedAssetIds } from "../document/usedAssets";
 import { localAssetUrl } from "../io/localAssetUrl";
 
-function blobToDataUrl(blob: Blob): Promise<string> {
+export function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);

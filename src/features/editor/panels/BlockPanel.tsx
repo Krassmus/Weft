@@ -17,7 +17,11 @@ import { CURATED_FONT_FAMILIES } from "../../../core/fonts/curatedFonts";
 import { DEFAULT_FONT_FAMILY } from "../../../core/fonts/fontFaceCss";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
-import { pickFontFile, warnAboutVideoUploads } from "../../../core/io/fileIO";
+import { addFilesToBlock, removeFileFromBlock, setFilesPassword } from "../../../core/document/filesActions";
+import type { BlockContainerRef } from "../../../core/document/store";
+import { confirmDestructive, pickFilesFromDisk, pickFontFile, warnAboutVideoUploads } from "../../../core/io/fileIO";
+import { filesCheckPassword, filesCryptoAvailable } from "../../../core/runtime/filesCrypto.js";
+import { formatFileSize } from "../blocks/FilesView";
 import { useTranscodeStatus } from "../../../core/io/videoTranscode";
 import type {
   Block,
@@ -32,6 +36,7 @@ import type {
   QuizBlock,
   ArrowBlock,
   ArrowStyle,
+  FilesBlock,
   ShapeBlock,
   ShapeCornerRadii,
   ShapeFill,
@@ -77,6 +82,8 @@ interface BlockPanelProps {
   onUpdate: (patch: Partial<Block>) => void;
   onSetImage: (file: File) => void;
   onSetVideo: (file: File) => Promise<VideoUploadResult>;
+  /** Where the block is (a page or a layout) - what the files block's actions need to find it. */
+  container: BlockContainerRef;
   /** Present only when editing a block that lives directly on a page (not inside a Layout) -
    * Aufbau/Abbau (see BlockEffectEditor) only make sense there: a Layout applies to every page
    * that uses it, with no timeline of its own for a trigger to come from. Also doubles as the
@@ -84,7 +91,7 @@ interface BlockPanelProps {
   page?: Page;
 }
 
-export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, page }: BlockPanelProps) {
+export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container, page }: BlockPanelProps) {
   // A block's own Aufbau/Abbau can name any other event as its trigger, but never itself - that's
   // not a real "it happens later" relationship, just a node pointing at its own not-yet-fired self.
   const ownEffectNodeIds = new Set([blockEffectNodeId(block.id, "entrance"), blockEffectNodeId(block.id, "exit")]);
@@ -112,6 +119,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, page }: Bl
       {block.kind === "quiz" && <QuizEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "shape" && <ShapeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "arrow" && <ArrowEditor block={block} onUpdate={onUpdate} />}
+      {block.kind === "files" && <FilesEditor key={block.id} block={block} container={container} onUpdate={onUpdate} />}
       {page && (
         <>
           <BlockEffectEditor
@@ -955,6 +963,157 @@ function ButtonEditor({ block, onUpdate }: { block: ButtonBlock; onUpdate: Block
           Auf der ersten Folie automatisch deaktiviert – der Player merkt sich dazu den bisherigen Lernpfad.
         </p>
       )}
+    </Collapsible>
+  );
+}
+
+/**
+ * The files of a files block and their password. The password is never stored: it is typed here, used to
+ * encrypt (see core/document/filesActions.ts) and, while this panel stays open, remembered in `unlocked` so
+ * that adding more files or changing the password doesn't ask again.
+ */
+function FilesEditor({ block, container, onUpdate }: { block: FilesBlock; container: BlockContainerRef; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const protectedBlock = block.protection !== null;
+  const [unlocked, setUnlocked] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const canEdit = !protectedBlock || unlocked !== null;
+
+  async function run(task: () => Promise<void>) {
+    setBusy(true);
+    setError("");
+    try {
+      if (!filesCryptoAvailable()) throw new Error("Verschlüsselung gibt es in dieser Umgebung nicht (nur über https oder lokal).");
+      await task();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addFiles() {
+    const files = await pickFilesFromDisk();
+    if (files.length > 0) await run(() => addFilesToBlock(container, block.id, files, unlocked));
+  }
+
+  return (
+    <Collapsible title="Dateien">
+      <label className="weft-field">
+        <span>Überschrift</span>
+        <input value={block.title} placeholder="Dateien" onChange={(e) => onUpdate({ title: e.target.value })} />
+      </label>
+      {block.files.length > 0 && (
+        <ul className="weft-files-editor-list">
+          {block.files.map((file) => (
+            <li key={file.id}>
+              <span className="weft-files-editor-name" title={file.name}>
+                {file.name}
+              </span>
+              <span className="weft-hint">{formatFileSize(file.size)}</span>
+              <button type="button" className="weft-icon-button" title="Entfernen" onClick={() => removeFileFromBlock(container, block.id, file.id)}>
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button type="button" className="weft-ghost-button weft-full-width" disabled={busy || !canEdit} onClick={() => void addFiles()}>
+        + Dateien hinzufügen
+      </button>
+      {!canEdit && <p className="weft-hint">Zum Hinzufügen erst das Passwort eingeben (unten).</p>}
+
+      <div className="weft-divider" />
+      {!protectedBlock && (
+        <>
+          <label className="weft-field">
+            <span>Passwortschutz (optional)</span>
+            <input type="password" autoComplete="off" value={password} placeholder="Passwort" onChange={(e) => setPassword(e.target.value)} />
+          </label>
+          <button
+            type="button"
+            className="weft-ghost-button weft-full-width"
+            disabled={busy || password === ""}
+            onClick={() =>
+              void run(async () => {
+                await setFilesPassword(container, block.id, null, password);
+                setUnlocked(password);
+                setPassword("");
+              })
+            }
+          >
+            Mit Passwort schützen
+          </button>
+          <p className="weft-hint">
+            Die Dateien werden dann verschlüsselt (AES-256) im Lernmodul abgelegt und erscheinen erst nach Eingabe des Passworts.
+            Das Passwort wird nirgends gespeichert - ohne es sind die Dateien nicht wiederherzustellen.
+          </p>
+        </>
+      )}
+      {protectedBlock && unlocked === null && (
+        <>
+          <p className="weft-hint">🔒 Mit Passwort geschützt. Zum Ändern oder Hinzufügen erst das Passwort eingeben.</p>
+          <label className="weft-field">
+            <span>Passwort</span>
+            <input type="password" autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </label>
+          <button
+            type="button"
+            className="weft-ghost-button weft-full-width"
+            disabled={busy || password === ""}
+            onClick={() =>
+              void run(async () => {
+                if (!block.protection || !(await filesCheckPassword(block.protection, password))) throw new Error("Falsches Passwort.");
+                setUnlocked(password);
+                setPassword("");
+              })
+            }
+          >
+            Entsperren
+          </button>
+        </>
+      )}
+      {protectedBlock && unlocked !== null && (
+        <>
+          <p className="weft-hint">🔒 Mit Passwort geschützt - entsperrt, solange dieses Element ausgewählt bleibt.</p>
+          <label className="weft-field">
+            <span>Neues Passwort</span>
+            <input type="password" autoComplete="off" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+          </label>
+          <button
+            type="button"
+            className="weft-ghost-button weft-full-width"
+            disabled={busy || newPassword === ""}
+            onClick={() =>
+              void run(async () => {
+                await setFilesPassword(container, block.id, unlocked, newPassword);
+                setUnlocked(newPassword);
+                setNewPassword("");
+              })
+            }
+          >
+            Passwort ändern
+          </button>
+          <button
+            type="button"
+            className="weft-ghost-button weft-full-width"
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                if (!(await confirmDestructive("Der Passwortschutz wird entfernt: Die Dateien liegen danach unverschlüsselt im Lernmodul und sind für alle sichtbar.", "Passwortschutz entfernen"))) return;
+                await setFilesPassword(container, block.id, unlocked, null);
+                setUnlocked(null);
+              })
+            }
+          >
+            Passwortschutz entfernen
+          </button>
+        </>
+      )}
+      {busy && <p className="weft-hint">Einen Moment …</p>}
+      {error && <p className="weft-placeholder-warning">{error}</p>}
     </Collapsible>
   );
 }

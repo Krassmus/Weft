@@ -1,11 +1,12 @@
 import type { Block, StaticBlock, WeftModule } from "../types";
 
-function assetIdOf(block: Block | StaticBlock): string | null {
-  return block.kind === "image" || block.kind === "video" ? block.assetId : null;
+function assetIdsOf(block: Block | StaticBlock): string[] {
+  if (block.kind === "files") return block.files.map((file) => file.id);
+  return (block.kind === "image" || block.kind === "video") && block.assetId ? [block.assetId] : [];
 }
 
 /**
- * Every asset id an image or video block actually references right now, across every page and
+ * Every asset id an image, video or files block actually references right now, across every page and
  * every layout - the source of truth for which uploaded files are still part of the module.
  * `module.assets` itself can't be trusted for this: it's append-only (setBlockImage/
  * setBlockVideo push a new entry whenever a block's file is set or replaced, and removeBlock/
@@ -19,14 +20,12 @@ export function usedAssetIds(module: WeftModule): Set<string> {
   const ids = new Set<string>();
   for (const page of Object.values(module.pages)) {
     for (const block of Object.values(page.blocks)) {
-      const id = assetIdOf(block);
-      if (id) ids.add(id);
+      for (const id of assetIdsOf(block)) ids.add(id);
     }
   }
   for (const layout of Object.values(module.layouts)) {
     for (const block of Object.values(layout.blocks)) {
-      const id = assetIdOf(block);
-      if (id) ids.add(id);
+      for (const id of assetIdsOf(block)) ids.add(id);
     }
   }
   return ids;

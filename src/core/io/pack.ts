@@ -27,7 +27,7 @@ export function customFontZipPath(fontId: string, fileName: string): string {
 
 // Formats that are already compressed - deflating them again costs a lot of CPU for ~0% saving,
 // so they're stored as-is (level 0). Video is by far the biggest of these.
-const ALREADY_COMPRESSED = /\.(mp4|m4v|mov|webm|mkv|avi|mp3|m4a|aac|ogg|wav|jpe?g|png|gif|webp|avif|heic|woff2?|zip)$/i;
+const ALREADY_COMPRESSED = /\.(mp4|m4v|mov|webm|mkv|avi|mp3|m4a|aac|ogg|wav|jpe?g|png|gif|webp|avif|heic|woff2?|zip|enc)$/i;
 
 /** Zips in a Web Worker (fflate's async API) so a big module never freezes the editor while it's
  * being saved - the synchronous zipSync used to block the main thread for as long as the

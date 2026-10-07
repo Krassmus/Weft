@@ -1590,6 +1590,8 @@
       }
     } else if (block.kind === "shape") {
       wrap.innerHTML = shapeSvgMarkup(block);
+    } else if (block.kind === "files") {
+      wrap.appendChild(filesBoxElement(block));
     } else if (block.kind === "arrow") {
       // arrowSvgMarkup is core/runtime/arrowGeometry.js, embedded ahead of this script (buildRuntimeHtml.ts) -
       // the very code the editor draws the arrow with. boxAspect: the block's real width : height on the slide.
@@ -1597,6 +1599,119 @@
       wrap.innerHTML = arrowSvgMarkup(block, arrowBoxAspect);
     }
     return wrap;
+  }
+
+  // ---- FilesBlock: files to download, optionally behind a password ----
+  // filesCheckPassword / filesDecrypt (core/runtime/filesCrypto.js) are embedded ahead of this script, the very code
+  // the editor encrypted with. Files of a protected block are encrypted (AES-GCM) in the archive: the list shows
+  // only once the right password was entered, and each download is fetched, decrypted here and saved from memory.
+  // (Fetching needs the module to be served - an LMS, a web server - not opened from a folder.)
+  function filesSizeText(bytes) {
+    if (bytes >= 1048576) return (bytes / 1048576).toFixed(1).replace(".", ",") + " MB";
+    return Math.max(1, Math.round(bytes / 1024)) + " KB";
+  }
+
+  function filesSave(bytes, file) {
+    var url = URL.createObjectURL(new Blob([bytes], { type: file.mimeType || "application/octet-stream" }));
+    var link = el("a", { href: url, download: file.name }, []);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(function () {
+      URL.revokeObjectURL(url);
+    }, 10000);
+  }
+
+  function filesBoxElement(block) {
+    var box = el("div", { class: "weft-files" }, []);
+    var heading = el("div", { class: "weft-files-title" }, []);
+    heading.textContent = block.title || uiString("filesTitle");
+    var message = el("div", { class: "weft-files-message", role: "status" }, []);
+    var list = el("ul", { class: "weft-files-list" }, []);
+    box.appendChild(heading);
+
+    function showList(key) {
+      list.innerHTML = "";
+      (block.files || []).forEach(function (file) {
+        var row = el("li", { class: "weft-files-row" }, []);
+        var name = el("span", { class: "weft-files-name" }, []);
+        name.textContent = file.name;
+        var size = el("span", { class: "weft-files-size" }, []);
+        size.textContent = filesSizeText(file.size);
+        var action;
+        if (key) {
+          action = el("button", { type: "button", class: "weft-files-download" }, []);
+          action.addEventListener("click", function () {
+            message.textContent = "";
+            action.disabled = true;
+            fetch(assetSrc(file.id))
+              .then(function (response) {
+                if (!response.ok) throw new Error("download");
+                return response.arrayBuffer();
+              })
+              .then(function (buffer) {
+                return filesDecrypt(key, buffer);
+              })
+              .then(function (bytes) {
+                filesSave(bytes, file);
+              })
+              .catch(function () {
+                message.textContent = uiString("filesFailed");
+              })
+              .then(function () {
+                action.disabled = false;
+              });
+          });
+        } else {
+          action = el("a", { class: "weft-files-download", href: assetSrc(file.id), download: file.name }, []);
+        }
+        action.textContent = uiString("filesDownload");
+        row.appendChild(name);
+        row.appendChild(size);
+        row.appendChild(action);
+        list.appendChild(row);
+      });
+      box.appendChild(list);
+    }
+
+    box.appendChild(message);
+    if (!block.protection) {
+      showList(null);
+    } else if (!filesCryptoAvailable()) {
+      message.textContent = uiString("filesNoCrypto");
+    } else {
+      // Not a <form>: a module may run in an iframe without allow-forms, where a form never fires "submit".
+      var form = el("div", { class: "weft-files-form" }, []);
+      var input = el("input", { type: "password", class: "weft-files-password", autocomplete: "off", "aria-label": uiString("filesPassword"), placeholder: uiString("filesPassword") }, []);
+      var unlock = el("button", { type: "button", class: "weft-files-unlock" }, []);
+      unlock.textContent = uiString("filesUnlock");
+      form.appendChild(input);
+      form.appendChild(unlock);
+      var tryPassword = function () {
+        if (unlock.disabled) return;
+        message.textContent = "";
+        unlock.disabled = true;
+        filesCheckPassword(block.protection, input.value).then(function (key) {
+          unlock.disabled = false;
+          if (!key) {
+            message.textContent = uiString("filesWrongPassword");
+            return;
+          }
+          box.removeChild(form);
+          showList(key);
+        });
+      };
+      unlock.addEventListener("click", tryPassword);
+      input.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter") tryPassword();
+      });
+      // Keys that move the learner on through the module (Space, arrows) must not do that while typing a password.
+      form.addEventListener("keydown", function (ev) {
+        ev.stopPropagation();
+      });
+      box.appendChild(form);
+    }
+    return box;
   }
 
   function renderButtonBlock(block) {

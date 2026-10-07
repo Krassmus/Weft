@@ -369,12 +369,45 @@ export interface ArrowBlock extends BaseBlock {
   endHead: boolean;
 }
 
+/** One file offered for download by a FilesBlock. The bytes are an asset (`id`, see AssetMeta) - encrypted ones
+ * if the block is protected. The rest is plain data about the original file, and stays readable in the
+ * module whether or not there is a password. */
+export interface FileEntry {
+  id: UUID;
+  /** The file's name for the download. */
+  name: string;
+  mimeType: string;
+  /** Size of the original file in bytes. */
+  size: number;
+}
+
+/** What a password-protected FilesBlock keeps to check a password and derive the key (see
+ * runtime/filesCrypto.js) - never the password itself. */
+export interface FilesProtection {
+  /** Random salt of the key derivation (base64). */
+  salt: string;
+  /** PBKDF2 iterations. */
+  iterations: number;
+  /** A known text, encrypted with the key (base64): decrypting it is how a password is checked. */
+  verifier: string;
+}
+
+/** Files the learners can download. With a password, the files in the archive are really encrypted (AES-256-GCM)
+ * and the learner sees them only after entering it; names, types and sizes (`files`) stay readable. */
+export interface FilesBlock extends BaseBlock {
+  kind: "files";
+  /** The heading of the box; empty: the player's own default ("Dateien"). */
+  title: string;
+  files: FileEntry[];
+  protection: FilesProtection | null;
+}
+
 /** Blocks a Layout may contain. Quiz (or any future graded/interactive block) is deliberately
  * excluded here: a Layout is a page template, and templates must not carry graded state. A
  * navigation button (or a shape, which carries no state at all) has nothing graded to exclude, so
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
-export type StaticBlock = TextBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock | ArrowBlock;
+export type StaticBlock = TextBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock | ArrowBlock | FilesBlock;
 export type Block = StaticBlock | QuizBlock;
 
 /** A block as it's first made, before it has been put somewhere (and so given its `order`). */

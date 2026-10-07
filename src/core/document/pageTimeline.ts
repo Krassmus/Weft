@@ -166,6 +166,7 @@ const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
   quiz: "Quiz",
   shape: "Form",
   arrow: "Pfeil",
+  files: "Dateien",
 };
 
 /** Kept in sync by hand with player.runtime.js's own blockEffectEventId - see that file's header

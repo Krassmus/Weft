@@ -398,6 +398,8 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
         stroke: defaultShapeStroke(),
         shadow: defaultShapeShadow(),
       };
+    case "files":
+      return { ...base, kind, position: { x: 30, y: 35, width: 40, height: 30 }, title: "", files: [], protection: null };
     case "arrow":
       return {
         ...base,

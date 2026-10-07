@@ -150,6 +150,54 @@ export async function exportAsHtmlModule(doc: WeftDocument): Promise<string | nu
   return writeBytes(bytes, suggestedFileName(doc.content.title, EXPORT_EXTENSION), "Lernmodul exportieren", "zip");
 }
 
+/** Lets the user pick any number of files of any kind (for a files block). */
+export async function pickFilesFromDisk(title = "Dateien hinzufügen"): Promise<File[]> {
+  if (isTauri()) {
+    const picked = await open({ title, multiple: true });
+    if (!picked) return [];
+    const paths = Array.isArray(picked) ? picked : [picked];
+    return Promise.all(
+      paths.map(async (path) => {
+        const name = path.split(/[\\/]/).pop() ?? "datei";
+        return new File([(await readFile(path)) as BlobPart], name, { type: guessMimeType(name) });
+      }),
+    );
+  }
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = true;
+    input.onchange = () => resolve(Array.from(input.files ?? []));
+    input.click();
+  });
+}
+
+const MIME_BY_EXTENSION: Record<string, string> = {
+  pdf: "application/pdf",
+  zip: "application/zip",
+  txt: "text/plain",
+  csv: "text/csv",
+  json: "application/json",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  svg: "image/svg+xml",
+  mp3: "audio/mpeg",
+  mp4: "video/mp4",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ppt: "application/vnd.ms-powerpoint",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+};
+
+/** What the file type seems to be from its name (a file read from a path has none of its own). */
+function guessMimeType(fileName: string): string {
+  return MIME_BY_EXTENSION[fileName.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream";
+}
+
 /** Lets the user pick a .weft / exported .weft.zip file and returns its raw bytes (and its path, in
  * the desktop app). */
 export async function pickDocumentFile(title = "Lernmodul öffnen"): Promise<{ bytes: Uint8Array; path: string | null } | null> {

@@ -34,6 +34,7 @@ import type { ContextMenuItem } from "../ContextMenu";
 import { registerActiveEditable, saveSelection } from "./richText";
 import { ArrowHandles } from "./ArrowHandles";
 import { ArrowSvg } from "./ArrowSvg";
+import { FilesView } from "./FilesView";
 import { ShapeSvg } from "./ShapeSvg";
 import { CodeView } from "./CodeView";
 import { TexView } from "./TexView";
@@ -190,7 +191,7 @@ export function BlockView({
   // .weft-edit-block-iframe-wrap iframe's pointer-events:none in App.css), so it can be grabbed
   // and moved from anywhere - including on the very first click, before it's even selected, see
   // handlePointerDownMove/handlePointerMoveHover below.
-  const isFreelyMovableBlock = block.kind === "language" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow";
+  const isFreelyMovableBlock = block.kind === "language" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files";
   // Only an image or video has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
   // given, so unlike image/video it keeps the full edge+corner handle set below instead of being
@@ -590,6 +591,8 @@ function BlockContent({
       return <ShapeSvg block={block} />;
     case "arrow":
       return <ArrowSvg block={block} />;
+    case "files":
+      return <FilesView block={block} />;
   }
 }
 

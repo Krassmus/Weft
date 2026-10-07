@@ -12,7 +12,23 @@
 
 export type PlayerStringKey = "submit" | "correct" | "incorrect" | "restart" | "done" | "next" | "play" | "language";
 
-type Strings = Record<PlayerStringKey, string>;
+/** The texts of the files block (password field, download), kept apart from the ones above: a language
+ * without its own entry here falls back to English. */
+export type FilesStringKey = "filesTitle" | "filesPassword" | "filesUnlock" | "filesWrongPassword" | "filesDownload" | "filesFailed" | "filesNoCrypto";
+
+type Strings = Record<PlayerStringKey | FilesStringKey, string>;
+
+function filesStrings(title: string, password: string, unlock: string, wrongPassword: string, download: string, failed: string, noCrypto: string): Record<FilesStringKey, string> {
+  return { filesTitle: title, filesPassword: password, filesUnlock: unlock, filesWrongPassword: wrongPassword, filesDownload: download, filesFailed: failed, filesNoCrypto: noCrypto };
+}
+
+const FILES_TRANSLATIONS: Record<string, Record<FilesStringKey, string>> = {
+  de: filesStrings("Dateien", "Passwort", "Öffnen", "Falsches Passwort.", "Herunterladen", "Der Download hat nicht geklappt.", "Dieser Browser kann hier nicht entschlüsseln (nur über https oder lokal)."),
+  en: filesStrings("Files", "Password", "Unlock", "Wrong password.", "Download", "The download did not work.", "This browser cannot decrypt here (only over https or locally)."),
+  fr: filesStrings("Fichiers", "Mot de passe", "Ouvrir", "Mot de passe incorrect.", "Télécharger", "Le téléchargement a échoué.", "Ce navigateur ne peut pas déchiffrer ici (seulement via https ou en local)."),
+  es: filesStrings("Archivos", "Contraseña", "Abrir", "Contraseña incorrecta.", "Descargar", "La descarga no funcionó.", "Este navegador no puede descifrar aquí (solo mediante https o en local)."),
+  it: filesStrings("File", "Password", "Apri", "Password errata.", "Scarica", "Il download non è riuscito.", "Questo browser non può decifrare qui (solo tramite https o in locale)."),
+};
 
 function strings(
   submit: string,
@@ -24,7 +40,7 @@ function strings(
   play: string,
   language: string,
 ): Strings {
-  return { submit, correct, incorrect, restart, done, next, play, language };
+  return { submit, correct, incorrect, restart, done, next, play, language, ...FILES_TRANSLATIONS.en };
 }
 
 // Keyed by language code (the part of a locale before the "_"); Chinese is also keyed by "zh_TW" for
@@ -72,8 +88,8 @@ const ALIASES: Record<string, string> = { no: "nb", nn: "nb", zh_HK: "zh_TW", zh
 /** The fixed texts for a locale ("fr_FR"): its own, else its language's, else English - and German
  * for `null`, a module without languages. */
 export function playerStringsFor(locale: string | null): Strings {
-  if (locale === null) return TRANSLATIONS.de;
+  if (locale === null) return { ...TRANSLATIONS.de, ...FILES_TRANSLATIONS.de };
   const base = locale.split("_")[0];
   const key = [locale, base].map((k) => ALIASES[k] ?? k).find((k) => k in TRANSLATIONS);
-  return TRANSLATIONS[key ?? "en"];
+  return { ...TRANSLATIONS[key ?? "en"], ...(FILES_TRANSLATIONS[key ?? "en"] ?? FILES_TRANSLATIONS.en) };
 }

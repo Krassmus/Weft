@@ -84,6 +84,7 @@ function InspectorBody({
       <BlockPanel
         block={block}
         page={page}
+        container={selection.container}
         onUpdate={(patch) => updateBlock(page.id, block.id, patch)}
         onSetImage={(file) => setBlockImage(page.id, block.id, file)}
         onSetVideo={(file) => setBlockVideo(page.id, block.id, file)}
@@ -97,6 +98,7 @@ function InspectorBody({
   return (
     <BlockPanel
       block={block}
+      container={selection.container}
       onUpdate={(patch) => updateLayoutBlock(layout.id, block.id, patch)}
       onSetImage={(file) => setLayoutBlockImage(layout.id, block.id, file)}
       onSetVideo={(file) => setLayoutBlockVideo(layout.id, block.id, file)}

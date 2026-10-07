@@ -3219,3 +3219,87 @@ button.weft-timeline-node-icon.is-animated:hover {
   opacity: 1;
   background: #ffffff;
 }
+
+/* ---- Files block on the canvas and in thumbnails (FilesView.tsx) - looks like the player's .weft-files ---- */
+.weft-edit-files {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  padding: 1em;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #fafafa;
+  color: #18181b;
+  font-size: 14px;
+  font-size: 1.5cqw;
+}
+
+.weft-edit-files-title {
+  margin-bottom: 0.6em;
+  font-weight: 600;
+}
+
+.weft-edit-files-empty {
+  color: #71717a;
+}
+
+.weft-edit-files-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.weft-edit-files-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  padding: 0.35em 0;
+  border-top: 1px solid #e4e4e7;
+}
+
+.weft-edit-files-row:first-child {
+  border-top: 0;
+}
+
+.weft-edit-files-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weft-edit-files-size {
+  color: #71717a;
+  white-space: nowrap;
+}
+
+.weft-edit-files-action {
+  padding: 0.25em 0.8em;
+  border-radius: 6px;
+  background: #18181b;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.weft-files-editor-list {
+  margin: 0 0 0.6em;
+  padding: 0;
+  list-style: none;
+}
+
+.weft-files-editor-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 2px 0;
+}
+
+.weft-files-editor-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

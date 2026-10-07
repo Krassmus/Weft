@@ -45,6 +45,7 @@ const en = {
   "block.quiz": "Quiz",
   "block.shape": "Shape",
   "block.arrow": "Arrow",
+  "block.files": "Files",
 
   "settings.window.title": "Settings",
   "settings.language.legend": "Language",
@@ -103,6 +104,7 @@ const de: Record<keyof typeof en, string> = {
   "block.quiz": "Quiz",
   "block.shape": "Form",
   "block.arrow": "Pfeil",
+  "block.files": "Dateien",
 
   "settings.window.title": "Einstellungen",
   "settings.language.legend": "Sprache",
@@ -151,4 +153,5 @@ export const BLOCK_KIND_KEYS: Record<Block["kind"], Extract<TranslationKey, `blo
   quiz: "block.quiz",
   shape: "block.shape",
   arrow: "block.arrow",
+  files: "block.files",
 };

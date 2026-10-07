@@ -36,6 +36,9 @@ import type { Block, IframeBlock, TexBlock, WeftModule } from "../types";
  * startLanguage is preview-only in the same way: the language the editor was showing, so "Abspielen"
  * starts in it. A real export never passes one - the player then picks the learner's browser language
  * (or the module's default).
+ *
+ * savesViaHost is preview-only as well: the page the module runs in saves the files it offers for download (see
+ * PreviewFrame.tsx), since a sandboxed frame can't.
  */
 export async function buildRuntimeHtml(
   module: WeftModule,
@@ -43,6 +46,7 @@ export async function buildRuntimeHtml(
   fontFaceCss = "",
   startPageId: string | null = null,
   startLanguage: string | null = null,
+  savesViaHost = false,
 ): Promise<string> {
   const qrCodeSvgs = await buildQrCodeSvgs(module);
   const texHtml = buildTexHtml(module);
@@ -91,6 +95,7 @@ ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` 
 <script id="weft-languages" type="application/json">${languageLabelsJson}</script>
 <script id="weft-ui-strings" type="application/json">${uiStringsJson}</script>
 <script id="weft-start-language" type="application/json">${startLanguageJson}</script>
+<script id="weft-save-via-host" type="application/json">${savesViaHost ? "true" : "false"}</script>
 <script>${vanillaLmSource.replace(/<\/script/gi, "<\\/script")}</script>
 <script>${arrowGeometrySource.replace(/^export /gm, "")}</script>
 <script>${filesCryptoSource.replace(/^export /gm, "")}</script>

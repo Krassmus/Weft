@@ -14,20 +14,20 @@ export type PlayerStringKey = "submit" | "correct" | "incorrect" | "restart" | "
 
 /** The texts of the files block (password field, download), kept apart from the ones above: a language
  * without its own entry here falls back to English. */
-export type FilesStringKey = "filesTitle" | "filesPassword" | "filesUnlock" | "filesWrongPassword" | "filesDownload" | "filesFailed" | "filesNoCrypto";
+export type FilesStringKey = "filesTitle" | "filesPassword" | "filesUnlock" | "filesWrongPassword" | "filesDownload" | "filesFailed";
 
 type Strings = Record<PlayerStringKey | FilesStringKey, string>;
 
-function filesStrings(title: string, password: string, unlock: string, wrongPassword: string, download: string, failed: string, noCrypto: string): Record<FilesStringKey, string> {
-  return { filesTitle: title, filesPassword: password, filesUnlock: unlock, filesWrongPassword: wrongPassword, filesDownload: download, filesFailed: failed, filesNoCrypto: noCrypto };
+function filesStrings(title: string, password: string, unlock: string, wrongPassword: string, download: string, failed: string): Record<FilesStringKey, string> {
+  return { filesTitle: title, filesPassword: password, filesUnlock: unlock, filesWrongPassword: wrongPassword, filesDownload: download, filesFailed: failed };
 }
 
 const FILES_TRANSLATIONS: Record<string, Record<FilesStringKey, string>> = {
-  de: filesStrings("Dateien", "Passwort", "Öffnen", "Falsches Passwort.", "Herunterladen", "Der Download hat nicht geklappt.", "Dieser Browser kann hier nicht entschlüsseln (nur über https oder lokal)."),
-  en: filesStrings("Files", "Password", "Unlock", "Wrong password.", "Download", "The download did not work.", "This browser cannot decrypt here (only over https or locally)."),
-  fr: filesStrings("Fichiers", "Mot de passe", "Ouvrir", "Mot de passe incorrect.", "Télécharger", "Le téléchargement a échoué.", "Ce navigateur ne peut pas déchiffrer ici (seulement via https ou en local)."),
-  es: filesStrings("Archivos", "Contraseña", "Abrir", "Contraseña incorrecta.", "Descargar", "La descarga no funcionó.", "Este navegador no puede descifrar aquí (solo mediante https o en local)."),
-  it: filesStrings("File", "Password", "Apri", "Password errata.", "Scarica", "Il download non è riuscito.", "Questo browser non può decifrare qui (solo tramite https o in locale)."),
+  de: filesStrings("Dateien", "Passwort", "Öffnen", "Falsches Passwort.", "Herunterladen", "Der Download hat nicht geklappt."),
+  en: filesStrings("Files", "Password", "Unlock", "Wrong password.", "Download", "The download did not work."),
+  fr: filesStrings("Fichiers", "Mot de passe", "Ouvrir", "Mot de passe incorrect.", "Télécharger", "Le téléchargement a échoué."),
+  es: filesStrings("Archivos", "Contraseña", "Abrir", "Contraseña incorrecta.", "Descargar", "La descarga no funcionó."),
+  it: filesStrings("File", "Password", "Apri", "Password errata.", "Scarica", "Il download non è riuscito."),
 };
 
 function strings(

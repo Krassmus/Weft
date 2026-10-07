@@ -20,7 +20,7 @@ import { useTranslation } from "../../../core/i18n/useTranslation";
 import { addFilesToBlock, removeFileFromBlock, setFilesPassword } from "../../../core/document/filesActions";
 import type { BlockContainerRef } from "../../../core/document/store";
 import { confirmDestructive, pickFilesFromDisk, pickFontFile, warnAboutVideoUploads } from "../../../core/io/fileIO";
-import { filesCheckPassword, filesCryptoAvailable } from "../../../core/runtime/filesCrypto.js";
+import { filesCheckPassword } from "../../../core/runtime/filesCrypto.js";
 import { formatFileSize } from "../blocks/FilesView";
 import { useTranscodeStatus } from "../../../core/io/videoTranscode";
 import type {
@@ -985,7 +985,6 @@ function FilesEditor({ block, container, onUpdate }: { block: FilesBlock; contai
     setBusy(true);
     setError("");
     try {
-      if (!filesCryptoAvailable()) throw new Error("Verschlüsselung gibt es in dieser Umgebung nicht (nur über https oder lokal).");
       await task();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

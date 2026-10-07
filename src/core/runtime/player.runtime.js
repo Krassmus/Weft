@@ -1611,7 +1611,16 @@
     return Math.max(1, Math.round(bytes / 1024)) + " KB";
   }
 
+  // In the editor's preview the page around the module saves the file (see PreviewFrame.tsx): a sandboxed frame may not
+  // download, and a desktop window has no download of its own.
+  var savesViaHostEl = document.getElementById("weft-save-via-host");
+  var savesViaHost = savesViaHostEl ? JSON.parse(savesViaHostEl.textContent || "false") === true : false;
+
   function filesSave(bytes, file) {
+    if (savesViaHost && window.parent !== window) {
+      window.parent.postMessage({ source: "weft-module", type: "save-file", name: file.name, mimeType: file.mimeType || "application/octet-stream", bytes: bytes }, "*");
+      return;
+    }
     var url = URL.createObjectURL(new Blob([bytes], { type: file.mimeType || "application/octet-stream" }));
     var link = el("a", { href: url, download: file.name }, []);
     document.body.appendChild(link);
@@ -1639,7 +1648,7 @@
         var size = el("span", { class: "weft-files-size" }, []);
         size.textContent = filesSizeText(file.size);
         var action;
-        if (key) {
+        if (key || savesViaHost) {
           action = el("button", { type: "button", class: "weft-files-download" }, []);
           action.addEventListener("click", function () {
             message.textContent = "";
@@ -1650,7 +1659,7 @@
                 return response.arrayBuffer();
               })
               .then(function (buffer) {
-                return filesDecrypt(key, buffer);
+                return key ? filesDecrypt(key, buffer) : new Uint8Array(buffer);
               })
               .then(function (bytes) {
                 filesSave(bytes, file);
@@ -1677,8 +1686,6 @@
     box.appendChild(message);
     if (!block.protection) {
       showList(null);
-    } else if (!filesCryptoAvailable()) {
-      message.textContent = uiString("filesNoCrypto");
     } else {
       // Not a <form>: a module may run in an iframe without allow-forms, where a form never fires "submit".
       var form = el("div", { class: "weft-files-form" }, []);

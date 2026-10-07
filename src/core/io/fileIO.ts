@@ -150,6 +150,22 @@ export async function exportAsHtmlModule(doc: WeftDocument): Promise<string | nu
   return writeBytes(bytes, suggestedFileName(doc.content.title, EXPORT_EXTENSION), "Lernmodul exportieren", "zip");
 }
 
+/** Saves `bytes` as a file the user names: the save dialog in the desktop app, a download in a browser. What the
+ * editor's preview does for a file the module offers (a frame in a preview can't download by itself). */
+export async function saveBytesAsFile(fileName: string, mimeType: string, bytes: Uint8Array): Promise<void> {
+  if (isTauri()) {
+    const path = await save({ title: "Datei speichern", defaultPath: fileName });
+    if (path) await writeFile(path, bytes);
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: mimeType || "application/octet-stream" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
 /** Lets the user pick any number of files of any kind (for a files block). */
 export async function pickFilesFromDisk(title = "Dateien hinzufügen"): Promise<File[]> {
   if (isTauri()) {

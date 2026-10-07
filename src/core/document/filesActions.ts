@@ -1,5 +1,6 @@
 import { useAssetStore } from "../assets/assetStore";
 import { filesCheckPassword, filesCreateProtection, filesDecrypt, filesEncrypt } from "../runtime/filesCrypto.js";
+import type { FilesKey } from "../runtime/filesCrypto.js";
 import type { Block, FileEntry, FilesBlock, FilesProtection } from "../types";
 import { createId } from "../id";
 import { plain, removeWhere } from "./plain";
@@ -42,7 +43,7 @@ function newAsset(name: string, mimeType: string, size: number, bytes: Uint8Arra
   };
 }
 
-async function keyFor(protection: FilesProtection | null, password: string | null): Promise<CryptoKey | null> {
+async function keyFor(protection: FilesProtection | null, password: string | null): Promise<FilesKey | null> {
   if (!protection) return null;
   const key = password === null ? null : await filesCheckPassword(protection, password);
   if (!key) throw new Error("Falsches Passwort.");
@@ -95,7 +96,7 @@ export async function setFilesPassword(container: BlockContainerRef, blockId: st
   });
 }
 
-async function reencrypt(block: FilesBlock, oldKey: CryptoKey | null, next: string | null) {
+async function reencrypt(block: FilesBlock, oldKey: FilesKey | null, next: string | null) {
   const created = next !== null ? await filesCreateProtection(next) : null;
   const files: ReturnType<typeof newAsset>[] = [];
   for (const file of block.files) {

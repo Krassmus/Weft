@@ -47,8 +47,10 @@ export interface Invitation {
 }
 
 /** The scheme a link is shown with. Underneath it is the document's Automerge URL ("automerge:..."),
- * which is what the repo finds it by; people only ever see "weft:...". */
-const LINK_SCHEME = "weft:";
+ * which is what the repo finds it by; people only ever see "weft://...". The two slashes are what mail and
+ * chat programs look for to turn text into a link you can click (a bare "weft:..." mostly stays plain
+ * text). */
+const LINK_SCHEME = "weft://";
 const AUTOMERGE_SCHEME = "automerge:";
 
 export function formatInvitation({ url, secret, relays }: Invitation): string {
@@ -60,8 +62,8 @@ export function formatInvitation({ url, secret, relays }: Invitation): string {
   return text ? `${link}?${text}` : link;
 }
 
-/** Reads a link as formatInvitation writes it - and also the "automerge:..." form such links had before
- * they were called "weft:...", so links that were already handed out still work. */
+/** Reads a link as formatInvitation writes it - and also the earlier forms "weft:..." and "automerge:...",
+ * so links that were already handed out still work. */
 export function parseInvitation(text: string): Invitation {
   const [head, query = ""] = text.trim().split("?");
   const id = head.replace(/^(?:weft|automerge):(?:\/\/)?/i, "");

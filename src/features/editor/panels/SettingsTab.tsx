@@ -566,7 +566,7 @@ function CollaborationField() {
       </details>
       <label className="weft-field">
         <span>Mit einem Einladungslink beitreten</span>
-        <input value={joinLink} placeholder="weft:…" onChange={(e) => setJoinLink(e.target.value)} />
+        <input value={joinLink} placeholder="weft://…" onChange={(e) => setJoinLink(e.target.value)} />
       </label>
       <button
         type="button"

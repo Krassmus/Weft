@@ -89,7 +89,7 @@ fn menu_strings(lang: &str) -> MenuStrings {
             new: "Neu",
             duplicate: "Duplizieren",
             open: "Öffnen…",
-            recent: "Zuletzt bearbeitet",
+            recent: "Zuletzt geöffnet",
             no_recent: "Keine Dateien",
             join: "Einladung beitreten…",
             save: "Speichern",
@@ -125,7 +125,7 @@ fn menu_strings(lang: &str) -> MenuStrings {
 }
 
 /// What the menu is built from besides the language-independent items: the language it was last
-/// asked for, and the files "Zuletzt bearbeitet" offers (the frontend keeps that list and tells us
+/// asked for, and the files "Zuletzt geöffnet" offers (the frontend keeps that list and tells us
 /// via set_recent_files - the menu is rebuilt whenever either changes).
 #[cfg(desktop)]
 struct MenuState {
@@ -295,7 +295,7 @@ fn set_player_mode(#[cfg_attr(not(desktop), allow(unused_variables))] app: AppHa
     Ok(())
 }
 
-/// The files "Datei > Zuletzt bearbeitet" offers, newest first - called by the frontend (see
+/// The files "Datei > Zuletzt geöffnet" offers, newest first - called by the frontend (see
 /// src/core/io/recentFiles.ts), which keeps the list, whenever it changes. A no-op on mobile (no
 /// native menu there).
 #[tauri::command]

@@ -162,7 +162,7 @@ export function EditorShell() {
   // (A player file counts as the file open, too: that is what the next launch comes back to.)
   const currentPath = player ? player.path : filePath;
   useEffect(() => rememberLastPath(currentPath), [currentPath]);
-  // The same file goes to the top of "Datei > Zuletzt bearbeitet" (also once on launch, which is what
+  // The same file goes to the top of "Datei > Zuletzt geöffnet" (also once on launch, which is what
   // fills the native menu with the list of the last session).
   useEffect(() => syncRecentMenu(rememberRecentFile(currentPath)), [currentPath]);
   // Any module that gets loaded takes the window back from the player.

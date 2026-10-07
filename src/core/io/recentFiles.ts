@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "./fileIO";
 
-/** How many files "Datei > Zuletzt bearbeitet" offers. */
+/** How many files "Datei > Zuletzt geöffnet" offers. */
 export const MAX_RECENT_FILES = 10;
 const RECENT_KEY = "weft:recentFiles";
 

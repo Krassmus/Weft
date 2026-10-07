@@ -5,7 +5,7 @@ import { applyPatches } from "../collab/applyPatches";
 import { runMutation } from "../collab/mutationScope";
 import { sharesOrigin } from "../collab/origin";
 import { createId } from "../id";
-import type { WeftDocument, WeftModule } from "../types";
+import type { LiveInvitation, WeftDocument, WeftModule } from "../types";
 import { createEmptyDocument } from "./createEmptyDocument";
 import { findNode } from "./pageTimeline";
 import { plain } from "./plain";
@@ -125,6 +125,10 @@ interface DocumentState {
   /** Counts the times the document being edited was replaced by another (opened, joined, restored) -
    * for whatever has to start over then (see core/collab/folder/folderSession.ts). */
   documentKey: number;
+  /** Whether the open file is an invitation to live collaboration (the checkbox in the module's settings),
+   * with what that takes: a file saved while this is set carries it (see LiveInvitation). null: not. */
+  live: LiveInvitation | null;
+  setLive: (live: LiveInvitation | null) => void;
 
   /** This editor's own undo history (see UndoEntry), reset whenever a document is loaded. */
   undoHistory: UndoEntry[];
@@ -156,6 +160,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   setEditingLanguage: (language) => set({ editingLanguage: language }),
 
   documentKey: 0,
+  live: null,
+  setLive: (live) => set({ live }),
   undoHistory: [],
   undoIndex: -1,
 
@@ -214,6 +220,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       undoHistory: [],
       undoIndex: -1,
       documentKey: get().documentKey + 1,
+      live: doc.live ?? null,
     });
   },
   select: (ref) => set({ selection: ref }),
@@ -315,5 +322,6 @@ export async function openSharedDocument(url: string, timeoutMs = 45000): Promis
     undoHistory: [],
     undoIndex: -1,
     documentKey: state.documentKey + 1,
+    live: null,
   }));
 }

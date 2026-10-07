@@ -36,7 +36,23 @@ import { useProfileStore } from "../../../core/profile/profileStore";
 import { PersonAvatar } from "../PersonAvatar";
 import { useDirectConnection } from "../../../core/collab/webrtcAdapter";
 import { mergeDocumentFile } from "../../../core/collab/merge";
-import { joinSharedDocument, shareCurrentDocument } from "../../../core/collab/session";
+import {
+  COLLAB_DIRECT_KEY,
+  COLLAB_RELAYS_KEY,
+  COLLAB_SERVER_KEY,
+  COLLAB_TURN_KEY,
+  readSetting,
+  readTurnSetting,
+  writeSetting,
+} from "../../../core/collab/settings";
+import type { TurnSetting } from "../../../core/collab/settings";
+import {
+  connectLiveCollaboration,
+  disableLiveCollaboration,
+  enableLiveCollaboration,
+  joinSharedDocument,
+  shareCurrentDocument,
+} from "../../../core/collab/session";
 import { useDragReorder } from "../useDragReorder";
 
 const CUSTOM_VALUE = "custom";
@@ -342,27 +358,6 @@ function FolderSyncField() {
   );
 }
 
-const COLLAB_SERVER_KEY = "weft.collabServer";
-const COLLAB_DIRECT_KEY = "weft.collabDirect";
-const COLLAB_RELAYS_KEY = "weft.collabRelays";
-const COLLAB_TURN_KEY = "weft.collabTurn";
-
-function readSetting(key: string, fallback: string): string {
-  try {
-    return localStorage.getItem(key) ?? fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeSetting(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    /* not persisted - fine */
-  }
-}
-
 const DIRECT_STATUS_TEXT = {
   off: "",
   searching: "Direktverbindung: suche die anderen …",
@@ -381,13 +376,7 @@ function CollaborationField() {
   const [server, setServer] = useState(() => readSetting(COLLAB_SERVER_KEY, ""));
   const [direct, setDirect] = useState(() => readSetting(COLLAB_DIRECT_KEY, "1") === "1");
   const [relays, setRelays] = useState(() => readSetting(COLLAB_RELAYS_KEY, ""));
-  const [turn, setTurn] = useState(() => {
-    try {
-      return JSON.parse(readSetting(COLLAB_TURN_KEY, "{}")) as { url?: string; user?: string; password?: string };
-    } catch {
-      return {};
-    }
-  });
+  const [turn, setTurn] = useState<TurnSetting>(readTurnSetting);
   const [link, setLink] = useState("");
   const [joinLink, setJoinLink] = useState("");
   const [error, setError] = useState("");
@@ -396,6 +385,7 @@ function CollaborationField() {
   const [mergeMessage, setMergeMessage] = useState("");
   const { missing, transfers } = useAssetTransfers();
   const connection = useDirectConnection();
+  const live = useDocumentStore((s) => s.live);
   const profile = useProfileStore();
   const people = Object.values(usePresence((s) => s.peers));
   const receiving = Object.values(transfers);
@@ -483,6 +473,26 @@ function CollaborationField() {
       {mergeMessage && <p className="weft-hint">{mergeMessage}</p>}
 
       <p className="weft-hint">Live: Zusammen im selben Lernmodul arbeiten.</p>
+      <label className="weft-field weft-field-inline">
+        <input
+          type="checkbox"
+          checked={live !== null}
+          disabled={!webRtcAvailable && !server.trim()}
+          onChange={(e) => (e.target.checked ? enableLiveCollaboration() : disableLiveCollaboration())}
+        />
+        <span>Datei als Einladung</span>
+      </label>
+      <p className="weft-hint">
+        Wer diese Datei öffnet, ist sofort live mit allen verbunden, die sie gerade auch offen haben - zum Beispiel
+        über einen mit Kolleg:innen geteilten Nextcloud-Ordner. Dafür steht das Passwort des Raums in der Datei: gib
+        sie nur an Leute weiter, die mitarbeiten dürfen. Exportierte Lernmodule enthalten es nicht. Speichern mehrere
+        in dieselbe Datei, führt Weft vorher zusammen, was die anderen dort gespeichert haben.
+      </p>
+      {live && connection.state === "off" && (
+        <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void connectLiveCollaboration(true)}>
+          Jetzt verbinden
+        </button>
+      )}
       <div className="weft-presence-self">
         <PersonAvatar name={profile.name} color="var(--weft-accent)" avatar={profile.avatar} size={28} />
         <span>Du erscheinst als „{profile.name}“</span>

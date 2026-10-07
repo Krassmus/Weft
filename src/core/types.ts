@@ -679,4 +679,20 @@ export interface WeftDocument {
    * together with `history`: opening the file continues under that same id, so a link that was shared
    * for it keeps working and every copy of the file finds the same room. Never part of weft.json. */
   documentId?: string;
+  /** Set when the file is an invitation to live collaboration (see LiveInvitation) - only on a file saved
+   * with that switched on, never in an export. */
+  live?: LiveInvitation;
+}
+
+/**
+ * What a .weft file carries when it is an invitation: whoever opens it joins the others who have it
+ * open, live. `secret` is the password of the room (see core/collab/session.ts) - whoever has the file
+ * has it, which is the point: the file is shared only with the people who may work on the module (in a
+ * shared Nextcloud folder, say) - so it is written into saved working files only, never into an exported
+ * module (see COLLAB_FILE in io/pack.ts). `relays` are the signaling relays to meet over, if not the
+ * public defaults.
+ */
+export interface LiveInvitation {
+  secret: string;
+  relays: string[];
 }

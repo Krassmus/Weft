@@ -1,7 +1,9 @@
 import { parseAutomergeUrl } from "@automerge/automerge-repo/slim";
 import { BroadcastChannelNetworkAdapter } from "@automerge/automerge-repo-network-broadcastchannel";
 import { WebSocketClientAdapter } from "@automerge/automerge-repo-network-websocket";
-import { allowSharing, currentHandle, openSharedDocument, repo } from "../document/store";
+import { allowSharing, currentHandle, openSharedDocument, repo, useDocumentStore } from "../document/store";
+import { confirmDestructive } from "../io/fileIO";
+import { loadCollabOptions } from "./settings";
 import { AssetSync } from "./assetSync";
 import { PresenceSync } from "./presence";
 import { useDirectConnection, WebRtcNetworkAdapter } from "./webrtcAdapter";
@@ -92,6 +94,10 @@ const secrets = {
   },
 };
 
+// The document the direct connection belongs to (see connect) - to tell, when another document gets
+// opened, whether the connection still is its own.
+let connectedDocumentId: string | null = null;
+
 let broadcastAttached = false;
 const attachedServers = new Set<string>();
 let directAdapter: WebRtcNetworkAdapter | null = null;
@@ -114,6 +120,7 @@ function connect(
   // One direct connection at a time: to the room of the document being edited.
   directAdapter?.disconnect();
   directAdapter = null;
+  connectedDocumentId = documentId;
   if (direct) {
     directAdapter = new WebRtcNetworkAdapter({
       roomId: `doc-${documentId}`,
@@ -170,4 +177,113 @@ export async function joinSharedDocument(invitation: string, options: CollabOpti
     throw direct.state === "failed" && direct.error ? new Error(direct.error) : error;
   }
   startSessionServices();
+}
+
+/** Leaves the room of the document being edited and stops what ran on top of the connection. */
+function stopConnection(): void {
+  directAdapter?.disconnect();
+  directAdapter = null;
+  connectedDocumentId = null;
+  assetSync?.stop();
+  assetSync = null;
+  presenceSync?.stop();
+  presenceSync = null;
+}
+
+// ---- The file as the invitation ----------------------------------------------------------------
+//
+// With "Datei als Einladung" switched on (a checkbox in the module's settings), the file itself says
+// where the others are: saved, it carries the document id and the password of the room (see
+// LiveInvitation in core/types.ts), so everybody who is given the file - by putting it into a shared
+// Nextcloud folder, say - ends up in the same room by simply opening it. Nothing happens for a file that
+// wasn't saved with it on, and nothing is written into an exported module.
+
+const TRUSTED_KEY = "weft:liveTrusted";
+const MAX_TRUSTED = 500;
+// Files this session was asked about and declined.
+const declined = new Set<string>();
+
+function trustedDocuments(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(TRUSTED_KEY) ?? "[]") as string[];
+  } catch {
+    return [];
+  }
+}
+
+function trust(documentId: string): void {
+  const all = trustedDocuments().filter((id) => id !== documentId);
+  all.push(documentId);
+  try {
+    localStorage.setItem(TRUSTED_KEY, JSON.stringify(all.slice(-MAX_TRUSTED)));
+  } catch {
+    /* asked again next time - fine */
+  }
+}
+
+/** Switches "Datei als Einladung" on for the document being edited: the file is saved as an invitation
+ * from now on, and this document connects right away. */
+export function enableLiveCollaboration(): void {
+  const handle = currentHandle();
+  let secret = secrets.get(handle.documentId);
+  if (!secret) {
+    secret = newSecret();
+    secrets.set(handle.documentId, secret);
+  }
+  const options = loadCollabOptions();
+  useDocumentStore.getState().setLive({ secret, relays: options.relayUrls ?? [] });
+  // Whoever switched it on needn't be asked about their own file.
+  trust(handle.documentId);
+  declined.delete(handle.documentId);
+  allowSharing(handle.documentId);
+  connect(handle.documentId, secret, options);
+  startSessionServices();
+}
+
+/** Switches it off: the file is saved without the invitation from now on, and this document leaves the
+ * room. (Copies of the file that were saved with it on stay invitations.) */
+export function disableLiveCollaboration(): void {
+  useDocumentStore.getState().setLive(null);
+  stopConnection();
+}
+
+/** Connects the open document to the room its file invites to - asking once, per file and computer,
+ * whether that is wanted: opening a file shouldn't be able to connect this computer to strangers (and
+ * send them what is typed into it) without a word. `askAgain`: ask even if this was declined earlier (the
+ * person pressed "Jetzt verbinden"). Resolves to whether it connected. */
+export async function connectLiveCollaboration(askAgain = false): Promise<boolean> {
+  const handle = currentHandle();
+  const { live } = useDocumentStore.getState();
+  if (!live) return false;
+  if (!trustedDocuments().includes(handle.documentId)) {
+    if (declined.has(handle.documentId) && !askAgain) return false;
+    const accepted = await confirmDestructive(
+      "Diese Datei ist zur Live-Zusammenarbeit eingerichtet: Beim Öffnen verbindet sich Weft direkt mit den anderen, die sie gerade geöffnet haben, und tauscht Änderungen mit ihnen aus - auch was du hier tippst. Verbinden?",
+      "Live-Zusammenarbeit",
+    );
+    // Opening another document in the meantime makes the answer moot.
+    if (currentHandle() !== handle) return false;
+    if (!accepted) {
+      declined.add(handle.documentId);
+      return false;
+    }
+    trust(handle.documentId);
+  }
+  const options = loadCollabOptions();
+  secrets.set(handle.documentId, live.secret);
+  allowSharing(handle.documentId);
+  connect(handle.documentId, live.secret, { ...options, relayUrls: live.relays.length > 0 ? live.relays : options.relayUrls });
+  startSessionServices();
+  return true;
+}
+
+/** Called whenever the document being edited has been replaced: connects if the new one is an
+ * invitation, and leaves the room of the one before if that isn't this document's own. */
+export async function syncLiveForCurrentDocument(): Promise<void> {
+  const handle = currentHandle();
+  if (useDocumentStore.getState().live) {
+    if (connectedDocumentId !== handle.documentId) await connectLiveCollaboration();
+    return;
+  }
+  if (connectedDocumentId && connectedDocumentId !== handle.documentId) stopConnection();
 }

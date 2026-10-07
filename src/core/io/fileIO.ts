@@ -2,6 +2,8 @@ import { confirm as confirmNative, message as messageNative, open, save } from "
 import { appCacheDir, join } from "@tauri-apps/api/path";
 import { mkdir, readFile, remove, rename, writeFile } from "@tauri-apps/plugin-fs";
 import type { WeftDocument } from "../types";
+import { mergeDocumentFile } from "../collab/merge";
+import { useDocumentStore } from "../document/store";
 import { packDocument } from "./pack";
 import { unpackDocument } from "./unpack";
 
@@ -85,8 +87,21 @@ export async function saveDocumentAs(doc: WeftDocument): Promise<string | null> 
 /** Overwrites a known path directly, no dialog - "Speichern" once a document already has one
  * (from a prior save or from opening a file), matching how Save works in most other apps. */
 export async function saveDocumentToPath(doc: WeftDocument, path: string): Promise<void> {
-  const bytes = await packDocument(doc);
-  await serialized(() => writeFileSafely(path, bytes));
+  await serialized(async () => {
+    let toWrite = doc;
+    if (useDocumentStore.getState().live) {
+      // A file of live collaboration is typically kept in a shared folder and saved by several people. What
+      // a colleague has saved there since this copy last read it is merged in first, so that writing over
+      // it never takes anything away - the file ends up holding everybody's work.
+      try {
+        mergeDocumentFile(await readFile(path));
+        toWrite = useDocumentStore.getState().doc;
+      } catch {
+        // no file there yet, or not one that can be merged - just save
+      }
+    }
+    await writeFileSafely(path, await packDocument(toWrite));
+  });
 }
 
 // A module that has never been saved anywhere has no file for automatic saving to write to - its

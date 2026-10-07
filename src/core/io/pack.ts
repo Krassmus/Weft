@@ -3,7 +3,7 @@ import type { AsyncZippable } from "fflate";
 import type { WeftDocument, WeftModule } from "../types";
 import { useAssetStore } from "../assets/assetStore";
 import { Automerge } from "../collab/automerge";
-import { currentHandle } from "../document/store";
+import { currentHandle, useDocumentStore } from "../document/store";
 import { usedAssetIds } from "../document/usedAssets";
 import { buildInlineFontFaceCss } from "../runtime/buildInlineFontFaceCss";
 import { buildRuntimeHtml } from "../runtime/buildRuntimeHtml";
@@ -82,7 +82,9 @@ export async function packDocument(doc: WeftDocument, options: { forExport?: boo
     // document again (see loadDocument in document/store.ts).
     const handle = currentHandle();
     if ((handle.doc() as WeftModule).id === doc.content.id) {
-      files[COLLAB_FILE] = strToU8(JSON.stringify({ documentId: handle.documentId }));
+      // The password too, if this file is an invitation to live collaboration (never in an export).
+      const live = useDocumentStore.getState().live;
+      files[COLLAB_FILE] = strToU8(JSON.stringify({ documentId: handle.documentId, ...(live ? { live } : {}) }));
     }
   }
   const addFile = (path: string, data: Uint8Array) => {

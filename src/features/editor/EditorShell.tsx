@@ -1,4 +1,5 @@
 import { syncFolderForCurrentDocument } from "../../core/collab/folder/folderSession";
+import { syncLiveForCurrentDocument } from "../../core/collab/session";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -170,6 +171,8 @@ export function EditorShell() {
   const documentKey = useDocumentStore((s) => s.documentKey);
   useEffect(() => {
     void syncFolderForCurrentDocument();
+    // ...and a file that is an invitation to live collaboration connects (see core/collab/session.ts).
+    void syncLiveForCurrentDocument();
   }, [documentKey]);
 
   // Saves in the background whenever there are unsaved changes (see core/io/autosave.ts). A ref

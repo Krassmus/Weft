@@ -1,7 +1,7 @@
 import { strFromU8, unzipSync } from "fflate";
 import { Automerge } from "../collab/automerge";
 import { CURRENT_FORMAT_VERSION } from "../types";
-import type { Block, WeftDocument, WeftModule } from "../types";
+import type { Block, LiveInvitation, WeftDocument, WeftModule } from "../types";
 import { useAssetStore } from "../assets/assetStore";
 import { defaultEntranceEffect, defaultExitEffect } from "../document/blockEffects";
 import { blockEffectNodeId, createDefaultPageTimeline, syncPageTimelineEvents } from "../document/pageTimeline";
@@ -303,15 +303,22 @@ function importAssets(files: Record<string, Uint8Array>, content: Pick<WeftModul
   }
 }
 
-/** The Automerge document id stored next to the history (see COLLAB_FILE in pack.ts), if it is there
- * and looks like one. */
-function readDocumentId(bytes: Uint8Array | undefined): string | undefined {
-  if (!bytes) return undefined;
+/** What is stored next to the history (see COLLAB_FILE in pack.ts): the Automerge document id, if it is
+ * there and looks like one, and - if the file is an invitation to live collaboration - its password and
+ * relays (only read when they look right: they end up in a URL and a WebSocket address). */
+function readCollab(bytes: Uint8Array | undefined): { documentId?: string; live?: LiveInvitation } {
+  if (!bytes) return {};
   try {
-    const { documentId } = JSON.parse(strFromU8(bytes)) as { documentId?: unknown };
-    return typeof documentId === "string" && /^[1-9A-HJ-NP-Za-km-z]{20,40}$/.test(documentId) ? documentId : undefined;
+    const { documentId, live } = JSON.parse(strFromU8(bytes)) as { documentId?: unknown; live?: { secret?: unknown; relays?: unknown } };
+    if (typeof documentId !== "string" || !/^[1-9A-HJ-NP-Za-km-z]{20,40}$/.test(documentId)) return {};
+    const secret = live?.secret;
+    if (typeof secret !== "string" || !/^[A-Za-z0-9_-]{16,64}$/.test(secret)) return { documentId };
+    const relays = Array.isArray(live?.relays)
+      ? (live.relays as unknown[]).filter((r): r is string => typeof r === "string" && /^wss?:\/\//.test(r)).slice(0, 10)
+      : [];
+    return { documentId, live: { secret, relays } };
   } catch {
-    return undefined;
+    return {};
   }
 }
 
@@ -361,7 +368,11 @@ export function unpackDocument(zipBytes: Uint8Array, options: { importAssets?: b
   if (fileVersion === CURRENT_FORMAT_VERSION) {
     doc.history = readHistory(files[HISTORY_FILE], jsonContentMarker);
     // The id only goes with a history that is actually used - it names the document that history is of.
-    if (doc.history) doc.documentId = readDocumentId(files[COLLAB_FILE]);
+    if (doc.history) {
+      const collab = readCollab(files[COLLAB_FILE]);
+      doc.documentId = collab.documentId;
+      doc.live = collab.live;
+    }
   }
 
   if (options.importAssets !== false) importAssets(files, doc.content);

@@ -58,6 +58,16 @@ const en = {
   "settings.profile.remove": "Remove",
   "settings.profile.error": "This file can't be used as a picture.",
   "settings.profile.hint": "Shown to the people you work with on a module, next to your changes. Stored on this computer only.",
+  "settings.network.legend": "Network (working together)",
+  "settings.network.hint": "Only needed if people can't find each other by default (university networks, for example). Changes apply the next time \"Work together on file\" is switched on or a file is opened.",
+  "settings.network.server": "Sync server (optional)",
+  "settings.network.relays": "Signaling relays (one address per line)",
+  "settings.network.relaysPlaceholder": "empty = public default relays\nwss://relay.example.org",
+  "settings.network.relaysHint": "People find each other through relays first. Everyone has to use the same ones - they are part of an invitation link and file, and whoever joins takes over the ones in it.",
+  "settings.network.turnUrl": "TURN server (address)",
+  "settings.network.turnUser": "TURN user name",
+  "settings.network.turnPassword": "TURN password",
+  "settings.network.turnHint": "A TURN server relays the traffic when two computers can't reach each other directly. It belongs to you alone and is not part of the link. Without it, the connection may fail on such networks.",
 } as const;
 
 const de: Record<keyof typeof en, string> = {
@@ -105,6 +115,16 @@ const de: Record<keyof typeof en, string> = {
   "settings.profile.remove": "Entfernen",
   "settings.profile.error": "Diese Datei lässt sich nicht als Bild verwenden.",
   "settings.profile.hint": "Wird den Leuten gezeigt, mit denen du an einem Lernmodul arbeitest, neben deinen Änderungen. Wird nur auf diesem Computer gespeichert.",
+  "settings.network.legend": "Netzwerk (Zusammenarbeit)",
+  "settings.network.hint": "Nur nötig, wenn sich die Leute sonst nicht finden (zum Beispiel in Uni-Netzen). Änderungen gelten ab dem nächsten Einschalten von „An Datei zusammen arbeiten“ oder Öffnen einer Datei.",
+  "settings.network.server": "Sync-Server (optional)",
+  "settings.network.relays": "Signaling-Relays (eine Adresse pro Zeile)",
+  "settings.network.relaysPlaceholder": "leer = öffentliche Standard-Relays\nwss://relay.example.org",
+  "settings.network.relaysHint": "Über Relays finden sich die Teilnehmenden zuerst. Alle müssen dieselben benutzen - sie stehen deshalb in Einladungslink und -datei, und wer beitritt, übernimmt die dort.",
+  "settings.network.turnUrl": "TURN-Server (Adresse)",
+  "settings.network.turnUser": "TURN Benutzername",
+  "settings.network.turnPassword": "TURN Passwort",
+  "settings.network.turnHint": "Ein TURN-Server leitet den Datenverkehr weiter, wenn zwei Rechner sich nicht direkt erreichen. Er gehört nur dir und steht nicht im Link. Ohne ihn klappt die Verbindung in solchen Netzen womöglich nicht.",
 };
 
 export type TranslationKey = keyof typeof en;

@@ -36,16 +36,7 @@ import type { FolderModule } from "../../../core/collab/folder/folderSync";
 import { presenceColor, usePresence } from "../../../core/collab/presence";
 import { PersonAvatar } from "../PersonAvatar";
 import { useDirectConnection } from "../../../core/collab/webrtcAdapter";
-import {
-  COLLAB_DIRECT_KEY,
-  COLLAB_RELAYS_KEY,
-  COLLAB_SERVER_KEY,
-  COLLAB_TURN_KEY,
-  readSetting,
-  readTurnSetting,
-  writeSetting,
-} from "../../../core/collab/settings";
-import type { TurnSetting } from "../../../core/collab/settings";
+import { COLLAB_SERVER_KEY, readSetting } from "../../../core/collab/settings";
 import {
   connectLiveCollaboration,
   disableLiveCollaboration,
@@ -387,7 +378,7 @@ function HistoryField() {
       `Der Änderungsverlauf wird verkleinert: Es bleiben nur die letzten Änderungen (rund ${formatBytes(COMPACT_KEEP_BYTES)} Verlauf). Frühere Fassungen von Texten und Gelöschtes aus der Zeit davor sind endgültig weg, und Rückgängig-Schritte gibt es erst wieder für neue Änderungen.` +
         "\n\nKopien dieses Lernmoduls, die vorher entstanden sind, lassen sich danach nicht mehr einmischen." +
         (together
-          ? "\n\nDie Verbindung zu den anderen (Datei als Einladung, Ordner-Abgleich) wird beendet. Zum gemeinsamen Arbeiten schaltest du sie danach wieder ein und gibst die neue Datei weiter."
+          ? "\n\nDie Verbindung zu den anderen (An Datei zusammen arbeiten, Ordner-Abgleich) wird beendet. Zum gemeinsamen Arbeiten schaltest du sie danach wieder ein und gibst die neue Datei weiter."
           : ""),
       "Verlauf verkleinern",
     );
@@ -401,27 +392,23 @@ function HistoryField() {
     }
   }
 
+  // Everything about the history is only worth showing when it can be shrunk.
+  if (!stats || stats.historyBytes < COMPACT_OFFER_BYTES) return null;
   return (
-    <div className="weft-field">
-      <span>Änderungsverlauf</span>
-      <p className="weft-hint">
-        Das Lernmodul merkt sich jede Änderung (dadurch lassen sich Kopien zusammenführen), auch frühere Fassungen
-        von Texten und Gelöschtes. Das wächst mit der Zeit.
-      </p>
-      <p className="weft-hint">
-        {stats
-          ? `${stats.changes.toLocaleString("de-DE")} Änderungen, ${formatBytes(stats.bytes)} - davon ${formatBytes(stats.historyBytes)} Verlauf.` +
-            (stats.historyBytes >= COMPACT_OFFER_BYTES
-              ? ""
-              : ` Verkleinern gibt es ab ${formatBytes(COMPACT_OFFER_BYTES)} Verlauf.`)
-          : "Berechne …"}
-      </p>
-      {stats && stats.historyBytes >= COMPACT_OFFER_BYTES && (
+    <>
+      <div className="weft-divider" />
+      <div className="weft-field">
+        <span>Änderungsverlauf</span>
+        <p className="weft-hint">
+          Das Lernmodul merkt sich jede Änderung (dadurch lassen sich Kopien zusammenführen), auch frühere Fassungen
+          von Texten und Gelöschtes. Das ist inzwischen {formatBytes(stats.historyBytes)} der Datei ({stats.changes.toLocaleString("de-DE")}{" "}
+          Änderungen).
+        </p>
         <button type="button" className="weft-ghost-button weft-full-width" disabled={busy} onClick={() => void compact()}>
           {busy ? "Verkleinere …" : "Verlauf verkleinern …"}
         </button>
-      )}
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -433,17 +420,12 @@ const DIRECT_STATUS_TEXT = {
 } as const;
 
 /**
- * Edit this module together with others. "Teilen" announces the document being edited and shows the
- * invitation link others join with; "Beitreten" replaces what is open with a document somebody else
- * shares (merging in what is only in the open copy, if it is another copy of the same module). The
- * people are connected directly (WebRTC - no server of ours), and/or through a sync server somebody
- * runs. "Mit Datei zusammenführen" needs no connection at all. See core/collab/.
+ * Edit this module together with others: "An Datei zusammen arbeiten" announces the document being
+ * edited, saves its password in the file and shows the link others join with (joining and merging a
+ * file are in the File menu). The people are connected directly (WebRTC - no server of ours); how
+ * (relays, TURN, a sync server) is set once for the app, in its settings window. See core/collab/.
  */
 function CollaborationField() {
-  const [server, setServer] = useState(() => readSetting(COLLAB_SERVER_KEY, ""));
-  const [direct, setDirect] = useState(() => readSetting(COLLAB_DIRECT_KEY, "1") === "1");
-  const [relays, setRelays] = useState(() => readSetting(COLLAB_RELAYS_KEY, ""));
-  const [turn, setTurn] = useState<TurnSetting>(readTurnSetting);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const { missing, transfers } = useAssetTransfers();
@@ -453,11 +435,7 @@ function CollaborationField() {
   const receiving = Object.values(transfers);
   const megabytes = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
   const webRtcAvailable = typeof RTCPeerConnection !== "undefined";
-  function updateTurn(patch: Partial<typeof turn>) {
-    const next = { ...turn, ...patch };
-    setTurn(next);
-    writeSetting(COLLAB_TURN_KEY, JSON.stringify(next));
-  }
+  const serverUrl = readSetting(COLLAB_SERVER_KEY, "").trim();
 
   async function copyLink() {
     try {
@@ -479,17 +457,14 @@ function CollaborationField() {
         <input
           type="checkbox"
           checked={live !== null}
-          disabled={!webRtcAvailable && !server.trim()}
+          disabled={!webRtcAvailable && !serverUrl}
           onChange={(e) => (e.target.checked ? enableLiveCollaboration() : disableLiveCollaboration())}
         />
-        <span>Datei als Einladung</span>
+        <span>An Datei zusammen arbeiten</span>
       </label>
       <p className="weft-hint">
-        Wer diese Datei öffnet, ist sofort live mit allen verbunden, die sie gerade auch offen haben - zum Beispiel
-        über einen mit Kolleg:innen geteilten Nextcloud-Ordner. Dafür steht das Passwort des Raums in der Datei: gib
-        sie nur an Leute weiter, die mitarbeiten dürfen. Exportierte Lernmodule enthalten es nicht. Speichern mehrere
-        in dieselbe Datei, führt Weft vorher zusammen, was die anderen dort gespeichert haben. Beide müssen dafür
-        gleichzeitig online sein.
+        Jeder mit der Datei oder folgendem Link kann an deiner Datei mitarbeiten, solange du online bist. Passwort steht
+        in der Datei selbst drin.
       </p>
       {live && (
         <>
@@ -508,66 +483,7 @@ function CollaborationField() {
           Jetzt verbinden
         </button>
       )}
-      <label className="weft-field weft-field-inline">
-        <input
-          type="checkbox"
-          checked={direct && webRtcAvailable}
-          disabled={!webRtcAvailable}
-          onChange={(e) => {
-            setDirect(e.target.checked);
-            writeSetting(COLLAB_DIRECT_KEY, e.target.checked ? "1" : "0");
-          }}
-        />
-        <span>Direkt mit den anderen verbinden (ohne Server)</span>
-      </label>
       {!webRtcAvailable && <p className="weft-placeholder-warning">Dieses System unterstützt keine Direktverbindung (WebRTC).</p>}
-      <label className="weft-field">
-        <span>Sync-Server (optional)</span>
-        <input
-          value={server}
-          placeholder="wss://…"
-          onChange={(e) => {
-            setServer(e.target.value);
-            writeSetting(COLLAB_SERVER_KEY, e.target.value);
-          }}
-        />
-      </label>
-      <details className="weft-collab-advanced">
-        <summary>Netzwerk (für schwierige Netze)</summary>
-        <label className="weft-field">
-          <span>Signaling-Relays (eine Adresse pro Zeile)</span>
-          <textarea
-            rows={3}
-            value={relays}
-            placeholder={"leer = öffentliche Standard-Relays\nwss://relay.example.org"}
-            onChange={(e) => {
-              setRelays(e.target.value);
-              writeSetting(COLLAB_RELAYS_KEY, e.target.value);
-            }}
-          />
-        </label>
-        <p className="weft-hint">
-          Über Relays finden sich die Teilnehmenden zuerst. Alle müssen dieselben benutzen - sie stehen deshalb in
-          Einladungslink und -datei, und wer beitritt, übernimmt die dort. Eine Änderung gilt ab dem nächsten
-          Einschalten von „Datei als Einladung“.
-        </p>
-        <label className="weft-field">
-          <span>TURN-Server (Adresse)</span>
-          <input value={turn.url ?? ""} placeholder="turn:turn.example.org:3478" onChange={(e) => updateTurn({ url: e.target.value })} />
-        </label>
-        <label className="weft-field">
-          <span>TURN Benutzername</span>
-          <input value={turn.user ?? ""} onChange={(e) => updateTurn({ user: e.target.value })} />
-        </label>
-        <label className="weft-field">
-          <span>TURN Passwort</span>
-          <input type="password" value={turn.password ?? ""} onChange={(e) => updateTurn({ password: e.target.value })} />
-        </label>
-        <p className="weft-hint">
-          Ein TURN-Server leitet den Datenverkehr weiter, wenn zwei Rechner sich nicht direkt erreichen (manche
-          Uni-Netze). Er gehört nur dir und steht nicht im Link. Ohne ihn klappt die Verbindung dort womöglich nicht.
-        </p>
-      </details>
       {error && <p className="weft-placeholder-warning">{error}</p>}
       {connection.state !== "off" && (
         <p className={connection.state === "failed" ? "weft-placeholder-warning" : "weft-hint"}>
@@ -622,8 +538,6 @@ export function SettingsTab() {
       <div className="weft-divider" />
 
       <CollaborationField />
-
-      <div className="weft-divider" />
 
       <HistoryField />
 

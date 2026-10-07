@@ -1,13 +1,12 @@
 import type { CollabOptions } from "./session";
 
 /**
- * How this person connects for live collaboration (the "Zusammenarbeit" section of the module
- * settings): directly or not, a sync server, signaling relays, a TURN server. Kept in the app's own
- * storage - it describes this computer and this network, not a module - and read by the settings UI
- * as well as by whatever connects on its own (a file that is an invitation, see session.ts).
+ * How this person connects for live collaboration (the "Netzwerk" section of the app's settings
+ * window): a sync server, signaling relays, a TURN server (directly - WebRTC - whenever the system
+ * can). Kept in the app's own storage - it describes this computer and this network, not a module -
+ * and read by whatever connects (a file that is an invitation, see session.ts).
  */
 export const COLLAB_SERVER_KEY = "weft.collabServer";
-export const COLLAB_DIRECT_KEY = "weft.collabDirect";
 export const COLLAB_RELAYS_KEY = "weft.collabRelays";
 export const COLLAB_TURN_KEY = "weft.collabTurn";
 
@@ -45,7 +44,7 @@ export function readTurnSetting(): TurnSetting {
 export function loadCollabOptions(): CollabOptions {
   const turn = readTurnSetting();
   return {
-    direct: readSetting(COLLAB_DIRECT_KEY, "1") === "1" && typeof RTCPeerConnection !== "undefined",
+    direct: typeof RTCPeerConnection !== "undefined",
     serverUrl: readSetting(COLLAB_SERVER_KEY, "").trim() || undefined,
     relayUrls: readSetting(COLLAB_RELAYS_KEY, "").split(/\s+/).filter(Boolean),
     turnServers: turn.url?.trim()

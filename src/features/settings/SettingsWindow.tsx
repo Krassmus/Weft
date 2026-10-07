@@ -1,4 +1,13 @@
 import { useState } from "react";
+import {
+  COLLAB_RELAYS_KEY,
+  COLLAB_SERVER_KEY,
+  COLLAB_TURN_KEY,
+  readSetting,
+  readTurnSetting,
+  writeSetting,
+} from "../../core/collab/settings";
+import type { TurnSetting } from "../../core/collab/settings";
 import { useTranslation } from "../../core/i18n/useTranslation";
 import { useLanguageStore } from "../../core/i18n/languageStore";
 import type { LanguagePreference } from "../../core/i18n/languageStore";
@@ -20,7 +29,65 @@ const LANGUAGE_OPTIONS: { value: LanguagePreference; labelKey: "settings.languag
  * here isn't part of any .weft file's content at all (see languageStore.ts). Only one setting
  * today; more (per the person who asked for this) means more fields in here later, not a
  * different place to put them. Next to the language: the person's own profile (name and avatar
- * picture, see profileStore.ts) - what the people they collaborate with get to see of them. */
+ * picture, see profileStore.ts) - what the people they collaborate with get to see of them - and
+ * how their computer connects to them (network). */
+/** How this computer connects for working together on a module (see core/collab/settings.ts). */
+function NetworkSettings() {
+  const { t } = useTranslation();
+  const [server, setServer] = useState(() => readSetting(COLLAB_SERVER_KEY, ""));
+  const [relays, setRelays] = useState(() => readSetting(COLLAB_RELAYS_KEY, ""));
+  const [turn, setTurn] = useState<TurnSetting>(readTurnSetting);
+  function updateTurn(patch: Partial<TurnSetting>) {
+    const next = { ...turn, ...patch };
+    setTurn(next);
+    writeSetting(COLLAB_TURN_KEY, JSON.stringify(next));
+  }
+
+  return (
+    <fieldset className="weft-settings-field">
+      <legend>{t("settings.network.legend")}</legend>
+      <p className="weft-hint">{t("settings.network.hint")}</p>
+      <label className="weft-field">
+        <span>{t("settings.network.server")}</span>
+        <input
+          value={server}
+          placeholder="wss://…"
+          onChange={(e) => {
+            setServer(e.target.value);
+            writeSetting(COLLAB_SERVER_KEY, e.target.value);
+          }}
+        />
+      </label>
+      <label className="weft-field">
+        <span>{t("settings.network.relays")}</span>
+        <textarea
+          rows={3}
+          value={relays}
+          placeholder={t("settings.network.relaysPlaceholder")}
+          onChange={(e) => {
+            setRelays(e.target.value);
+            writeSetting(COLLAB_RELAYS_KEY, e.target.value);
+          }}
+        />
+      </label>
+      <p className="weft-hint">{t("settings.network.relaysHint")}</p>
+      <label className="weft-field">
+        <span>{t("settings.network.turnUrl")}</span>
+        <input value={turn.url ?? ""} placeholder="turn:turn.example.org:3478" onChange={(e) => updateTurn({ url: e.target.value })} />
+      </label>
+      <label className="weft-field">
+        <span>{t("settings.network.turnUser")}</span>
+        <input value={turn.user ?? ""} onChange={(e) => updateTurn({ user: e.target.value })} />
+      </label>
+      <label className="weft-field">
+        <span>{t("settings.network.turnPassword")}</span>
+        <input type="password" value={turn.password ?? ""} onChange={(e) => updateTurn({ password: e.target.value })} />
+      </label>
+      <p className="weft-hint">{t("settings.network.turnHint")}</p>
+    </fieldset>
+  );
+}
+
 export function SettingsWindow() {
   const { t } = useTranslation();
   const preference = useLanguageStore((s) => s.preference);
@@ -91,6 +158,7 @@ export function SettingsWindow() {
         </div>
         <p className="weft-hint">{t("settings.profile.hint")}</p>
       </fieldset>
+      <NetworkSettings />
     </div>
   );
 }

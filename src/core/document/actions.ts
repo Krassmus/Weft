@@ -845,6 +845,9 @@ export interface VideoUploadResult {
   playable: boolean;
   ffmpegAttempted: boolean;
   error?: string;
+  /** The size of the file that was stored (after a conversion, if one happened) - for warning about a
+   * very large one, see warnAboutVideoUploads in io/fileIO.ts. */
+  sizeBytes: number;
 }
 
 /** The file to actually store for a video upload, plus its aspect ratio and its VideoUploadResult
@@ -853,7 +856,7 @@ export interface VideoUploadResult {
  * `playable: false`. Kept as one shared step for all four setBlockVideo/setLayoutBlockVideo/
  * addVideoBlockToPage/addVideoBlockToLayout entry points, so a converted file only ever gets
  * probed and stored once rather than each of them re-implementing the same fallback chain. */
-async function resolvePlayableVideo(file: File): Promise<{ file: File; aspect: number } & VideoUploadResult> {
+async function resolvePlayableVideo(file: File): Promise<{ file: File; aspect: number } & Omit<VideoUploadResult, "sizeBytes">> {
   const probe = await probeVideo(file);
   if (probe.playable) return { file, ...probe, ffmpegAttempted: false };
   const ffmpegFound = await isFfmpegAvailable();
@@ -931,7 +934,7 @@ export async function setBlockVideo(pageId: string, blockId: string, file: File)
       block.position = fitToAspect(block.position, percentRatioForAspect(resolved.aspect));
     }
   });
-  return { playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error };
+  return { playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error, sizeBytes: resolved.file.size };
 }
 
 export function updateLayoutBlock(layoutId: string, blockId: string, patch: Partial<Block>) {
@@ -974,7 +977,7 @@ export async function setLayoutBlockVideo(layoutId: string, blockId: string, fil
       block.position = fitToAspect(block.position, percentRatioForAspect(resolved.aspect));
     }
   });
-  return { playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error };
+  return { playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error, sizeBytes: resolved.file.size };
 }
 
 /** Drops a new image block onto a page/layout in one step, already carrying the file - used by
@@ -1052,7 +1055,7 @@ export async function addVideoBlockToPage(
     });
     syncPageTimelineEvents(page);
   });
-  return { blockId, playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error };
+  return { blockId, playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error, sizeBytes: resolved.file.size };
 }
 
 export async function addVideoBlockToLayout(
@@ -1080,7 +1083,7 @@ export async function addVideoBlockToLayout(
       exitEffect: defaultExitEffect(),
     });
   });
-  return { blockId, playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error };
+  return { blockId, playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error, sizeBytes: resolved.file.size };
 }
 
 // ---- Copy / paste (Cmd/Ctrl+C / +V - see features/editor/useCopyPaste.ts) -------------------

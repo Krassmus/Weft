@@ -26,7 +26,8 @@ import type { VideoUploadResult } from "../../core/document/actions";
 import { useDocumentStore } from "../../core/document/store";
 import { DEFAULT_IRIS_CENTER } from "../../core/document/transitions";
 import type { BlockContainerRef } from "../../core/document/store";
-import { warnUnplayableVideo } from "../../core/io/fileIO";
+import { warnAboutVideoUploads } from "../../core/io/fileIO";
+import type { VideoUploadReport } from "../../core/io/fileIO";
 import type { BlockGroup, BlockPosition, Layout, Page, WeftDocument } from "../../core/types";
 import type { ContextMenuItem } from "./ContextMenu";
 import { BlockView } from "./blocks/BlockView";
@@ -546,20 +547,20 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
     // editing the document, and each edit() call is its own undo step, so keeping them in drop
     // order keeps undo order sane too.
     let lastBlockId: string | null = null;
-    const unplayable: { fileName: string; ffmpegAttempted: boolean; error?: string }[] = [];
+    const videoReports: VideoUploadReport[] = [];
     for (const [index, file] of mediaFiles.entries()) {
       const position = dropPosition(e.clientX, e.clientY, rect, index);
       if (file.type.startsWith("video/")) {
         const result = await addVideo(file, position);
         lastBlockId = result.blockId;
-        if (!result.playable) unplayable.push({ fileName: file.name, ffmpegAttempted: result.ffmpegAttempted, error: result.error });
+        videoReports.push({ fileName: file.name, ...result });
       } else {
         lastBlockId = await addImage(file, position);
       }
     }
     // Select whichever landed last, mirroring how pasting a block selects the new copy.
     if (lastBlockId) select({ type: "block", container, blockId: lastBlockId });
-    if (unplayable.length > 0) void warnUnplayableVideo(unplayable);
+    if (videoReports.length > 0) void warnAboutVideoUploads(videoReports);
   }
 
   /** Drags every member of the active "blocks"/"group" selection together - reached via a

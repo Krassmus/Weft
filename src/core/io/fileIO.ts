@@ -3,6 +3,8 @@ import { appCacheDir, join } from "@tauri-apps/api/path";
 import { mkdir, readFile, remove, rename, writeFile } from "@tauri-apps/plugin-fs";
 import type { WeftDocument } from "../types";
 import { mergeDocumentFile } from "../collab/merge";
+import { useAssetStore } from "../assets/assetStore";
+import { usedAssetIds } from "../document/usedAssets";
 import { useDocumentStore } from "../document/store";
 import { packDocument } from "./pack";
 import { unpackDocument } from "./unpack";
@@ -296,4 +298,58 @@ export async function warnUnplayableVideo(videos: UnplayableVideo[]): Promise<vo
       `Codec (z. B. HEVC/H.265 statt H.264/AAC). ${suggestion}`,
     "Video möglicherweise nicht abspielbar",
   );
+}
+
+/** From this size on, a video is called large (see warnLargeVideos). */
+export const LARGE_VIDEO_BYTES = 50 * 1024 * 1024;
+
+/** What an upload of one video came to - see VideoUploadResult in document/actions.ts. */
+export interface VideoUploadReport {
+  fileName: string;
+  playable: boolean;
+  ffmpegAttempted: boolean;
+  error?: string;
+  sizeBytes: number;
+}
+
+function formatSize(bytes: number): string {
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1).replace(".", ",")} GB`;
+  return `${Math.max(1, Math.round(bytes / 1024 ** 2))} MB`;
+}
+
+/** What the module's images, videos and fonts take up together (those still in use). */
+function totalMediaBytes(): number {
+  const used = usedAssetIds(useDocumentStore.getState().doc.content);
+  const blobs = useAssetStore.getState().blobs;
+  let total = 0;
+  for (const id of used) total += blobs.get(id)?.size ?? 0;
+  return total;
+}
+
+/**
+ * A heads-up for a very large video: it is added all the same - plenty of modules need one - but its size
+ * has consequences that the author otherwise only finds out about later: the saved file and the exported
+ * module grow with it, everybody who works on the module together has to receive it first (and again
+ * for everybody who joins), and learning platforms often limit how big an uploaded module may be.
+ */
+export async function warnLargeVideos(videos: { fileName: string; sizeBytes: number }[]): Promise<void> {
+  const list = videos.map((v) => `„${v.fileName}“ (${formatSize(v.sizeBytes)})`).join(", ");
+  await showWarning(
+    `${list} ${videos.length === 1 ? "ist" : "sind"} ein großes Video. Es ist hinzugefügt, aber bedenke:\n\n` +
+      "• Die gespeicherte Datei und das exportierte Lernmodul werden entsprechend groß.\n" +
+      "• Beim gemeinsamen Arbeiten muss jede Person das Video erst empfangen - das dauert, auch für jeden, der später dazukommt.\n" +
+      "• Viele Lernplattformen begrenzen die Größe eines hochgeladenen Lernmoduls.\n\n" +
+      "Oft lässt sich ein Video mit geringerer Auflösung oder Bitrate stark verkleinern (z. B. mit HandBrake) - oder du bindest es von einem Videoportal als Iframe-Element ein.\n\n" +
+      `Alle Medien im Lernmodul zusammen: ${formatSize(totalMediaBytes())}.`,
+    "Großes Video",
+  );
+}
+
+/** Everything worth telling the author about videos that were just added: those that may not play back
+ * (see warnUnplayableVideo) first, then those that are very large (see warnLargeVideos). */
+export async function warnAboutVideoUploads(reports: VideoUploadReport[]): Promise<void> {
+  const unplayable = reports.filter((r) => !r.playable);
+  if (unplayable.length > 0) await warnUnplayableVideo(unplayable);
+  const large = reports.filter((r) => r.sizeBytes >= LARGE_VIDEO_BYTES);
+  if (large.length > 0) await warnLargeVideos(large);
 }

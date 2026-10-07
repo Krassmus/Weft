@@ -17,7 +17,7 @@ import { CURATED_FONT_FAMILIES } from "../../../core/fonts/curatedFonts";
 import { DEFAULT_FONT_FAMILY } from "../../../core/fonts/fontFaceCss";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
-import { pickFontFile, warnUnplayableVideo } from "../../../core/io/fileIO";
+import { pickFontFile, warnAboutVideoUploads } from "../../../core/io/fileIO";
 import { useTranscodeStatus } from "../../../core/io/videoTranscode";
 import type {
   Block,
@@ -637,9 +637,7 @@ function VideoEditor({
               const file = e.target.files?.[0];
               if (!file) return;
               void onSetVideo(file).then((result) => {
-                if (!result.playable) {
-                  void warnUnplayableVideo([{ fileName: file.name, ffmpegAttempted: result.ffmpegAttempted, error: result.error }]);
-                }
+                void warnAboutVideoUploads([{ fileName: file.name, ...result }]);
               });
             }}
           />

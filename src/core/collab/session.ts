@@ -18,7 +18,9 @@ import { useDirectConnection, WebRtcNetworkAdapter } from "./webrtcAdapter";
  *
  * The invitation link is the document's Automerge URL plus a random secret: "automerge:...?k=...".
  * The URL names the document, the secret is the password of the direct connection - without it the
- * peers' introductions can't even be decrypted.
+ * peers' introductions can't even be decrypted. "Datei als Einladung" (a switch in the module settings,
+ * see the end of this file) puts the same two things into the saved file as well, so there is one thing
+ * - being invited - and two ways of handing it on: the file, or the link.
  */
 export interface CollabOptions {
   /** Connect directly to the other people (WebRTC) - on by default. */
@@ -143,18 +145,11 @@ function startSessionServices(): void {
   presenceSync.start();
 }
 
-/** Starts sharing the document being edited; returns the invitation link to give to others. */
-export function shareCurrentDocument(options: CollabOptions = {}): string {
-  const handle = currentHandle();
-  let secret = secrets.get(handle.documentId);
-  if (!secret) {
-    secret = newSecret();
-    secrets.set(handle.documentId, secret);
-  }
-  allowSharing(handle.documentId);
-  connect(handle.documentId, secret, options);
-  startSessionServices();
-  return formatInvitation({ url: handle.url, secret, relays: options.relayUrls ?? [] });
+/** The link that invites somebody to the open document (with "Datei als Einladung" switched on), for people
+ * who don't have the file - or null if it isn't switched on. */
+export function invitationLink(): string | null {
+  const { live } = useDocumentStore.getState();
+  return live ? formatInvitation({ url: currentHandle().url, secret: live.secret, relays: live.relays }) : null;
 }
 
 /** Opens a document somebody else is sharing, by invitation link. Resolves once it has arrived. */
@@ -175,6 +170,12 @@ export async function joinSharedDocument(invitation: string, options: CollabOpti
     // A direct connection that failed for a reason of its own (wrong password in the link) says why.
     const direct = useDirectConnection.getState();
     throw direct.state === "failed" && direct.error ? new Error(direct.error) : error;
+  }
+  // Having accepted an invitation, this copy belongs to the group: a file saved from it is an invitation
+  // too (see "Datei als Einladung"), and needn't be asked about when it is opened.
+  if (secret) {
+    useDocumentStore.getState().setLive({ secret, relays: relays.length > 0 ? relays : (options.relayUrls ?? []) });
+    trust(documentId);
   }
   startSessionServices();
 }

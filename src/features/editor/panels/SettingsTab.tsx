@@ -51,7 +51,7 @@ import {
   disableLiveCollaboration,
   enableLiveCollaboration,
   joinSharedDocument,
-  shareCurrentDocument,
+  invitationLink,
 } from "../../../core/collab/session";
 import { useDragReorder } from "../useDragReorder";
 
@@ -377,7 +377,6 @@ function CollaborationField() {
   const [direct, setDirect] = useState(() => readSetting(COLLAB_DIRECT_KEY, "1") === "1");
   const [relays, setRelays] = useState(() => readSetting(COLLAB_RELAYS_KEY, ""));
   const [turn, setTurn] = useState<TurnSetting>(readTurnSetting);
-  const [link, setLink] = useState("");
   const [joinLink, setJoinLink] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -427,15 +426,9 @@ function CollaborationField() {
     );
   }
 
-  function share() {
-    setError("");
-    setCopied(false);
-    setLink(shareCurrentDocument(options));
-  }
-
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(link);
+      await navigator.clipboard.writeText(invitationLink() ?? "");
       setCopied(true);
     } catch {
       setError("Kopieren nicht möglich - den Link bitte markieren und von Hand kopieren.");
@@ -486,8 +479,21 @@ function CollaborationField() {
         Wer diese Datei öffnet, ist sofort live mit allen verbunden, die sie gerade auch offen haben - zum Beispiel
         über einen mit Kolleg:innen geteilten Nextcloud-Ordner. Dafür steht das Passwort des Raums in der Datei: gib
         sie nur an Leute weiter, die mitarbeiten dürfen. Exportierte Lernmodule enthalten es nicht. Speichern mehrere
-        in dieselbe Datei, führt Weft vorher zusammen, was die anderen dort gespeichert haben.
+        in dieselbe Datei, führt Weft vorher zusammen, was die anderen dort gespeichert haben. Beide müssen dafür
+        gleichzeitig online sein.
       </p>
+      {live && (
+        <>
+          <input readOnly value={invitationLink() ?? ""} onFocus={(e) => e.currentTarget.select()} title="Diesen Link an andere weitergeben" />
+          <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void copyLink()}>
+            {copied ? "Kopiert" : "Link kopieren"}
+          </button>
+          <p className="weft-hint">
+            Für Leute, die die Datei nicht haben: Wer den Link hat, kann beitreten und alles ändern. Er bleibt gültig,
+            auch wenn du die gespeicherte Datei später wieder öffnest.
+          </p>
+        </>
+      )}
       {live && connection.state === "off" && (
         <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void connectLiveCollaboration(true)}>
           Jetzt verbinden
@@ -537,8 +543,9 @@ function CollaborationField() {
           />
         </label>
         <p className="weft-hint">
-          Über Relays finden sich die Teilnehmenden zuerst. Alle müssen dieselben benutzen - sie stehen deshalb im
-          Einladungslink, und wer beitritt, übernimmt die des Links.
+          Über Relays finden sich die Teilnehmenden zuerst. Alle müssen dieselben benutzen - sie stehen deshalb in
+          Einladungslink und -datei, und wer beitritt, übernimmt die dort. Eine Änderung gilt ab dem nächsten
+          Einschalten von „Datei als Einladung“.
         </p>
         <label className="weft-field">
           <span>TURN-Server (Adresse)</span>
@@ -557,24 +564,8 @@ function CollaborationField() {
           Uni-Netze). Er gehört nur dir und steht nicht im Link. Ohne ihn klappt die Verbindung dort womöglich nicht.
         </p>
       </details>
-      <button type="button" className="weft-ghost-button weft-full-width" onClick={share}>
-        Dokument teilen
-      </button>
-      {link && (
-        <>
-          <input readOnly value={link} onFocus={(e) => e.currentTarget.select()} title="Diesen Link an andere weitergeben" />
-          <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void copyLink()}>
-            {copied ? "Kopiert" : "Link kopieren"}
-          </button>
-          <p className="weft-hint">
-            Wer den Link hat, kann beitreten und alles ändern. Beide müssen online sein; das Lernmodul kommt direkt von
-            Rechner zu Rechner. Der Link bleibt gültig, auch wenn du die gespeicherte Datei später wieder öffnest - und
-            wer dieselbe Datei hat, kann mit ihr beitreten, ohne seine Änderungen zu verlieren.
-          </p>
-        </>
-      )}
       <label className="weft-field">
-        <span>Geteiltem Dokument beitreten</span>
+        <span>Mit einem Einladungslink beitreten</span>
         <input value={joinLink} placeholder="automerge:…" onChange={(e) => setJoinLink(e.target.value)} />
       </label>
       <button

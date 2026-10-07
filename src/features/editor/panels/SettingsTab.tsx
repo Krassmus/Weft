@@ -21,7 +21,7 @@ import { buildLanguageCatalog, flagForLocale, languageName } from "../../../core
 import { useTranslation } from "../../../core/i18n/useTranslation";
 import { confirmDestructive, pickFontFile } from "../../../core/io/fileIO";
 import { useAssetTransfers } from "../../../core/collab/assetSync";
-import { compactHistory, historyStats } from "../../../core/collab/compact";
+import { COMPACT_KEEP_BYTES, COMPACT_OFFER_BYTES, compactHistory, historyStats } from "../../../core/collab/compact";
 import type { HistoryStats } from "../../../core/collab/compact";
 import {
   chooseSyncFolder,
@@ -365,13 +365,15 @@ function formatBytes(bytes: number): string {
 /**
  * The module remembers every change that was ever made to it (that is what lets copies of it be merged
  * and worked on together) - earlier versions of every text included, and what was deleted. "Verlauf
- * verkleinern" keeps only the current state; see core/collab/compact.ts for what that costs.
+ * verkleinern" keeps only the most recent changes; see core/collab/compact.ts for what that costs. It is
+ * offered once the history takes up COMPACT_OFFER_BYTES.
  */
 function HistoryField() {
   const content = useDocumentStore((s) => s.doc.content);
   const live = useDocumentStore((s) => s.live);
   const folderActive = useFolderSync((s) => s.active);
   const [stats, setStats] = useState<HistoryStats | null>(null);
+  const [busy, setBusy] = useState(false);
 
   // Packing the module twice is not for every keystroke: worked out once the editing pauses.
   useEffect(() => {
@@ -382,7 +384,7 @@ function HistoryField() {
   async function compact() {
     const together = live !== null || folderActive;
     const ok = await confirmDestructive(
-      "Der Änderungsverlauf wird verkleinert: Danach gibt es nur noch den jetzigen Stand - frühere Fassungen von Texten und Gelöschtes sind endgültig weg, und Rückgängig-Schritte gibt es erst wieder für neue Änderungen." +
+      `Der Änderungsverlauf wird verkleinert: Es bleiben nur die letzten Änderungen (rund ${formatBytes(COMPACT_KEEP_BYTES)} Verlauf). Frühere Fassungen von Texten und Gelöschtes aus der Zeit davor sind endgültig weg, und Rückgängig-Schritte gibt es erst wieder für neue Änderungen.` +
         "\n\nKopien dieses Lernmoduls, die vorher entstanden sind, lassen sich danach nicht mehr einmischen." +
         (together
           ? "\n\nDie Verbindung zu den anderen (Datei als Einladung, Ordner-Abgleich) wird beendet. Zum gemeinsamen Arbeiten schaltest du sie danach wieder ein und gibst die neue Datei weiter."
@@ -390,8 +392,13 @@ function HistoryField() {
       "Verlauf verkleinern",
     );
     if (!ok) return;
-    compactHistory();
-    setStats(null);
+    setBusy(true);
+    try {
+      if (await compactHistory()) setStats(null);
+      else window.alert("Das Lernmodul wurde währenddessen geändert. Bitte noch einmal versuchen.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -403,15 +410,17 @@ function HistoryField() {
       </p>
       <p className="weft-hint">
         {stats
-          ? `${stats.changes.toLocaleString("de-DE")} Änderungen, ${formatBytes(stats.bytes)}` +
-            (stats.bytes - stats.compactedBytes > Math.max(4096, stats.bytes * 0.1)
-              ? ` - ohne Verlauf wären es ${formatBytes(stats.compactedBytes)}.`
-              : " - der Verlauf ist kurz, Verkleinern bringt kaum etwas.")
+          ? `${stats.changes.toLocaleString("de-DE")} Änderungen, ${formatBytes(stats.bytes)} - davon ${formatBytes(stats.historyBytes)} Verlauf.` +
+            (stats.historyBytes >= COMPACT_OFFER_BYTES
+              ? ""
+              : ` Verkleinern gibt es ab ${formatBytes(COMPACT_OFFER_BYTES)} Verlauf.`)
           : "Berechne …"}
       </p>
-      <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void compact()}>
-        Verlauf verkleinern …
-      </button>
+      {stats && stats.historyBytes >= COMPACT_OFFER_BYTES && (
+        <button type="button" className="weft-ghost-button weft-full-width" disabled={busy} onClick={() => void compact()}>
+          {busy ? "Verkleinere …" : "Verlauf verkleinern …"}
+        </button>
+      )}
     </div>
   );
 }

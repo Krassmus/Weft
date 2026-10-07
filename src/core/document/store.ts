@@ -298,10 +298,12 @@ bindHandle(handle);
  * history is dropped, and with it everything that only lives there: every earlier version of every
  * text, and what was deleted. What it can no longer do is merge with other copies of the old document
  * (they no longer share their beginning) - see core/collab/compact.ts, which also ends whatever
- * connected this document to others. The undo history goes too (it is made of that history). */
-export function startFreshHistory(): void {
+ * connected this document to others. The undo history goes too (it is made of that history).
+ * `keep` is a prepared history to go on with instead (same content, see compact.ts): a new document
+ * all the same. */
+export function startFreshHistory(keep?: Uint8Array): void {
   const old = handle;
-  const next = repo.create<WeftModule>(plain(old.doc() as WeftModule));
+  const next = keep ? repo.import<WeftModule>(keep) : repo.create<WeftModule>(plain(old.doc() as WeftModule));
   bindHandle(next);
   useDocumentStore.setState((state) => ({
     doc: { ...state.doc, content: next.doc() as WeftModule },

@@ -6,10 +6,12 @@
 // set_menu_language for how mobile still compiles (and behaves correctly - Settings lives in the
 // in-app sidebar tab there instead, needing no native menu item to open it) without any of it.
 #[cfg(desktop)]
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+use tauri::menu::{IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 #[cfg(desktop)]
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder, Wry};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+#[cfg(desktop)]
+use std::sync::Mutex;
 use tauri::AppHandle;
 
 // Closing the window or quitting (Cmd+Q) doesn't end the app right away: the frontend is asked to
@@ -62,7 +64,11 @@ fn cancel_exit() {
 #[cfg(desktop)]
 struct MenuStrings {
     file: &'static str,
+    new: &'static str,
+    duplicate: &'static str,
     open: &'static str,
+    recent: &'static str,
+    no_recent: &'static str,
     join: &'static str,
     save: &'static str,
     save_as: &'static str,
@@ -79,7 +85,11 @@ fn menu_strings(lang: &str) -> MenuStrings {
     if lang == "de" {
         MenuStrings {
             file: "Datei",
+            new: "Neu",
+            duplicate: "Duplizieren",
             open: "Öffnen…",
+            recent: "Zuletzt bearbeitet",
+            no_recent: "Keine Dateien",
             join: "Einladung beitreten…",
             save: "Speichern",
             save_as: "Speichern unter…",
@@ -93,7 +103,11 @@ fn menu_strings(lang: &str) -> MenuStrings {
     } else {
         MenuStrings {
             file: "File",
+            new: "New",
+            duplicate: "Duplicate",
             open: "Open…",
+            recent: "Open Recent",
+            no_recent: "No Files",
             join: "Join Invitation…",
             save: "Save",
             save_as: "Save As…",
@@ -107,6 +121,29 @@ fn menu_strings(lang: &str) -> MenuStrings {
     }
 }
 
+/// What the menu is built from besides the language-independent items: the language it was last
+/// asked for, and the files "Zuletzt bearbeitet" offers (the frontend keeps that list and tells us
+/// via set_recent_files - the menu is rebuilt whenever either changes).
+#[cfg(desktop)]
+struct MenuState {
+    lang: Mutex<String>,
+    recent: Mutex<Vec<String>>,
+}
+
+/// The menu text of a recent file: its file name, with the folder it is in when another recent file
+/// has the same name. ("&" is the escape character of Windows menus.)
+#[cfg(desktop)]
+fn recent_label(path: &str, all: &[String]) -> String {
+    let path = std::path::Path::new(path);
+    let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| path.to_string_lossy().into_owned());
+    let clashes = all.iter().filter(|other| std::path::Path::new(other).file_name() == path.file_name()).count() > 1;
+    let label = match path.parent().and_then(|dir| dir.file_name()) {
+        Some(dir) if clashes => format!("{} — {}", name, dir.to_string_lossy()),
+        _ => name,
+    };
+    label.replace('&', "&&")
+}
+
 /// Builds the whole menu bar fresh for a given language - starting from Tauri's own default menu
 /// (App/Edit/View/Window/Help with the usual native items) and only adding to it, rather than
 /// rebuilding everything by hand. Called once at startup (before either window has had a chance
@@ -114,7 +151,7 @@ fn menu_strings(lang: &str) -> MenuStrings {
 /// this needs to be idempotent - which Menu::default() already is, since it always constructs a
 /// brand new menu rather than mutating shared state.
 #[cfg(desktop)]
-fn build_menu(app_handle: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
+fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String]) -> tauri::Result<Menu<Wry>> {
     let strings = menu_strings(lang);
     let menu = Menu::default(app_handle)?;
     let items = menu.items()?;
@@ -141,8 +178,22 @@ fn build_menu(app_handle: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
     let edit_menu = edit_menu.expect("Menu::default() always includes an Edit submenu on this platform");
 
     file_menu.set_text(strings.file)?;
+    let new_item = MenuItem::with_id(app_handle, "weft-new", strings.new, true, Some("CmdOrCtrl+N"))?;
+    let duplicate_item = MenuItem::with_id(app_handle, "weft-duplicate", strings.duplicate, true, None::<&str>)?;
     let open_item = MenuItem::with_id(app_handle, "weft-open", strings.open, true, Some("CmdOrCtrl+O"))?;
-    // Working together: joining somebody's invitation (a link) belongs right next to opening a file, merging
+    // The files opened or saved last (ids "weft-recent-<position>", see on_menu_event).
+    let recent_items: Vec<MenuItem<Wry>> = if recent.is_empty() {
+        vec![MenuItem::with_id(app_handle, "weft-recent-none", strings.no_recent, false, None::<&str>)?]
+    } else {
+        recent
+            .iter()
+            .enumerate()
+            .map(|(index, path)| MenuItem::with_id(app_handle, format!("weft-recent-{index}"), recent_label(path, recent), true, None::<&str>))
+            .collect::<tauri::Result<_>>()?
+    };
+    let recent_refs: Vec<&dyn IsMenuItem<Wry>> = recent_items.iter().map(|item| item as &dyn IsMenuItem<Wry>).collect();
+    let recent_menu = Submenu::with_items(app_handle, strings.recent, true, &recent_refs)?;
+    // Working together: joining somebody's invitation (a link) belongs next to opening a file, merging
     // a copy of the file somebody else changed next to exporting one.
     let join_item = MenuItem::with_id(app_handle, "weft-join", strings.join, true, None::<&str>)?;
     let merge_item = MenuItem::with_id(app_handle, "weft-merge", strings.merge, true, None::<&str>)?;
@@ -150,7 +201,10 @@ fn build_menu(app_handle: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
     let save_as_item = MenuItem::with_id(app_handle, "weft-save-as", strings.save_as, true, Some("CmdOrCtrl+Shift+S"))?;
     let export_item = MenuItem::with_id(app_handle, "weft-export", strings.export, true, Some("CmdOrCtrl+E"))?;
     file_menu.prepend_items(&[
+        &new_item,
+        &duplicate_item,
         &open_item,
+        &recent_menu,
         &join_item,
         &save_item,
         &save_as_item,
@@ -198,12 +252,35 @@ fn build_menu(app_handle: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
 fn set_menu_language(#[cfg_attr(not(desktop), allow(unused_variables))] app: AppHandle, lang: String) -> Result<(), String> {
     #[cfg(desktop)]
     {
-        let menu = build_menu(&app, &lang).map_err(|e| e.to_string())?;
+        let state = app.state::<MenuState>();
+        *state.lang.lock().unwrap() = lang.clone();
+        let recent = state.recent.lock().unwrap().clone();
+        let menu = build_menu(&app, &lang, &recent).map_err(|e| e.to_string())?;
         app.set_menu(menu).map_err(|e| e.to_string())?;
     }
     #[cfg(not(desktop))]
     {
         let _ = lang;
+    }
+    Ok(())
+}
+
+/// The files "Datei > Zuletzt bearbeitet" offers, newest first - called by the frontend (see
+/// src/core/io/recentFiles.ts), which keeps the list, whenever it changes. A no-op on mobile (no
+/// native menu there).
+#[tauri::command]
+fn set_recent_files(#[cfg_attr(not(desktop), allow(unused_variables))] app: AppHandle, paths: Vec<String>) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        let state = app.state::<MenuState>();
+        *state.recent.lock().unwrap() = paths.clone();
+        let lang = state.lang.lock().unwrap().clone();
+        let menu = build_menu(&app, &lang, &paths).map_err(|e| e.to_string())?;
+        app.set_menu(menu).map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = paths;
     }
     Ok(())
 }
@@ -265,8 +342,13 @@ fn show_settings_window(app_handle: &AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    #[cfg_attr(not(any(target_os = "windows", target_os = "linux")), allow(unused_mut))]
+    #[cfg_attr(not(desktop), allow(unused_mut))]
     let mut builder = tauri::Builder::default();
+
+    #[cfg(desktop)]
+    {
+        builder = builder.manage(MenuState { lang: Mutex::new("de".to_string()), recent: Mutex::new(Vec::new()) });
+    }
 
     // First of all the plugins (it has to be): a second start of the program - which is what a click on
     // a "weft:" link is on Windows and Linux - hands its arguments (the link) to the running one, which
@@ -302,6 +384,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             set_menu_language,
+            set_recent_files,
             read_clipboard_file_paths,
             exit_app,
             cancel_exit
@@ -326,10 +409,24 @@ pub fn run() {
                 // German by default at boot, purely as a starting point - the main window calls
                 // set_menu_language with the actually-resolved language (system/de/en) within its
                 // first render, correcting this before the user has any real chance to notice.
-                let menu = build_menu(handle, "de")?;
+                let menu = build_menu(handle, "de", &[])?;
                 _app.set_menu(menu)?;
 
                 _app.on_menu_event(|app_handle, event| match event.id().as_ref() {
+                    "weft-new" => {
+                        let _ = app_handle.emit("weft://menu-new", ());
+                    }
+                    "weft-duplicate" => {
+                        let _ = app_handle.emit("weft://menu-duplicate", ());
+                    }
+                    id if id.starts_with("weft-recent-") => {
+                        // The position in the list the menu was last built from, sent on as that file's path.
+                        let index = id["weft-recent-".len()..].parse::<usize>().ok();
+                        let path = index.and_then(|i| app_handle.state::<MenuState>().recent.lock().unwrap().get(i).cloned());
+                        if let Some(path) = path {
+                            let _ = app_handle.emit("weft://menu-open-recent", path);
+                        }
+                    }
                     "weft-open" => {
                         let _ = app_handle.emit("weft://menu-open", ());
                     }

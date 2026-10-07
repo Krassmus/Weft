@@ -5,7 +5,10 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { createEmptyDocument } from "../../core/document/createEmptyDocument";
+import { plain } from "../../core/document/plain";
 import { useDocumentStore } from "../../core/document/store";
+import { createId } from "../../core/id";
 import { useCustomFontRegistration } from "../../core/fonts/registerCustomFonts";
 import { useSyncMenuLanguage } from "../../core/i18n/useSyncMenuLanguage";
 import { useTranslation } from "../../core/i18n/useTranslation";
@@ -21,7 +24,10 @@ import {
   readRecoveryCopy,
   saveDocumentAs,
   saveDocumentToPath,
+  saveRecoveryCopy,
 } from "../../core/io/fileIO";
+import { forgetRecentFile, rememberRecentFile, syncRecentMenu } from "../../core/io/recentFiles";
+import type { WeftDocument } from "../../core/types";
 import { enterFullscreenPreview, watchFullscreenExit } from "../../core/window/fullscreen";
 import { Canvas } from "./Canvas";
 import { CollabDialogs } from "./CollabDialogs";
@@ -144,6 +150,9 @@ export function EditorShell() {
   // you're working on". Re-saving the same reference on every render would be harmless but
   // pointless, so this only fires when filePath itself actually changes.
   useEffect(() => rememberLastPath(filePath), [filePath]);
+  // The same file goes to the top of "Datei > Zuletzt bearbeitet" (also once on launch, which is what
+  // fills the native menu with the list of the last session).
+  useEffect(() => syncRecentMenu(rememberRecentFile(filePath)), [filePath]);
 
   // Silently re-opens whatever was last open, once, on launch - only in Tauri (see
   // openDocumentAtPath) and only if nothing has already loaded a real document in the meantime
@@ -227,6 +236,9 @@ export function EditorShell() {
   const handleSaveAsRef = useRef<() => void>(() => {});
   const handleExportRef = useRef<() => void>(() => {});
   const handleOpenRef = useRef<() => void>(() => {});
+  const handleNewRef = useRef<() => void>(() => {});
+  const handleDuplicateRef = useRef<() => void>(() => {});
+  const handleOpenRecentRef = useRef<(path: string) => void>(() => {});
   const presentingRef = useRef(presenting);
   presentingRef.current = presenting;
   // "Undo"/"Redo" in the native "Edit" menu (see src-tauri/src/lib.rs, which owns the
@@ -263,6 +275,15 @@ export function EditorShell() {
     const unlistenOpen = listen("weft://menu-open", () => {
       if (!presentingRef.current) handleOpenRef.current();
     });
+    const unlistenNew = listen("weft://menu-new", () => {
+      if (!presentingRef.current) handleNewRef.current();
+    });
+    const unlistenDuplicate = listen("weft://menu-duplicate", () => {
+      if (!presentingRef.current) handleDuplicateRef.current();
+    });
+    const unlistenOpenRecent = listen<string>("weft://menu-open-recent", (event) => {
+      if (!presentingRef.current) handleOpenRecentRef.current(event.payload);
+    });
     const unlistenJoin = listen("weft://menu-join", () => {
       if (!presentingRef.current) useCollabDialog.getState().show("join");
     });
@@ -274,6 +295,9 @@ export function EditorShell() {
       void unlistenSaveAs.then((fn) => fn());
       void unlistenExport.then((fn) => fn());
       void unlistenOpen.then((fn) => fn());
+      void unlistenNew.then((fn) => fn());
+      void unlistenDuplicate.then((fn) => fn());
+      void unlistenOpenRecent.then((fn) => fn());
       void unlistenJoin.then((fn) => fn());
       void unlistenMerge.then((fn) => fn());
     };
@@ -338,8 +362,65 @@ export function EditorShell() {
   }
   handleExportRef.current = handleExport;
 
+  // Switching to another module replaces the one that is open: what is saved in its file already (the
+  // pending autosave is written first), what is not asks first - a module that was never saved has only
+  // the recovery copy, which the next one takes over.
+  async function confirmLeave(): Promise<boolean> {
+    const { filePath: path, doc: current } = useDocumentStore.getState();
+    if (path === null) {
+      if (current.content.modifiedAt === current.content.createdAt) return true;
+      return confirmDestructive(
+        "Das jetzige Lernmodul wurde noch nicht gespeichert und ist danach weg. Vorher mit „Speichern unter…“ in eine Datei sichern?\n\nTrotzdem fortfahren?",
+        "Nicht gespeichert",
+      );
+    }
+    try {
+      await flushAutosave();
+      return true;
+    } catch (err) {
+      return confirmDestructive(`Das jetzige Lernmodul ließ sich nicht speichern:\n${errorMessage(err)}\n\nTrotzdem fortfahren?`, "Nicht gespeichert");
+    }
+  }
+
+  // A module without a file of its own (new, or a copy) is kept in the recovery copy until it is saved - and
+  // not the file that was open before is what the next launch comes back to.
+  async function startUnsavedDocument(next: WeftDocument) {
+    loadDocument(next, null);
+    forgetLastPath();
+    try {
+      const { doc: loaded } = useDocumentStore.getState();
+      await saveRecoveryCopy(loaded);
+    } catch {
+      // The autosave tries again with the first change.
+    }
+  }
+
+  async function handleNew() {
+    if (!(await confirmLeave())) return;
+    await startUnsavedDocument(createEmptyDocument());
+  }
+  handleNewRef.current = handleNew;
+
+  // A copy of the open module under a new id - and a document of its own, with a new editing history: it has
+  // no tie to the original any more (no live connection, no shared folder, no merging of the two).
+  async function handleDuplicate() {
+    const { filePath: path, doc: current } = useDocumentStore.getState();
+    if (path !== null) {
+      try {
+        await flushAutosave();
+      } catch {
+        // The copy is made from what is open; the original just stays as it was last saved.
+      }
+    }
+    const now = new Date().toISOString();
+    const content = { ...plain(current.content), id: createId(), title: `${current.content.title} (Kopie)`, createdAt: now, modifiedAt: now };
+    await startUnsavedDocument({ formatVersion: current.formatVersion, content });
+  }
+  handleDuplicateRef.current = handleDuplicate;
+
   async function handleOpen() {
     try {
+      if (!(await confirmLeave())) return;
       const result = await openDocument();
       if (result) loadDocument(result.doc, result.path);
     } catch (err) {
@@ -347,6 +428,18 @@ export function EditorShell() {
     }
   }
   handleOpenRef.current = handleOpen;
+
+  async function handleOpenRecent(path: string) {
+    try {
+      if (!(await confirmLeave())) return;
+      const opened = await openDocumentAtPath(path);
+      if (opened) loadDocument(opened, path);
+    } catch (err) {
+      syncRecentMenu(forgetRecentFile(path));
+      alert(`${t("toolbar.openFailed")}\n${path}\n${errorMessage(err)}`);
+    }
+  }
+  handleOpenRecentRef.current = handleOpenRecent;
 
   return (
     <div className="weft-shell">

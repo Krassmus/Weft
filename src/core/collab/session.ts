@@ -46,18 +46,27 @@ export interface Invitation {
   relays: string[];
 }
 
+/** The scheme a link is shown with. Underneath it is the document's Automerge URL ("automerge:..."),
+ * which is what the repo finds it by; people only ever see "weft:...". */
+const LINK_SCHEME = "weft:";
+const AUTOMERGE_SCHEME = "automerge:";
+
 export function formatInvitation({ url, secret, relays }: Invitation): string {
   const query = new URLSearchParams();
   if (secret) query.set("k", secret);
   for (const relay of relays) query.append("r", relay);
   const text = query.toString();
-  return text ? `${url}?${text}` : url;
+  const link = LINK_SCHEME + url.replace(new RegExp(`^${AUTOMERGE_SCHEME}`), "");
+  return text ? `${link}?${text}` : link;
 }
 
+/** Reads a link as formatInvitation writes it - and also the "automerge:..." form such links had before
+ * they were called "weft:...", so links that were already handed out still work. */
 export function parseInvitation(text: string): Invitation {
-  const [url, query = ""] = text.trim().split("?");
+  const [head, query = ""] = text.trim().split("?");
+  const id = head.replace(/^(?:weft|automerge):(?:\/\/)?/i, "");
   const params = new URLSearchParams(query);
-  return { url, secret: params.get("k"), relays: params.getAll("r") };
+  return { url: AUTOMERGE_SCHEME + id, secret: params.get("k"), relays: params.getAll("r") };
 }
 
 function newSecret(): string {

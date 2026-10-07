@@ -3344,10 +3344,14 @@ button.weft-timeline-node-icon.is-animated:hover {
   margin: 0 48px 48px;
 }
 
+/* (The editor's own preview frame is limited in width and has a shadow - not here: the module takes all there is.) */
 .weft-player-stage .weft-preview-frame {
   width: 100%;
+  max-width: none;
   height: 100%;
   border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 /* Full screen: the frame is all there is; the button stays in the corner, faint until the pointer is near. */

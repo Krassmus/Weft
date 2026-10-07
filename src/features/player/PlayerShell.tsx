@@ -11,6 +11,7 @@ import { ModuleFrame } from "../editor/ModuleFrame";
 export function PlayerShell({ file }: { file: PlayerFile }) {
   const [fullscreen, setFullscreen] = useState(false);
   const fullscreenRef = useRef(false);
+  const frameRef = useRef<HTMLIFrameElement>(null);
   fullscreenRef.current = fullscreen;
 
   // Full screen left by other means (Escape, the window's own button) - the button follows.
@@ -23,6 +24,10 @@ export function PlayerShell({ file }: { file: PlayerFile }) {
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, []);
+  // The slide's rounded corners go in full screen: there it is to be as big as the screen allows.
+  useEffect(() => {
+    frameRef.current?.contentWindow?.postMessage({ source: "weft-host", type: "stage-radius", value: fullscreen ? "0px" : "14px" }, "*");
+  }, [fullscreen]);
   // Leaving to the editor (or another file) must not leave the window in full screen.
   useEffect(() => () => void exitFullscreenPreview(), []);
 
@@ -44,7 +49,7 @@ export function PlayerShell({ file }: { file: PlayerFile }) {
         </button>
       </div>
       <div className="weft-player-stage">
-        <ModuleFrame srcDoc={file.html} title={file.title || "Lernmodul"} />
+        <ModuleFrame srcDoc={file.html} title={file.title || "Lernmodul"} frameRef={frameRef} />
       </div>
     </div>
   );

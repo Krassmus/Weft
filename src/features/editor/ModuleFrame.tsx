@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import type { RefObject } from "react";
 import { saveBytesAsFile, showWarning } from "../../core/io/fileIO";
 
 /**
@@ -8,8 +9,9 @@ import { saveBytesAsFile, showWarning } from "../../core/io/fileIO";
  * receive them at all - and the files the module offers for download arrive here to be saved: a sandboxed
  * frame can't download, and a desktop window has no download of its own.
  */
-export function ModuleFrame({ srcDoc, title }: { srcDoc: string; title: string }) {
-  const frameRef = useRef<HTMLIFrameElement>(null);
+export function ModuleFrame({ srcDoc, title, frameRef: outerRef }: { srcDoc: string; title: string; frameRef?: RefObject<HTMLIFrameElement | null> }) {
+  const ownRef = useRef<HTMLIFrameElement>(null);
+  const frameRef = outerRef ?? ownRef;
 
   useEffect(() => {
     function onMessage(e: MessageEvent) {
@@ -22,7 +24,7 @@ export function ModuleFrame({ srcDoc, title }: { srcDoc: string; title: string }
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, []);
+  }, [frameRef]);
 
   return (
     <iframe

@@ -24,6 +24,12 @@ const ASSET_URLS_TAG = /(<script id="weft-asset-urls" type="application\/json">)
 const SAVE_VIA_HOST_TAG = /(<script id="weft-save-via-host" type="application\/json">)[\s\S]*?(<\/script>)/;
 const DATA_TAG = /<script id="weft-data" type="application\/json">([\s\S]*?)<\/script>/;
 
+/** In Weft's player the slide has rounded corners - except in full screen, where the window around it tells the page
+ * so (see PlayerShell.tsx). The corners show the letterbox colour behind the slide. */
+const PLAYER_STYLE = "<style>.weft-stage{border-radius:var(--weft-stage-radius,14px)}</style>";
+const PLAYER_SCRIPT =
+  '<script>window.addEventListener("message",function(e){var d=e.data;if(e.source===window.parent&&d&&d.source==="weft-host"&&d.type==="stage-radius")document.documentElement.style.setProperty("--weft-stage-radius",String(d.value));});</script>';
+
 /**
  * Makes a player file playable inside Weft: a sandboxed frame has no folder to read media from next to its page,
  * so every file of the archive is handed to the page directly (the player's own `weft-asset-urls` - the same
@@ -59,5 +65,5 @@ export async function loadPlayerFile(zipBytes: Uint8Array): Promise<PlayerFile> 
   html = html
     .replace(ASSET_URLS_TAG, (_, open: string, close: string) => open + JSON.stringify(urls).replace(/</g, "\\u003c") + close)
     .replace(SAVE_VIA_HOST_TAG, (_, open: string, close: string) => open + "true" + close);
-  return { html, title: module.title ?? "" };
+  return { html: html.replace("</head>", () => `${PLAYER_STYLE}\n</head>`).replace("</body>", () => `${PLAYER_SCRIPT}\n</body>`), title: module.title ?? "" };
 }

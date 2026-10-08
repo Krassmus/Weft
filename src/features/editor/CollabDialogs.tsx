@@ -6,6 +6,7 @@ import type { MergeResult } from "../../core/collab/merge";
 import { joinSharedDocument } from "../../core/collab/session";
 import { loadCollabOptions } from "../../core/collab/settings";
 import { pickDocumentFile } from "../../core/io/fileIO";
+import { SettingsWindow } from "../settings/SettingsWindow";
 import { useCollabDialog } from "./collabDialogStore";
 
 /** The frame of both dialogs: a small window over the editor that closes with Esc or a click beside it. */
@@ -158,10 +159,22 @@ function MergeDialog({ onClose }: { onClose: () => void }) {
 }
 
 /** The dialogs for working together that the File menu opens. */
+/** The app's settings (language, profile, network) as a dialog - the desktop app has them in a window of their own. */
+function SettingsDialog({ onClose }: { onClose: () => void }) {
+  return (
+    <DialogFrame title="Einstellungen" onClose={onClose}>
+      <div className="weft-settings-dialog">
+        <SettingsWindow />
+      </div>
+    </DialogFrame>
+  );
+}
+
 export function CollabDialogs() {
   const open = useCollabDialog((s) => s.open);
   const close = useCollabDialog((s) => s.close);
   if (open === "join") return <JoinDialog onClose={close} />;
   if (open === "merge") return <MergeDialog onClose={close} />;
+  if (open === "settings") return <SettingsDialog onClose={close} />;
   return null;
 }

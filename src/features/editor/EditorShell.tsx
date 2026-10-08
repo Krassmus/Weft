@@ -32,10 +32,13 @@ import { forgetRecentFile, rememberRecentFile, syncRecentMenu } from "../../core
 import type { WeftDocument } from "../../core/types";
 import { enterFullscreenPreview, watchFullscreenExit } from "../../core/window/fullscreen";
 import { Canvas } from "./Canvas";
+import { AppBar, FileMenu } from "./FileMenu";
+import type { MenuCommand } from "./FileMenu";
 import { CollabDialogs } from "./CollabDialogs";
 import { useCollabDialog } from "./collabDialogStore";
 import { Inspector } from "./Inspector";
 import { PresentationView } from "./PresentationView";
+import { hasNativeMenu } from "../../core/platform";
 import { PlayerShell } from "../player/PlayerShell";
 import { Sidebar } from "./Sidebar";
 import { useCopyPaste } from "./useCopyPaste";
@@ -330,6 +333,57 @@ export function EditorShell() {
     };
   }, []);
 
+  // Where there is no menu bar (a browser, a tablet) the same commands come from the app's own File menu (FileMenu.tsx) and,
+  // with a keyboard, from the usual shortcuts.
+  const inAppMenu = !hasNativeMenu();
+  function runCommand(command: MenuCommand) {
+    const editing = !presentingRef.current && playerRef.current === null;
+    switch (command) {
+      case "new":
+        return void handleNewRef.current();
+      case "open":
+        return void handleOpenRef.current();
+      case "join":
+        return void useCollabDialog.getState().show("join");
+      case "settings":
+        return void useCollabDialog.getState().show("settings");
+      case "duplicate":
+        return editing ? void handleDuplicateRef.current() : undefined;
+      case "save":
+        return editing ? void handleSaveRef.current() : undefined;
+      case "saveAs":
+        return editing ? void handleSaveAsRef.current() : undefined;
+      case "export":
+        return editing ? void handleExportRef.current() : undefined;
+      case "exportPlayer":
+        return editing ? void handleExportPlayerRef.current() : undefined;
+      case "merge":
+        return editing ? void useCollabDialog.getState().show("merge") : undefined;
+    }
+  }
+  const runCommandRef = useRef(runCommand);
+  runCommandRef.current = runCommand;
+  useEffect(() => {
+    if (!inAppMenu) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || presentingRef.current) return;
+      const key = e.key.toLowerCase();
+      const typing = e.target instanceof HTMLElement && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA");
+      const commands: Record<string, MenuCommand | undefined> = { s: e.shiftKey ? "saveAs" : "save", o: "open", n: "new", e: "export" };
+      const command = commands[key];
+      if (command) {
+        e.preventDefault();
+        runCommandRef.current(command);
+      } else if ((key === "z" || key === "y") && !typing && playerRef.current === null) {
+        e.preventDefault();
+        if (key === "y" || e.shiftKey) redo();
+        else undo();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [inAppMenu, undo, redo]);
+
   function handlePresent(startPageId: string | null) {
     setPresentStartPageId(startPageId);
     setPresenting(true);
@@ -484,7 +538,10 @@ export function EditorShell() {
   if (player) {
     return (
       <div className="weft-shell">
-        <PlayerShell file={player} />
+        <PlayerShell
+          file={player}
+          menu={inAppMenu ? <FileMenu onCommand={runCommand} onOpenRecent={(path) => void handleOpenRecentRef.current(path)} playerShown /> : undefined}
+        />
         <CollabDialogs />
       </div>
     );
@@ -492,6 +549,7 @@ export function EditorShell() {
 
   return (
     <div className="weft-shell">
+      {inAppMenu && <AppBar onCommand={runCommand} onOpenRecent={(path) => void handleOpenRecentRef.current(path)} />}
       <div className="weft-body" style={{ gridTemplateColumns: `${sidebarWidth}px 6px 1fr 300px` }}>
         <Sidebar />
         <div className="weft-resizer" onPointerDown={handleResizerPointerDown} title={t("toolbar.resizerTitle")} />

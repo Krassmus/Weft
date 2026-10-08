@@ -1,10 +1,12 @@
 import { create } from "zustand";
 
-/** Which of the dialogs for working together is open (see CollabDialogs.tsx) - opened from the File menu
- * (see EditorShell.tsx). */
+/** Which dialog from the File menu is open (see CollabDialogs.tsx): joining an invitation, merging a file, the
+ * app's settings (where there is no separate settings window - see hasNativeMenu). */
+export type MenuDialog = "join" | "merge" | "settings";
+
 export const useCollabDialog = create<{
-  open: "join" | "merge" | null;
-  show: (dialog: "join" | "merge") => void;
+  open: MenuDialog | null;
+  show: (dialog: MenuDialog) => void;
   close: () => void;
 }>((set) => ({
   open: null,

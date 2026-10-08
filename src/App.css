@@ -3372,3 +3372,142 @@ button.weft-timeline-node-icon.is-animated:hover {
 .weft-player-shell.is-fullscreen .weft-player-stage {
   margin: 0;
 }
+
+/* ---- The File menu inside the app, where there is no menu bar: a browser, a tablet (FileMenu.tsx) ---- */
+.weft-appbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--weft-border-subtle);
+  background: var(--weft-panel);
+}
+
+.weft-appbar-button,
+.weft-filemenu-button {
+  min-width: 36px;
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--weft-radius-sm);
+  background: transparent;
+  color: var(--weft-text);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.weft-appbar-button:hover:not(:disabled),
+.weft-filemenu-button:hover {
+  background: var(--weft-panel-raised);
+  border-color: var(--weft-border);
+}
+
+.weft-appbar-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.weft-filemenu {
+  position: relative;
+}
+
+.weft-filemenu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+}
+
+.weft-filemenu-popup {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 901;
+  min-width: 260px;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius);
+  background: var(--weft-panel-raised);
+  box-shadow: var(--weft-shadow);
+}
+
+.weft-filemenu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--weft-radius-sm);
+  background: transparent;
+  color: var(--weft-text);
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.weft-filemenu-item:hover:not(:disabled) {
+  background: var(--weft-accent);
+  color: #fff;
+}
+
+.weft-filemenu-item:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.weft-filemenu-recent {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weft-filemenu-separator {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--weft-border-subtle);
+}
+
+.weft-filemenu-heading {
+  padding: 4px 12px;
+  color: var(--weft-text-muted);
+  font-size: 11.5px;
+}
+
+/* A finger needs more room than a mouse pointer. */
+@media (pointer: coarse) {
+  .weft-appbar-button,
+  .weft-filemenu-button {
+    min-height: 44px;
+    min-width: 44px;
+    font-size: 16px;
+  }
+
+  .weft-filemenu-item {
+    min-height: 44px;
+    font-size: 16px;
+  }
+}
+
+/* The File menu in the black border of a player file. */
+.weft-player-menu {
+  margin-right: auto;
+}
+
+.weft-player-menu .weft-filemenu-button {
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #fff;
+}
+
+.weft-player-menu .weft-filemenu-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* The settings inside a dialog (SettingsDialog in CollabDialogs.tsx): the window's own heading is the dialog's. */
+.weft-settings-dialog .weft-settings-window {
+  height: auto;
+  max-height: 70vh;
+}
+
+.weft-settings-dialog .weft-settings-window-title {
+  display: none;
+}

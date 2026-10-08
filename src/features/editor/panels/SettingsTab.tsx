@@ -549,11 +549,13 @@ export function SettingsTab() {
           checked={content.keyboardNavigationEnabled}
           onChange={(e) => setKeyboardNavigationEnabled(e.target.checked)}
         />
-        <span>Navigation per Tastatur (Leertaste, Pfeiltasten)</span>
+        <span>Navigation per Tastatur und Tippen (Leertaste, Pfeiltasten, Klick auf die Folie)</span>
       </label>
       <p className="weft-hint">
-        Ausgeschaltet können Lernende nur noch über Buttons oder eine Quiz-Auswertung weiterblättern - vor allem
-        nicht mehr zurück, um ein bereits beantwortetes Quiz erneut zu versuchen.
+        Mit Leertaste und Pfeiltasten geht es vor und zurück; ein Klick oder Tipp auf die Folie (nicht auf einen Button,
+        ein Quiz oder ein anderes bedienbares Element) geht weiter. Ausgeschaltet können Lernende nur noch über Buttons
+        oder eine Quiz-Auswertung weiterblättern - vor allem nicht mehr zurück, um ein bereits beantwortetes Quiz
+        erneut zu versuchen.
       </p>
 
       <div className="weft-divider" />

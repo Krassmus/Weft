@@ -698,6 +698,32 @@
     else advanceOne();
   });
 
+  // ---- tap / click navigation ----
+  // A tablet has no Space or arrow keys (and on a computer a click is just as natural): a tap or click on the page means "Weiter",
+  // exactly like Space - unless it lands on something that does something of its own. That is everything a person operates (a link,
+  // a button, a field, a video's controls), and whole blocks whose parts are: a quiz (a tap beside an answer must not skip the
+  // question), the files of a files block (password field, downloads), the language switch and an embedded page. It is not
+  // a "Weiter" either when the person is selecting text (a drag ends in a click), and not on the finished screen (that has its own
+  // button - a stray tap shouldn't start the module over). Follows the setting of the keyboard navigation: a module that
+  // may only be left by its own buttons can't be tapped through either.
+  var TAP_INTERACTIVE =
+    "a, button, input, select, textarea, label, summary, video, audio, iframe, [contenteditable], [role='button']," +
+    ".weft-block-quiz, .weft-files, .weft-block-language, .weft-block-iframe";
+  var lastTapAdvanceAt = 0;
+  document.addEventListener("click", function (e) {
+    if (e.defaultPrevented || module.keyboardNavigationEnabled === false) return;
+    var target = e.target;
+    if (target && target.closest && target.closest(TAP_INTERACTIVE)) return;
+    var selection = window.getSelection ? window.getSelection() : null;
+    if (selection && String(selection).length > 0) return;
+    if (pos >= history.length) return;
+    // Two taps in a quick row (a double tap) are one.
+    var now = Date.now();
+    if (now - lastTapAdvanceAt < 300) return;
+    lastTapAdvanceAt = now;
+    advanceOne();
+  });
+
   // ---- rendering ----
   // Numeric [width, height] ratios (not a CSS aspect-ratio string) - stageStyle() below turns
   // these into --ar-w/--ar-h custom properties, which the CSS uses in a calc() to size the

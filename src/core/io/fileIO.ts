@@ -7,6 +7,9 @@ import { useAssetStore } from "../assets/assetStore";
 import { usedAssetIds } from "../document/usedAssets";
 import { useDocumentStore } from "../document/store";
 import { packDocument } from "./pack";
+import { libraryDemo, libraryMode } from "../platform";
+import { useExportReady } from "./exportReadyStore";
+import { baseName, readLibraryFile, writeExport, writeLibraryFile } from "./library";
 import { isPlayerArchive, loadPlayerFile } from "./playerFile";
 import type { PlayerFile } from "./playerFile";
 import { unpackDocument } from "./unpack";
@@ -36,6 +39,12 @@ function suggestedFileName(title: string, extension: string): string {
 }
 
 async function writeBytes(bytes: Uint8Array, suggestedName: string, dialogTitle: string, filterExtension: string) {
+  if (libraryMode()) {
+    // No save dialog on a tablet: the file is kept in the library's folder for exports and offered for sharing.
+    const path = await writeExport(suggestedName, bytes);
+    useExportReady.getState().show({ name: baseName(path), path, bytes });
+    return path;
+  }
   if (isTauri()) {
     const path = await save({
       title: dialogTitle,
@@ -73,6 +82,7 @@ function serialized<T>(task: () => Promise<T>): Promise<T> {
  * runs every few seconds in the background. Falls back to a plain overwrite if the rename isn't
  * possible (e.g. a permission the build doesn't have). */
 async function writeFileSafely(path: string, bytes: Uint8Array): Promise<void> {
+  if (libraryDemo()) return writeLibraryFile(path, bytes);
   const temporaryPath = `${path}.tmp`;
   try {
     await writeFile(temporaryPath, bytes);
@@ -225,13 +235,13 @@ export async function exportPlayerFile(doc: WeftDocument): Promise<string | null
 
 /** Lets the user pick a .weft / exported .weft.zip file and returns its raw bytes (and its path, in
  * the desktop app). */
-export async function pickDocumentFile(title = "Lernmodul öffnen"): Promise<{ bytes: Uint8Array; path: string | null } | null> {
+export async function pickDocumentFile(title = "Lernmodul öffnen"): Promise<{ bytes: Uint8Array; path: string | null; name: string } | null> {
   if (isTauri()) {
     // .weft (saved), .weft.zip / plain .zip (exported) are all just zip archives underneath
     // (unpackDocument doesn't care about the name), so all of them stay openable here.
     const path = await open({ title, multiple: false, filters: [{ name: "Weft-Lernmodul", extensions: ["weft", "zip"] }] });
     if (!path || Array.isArray(path)) return null;
-    return { bytes: await readFile(path), path };
+    return { bytes: await readFile(path), path, name: baseName(path) };
   }
   return new Promise((resolve) => {
     const input = document.createElement("input");
@@ -240,7 +250,7 @@ export async function pickDocumentFile(title = "Lernmodul öffnen"): Promise<{ b
     input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) return resolve(null);
-      resolve({ bytes: new Uint8Array(await file.arrayBuffer()), path: null });
+      resolve({ bytes: new Uint8Array(await file.arrayBuffer()), path: null, name: file.name });
     };
     input.click();
   });
@@ -266,6 +276,7 @@ export async function openDocument(): Promise<OpenedFile | null> {
  * (the file since moved, renamed, or deleted) fail with a plain thrown error rather than
  * swallowing it - the caller decides how to handle that not being available anymore. */
 export async function openDocumentAtPath(path: string): Promise<OpenedFile | null> {
+  if (libraryDemo()) return openBytes(await readLibraryFile(path), path);
   if (!isTauri()) return null;
   return openBytes(await readFile(path), path);
 }

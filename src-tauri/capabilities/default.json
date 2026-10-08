@@ -45,7 +45,7 @@
     },
     {
       "identifier": "fs:allow-remove",
-      "allow": [{ "path": "$APPCACHE/**" }]
+      "allow": [{ "path": "$APPCACHE/**" }, { "path": "$DOCUMENT/**" }, { "path": "$TEMP/**" }]
     },
     {
       "identifier": "shell:allow-execute",

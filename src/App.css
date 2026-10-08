@@ -3511,3 +3511,79 @@ button.weft-timeline-node-icon.is-animated:hover {
 .weft-settings-dialog .weft-settings-window-title {
   display: none;
 }
+
+/* ---- The library of modules on a tablet (LibraryDialogs.tsx) ---- */
+.weft-library {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.weft-library-list {
+  max-height: 55vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.weft-library-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px solid var(--weft-border-subtle);
+}
+
+.weft-library-open {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 10px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--weft-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.weft-library-open:hover {
+  background: var(--weft-panel-raised);
+}
+
+.weft-library-name {
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weft-library-name em {
+  color: var(--weft-text-muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.weft-library-meta {
+  color: var(--weft-text-muted);
+  font-size: 12px;
+}
+
+.weft-library-more {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.weft-library-actions,
+.weft-library-rename {
+  display: flex;
+  flex: 1 0 100%;
+  gap: 6px;
+  padding: 0 8px 10px;
+}
+
+.weft-library-rename input {
+  flex: 1;
+  min-width: 0;
+}

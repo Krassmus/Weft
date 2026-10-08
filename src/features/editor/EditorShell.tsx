@@ -35,10 +35,13 @@ import { Canvas } from "./Canvas";
 import { AppBar, FileMenu } from "./FileMenu";
 import type { MenuCommand } from "./FileMenu";
 import { CollabDialogs } from "./CollabDialogs";
+import { LibraryDialogs } from "./LibraryDialogs";
 import { useCollabDialog } from "./collabDialogStore";
 import { Inspector } from "./Inspector";
 import { PresentationView } from "./PresentationView";
-import { hasNativeMenu } from "../../core/platform";
+import { hasNativeMenu, libraryMode } from "../../core/platform";
+import { createLibraryFile, fromStoredPath, toStoredPath } from "../../core/io/library";
+import { packDocument } from "../../core/io/pack";
 import { PlayerShell } from "../player/PlayerShell";
 import { Sidebar } from "./Sidebar";
 import { useCopyPaste } from "./useCopyPaste";
@@ -57,7 +60,7 @@ const LAST_PATH_KEY = "weft:lastOpenedPath";
 
 function rememberLastPath(path: string | null) {
   try {
-    if (path) localStorage.setItem(LAST_PATH_KEY, path);
+    if (path) localStorage.setItem(LAST_PATH_KEY, toStoredPath(path));
   } catch {
     // Not fatal - just means next launch starts on a blank document instead.
   }
@@ -73,7 +76,8 @@ function forgetLastPath() {
 
 function readLastPath(): string | null {
   try {
-    return localStorage.getItem(LAST_PATH_KEY);
+    const stored = localStorage.getItem(LAST_PATH_KEY);
+    return stored ? fromStoredPath(stored) : null;
   } catch {
     return null;
   }
@@ -183,6 +187,8 @@ export function EditorShell() {
   // than greeting a returning user with an error dialog for something that isn't their fault
   // right now; it also forgets that path so this doesn't keep silently failing every launch.
   const restoredRef = useRef<Promise<unknown>>(Promise.resolve());
+  const ensureLibraryDocumentRef = useRef<() => Promise<void>>(async () => {});
+  const ensuringRef = useRef<Promise<void> | null>(null);
   useEffect(() => {
     const lastPath = readLastPath();
     if (!lastPath) {
@@ -192,7 +198,8 @@ export function EditorShell() {
         .then((doc) => {
           if (doc && useDocumentStore.getState().filePath === null) loadDocument(doc, null);
         })
-        .catch(() => undefined);
+        .catch(() => undefined)
+        .then(() => ensureLibraryDocumentRef.current());
       return;
     }
     restoredRef.current = openDocumentAtPath(lastPath)
@@ -201,7 +208,21 @@ export function EditorShell() {
         if (opened.kind === "player") openPlayer(opened.player, lastPath);
         else loadDocument(opened.doc, lastPath);
       })
-      .catch(() => forgetLastPath());
+      .catch(() => forgetLastPath())
+      .then(() => ensureLibraryDocumentRef.current());
+  }, []);
+
+  // A tablet may end the app any time after it goes to the background: what is unsaved is written right then.
+  useEffect(() => {
+    const flush = () => {
+      if (document.visibilityState === "hidden") void flushAutosave().catch(() => undefined);
+    };
+    document.addEventListener("visibilitychange", flush);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", flush);
+      window.removeEventListener("pagehide", flush);
+    };
   }, []);
 
   // A click on an invitation link ("weft:...") anywhere on the computer opens Weft and joins (see
@@ -402,6 +423,8 @@ export function EditorShell() {
       if (filePath) {
         await saveDocumentToPath(doc, filePath);
         useDocumentStore.getState().markSaved(doc.content);
+      } else if (libraryMode()) {
+        await ensureLibraryDocument();
       } else {
         const path = await saveDocumentAs(doc);
         if (path) {
@@ -416,12 +439,37 @@ export function EditorShell() {
   }
   handleSaveRef.current = handleSave;
 
+  // In the library every module has a file from the start (see core/io/library.ts): one that has none yet - the module the app
+  // starts with, one restored from the recovery copy - gets its file now.
+  // (One at a time: asked twice before the first is done - a double-fired effect, a quick second tap - it must not make two files.)
+  function ensureLibraryDocument(): Promise<void> {
+    if (!libraryMode()) return Promise.resolve();
+    ensuringRef.current ??= (async () => {
+      const { filePath: path, doc: current } = useDocumentStore.getState();
+      if (path !== null || usePlayerStore.getState().player) return;
+      const created = await createLibraryFile(current.content.title, await packDocument(current));
+      useDocumentStore.setState({ filePath: created });
+      useDocumentStore.getState().markSaved(current.content);
+      void clearRecoveryCopy();
+    })().finally(() => {
+      ensuringRef.current = null;
+    });
+    return ensuringRef.current;
+  }
+  ensureLibraryDocumentRef.current = ensureLibraryDocument;
+
   // Unlike handleSave, always asks where to save - even once the document already has a
   // filePath - and then adopts whatever path was chosen as the document's own going forward
   // (like most apps' Save As: this becomes the file Speichern/Cmd+S now silently overwrites,
   // not the one it was opened from or last saved to).
   async function handleSaveAs() {
     try {
+      if (libraryMode()) {
+        // A tablet app can't save to a place of its own choosing: "Speichern unter" is a copy handed on (the share sheet, see
+        // ExportReadyDialog) - the module itself stays where it is, in the library.
+        await saveDocumentAs(doc);
+        return;
+      }
       const path = await saveDocumentAs(doc);
       if (path) {
         useDocumentStore.setState({ filePath: path });
@@ -476,6 +524,11 @@ export function EditorShell() {
   // not the file that was open before is what the next launch comes back to.
   async function startUnsavedDocument(next: WeftDocument) {
     loadDocument(next, null);
+    if (libraryMode()) {
+      // (In the library there is no such thing as an unsaved module: it gets its file right away.)
+      await ensureLibraryDocument();
+      return;
+    }
     forgetLastPath();
     try {
       const { doc: loaded } = useDocumentStore.getState();
@@ -509,6 +562,11 @@ export function EditorShell() {
   handleDuplicateRef.current = handleDuplicate;
 
   async function handleOpen() {
+    if (libraryMode()) {
+      // The modules of the library to choose from (and the way to bring one in) - which asks before replacing what is open.
+      useCollabDialog.getState().show("library");
+      return;
+    }
     try {
       if (!(await confirmLeave())) return;
       const result = await openDocument();
@@ -543,6 +601,7 @@ export function EditorShell() {
           menu={inAppMenu ? <FileMenu onCommand={runCommand} onOpenRecent={(path) => void handleOpenRecentRef.current(path)} playerShown /> : undefined}
         />
         <CollabDialogs />
+        <LibraryDialogs onOpen={(path) => void handleOpenRecentRef.current(path)} currentPath={currentPath} />
       </div>
     );
   }
@@ -557,6 +616,7 @@ export function EditorShell() {
         <Inspector />
       </div>
       <CollabDialogs />
+      <LibraryDialogs onOpen={(path) => void handleOpenRecentRef.current(path)} currentPath={currentPath} />
     </div>
   );
 }

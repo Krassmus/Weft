@@ -1,3 +1,4 @@
+import { libraryDemo } from "../platform";
 import { useDocumentStore } from "../document/store";
 import { isTauri, saveDocumentToPath, saveRecoveryCopy } from "./fileIO";
 
@@ -23,7 +24,7 @@ const RETRY_DELAY_MS = 30000;
  * file to write to.
  */
 export function startAutosave(onFailure: (error: unknown) => void): () => void {
-  if (!isTauri()) return () => {};
+  if (!isTauri() && !libraryDemo()) return () => {};
   const stopFlushing = () => {
     flushAutosave = async () => {};
   };

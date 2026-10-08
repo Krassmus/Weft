@@ -10,7 +10,7 @@ import { SettingsWindow } from "../settings/SettingsWindow";
 import { useCollabDialog } from "./collabDialogStore";
 
 /** The frame of both dialogs: a small window over the editor that closes with Esc or a click beside it. */
-function DialogFrame({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function DialogFrame({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();

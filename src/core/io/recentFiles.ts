@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "./fileIO";
+import { fromStoredPath, toStoredPath } from "./library";
 
 /** How many files "Datei > Zuletzt geöffnet" offers. */
 export const MAX_RECENT_FILES = 10;
@@ -11,7 +12,7 @@ const RECENT_KEY = "weft:recentFiles";
 export function readRecentFiles(): string[] {
   try {
     const list: unknown = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
-    return Array.isArray(list) ? list.filter((path): path is string => typeof path === "string").slice(0, MAX_RECENT_FILES) : [];
+    return Array.isArray(list) ? list.filter((path): path is string => typeof path === "string").slice(0, MAX_RECENT_FILES).map(fromStoredPath) : [];
   } catch {
     return [];
   }
@@ -19,7 +20,7 @@ export function readRecentFiles(): string[] {
 
 function writeRecentFiles(paths: string[]): string[] {
   try {
-    localStorage.setItem(RECENT_KEY, JSON.stringify(paths));
+    localStorage.setItem(RECENT_KEY, JSON.stringify(paths.map(toStoredPath)));
   } catch {
     // Not fatal - the menu just starts empty next time.
   }

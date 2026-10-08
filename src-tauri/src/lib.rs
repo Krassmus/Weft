@@ -5,6 +5,9 @@
 // touches any of that is gated the same way - see run()'s own setup closure and
 // set_menu_language for how mobile still compiles (and behaves correctly - Settings lives in the
 // in-app sidebar tab there instead, needing no native menu item to open it) without any of it.
+mod open_files;
+#[cfg(target_os = "ios")]
+mod ios_open_urls;
 #[cfg(desktop)]
 use tauri::menu::{IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 #[cfg(desktop)]
@@ -376,6 +379,10 @@ pub fn run() {
     #[cfg_attr(not(desktop), allow(unused_mut))]
     let mut builder = tauri::Builder::default();
 
+    // The iPad: files that are opened with Weft are looked at before tao gets them (see src/ios_open_urls.rs).
+    #[cfg(target_os = "ios")]
+    ios_open_urls::install_when_launched();
+
     #[cfg(desktop)]
     {
         builder = builder.manage(MenuState { lang: Mutex::new("de".to_string()), recent: Mutex::new(Vec::new()), player: Mutex::new(false) });
@@ -417,11 +424,13 @@ pub fn run() {
             set_menu_language,
             set_recent_files,
             set_player_mode,
+            open_files::take_pending_open_files,
             read_clipboard_file_paths,
             exit_app,
             cancel_exit
         ])
         .setup(|_app| {
+            open_files::set_app(_app.handle());
             // The iPad: let the page reach the whole screen. A WKWebView keeps its content out of the status bar and the home
             // indicator on its own (`contentInsetAdjustmentBehavior` automatic) - and then the page's `viewport-fit=cover` and
             // `env(safe-area-inset-*)` (see index.html and App.css) do nothing: the app ends above the screen's rounded edge.
@@ -529,6 +538,12 @@ pub fn run() {
         .expect("error while building tauri application");
 
     app.run(|_app_handle, _event| {
+        // "In Weft öffnen" on the tablet: a .weft file that the system hands over (see open_files.rs).
+        #[cfg(target_os = "ios")]
+        if let tauri::RunEvent::Opened { urls } = &_event {
+            open_files::handle_opened(urls);
+        }
+
         // Cmd+Q / "Quit" in the app menu / the last window closing: an exit WITHOUT an exit code is
         // the user's, so hold it back until saved. exit_app's own exit carries one (0) and goes
         // straight through.

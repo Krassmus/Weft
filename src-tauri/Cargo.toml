@@ -67,6 +67,9 @@ arboard = "3"
 # The web view of the iPad app (see the setup hook in src/lib.rs). Already part of the build through wry - the same version.
 [target.'cfg(target_os = "ios")'.dependencies]
 objc2 = "0.6"
+block2 = "0.6"
+# For reading a file that "Open in Weft" hands over in place (src/open_files.rs).
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "alloc", "NSURL", "NSString"] }
 
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }

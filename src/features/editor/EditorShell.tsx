@@ -14,6 +14,7 @@ import { useCustomFontRegistration } from "../../core/fonts/registerCustomFonts"
 import { useSyncMenuLanguage } from "../../core/i18n/useSyncMenuLanguage";
 import { useTranslation } from "../../core/i18n/useTranslation";
 import { startDeepLinks } from "../../core/deepLink";
+import { startOpenFiles } from "../../core/openFiles";
 import { flushAutosave, startAutosave } from "../../core/io/autosave";
 import {
   clearRecoveryCopy,
@@ -229,6 +230,8 @@ export function EditorShell() {
   // core/deepLink.ts) - after the module that was open last has been restored, which a join would
   // otherwise be replaced by.
   useEffect(() => (isTauri() ? startDeepLinks(restoredRef.current) : undefined), []);
+  // ...and a .weft file handed over by the system ("In Weft öffnen") is opened in the same way, after that.
+  useEffect(() => (isTauri() ? startOpenFiles(restoredRef.current, (path) => void handleOpenRecentRef.current(path)) : undefined), []);
 
   // A module that is synced with a shared folder (see core/collab/folder/) picks that up again whenever
   // it is opened - and the sync of the module that was open before ends.

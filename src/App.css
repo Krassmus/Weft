@@ -3075,20 +3075,22 @@ button.weft-timeline-node-icon.is-animated:hover {
 }
 
 /* Dots on a slide in the sidebar: who is on it. */
+/* Who is on this slide: their avatars (picture, or the first letter on their colour), a little overlapping when there are several. */
 .weft-node-viewers {
   position: absolute;
   top: 4px;
   right: 4px;
   display: flex;
-  gap: 3px;
 }
 
 .weft-node-viewer {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-sizing: border-box;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+.weft-node-viewer + .weft-node-viewer {
+  margin-left: -7px;
 }
 
 .weft-presence-list {

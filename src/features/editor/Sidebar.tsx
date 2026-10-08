@@ -23,6 +23,7 @@ import { VariablesTab } from "./panels/VariablesTab";
 import { SlideThumbnail } from "./SlideThumbnail";
 import { useDragReorder } from "./useDragReorder";
 import { presenceColor, usePageViewers } from "../../core/collab/presence";
+import { PersonAvatar } from "./PersonAvatar";
 import { orderedValues } from "../../core/document/ordering";
 import { branchPageIds, sequenceOf } from "../../core/document/sequence";
 
@@ -244,7 +245,7 @@ function PageRow({
       {viewers.length > 0 && (
         <span className="weft-node-viewers">
           {viewers.map((person) => (
-            <span key={person.peerId} className="weft-node-viewer" style={{ background: presenceColor(person.peerId) }} title={person.name} />
+            <PersonAvatar key={person.peerId} name={person.name} color={presenceColor(person.peerId)} avatar={person.avatar} size={22} className="weft-node-viewer" />
           ))}
         </span>
       )}

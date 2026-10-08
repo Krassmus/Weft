@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import {
   addBranch,
@@ -22,7 +22,8 @@ import { SettingsTab } from "./panels/SettingsTab";
 import { VariablesTab } from "./panels/VariablesTab";
 import { SlideThumbnail } from "./SlideThumbnail";
 import { useDragReorder } from "./useDragReorder";
-import { presenceColor, usePageViewers } from "../../core/collab/presence";
+import { presenceColor, usePresence } from "../../core/collab/presence";
+import type { PeerPresence } from "../../core/collab/presence";
 import { PersonAvatar } from "./PersonAvatar";
 import { orderedValues } from "../../core/document/ordering";
 import { branchPageIds, sequenceOf } from "../../core/document/sequence";
@@ -76,12 +77,86 @@ export function Sidebar() {
 
       <div className="weft-sidebar-content">
         {tab === "folien" && (layoutMode ? <LayoutList /> : <SequenceTree openMenu={contextMenu.open} bind={bind} />)}
+        {tab === "folien" && !layoutMode && <ViewerLayer />}
         {tab === "variablen" && <VariablesTab />}
         {tab === "einstellungen" && <SettingsTab />}
       </div>
 
       <ContextMenu menu={contextMenu.menu} onClose={contextMenu.close} />
     </aside>
+  );
+}
+
+const VIEWER_SIZE = 22;
+
+/**
+ * The other people, as avatars on the slide each of them is on (top right of its thumbnail). All of them live in one layer over the
+ * list, positioned by measuring the thumbnails - so that when somebody goes to another slide the avatar glides there
+ * (400 ms) instead of disappearing from one place and appearing at the other. Several on one slide overlap a little.
+ */
+function ViewerLayer() {
+  const peers = usePresence((s) => s.peers);
+  // The slides can move (a slide added, moved or removed, the panel resized): measured again then.
+  useDocumentStore((s) => s.doc.content.sequence);
+  useDocumentStore((s) => s.doc.content.pages);
+  useDocumentStore((s) => s.doc.content.logicBlocks);
+  const layerRef = useRef<HTMLDivElement>(null);
+  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [, setResizes] = useState(0);
+
+  useLayoutEffect(() => {
+    const container = layerRef.current?.parentElement;
+    const people = Object.values(peers).filter((person) => person.pageId);
+    if (!container || people.length === 0) {
+      setPositions((previous) => (Object.keys(previous).length === 0 ? previous : {}));
+      return;
+    }
+    const origin = container.getBoundingClientRect();
+    const byPage = new Map<string, PeerPresence[]>();
+    for (const person of people.sort((a, b) => (a.peerId < b.peerId ? -1 : 1))) {
+      byPage.set(person.pageId as string, [...(byPage.get(person.pageId as string) ?? []), person]);
+    }
+    const next: Record<string, { x: number; y: number }> = {};
+    byPage.forEach((list, pageId) => {
+      const node = container.querySelector(`[data-page-id="${CSS.escape(pageId)}"]`);
+      if (!node) return;
+      const rect = node.getBoundingClientRect();
+      list.forEach((person, i) => {
+        next[person.peerId] = {
+          x: Math.round(rect.right - origin.left + container.scrollLeft - 4 - VIEWER_SIZE - i * (VIEWER_SIZE - 7)),
+          y: Math.round(rect.top - origin.top + container.scrollTop + 4),
+        };
+      });
+    });
+    setPositions((previous) => {
+      const keys = Object.keys(next);
+      const same = keys.length === Object.keys(previous).length && keys.every((k) => previous[k]?.x === next[k].x && previous[k]?.y === next[k].y);
+      return same ? previous : next;
+    });
+  });
+
+  useEffect(() => {
+    const container = layerRef.current?.parentElement;
+    if (!container || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => setResizes((n) => n + 1));
+    observer.observe(container);
+    if (container.firstElementChild) observer.observe(container.firstElementChild);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={layerRef} className="weft-viewer-layer" aria-hidden>
+      {Object.values(peers).map((person) => {
+        const position = positions[person.peerId];
+        return (
+          position && (
+            <span key={person.peerId} className="weft-viewer" style={{ transform: `translate(${position.x}px, ${position.y}px)` }}>
+              <PersonAvatar name={person.name} color={presenceColor(person.peerId)} avatar={person.avatar} size={VIEWER_SIZE} className="weft-node-viewer" />
+            </span>
+          )
+        );
+      })}
+    </div>
   );
 }
 
@@ -225,7 +300,6 @@ function PageRow({
   const page = useDocumentStore((s) => s.doc.content.pages[pageId]);
   const layout = useDocumentStore((s) => (page?.layoutId ? s.doc.content.layouts[page.layoutId] : undefined));
   const { dragClassName, ...dragAttrs } = dragProps;
-  const viewers = usePageViewers(pageId);
   if (!page) return null;
 
   return (
@@ -238,17 +312,11 @@ function PageRow({
       }
       onClick={onSelect}
       onContextMenu={onContextMenu}
+      data-page-id={pageId}
       {...dragAttrs}
     >
       <span className="weft-node-index">{index}</span>
       <SlideThumbnail blocks={[...orderedValues(layout?.blocks ?? {}), ...orderedValues(page.blocks)]} />
-      {viewers.length > 0 && (
-        <span className="weft-node-viewers">
-          {viewers.map((person) => (
-            <PersonAvatar key={person.peerId} name={person.name} color={presenceColor(person.peerId)} avatar={person.avatar} size={22} className="weft-node-viewer" />
-          ))}
-        </span>
-      )}
     </button>
   );
 }

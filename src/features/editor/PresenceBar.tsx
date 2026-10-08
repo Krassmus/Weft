@@ -1,34 +1,23 @@
 import { presenceColor, usePresence } from "../../core/collab/presence";
-import { useDocumentStore } from "../../core/document/store";
 import { PersonAvatar } from "./PersonAvatar";
+import { useCollabDialog } from "./collabDialogStore";
 
 /**
- * The other people connected to this module, as coloured avatars at the right end of the canvas
- * toolbar. Clicking one jumps to the slide that person is on.
+ * The other people connected to this module, as avatars at the right end of the canvas toolbar. A click on them opens the list of
+ * the people with the names they chose (PeopleDialog in CollabDialogs.tsx).
  */
 export function PresenceBar() {
   const peers = usePresence((s) => s.peers);
-  const select = useDocumentStore((s) => s.select);
-  const pages = useDocumentStore((s) => s.doc.content.pages);
   const people = Object.values(peers);
   if (people.length === 0) return null;
 
   return (
-    <div className="weft-presence-bar">
-      {people.map((person) => {
-        const canJump = !!person.pageId && !!pages[person.pageId];
-        return (
-          <button
-            key={person.peerId}
-            type="button"
-            className="weft-presence-avatar"
-            title={canJump ? `${person.name} - zur Folie springen` : person.name}
-            onClick={() => canJump && select({ type: "page", pageId: person.pageId as string })}
-          >
-            <PersonAvatar name={person.name} color={presenceColor(person.peerId)} avatar={person.avatar} />
-          </button>
-        );
-      })}
-    </div>
+    <button type="button" className="weft-presence-bar" title="Wer arbeitet mit?" onClick={() => useCollabDialog.getState().show("people")}>
+      {people.map((person) => (
+        <span key={person.peerId} className="weft-presence-avatar">
+          <PersonAvatar name={person.name} color={presenceColor(person.peerId)} avatar={person.avatar} />
+        </span>
+      ))}
+    </button>
   );
 }

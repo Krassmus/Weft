@@ -6,7 +6,9 @@ import type { MergeResult } from "../../core/collab/merge";
 import { joinSharedDocument } from "../../core/collab/session";
 import { loadCollabOptions } from "../../core/collab/settings";
 import { pickDocumentFile } from "../../core/io/fileIO";
+import { presenceColor, usePresence } from "../../core/collab/presence";
 import { SettingsWindow } from "../settings/SettingsWindow";
+import { PersonAvatar } from "./PersonAvatar";
 import { useCollabDialog } from "./collabDialogStore";
 
 /** The frame of both dialogs: a small window over the editor that closes with Esc or a click beside it. */
@@ -170,11 +172,34 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** Who is working on the module right now: the other people with the names they chose. */
+function PeopleDialog({ onClose }: { onClose: () => void }) {
+  const peers = usePresence((s) => s.peers);
+  const people = Object.values(peers).sort((a, b) => a.name.localeCompare(b.name, "de"));
+  return (
+    <DialogFrame title="Wer arbeitet mit?" onClose={onClose}>
+      {people.length === 0 ? (
+        <p className="weft-hint">Gerade ist niemand sonst verbunden.</p>
+      ) : (
+        <ul className="weft-people-list">
+          {people.map((person) => (
+            <li key={person.peerId}>
+              <PersonAvatar name={person.name} color={presenceColor(person.peerId)} avatar={person.avatar} size={36} />
+              <span className="weft-people-name">{person.name}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </DialogFrame>
+  );
+}
+
 export function CollabDialogs() {
   const open = useCollabDialog((s) => s.open);
   const close = useCollabDialog((s) => s.close);
   if (open === "join") return <JoinDialog onClose={close} />;
   if (open === "merge") return <MergeDialog onClose={close} />;
   if (open === "settings") return <SettingsDialog onClose={close} />;
+  if (open === "people") return <PeopleDialog onClose={close} />;
   return null;
 }

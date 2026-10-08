@@ -3060,13 +3060,23 @@ button.weft-timeline-node-icon.is-animated:hover {
   align-items: center;
 }
 
+/* (A button: it beats the toolbar's own button look.) */
+.weft-canvas-toolbar .weft-presence-bar {
+  padding: 2px;
+  border: 0;
+  background: none;
+}
+
+.weft-canvas-toolbar .weft-presence-bar:hover {
+  background: none;
+}
+
 .weft-canvas-toolbar .weft-presence-avatar {
   display: flex;
   margin-left: -6px;
   border-radius: 50%;
   border: 2px solid var(--weft-panel);
   background: none;
-  cursor: pointer;
   padding: 0;
 }
 
@@ -3074,23 +3084,41 @@ button.weft-timeline-node-icon.is-animated:hover {
   margin-left: 0;
 }
 
-/* Dots on a slide in the sidebar: who is on it. */
-/* Who is on this slide: their avatars (picture, or the first letter on their colour), a little overlapping when there are several. */
-.weft-node-viewers {
+/* Who is on which slide: the avatars (picture, or the first letter on their colour) over the slide list, one layer for all of them
+   (ViewerLayer in Sidebar.tsx) - each glides to its slide when its person goes to another one. */
+.weft-sidebar-content {
+  position: relative;
+}
+
+.weft-viewer-layer {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.weft-viewer {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: flex;
+  transition: transform 400ms ease;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weft-viewer {
+    transition: none;
+  }
 }
 
 .weft-node-viewer {
   box-sizing: border-box;
   border: 2px solid #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-}
-
-.weft-node-viewer + .weft-node-viewer {
-  margin-left: -7px;
 }
 
 .weft-presence-list {
@@ -3669,4 +3697,27 @@ html {
     width: 24px;
     height: 24px;
   }
+}
+
+/* The list of the people working on the module (PeopleDialog in CollabDialogs.tsx). */
+.weft-people-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.weft-people-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.weft-people-name {
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

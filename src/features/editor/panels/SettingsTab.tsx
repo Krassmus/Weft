@@ -553,7 +553,7 @@ export function SettingsTab() {
       </label>
       <p className="weft-hint">
         Mit Leertaste und Pfeiltasten geht es vor und zurück; ein Klick oder Tipp auf die Folie (nicht auf einen Button,
-        ein Quiz oder ein anderes bedienbares Element) geht weiter. Ausgeschaltet können Lernende nur noch über Buttons
+        ein Quiz oder ein anderes bedienbares Element) geht weiter, am linken Rand (das linke Fünftel) zurück. Ausgeschaltet können Lernende nur noch über Buttons
         oder eine Quiz-Auswertung weiterblättern - vor allem nicht mehr zurück, um ein bereits beantwortetes Quiz
         erneut zu versuchen.
       </p>

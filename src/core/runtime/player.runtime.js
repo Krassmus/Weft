@@ -700,7 +700,8 @@
 
   // ---- tap / click navigation ----
   // A tablet has no Space or arrow keys (and on a computer a click is just as natural): a tap or click on the page means "Weiter",
-  // exactly like Space - unless it lands on something that does something of its own. That is everything a person operates (a link,
+  // exactly like Space - and one in the left fifth of the screen means "Zurück" (like the left arrow) - unless it lands on something
+  // that does something of its own. That is everything a person operates (a link,
   // a button, a field, a video's controls), and whole blocks whose parts are: a quiz (a tap beside an answer must not skip the
   // question), the files of a files block (password field, downloads), the language switch and an embedded page. It is not
   // a "Weiter" either when the person is selecting text (a drag ends in a click), and not on the finished screen (that has its own
@@ -716,12 +717,14 @@
     if (target && target.closest && target.closest(TAP_INTERACTIVE)) return;
     var selection = window.getSelection ? window.getSelection() : null;
     if (selection && String(selection).length > 0) return;
-    if (pos >= history.length) return;
+    var goBack = e.clientX < window.innerWidth * 0.2;
+    if (!goBack && pos >= history.length) return;
     // Two taps in a quick row (a double tap) are one.
     var now = Date.now();
     if (now - lastTapAdvanceAt < 300) return;
     lastTapAdvanceAt = now;
-    advanceOne();
+    if (goBack) goPrev();
+    else advanceOne();
   });
 
   // ---- rendering ----

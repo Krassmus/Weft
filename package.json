@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "ios:device": "sh scripts/ios-device.sh",
     "ios:sim": "rm -rf src-tauri/gen/apple/build/weft_iOS.xcarchive src-tauri/gen/apple/build/arm64-sim && tauri ios build --debug --target aarch64-sim",
     "collab-server": "node scripts/collab-server.mjs"
   },

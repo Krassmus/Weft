@@ -190,12 +190,93 @@ function useArrowMove(doc: WeftDocument, selection: ReturnType<typeof useDocumen
  * cursor's fractional position across the (still old-sized) zoom box on wheel, then - once the DOM
  * has the new size, in a layout effect so this runs before paint - solving for the scroll offset
  * that puts that same fraction back under the cursor.
+ *
+ * On a tablet it is two fingers: pinching zooms the canvas only (the page's own pinch zoom is switched off, which would zoom the
+ * whole app and push the side panels out of view), around the point between the fingers - which also follows when the
+ * fingers move together, so one can pan and zoom in a single gesture.
  */
 function useStageZoom() {
   const [zoom, setZoom] = useState(1);
   const wrapRef = useRef<HTMLDivElement>(null);
   const zoomBoxRef = useRef<HTMLDivElement>(null);
   const pendingAnchorRef = useRef<{ clientX: number; clientY: number; fracX: number; fracY: number } | null>(null);
+  const zoomRef = useRef(1);
+  zoomRef.current = zoom;
+
+  // Pinching with two fingers.
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const fingers = new Map<number, { x: number; y: number }>();
+    let pinch: { startDistance: number; startZoom: number; fracX: number; fracY: number } | null = null;
+    let pinchedAt = 0;
+
+    function twoFingers(): [{ x: number; y: number }, { x: number; y: number }] | null {
+      const [a, b] = [...fingers.values()];
+      return a && b ? [a, b] : null;
+    }
+
+    function onDown(e: PointerEvent) {
+      if (e.pointerType !== "touch") return;
+      fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const pair = twoFingers();
+      const box = zoomBoxRef.current;
+      if (pinch || !pair || !box) return;
+      const boxRect = box.getBoundingClientRect();
+      if (boxRect.width === 0 || boxRect.height === 0) return;
+      const [a, b] = pair;
+      pinch = {
+        startDistance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+        startZoom: zoomRef.current,
+        // Which part of the slide is between the fingers - it stays there while the fingers spread.
+        fracX: ((a.x + b.x) / 2 - boxRect.left) / boxRect.width,
+        fracY: ((a.y + b.y) / 2 - boxRect.top) / boxRect.height,
+      };
+    }
+
+    function onMove(e: PointerEvent) {
+      const finger = fingers.get(e.pointerId);
+      if (!finger) return;
+      finger.x = e.clientX;
+      finger.y = e.clientY;
+      const pair = twoFingers();
+      if (!pinch || !pair) return;
+      // What a one-finger drag of a block or a marquee was doing is not carried on by the pinch.
+      e.stopPropagation();
+      const [a, b] = pair;
+      const nextZoom = clamp((pinch.startZoom * Math.hypot(a.x - b.x, a.y - b.y)) / pinch.startDistance, ZOOM_MIN, ZOOM_MAX);
+      pendingAnchorRef.current = { clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2, fracX: pinch.fracX, fracY: pinch.fracY };
+      if (nextZoom !== zoomRef.current) setZoom(nextZoom);
+      else applyAnchor(); // no size change: only the fingers moved - pan
+    }
+
+    function onUp(e: PointerEvent) {
+      if (!fingers.delete(e.pointerId)) return;
+      if (pinch) pinchedAt = Date.now();
+      if (fingers.size < 2) pinch = null;
+    }
+
+    // The tap that ends a pinch is not a click on a slide or a block.
+    function onClick(e: MouseEvent) {
+      if (Date.now() - pinchedAt < 350) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    }
+
+    wrap.addEventListener("pointerdown", onDown, true);
+    wrap.addEventListener("pointermove", onMove, true);
+    wrap.addEventListener("pointerup", onUp, true);
+    wrap.addEventListener("pointercancel", onUp, true);
+    wrap.addEventListener("click", onClick, true);
+    return () => {
+      wrap.removeEventListener("pointerdown", onDown, true);
+      wrap.removeEventListener("pointermove", onMove, true);
+      wrap.removeEventListener("pointerup", onUp, true);
+      wrap.removeEventListener("pointercancel", onUp, true);
+      wrap.removeEventListener("click", onClick, true);
+    };
+  }, []);
 
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -221,7 +302,8 @@ function useStageZoom() {
     return () => wrap.removeEventListener("wheel", onWheel);
   }, []);
 
-  useLayoutEffect(() => {
+  // Scrolls so that the part of the slide the anchor names (see pendingAnchorRef) is under the point it names.
+  function applyAnchor() {
     const anchor = pendingAnchorRef.current;
     pendingAnchorRef.current = null;
     const wrap = wrapRef.current;
@@ -238,7 +320,9 @@ function useStageZoom() {
     const targetContentY = boxContentTop + anchor.fracY * boxRect.height;
     wrap.scrollLeft = targetContentX - (anchor.clientX - wrapRect.left);
     wrap.scrollTop = targetContentY - (anchor.clientY - wrapRect.top);
-  }, [zoom]);
+  }
+
+  useLayoutEffect(applyAnchor, [zoom]);
 
   return { zoom, resetZoom: () => setZoom(1), wrapRef, zoomBoxRef };
 }

@@ -3639,3 +3639,9 @@ button.weft-timeline-node-icon.is-animated:hover {
 .weft-player-bar {
   padding-top: env(safe-area-inset-top);
 }
+
+/* No pinch zoom of the page itself (the browser would zoom the whole app): the slide area zooms on its own with two fingers (see
+   useStageZoom in Canvas.tsx), one finger still scrolls. */
+html {
+  touch-action: pan-x pan-y;
+}

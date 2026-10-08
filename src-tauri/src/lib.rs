@@ -438,6 +438,14 @@ pub fn run() {
                             if let Some(scroll_view) = scroll_view.as_ref() {
                                 // UIScrollViewContentInsetAdjustmentNever
                                 let _: () = objc2::msg_send![scroll_view, setContentInsetAdjustmentBehavior: 2isize];
+                            // No pinch zoom of the page: it would zoom the whole app (and push the side panels out of view).
+                            // The slide area has a pinch zoom of its own (useStageZoom in Canvas.tsx), made from the touches.
+                            let _: () = objc2::msg_send![scroll_view, setMinimumZoomScale: 1.0f64];
+                            let _: () = objc2::msg_send![scroll_view, setMaximumZoomScale: 1.0f64];
+                            let pinch: *mut AnyObject = objc2::msg_send![scroll_view, pinchGestureRecognizer];
+                            if let Some(pinch) = pinch.as_ref() {
+                                let _: () = objc2::msg_send![pinch, setEnabled: false];
+                            }
                             }
                         }
                     });

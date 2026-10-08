@@ -2,7 +2,7 @@ name: weft
 options:
   bundleIdPrefix: com.weft.app
   deploymentTarget:
-    iOS: 15.0
+    iOS: 16.0
 fileGroups: [../../src]
 configs:
   debug: debug

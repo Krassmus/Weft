@@ -31,12 +31,16 @@
     "deep-link": {
       "desktop": {
         "schemes": ["weft"]
-      }
+      },
+      "mobile": [{ "scheme": ["weft"], "appLink": false }]
     }
   },
   "bundle": {
     "active": true,
     "targets": "all",
+    "iOS": {
+      "minimumSystemVersion": "16.0"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

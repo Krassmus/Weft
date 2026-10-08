@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import settingsIconSvg from "../../../mockups/icons/admin.svg?raw";
 import { readRecentFiles } from "../../core/io/recentFiles";
 import { libraryMode } from "../../core/platform";
 import { useDocumentStore } from "../../core/document/store";
@@ -186,6 +187,15 @@ export function AppBar({
       >
         ↷
       </button>
+      {/* The app's settings (language, profile, network): the desktop app has them in its menu bar and a window of their own. */}
+      <button
+        type="button"
+        className="weft-appbar-button weft-appbar-icon"
+        title="Einstellungen"
+        aria-label="Einstellungen"
+        onClick={() => onCommand("settings")}
+        dangerouslySetInnerHTML={{ __html: settingsIconSvg }}
+      />
     </div>
   );
 }

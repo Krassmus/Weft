@@ -3645,3 +3645,26 @@ button.weft-timeline-node-icon.is-animated:hover {
 html {
   touch-action: pan-x pan-y;
 }
+
+/* The settings button at the right end of the bar: the icon in the text colour, like the rest. */
+.weft-appbar-icon {
+  margin-left: auto;
+}
+
+.weft-appbar-icon svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.weft-appbar-icon svg,
+.weft-appbar-icon svg [fill] {
+  fill: currentColor;
+}
+
+@media (pointer: coarse) {
+  .weft-appbar-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+}

@@ -40,8 +40,12 @@ export function PresentationView({
   }, []);
 
   async function handleExit() {
-    await exitFullscreenPreview();
-    onExit();
+    // Leaving the presentation must never depend on leaving full screen having worked.
+    try {
+      await exitFullscreenPreview();
+    } finally {
+      onExit();
+    }
   }
 
   return (

@@ -422,6 +422,28 @@ pub fn run() {
             cancel_exit
         ])
         .setup(|_app| {
+            // The iPad: let the page reach the whole screen. A WKWebView keeps its content out of the status bar and the home
+            // indicator on its own (`contentInsetAdjustmentBehavior` automatic) - and then the page's `viewport-fit=cover` and
+            // `env(safe-area-inset-*)` (see index.html and App.css) do nothing: the app ends above the screen's rounded edge.
+            // "Never" gives the page the full screen and leaves the safe areas to its own styles.
+            #[cfg(target_os = "ios")]
+            {
+                use tauri::Manager;
+                if let Some(window) = _app.get_webview_window("main") {
+                    let _ = window.with_webview(|webview| unsafe {
+                        use objc2::runtime::AnyObject;
+                        let web_view: *mut AnyObject = webview.inner().cast();
+                        if let Some(web_view) = web_view.as_ref() {
+                            let scroll_view: *mut AnyObject = objc2::msg_send![web_view, scrollView];
+                            if let Some(scroll_view) = scroll_view.as_ref() {
+                                // UIScrollViewContentInsetAdjustmentNever
+                                let _: () = objc2::msg_send![scroll_view, setContentInsetAdjustmentBehavior: 2isize];
+                            }
+                        }
+                    });
+                }
+            }
+
             // Windows (unpackaged/dev) and Linux (AppImage) don't have an installer that registers the link
             // scheme, so the program does it itself. (macOS: it is part of the app bundle's Info.plist.)
             #[cfg(any(windows, target_os = "linux"))]

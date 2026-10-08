@@ -64,6 +64,10 @@ arboard = "3"
 # hands it to the one already running - so there, a second launch has to pass the link on to the first
 # and end (its "deep-link" feature does exactly that). Deliberately not on macOS, where starting the
 # program a second time on purpose (to try collaboration on one computer) keeps working.
+# The web view of the iPad app (see the setup hook in src/lib.rs). Already part of the build through wry - the same version.
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2 = "0.6"
+
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 

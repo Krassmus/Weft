@@ -1,4 +1,5 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isTouchDevice } from "../platform";
 
 /**
  * The DOM Fullscreen API (`Element.requestFullscreen`) is unreliable inside Tauri's WKWebView -
@@ -11,9 +12,11 @@ export function isTauriRuntime(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
+// A tablet app fills the screen anyway - there is no window to put into full screen (and asking Tauri to fails there).
 export async function enterFullscreenPreview(): Promise<void> {
+  if (isTouchDevice()) return;
   if (isTauriRuntime()) {
-    await getCurrentWindow().setFullscreen(true);
+    await getCurrentWindow().setFullscreen(true).catch(() => undefined);
     return;
   }
   try {
@@ -27,11 +30,12 @@ export async function enterFullscreenPreview(): Promise<void> {
 }
 
 export async function exitFullscreenPreview(): Promise<void> {
+  if (isTouchDevice()) return;
   if (isTauriRuntime()) {
-    await getCurrentWindow().setFullscreen(false);
+    await getCurrentWindow().setFullscreen(false).catch(() => undefined);
     return;
   }
-  if (document.fullscreenElement) await document.exitFullscreen();
+  if (document.fullscreenElement) await document.exitFullscreen().catch(() => undefined);
 }
 
 /**
@@ -39,6 +43,8 @@ export async function exitFullscreenPreview(): Promise<void> {
  * native macOS green-button/menu toggle, ...). Returns a cleanup function.
  */
 export function watchFullscreenExit(onExit: () => void): () => void {
+  // (A tablet has no full screen to leave - and its window "resizing" is turning the device or a keyboard, not that.)
+  if (isTouchDevice()) return () => {};
   if (isTauriRuntime()) {
     let cancelled = false;
     let unlisten: (() => void) | undefined;

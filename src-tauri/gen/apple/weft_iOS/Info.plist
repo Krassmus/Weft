@@ -40,5 +40,16 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>weft</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>weft</string>
+		</dict>
+	</array>
 </dict>
 </plist>

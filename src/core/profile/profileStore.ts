@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import firstNamesText from "../../../mockups/vornamen.txt?raw";
+import lastNamesText from "../../../mockups/nachnamen.txt?raw";
 
 /**
  * Who this person is to the people they work with: a name and an optional avatar picture. It belongs
@@ -31,13 +33,30 @@ function write(key: string, value: string | null): void {
   }
 }
 
+/** The lines of a list (mockups/vornamen.txt, nachnamen.txt), each name once. */
+function namesOf(text: string): string[] {
+  return [...new Set(text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean))];
+}
+
+/** A name for somebody who has not chosen one: a first name and a last name drawn from the two lists ("Lyra Magnificus"), so that
+ * they are told apart from the others - and nicer to meet than a number. */
+function drawName(): string {
+  const firstNames = namesOf(firstNamesText);
+  const lastNames = namesOf(lastNamesText);
+  const pick = (list: string[]) => list[Math.floor(Math.random() * list.length)];
+  if (firstNames.length === 0 || lastNames.length === 0) return `Gast ${Math.floor(1000 + Math.random() * 9000)}`;
+  return `${pick(firstNames)} ${pick(lastNames)}`;
+}
+
+/** What earlier versions drew for somebody without a name ("Gast 4711"): not a name anybody chose. */
+const DRAWN_BEFORE = /^Gast \d{4}$/;
+
 function readName(): string {
   const stored = read(NAME_KEY) ?? read(LEGACY_NAME_KEY);
-  if (stored) return stored;
-  // Somebody who never chose a name is still told apart from the others.
-  const generated = `Gast ${Math.floor(1000 + Math.random() * 9000)}`;
-  write(NAME_KEY, generated);
-  return generated;
+  if (stored && !DRAWN_BEFORE.test(stored)) return stored;
+  const drawn = drawName();
+  write(NAME_KEY, drawn);
+  return drawn;
 }
 
 interface ProfileState {

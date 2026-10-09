@@ -1,7 +1,7 @@
 import { presenceColor, useBlockViewers } from "../../../core/collab/presence";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import type { CSSProperties, MutableRefObject, PointerEvent as ReactPointerEvent } from "react";
 import QRCode from "qrcode";
 // A generic "this is a video" indicator for the (non-interactive, see below) editor canvas -
 // deliberately not play.svg, which would look clickable even though clicking does nothing here;
@@ -183,6 +183,8 @@ export function BlockView({
   const [nearEdge, setNearEdge] = useState(false);
   const [snapGuides, setSnapGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
   const contextMenu = useContextMenu();
+  // Whether the last pointer-down on this (text) block hit its frame - see EditableRichText's frameSelect.
+  const frameSelectRef = useRef(false);
   const placeholderProblems = usePlaceholderProblems(block);
   const viewers = useBlockViewers(block.id);
   const position = livePositionOverride ?? liveOverride ?? block.position;
@@ -434,7 +436,16 @@ export function BlockView({
               : layerItems;
           contextMenu.open(event, items);
         }}
-        onPointerDown={handlePointerDownMove}
+        onPointerDown={(e) => {
+          if (e.button === 0 && block.kind === "text") {
+            const stage = stageRect();
+            const onFrame = !!stage && edgeDistancePx(e.clientX, e.clientY, position, stage) <= edgeThreshold(position, stage);
+            frameSelectRef.current = onFrame;
+            // A caret already in this text (the block was selected before) goes: the block is what is selected now.
+            if (onFrame && wrapRef.current?.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
+          }
+          handlePointerDownMove(e);
+        }}
         onPointerMove={handlePointerMoveHover}
         onPointerLeave={() => setNearEdge(false)}
       >
@@ -442,6 +453,7 @@ export function BlockView({
           <BlockContent
             block={block.kind === "arrow" && livePoints ? { ...block, points: livePoints } : block}
             selected={selected}
+            frameSelect={frameSelectRef}
             onUpdate={onUpdate}
             onDelete={onDelete}
             onBringToFront={onBringToFront}
@@ -493,6 +505,7 @@ export function BlockView({
 function BlockContent({
   block,
   selected,
+  frameSelect,
   onUpdate,
   onDelete,
   onBringToFront,
@@ -500,6 +513,7 @@ function BlockContent({
 }: {
   block: Block;
   selected: boolean;
+  frameSelect: MutableRefObject<boolean>;
   onUpdate?: (patch: Partial<Block>) => void;
   onDelete?: () => void;
   onBringToFront?: () => void;
@@ -516,6 +530,7 @@ function BlockContent({
           className={"weft-edit-block-text" + (block.scrollable ? " is-scrollable" : "")}
           html={textHtml(block, lang, defaultLang)}
           editable={selected}
+          frameSelect={frameSelect}
           onCommit={(html) => onUpdate?.(textHtmlPatch(block, lang, defaultLang, html))}
         />
       );
@@ -806,6 +821,7 @@ function EditableRichText({
   html,
   editable,
   autoFocus = true,
+  frameSelect,
   onCommit,
 }: {
   className: string;
@@ -816,6 +832,9 @@ function EditableRichText({
    * once several regions share a block (QuizBlock) - autofocusing all of them at once would just
    * mean whichever rendered last silently wins, so those instead wait for an explicit click. */
   autoFocus?: boolean;
+  /** Set while the block is being selected by a click on its frame (its edge, where it is grabbed to be moved): then selecting it
+   * must not put the caret into the text - the block is just selected, so that it can be copied, moved, ... as a whole. */
+  frameSelect?: MutableRefObject<boolean>;
   onCommit: (html: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -837,8 +856,12 @@ function EditableRichText({
   }, [html]);
 
   useEffect(() => {
-    if (editable && autoFocus) ref.current?.focus();
-  }, [editable, autoFocus]);
+    if (!editable) {
+      if (frameSelect) frameSelect.current = false;
+      return;
+    }
+    if (autoFocus && !frameSelect?.current) ref.current?.focus();
+  }, [editable, autoFocus, frameSelect]);
 
   function commit(nextHtml: string) {
     // Guard explicitly rather than relying on edit()'s own no-op detection upstream - blur fires

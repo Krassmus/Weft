@@ -265,6 +265,16 @@ export function renameLogicBlock(logicBlockId: string, name: string) {
  * rather than appended after it - appending would silently turn the old "sonst" into a
  * conditional branch and leave nothing as the fallback.
  */
+/** The condition a new branch or way out starts with: the first variable, compared with the value a Ja/Nein variable would have
+ * to be "Ja" for ("= Ja"), else with its empty value. */
+function defaultCondition(variable: VariableDef | undefined): VariableCondition {
+  return {
+    variableId: variable?.id ?? "",
+    comparator: "eq",
+    value: variable ? (isBooleanVariable(variable) ? true : variable.type === "number" ? 0 : "") : 0,
+  };
+}
+
 export function addBranch(logicBlockId: string, layoutId: string | null) {
   const page = emptyPage(layoutId);
   const branchId = createId();
@@ -275,12 +285,31 @@ export function addBranch(logicBlockId: string, layoutId: string | null) {
     const branch: Branch = {
       id: branchId,
       label: "Neuer Zweig",
-      condition: { variableId: m.variables[0]?.id ?? "", comparator: "eq", value: 0 },
+      condition: defaultCondition(m.variables[0]),
       pages: orderedIdRecord([page.id]),
     };
     logicBlock.branches.splice(Math.max(logicBlock.branches.length - 1, 0), 0, branch);
   });
   return branchId;
+}
+
+/**
+ * Moves a branch up (-1) or down (1) in the order the conditions are checked in. The last branch is always the "sonst" without a
+ * condition: the branch that ends up last loses its condition, and the one that was last and moves up gets a new one.
+ */
+export function moveBranch(logicBlockId: string, branchId: string, direction: -1 | 1) {
+  edit("Zweig verschieben", (m) => {
+    const branches = m.logicBlocks[logicBlockId]?.branches;
+    if (!branches) return;
+    const from = branches.findIndex((b) => b.id === branchId);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= branches.length) return;
+    const moved = plain(branches[from]);
+    branches.splice(from, 1);
+    branches.splice(to, 0, moved);
+    branches[branches.length - 1].condition = null;
+    for (const branch of branches.slice(0, -1)) if (!branch.condition) branch.condition = plain(defaultCondition(m.variables[0]));
+  });
 }
 
 export function removeBranch(logicBlockId: string, branchId: string) {
@@ -343,12 +372,7 @@ export function addJumpTarget(pageId: string, targetPageId: string) {
   edit("Sprungziel hinzufügen", (m) => {
     const jump = m.pages[pageId]?.jump;
     if (!jump) return;
-    const variable = m.variables[0];
-    jump.targets.push({
-      id: createId(),
-      pageId: targetPageId,
-      condition: plain({ variableId: variable?.id ?? "", comparator: "eq" as const, value: variable ? (isBooleanVariable(variable) ? true : variable.type === "number" ? 0 : "") : 0 }),
-    });
+    jump.targets.push({ id: createId(), pageId: targetPageId, condition: plain(defaultCondition(m.variables[0])) });
   });
 }
 

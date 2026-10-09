@@ -665,7 +665,7 @@ function QuizBlockCanvas({
           // The editor shows the AUTHOR's own ground truth (which option(s) are marked correct)
           // as an authoring aid - unlike the player, which starts every option unchecked since
           // the learner hasn't answered yet (see player.runtime.js).
-          const isCorrect = block.correctOptionIds.includes(opt.id);
+          const isCorrect = !block.open && block.correctOptionIds.includes(opt.id);
           return (
             <div
               key={opt.id}
@@ -682,7 +682,8 @@ function QuizBlockCanvas({
               <button
                 type="button"
                 className="weft-edit-block-quiz-option-checkbox"
-                title={isCorrect ? "Als falsch markieren" : "Als richtig markieren"}
+                title={block.open ? undefined : isCorrect ? "Als falsch markieren" : "Als richtig markieren"}
+                disabled={block.open}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   const correctOptionIds = isCorrect

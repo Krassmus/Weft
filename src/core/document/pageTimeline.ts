@@ -518,9 +518,11 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
 
   const lanes: TimelineLane[] = [bypassLane];
   for (const quiz of quizzes) {
+    // An open question has no wrong answer: whatever is submitted counts as "richtig" (see QuizBlock.open).
+    const advanceOnIncorrect = quiz.advanceOnIncorrect && !quiz.open;
     if (quiz.advanceOnCorrect) lanes.push(buildQuizLane(quiz, { kind: "timed", delayMs: 1500 }, "richtig"));
-    if (quiz.advanceOnIncorrect) lanes.push(buildQuizLane(quiz, { kind: "timed", delayMs: 1500 }, "falsch"));
-    if (!quiz.advanceOnCorrect && !quiz.advanceOnIncorrect) lanes.push(buildQuizLane(quiz));
+    if (advanceOnIncorrect) lanes.push(buildQuizLane(quiz, { kind: "timed", delayMs: 1500 }, "falsch"));
+    if (!quiz.advanceOnCorrect && !advanceOnIncorrect) lanes.push(buildQuizLane(quiz));
   }
   const videoLanes = videos.map((video) => ({ video, lane: buildVideoLane(video) }));
   for (const { lane } of videoLanes) lanes.push(lane);

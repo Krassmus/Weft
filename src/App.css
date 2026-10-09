@@ -1765,6 +1765,10 @@ button.weft-timeline-node-icon.is-animated:hover {
   color: #a1a1aa;
 }
 
+.weft-edit-block-quiz-option-checkbox:disabled {
+  cursor: default;
+}
+
 .weft-edit-block-quiz-option.is-correct .weft-edit-block-quiz-option-checkbox {
   color: #3b82f6;
 }

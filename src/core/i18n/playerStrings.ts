@@ -16,7 +16,15 @@ export type PlayerStringKey = "submit" | "correct" | "incorrect" | "restart" | "
  * without its own entry here falls back to English. */
 export type FilesStringKey = "filesTitle" | "filesPassword" | "filesUnlock" | "filesWrongPassword" | "filesDownload" | "filesFailed";
 
-type Strings = Record<PlayerStringKey | FilesStringKey, string>;
+type Strings = Record<PlayerStringKey | FilesStringKey | "thanks", string>;
+
+/** What an open question (no right or wrong, see QuizBlock.open) says once it is submitted. A language without its own falls back to English. */
+const THANKS: Record<string, string> = {
+  de: "Danke!", en: "Thank you!", fr: "Merci !", es: "¡Gracias!", it: "Grazie!", pt: "Obrigado!", ca: "Gràcies!", nl: "Bedankt!", sv: "Tack!",
+  da: "Tak!", nb: "Takk!", fi: "Kiitos!", pl: "Dziękujemy!", cs: "Děkujeme!", sk: "Ďakujeme!", hu: "Köszönjük!", ro: "Mulțumim!", bg: "Благодарим!",
+  hr: "Hvala!", ru: "Спасибо!", uk: "Дякуємо!", el: "Ευχαριστούμε!", tr: "Teşekkürler!", ar: "شكرًا!", he: "תודה!", hi: "धन्यवाद!", zh: "谢谢！",
+  zh_TW: "謝謝！", ja: "ありがとうございます！", ko: "감사합니다!", id: "Terima kasih!", vi: "Cảm ơn bạn!", th: "ขอบคุณ!",
+};
 
 function filesStrings(title: string, password: string, unlock: string, wrongPassword: string, download: string, failed: string): Record<FilesStringKey, string> {
   return { filesTitle: title, filesPassword: password, filesUnlock: unlock, filesWrongPassword: wrongPassword, filesDownload: download, filesFailed: failed };
@@ -40,7 +48,7 @@ function strings(
   play: string,
   language: string,
 ): Strings {
-  return { submit, correct, incorrect, restart, done, next, play, language, ...FILES_TRANSLATIONS.en };
+  return { submit, correct, incorrect, restart, done, next, play, language, thanks: THANKS.en, ...FILES_TRANSLATIONS.en };
 }
 
 // Keyed by language code (the part of a locale before the "_"); Chinese is also keyed by "zh_TW" for
@@ -88,8 +96,8 @@ const ALIASES: Record<string, string> = { no: "nb", nn: "nb", zh_HK: "zh_TW", zh
 /** The fixed texts for a locale ("fr_FR"): its own, else its language's, else English - and German
  * for `null`, a module without languages. */
 export function playerStringsFor(locale: string | null): Strings {
-  if (locale === null) return { ...TRANSLATIONS.de, ...FILES_TRANSLATIONS.de };
+  if (locale === null) return { ...TRANSLATIONS.de, ...FILES_TRANSLATIONS.de, thanks: THANKS.de };
   const base = locale.split("_")[0];
   const key = [locale, base].map((k) => ALIASES[k] ?? k).find((k) => k in TRANSLATIONS);
-  return { ...TRANSLATIONS[key ?? "en"], ...(FILES_TRANSLATIONS[key ?? "en"] ?? FILES_TRANSLATIONS.en) };
+  return { ...TRANSLATIONS[key ?? "en"], ...(FILES_TRANSLATIONS[key ?? "en"] ?? FILES_TRANSLATIONS.en), thanks: THANKS[key ?? "en"] ?? THANKS.en };
 }

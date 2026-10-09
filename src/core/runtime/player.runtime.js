@@ -1895,8 +1895,9 @@
     // answered: null until the quiz was submitted, then whether it was right - so the feedback text
     // follows a language change made afterwards, too.
     var answered = null;
+    var open = block.open === true; // an open question: nothing is right or wrong
     var showFeedbackTitle = function () {
-      feedbackTitle.textContent = uiString(answered ? "correct" : "incorrect");
+      feedbackTitle.textContent = uiString(open ? "thanks" : answered ? "correct" : "incorrect");
     };
     languageRefreshers.push(function () {
       submitLabel.nodeValue = uiString("submit");
@@ -1922,15 +1923,16 @@
           return input.value;
         });
       var correct =
-        checked.length === block.correctOptionIds.length &&
+        open ||
+        (checked.length === block.correctOptionIds.length &&
         checked.every(function (id) {
           return block.correctOptionIds.indexOf(id) !== -1;
-        });
+        }));
       (correct ? block.onCorrect : block.onIncorrect).forEach(applyEffect);
       // Each answer on its own: handled right (ticked if it is a correct one, left alone if it isn't) or wrong.
       block.options.forEach(function (option) {
         var ticked = checked.indexOf(option.id) !== -1;
-        var right = ticked === (block.correctOptionIds.indexOf(option.id) !== -1);
+        var right = open ? ticked : ticked === (block.correctOptionIds.indexOf(option.id) !== -1);
         ((right ? option.onRight : option.onWrong) || []).forEach(applyEffect);
       });
       // Fires both the plain, outcome-agnostic event (for a trigger configured against the
@@ -1954,7 +1956,7 @@
       feedbackIcon.innerHTML = correct ? QUIZ_CORRECT_ICON_SVG : QUIZ_INCORRECT_ICON_SVG;
       answered = correct;
       showFeedbackTitle();
-      feedback.className = "weft-quiz-feedback " + (correct ? "is-correct" : "is-incorrect");
+      feedback.className = "weft-quiz-feedback " + (open ? "is-thanks" : correct ? "is-correct" : "is-incorrect");
       feedback.hidden = false;
 
       if (correct ? block.advanceOnCorrect : block.advanceOnIncorrect) {

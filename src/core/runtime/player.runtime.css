@@ -340,6 +340,12 @@ body {
   color: #16a34a;
 }
 
+.weft-quiz-feedback.is-thanks {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+}
+
 .weft-quiz-feedback.is-incorrect {
   background: #fef2f2;
   border-color: #fecaca;

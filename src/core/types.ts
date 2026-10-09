@@ -233,6 +233,10 @@ export interface QuizBlock extends BaseBlock {
   questionHtml: string;
   options: QuizOption[];
   correctOptionIds: UUID[];
+  /** An open question rather than a test: nothing is right or wrong. Submitting it is thanked ("Danke!") instead of judged, correctOptionIds
+   * and onIncorrect/advanceOnIncorrect are ignored, onCorrect/advanceOnCorrect are what happens on submitting, and an answer's own effects
+   * are by whether it is ticked (onRight) or not (onWrong). Optional: a module saved before this is a test. */
+  open?: boolean;
   /** What happens once the quiz as a whole was answered right / wrong (all options as they should be / not). */
   onCorrect: VariableEffect[];
   onIncorrect: VariableEffect[];

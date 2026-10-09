@@ -1578,12 +1578,14 @@ function QuizOptionRow({
   option,
   label,
   variables,
+  open: openQuestion,
   onUpdate,
 }: {
   block: QuizBlock;
   option: QuizOption;
   label: string;
   variables: VariableDef[];
+  open: boolean;
   onUpdate: BlockPanelProps["onUpdate"];
 }) {
   const onRight = option.onRight ?? [];
@@ -1595,17 +1597,19 @@ function QuizOptionRow({
   return (
     <div className="weft-quiz-option">
       <div className="weft-quiz-option-row">
-        <input
-          type="checkbox"
-          title="Richtig?"
-          checked={block.correctOptionIds.includes(option.id)}
-          onChange={(e) => {
-            const correctOptionIds = e.target.checked
-              ? [...block.correctOptionIds, option.id]
-              : block.correctOptionIds.filter((id) => id !== option.id);
-            onUpdate({ correctOptionIds });
-          }}
-        />
+        {!openQuestion && (
+          <input
+            type="checkbox"
+            title="Richtig?"
+            checked={block.correctOptionIds.includes(option.id)}
+            onChange={(e) => {
+              const correctOptionIds = e.target.checked
+                ? [...block.correctOptionIds, option.id]
+                : block.correctOptionIds.filter((id) => id !== option.id);
+              onUpdate({ correctOptionIds });
+            }}
+          />
+        )}
         <span className="weft-quiz-option-row-label">{label}</span>
         <button
           type="button"
@@ -1632,11 +1636,13 @@ function QuizOptionRow({
       {open && (
         <div className="weft-quiz-option-effects">
           <p className="weft-hint">
-            Richtig behandelt heißt: angekreuzt, wenn die Antwort stimmt – und nicht angekreuzt, wenn sie nicht stimmt. Das gilt für jede Antwort einzeln, unabhängig davon, ob das Quiz insgesamt richtig ist.
+            {openQuestion
+              ? "Je nachdem, ob die Antwort angekreuzt wurde oder nicht."
+              : "Richtig behandelt heißt: angekreuzt, wenn die Antwort stimmt – und nicht angekreuzt, wenn sie nicht stimmt. Das gilt für jede Antwort einzeln, unabhängig davon, ob das Quiz insgesamt richtig ist."}
           </p>
-          <span className="weft-field-label">Richtig behandelt</span>
+          <span className="weft-field-label">{openQuestion ? "Wenn angekreuzt" : "Richtig behandelt"}</span>
           <EffectListEditor effects={onRight} variables={variables} onChange={(onRight) => patchOption({ onRight })} />
-          <span className="weft-field-label">Falsch behandelt</span>
+          <span className="weft-field-label">{openQuestion ? "Wenn nicht angekreuzt" : "Falsch behandelt"}</span>
           <EffectListEditor effects={onWrong} variables={variables} onChange={(onWrong) => patchOption({ onWrong })} />
         </div>
       )}
@@ -1651,6 +1657,13 @@ function QuizEditor({ block, onUpdate }: { block: QuizBlock; onUpdate: BlockPane
   return (
     <>
       <Collapsible title="Frage & Antworten">
+        <label className="weft-field">
+          <span>Art</span>
+          <select value={block.open ? "open" : "test"} onChange={(e) => onUpdate({ open: e.target.value === "open" })}>
+            <option value="test">Test (richtig oder falsch)</option>
+            <option value="open">Offene Frage (nichts ist falsch)</option>
+          </select>
+        </label>
         <LanguageSelect block={block} />
         <p className="weft-hint">Frage und Antworten direkt auf der Folie eingeben. Markierten Text hier formatieren.</p>
 
@@ -1661,6 +1674,7 @@ function QuizEditor({ block, onUpdate }: { block: QuizBlock; onUpdate: BlockPane
             option={opt}
             label={stripHtml(quizOptionHtml(block, opt.id, lang, defaultLang)) || "(leer)"}
             variables={variables}
+            open={!!block.open}
             onUpdate={onUpdate}
           />
         ))}
@@ -1673,7 +1687,7 @@ function QuizEditor({ block, onUpdate }: { block: QuizBlock; onUpdate: BlockPane
         </button>
       </Collapsible>
 
-      <Collapsible title="Bei richtiger Antwort" defaultOpen={false}>
+      <Collapsible title={block.open ? "Nach dem Abschicken" : "Bei richtiger Antwort"} defaultOpen={false}>
         <EffectListEditor effects={block.onCorrect} variables={variables} onChange={(onCorrect) => onUpdate({ onCorrect })} />
         <label className="weft-field weft-field-inline">
           <input
@@ -1687,22 +1701,24 @@ function QuizEditor({ block, onUpdate }: { block: QuizBlock; onUpdate: BlockPane
           <p className="weft-hint">Passiert 1,5 Sekunden nach Erscheinen von "Richtig", damit die Rückmeldung noch zu sehen ist.</p>
         )}
       </Collapsible>
-      <Collapsible title="Bei falscher Antwort" defaultOpen={false}>
-        <EffectListEditor effects={block.onIncorrect} variables={variables} onChange={(onIncorrect) => onUpdate({ onIncorrect })} />
-        <label className="weft-field weft-field-inline">
-          <input
-            type="checkbox"
-            checked={block.advanceOnIncorrect}
-            onChange={(e) => onUpdate({ advanceOnIncorrect: e.target.checked })}
-          />
-          <span>Weiter zur nächsten Folie</span>
-        </label>
-        {block.advanceOnIncorrect && (
-          <p className="weft-hint">
-            Passiert 1,5 Sekunden nach Erscheinen der Rückmeldung, damit sie noch zu sehen ist.
-          </p>
-        )}
-      </Collapsible>
+      {!block.open && (
+        <Collapsible title="Bei falscher Antwort" defaultOpen={false}>
+          <EffectListEditor effects={block.onIncorrect} variables={variables} onChange={(onIncorrect) => onUpdate({ onIncorrect })} />
+          <label className="weft-field weft-field-inline">
+            <input
+              type="checkbox"
+              checked={block.advanceOnIncorrect}
+              onChange={(e) => onUpdate({ advanceOnIncorrect: e.target.checked })}
+            />
+            <span>Weiter zur nächsten Folie</span>
+          </label>
+          {block.advanceOnIncorrect && (
+            <p className="weft-hint">
+              Passiert 1,5 Sekunden nach Erscheinen der Rückmeldung, damit sie noch zu sehen ist.
+            </p>
+          )}
+        </Collapsible>
+      )}
     </>
   );
 }

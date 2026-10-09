@@ -148,7 +148,7 @@ function ThumbBlock({ block }: { block: Block }) {
         <div className="weft-thumb-block-quiz-question" dangerouslySetInnerHTML={{ __html: quizQuestionHtml(block, lang, defaultLang) }} />
         <div className="weft-thumb-block-quiz-options">
           {block.options.map((opt) => {
-            const isCorrect = block.correctOptionIds.includes(opt.id);
+            const isCorrect = !block.open && block.correctOptionIds.includes(opt.id);
             return (
               <div key={opt.id} className={"weft-thumb-block-quiz-option" + (isCorrect ? " is-correct" : "")}>
                 <span

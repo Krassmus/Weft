@@ -10,7 +10,6 @@ import {
   addPageToSequence,
   movePageTo,
   moveSequenceNode,
-  removeBranch,
   removePageFromBranch,
   removeSequenceNodeAt,
 } from "../../core/document/actions";
@@ -23,6 +22,7 @@ import type { ContextMenuItem } from "./ContextMenu";
 import { SettingsTab } from "./panels/SettingsTab";
 import { VariablesTab } from "./panels/VariablesTab";
 import { SlideThumbnail } from "./SlideThumbnail";
+import { removeBranchWithConfirm } from "./removeBranchWithConfirm";
 import { pageLabels } from "../../core/document/pageLabels";
 import jumpIconSvg from "../../../mockups/icons/forward.svg?raw";
 import { useDragReorder } from "./useDragReorder";
@@ -536,7 +536,7 @@ function LogicBlockRow({
                   { label: "Folie hinzufügen", onClick: () => addPageToBranch(logicBlock.id, branch.id, firstLayoutId()) },
                   { label: "Sprungfolie hinzufügen", onClick: () => addJumpToBranch(logicBlock.id, branch.id) },
                   { separator: true },
-                  { label: "Zweig löschen", danger: true, onClick: () => removeBranch(logicBlock.id, branch.id) },
+                  { label: "Zweig löschen", danger: true, onClick: () => void removeBranchWithConfirm(logicBlock.id, branch.id) },
                 ])
               }
             >

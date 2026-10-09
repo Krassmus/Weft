@@ -1,7 +1,8 @@
-import { addBranch, moveBranch, removeBranch, renameBranch, renameLogicBlock, updateBranchCondition } from "../../../core/document/actions";
+import { addBranch, moveBranch, renameBranch, renameLogicBlock, updateBranchCondition } from "../../../core/document/actions";
 import { useDocumentStore } from "../../../core/document/store";
 import type { LogicBlock } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
+import { removeBranchWithConfirm } from "../removeBranchWithConfirm";
 import { ConditionFields } from "./ConditionFields";
 
 export function LogicBlockPanel({ logicBlock }: { logicBlock: LogicBlock }) {
@@ -68,7 +69,7 @@ export function LogicBlockPanel({ logicBlock }: { logicBlock: LogicBlock }) {
                 type="button"
                 className="weft-ghost-button"
                 disabled={logicBlock.branches.length <= 1}
-                onClick={() => removeBranch(logicBlock.id, branch.id)}
+                onClick={() => void removeBranchWithConfirm(logicBlock.id, branch.id)}
               >
                 Zweig löschen
               </button>

@@ -24,7 +24,7 @@ import { SettingsTab } from "./panels/SettingsTab";
 import { VariablesTab } from "./panels/VariablesTab";
 import { SlideThumbnail } from "./SlideThumbnail";
 import { pageLabels } from "../../core/document/pageLabels";
-import jumpIconSvg from "../../../mockups/icons/arr_eol-right.svg?raw";
+import jumpIconSvg from "../../../mockups/icons/forward.svg?raw";
 import { useDragReorder } from "./useDragReorder";
 import { presenceColor, usePresence } from "../../core/collab/presence";
 import type { PeerPresence } from "../../core/collab/presence";
@@ -334,7 +334,7 @@ function PageRow({
   );
 }
 
-/** A jump page in the list: no picture, but what it is and where it leads to (its first way out and how many there are). */
+/** A jump page in the list: no picture, just its icon (the tooltip says where it leads to: its first way out and how many there are). */
 function JumpRow({
   page,
   index,
@@ -370,12 +370,8 @@ function JumpRow({
       {...dragAttrs}
     >
       <span className="weft-node-index">{index}</span>
-      <span className="weft-node-jump-body">
+      <span className="weft-node-jump-body" title={first && labels[first] ? `Sprungfolie → ${labels[first]}${count > 1 ? ` (+${count - 1})` : ""}` : "Sprungfolie"}>
         <span className="weft-node-jump-icon" dangerouslySetInnerHTML={{ __html: jumpIconSvg }} />
-        <span className="weft-node-title">
-          Sprung{first && labels[first] ? ` → ${labels[first]}` : ""}
-          {count > 1 ? ` (+${count - 1})` : ""}
-        </span>
       </span>
     </button>
   );

@@ -85,9 +85,113 @@ export function Sidebar() {
         {tab === "variablen" && <VariablesTab />}
         {tab === "einstellungen" && <SettingsTab />}
       </div>
+      {tab === "folien" && !layoutMode && <AddSlideBar />}
 
       <ContextMenu menu={contextMenu.menu} onClose={contextMenu.close} />
     </aside>
+  );
+}
+
+type AddKind = "page" | "logic" | "jump";
+
+/**
+ * A row at the foot of the slide list that does not scroll with it: a + that opens a choice of what to add - a slide, a branching
+ * (logic block) or a jump slide. It goes right below the slide that is selected: in the main sequence after it, in a branch after
+ * it in that branch (a logic block can't be nested, so that one goes behind the whole branching instead). A selected logic block
+ * gets the new entry behind it; with nothing selected it goes to the end.
+ */
+function AddSlideBar() {
+  const [open, setOpen] = useState(false);
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!rowRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointer);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onPointer);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  function add(kind: AddKind) {
+    setOpen(false);
+    const { doc, selection, select } = useDocumentStore.getState();
+    const content = doc.content;
+    const sequence = sequenceOf(content);
+    // The page or logic block the selection is on (a block, a group, an event of a page count as that page).
+    const selectedPageId =
+      selection?.type === "page" ? selection.pageId
+      : selection?.type === "group" || selection?.type === "event" ? selection.pageId
+      : (selection?.type === "block" || selection?.type === "blocks") && selection.container.kind === "page" ? selection.container.pageId
+      : null;
+    const selectedLogicId = selection?.type === "logic" ? selection.logicBlockId : null;
+
+    let topIndex = sequence.length - 1; // after the last entry, unless the selection says otherwise
+    let branchPlace: { logicBlockId: string; branchId: string } | null = null;
+    if (selectedPageId !== null) {
+      const index = sequence.findIndex((node) => node.kind === "page" && node.pageId === selectedPageId);
+      if (index !== -1) topIndex = index;
+      else {
+        outer: for (const [logicIndex, node] of sequence.entries()) {
+          if (node.kind !== "logic") continue;
+          for (const branch of content.logicBlocks[node.logicBlockId]?.branches ?? []) {
+            if (branchPageIds(branch).includes(selectedPageId)) {
+              topIndex = logicIndex;
+              branchPlace = { logicBlockId: node.logicBlockId, branchId: branch.id };
+              break outer;
+            }
+          }
+        }
+      }
+    } else if (selectedLogicId !== null) {
+      const index = sequence.findIndex((node) => node.kind === "logic" && node.logicBlockId === selectedLogicId);
+      if (index !== -1) topIndex = index;
+    }
+
+    const layoutId = (selectedPageId && content.pages[selectedPageId]?.layoutId) || firstLayoutId();
+    if (kind === "logic") {
+      select({ type: "logic", logicBlockId: addLogicBlockToSequence(topIndex, layoutId) });
+      return;
+    }
+    let pageId: string;
+    if (branchPlace) {
+      pageId =
+        kind === "jump"
+          ? addJumpToBranch(branchPlace.logicBlockId, branchPlace.branchId, selectedPageId ?? undefined)
+          : addPageToBranch(branchPlace.logicBlockId, branchPlace.branchId, layoutId, selectedPageId ?? undefined);
+    } else {
+      pageId = kind === "jump" ? addJumpToSequence(topIndex) : addPageToSequence(topIndex, layoutId);
+    }
+    select({ type: "page", pageId });
+  }
+
+  return (
+    <div className="weft-sidebar-footer" ref={rowRef}>
+      {open && (
+        <div className="weft-add-menu" role="menu">
+          <button type="button" role="menuitem" onClick={() => add("page")}>
+            Folie
+          </button>
+          <button type="button" role="menuitem" onClick={() => add("logic")}>
+            Verzweigung
+          </button>
+          <button type="button" role="menuitem" onClick={() => add("jump")}>
+            Sprungfolie
+          </button>
+        </div>
+      )}
+      <button type="button" className="weft-add-slide" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span className="weft-add-slide-plus">+</span>
+        <span>Hinzufügen</span>
+      </button>
+    </div>
   );
 }
 

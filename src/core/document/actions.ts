@@ -310,22 +310,28 @@ export function updateBranchCondition(logicBlockId: string, branchId: string, pa
   });
 }
 
-export function addPageToBranch(logicBlockId: string, branchId: string, layoutId: string | null) {
+/** Where in a branch a new page goes: right after `afterPageId` if that is one of its pages, else at the end. */
+function indexInBranchAfter(branch: Branch, afterPageId: string | undefined): number | undefined {
+  const index = afterPageId === undefined ? -1 : branchPageIds(branch).indexOf(afterPageId);
+  return index === -1 ? undefined : index + 1;
+}
+
+export function addPageToBranch(logicBlockId: string, branchId: string, layoutId: string | null, afterPageId?: string) {
   const page = emptyPage(layoutId);
   edit("Folie zu Zweig hinzufügen", (m) => {
     m.pages[page.id] = page;
     const branch = m.logicBlocks[logicBlockId]?.branches.find((b) => b.id === branchId);
-    if (branch) insertOrdered(branch.pages, page.id, {});
+    if (branch) insertOrdered(branch.pages, page.id, {}, indexInBranchAfter(branch, afterPageId));
   });
   return page.id;
 }
 
-export function addJumpToBranch(logicBlockId: string, branchId: string) {
+export function addJumpToBranch(logicBlockId: string, branchId: string, afterPageId?: string) {
   const page = emptyJumpPage();
   edit("Sprungfolie zu Zweig hinzufügen", (m) => {
     m.pages[page.id] = page;
     const branch = m.logicBlocks[logicBlockId]?.branches.find((b) => b.id === branchId);
-    if (branch) insertOrdered(branch.pages, page.id, {});
+    if (branch) insertOrdered(branch.pages, page.id, {}, indexInBranchAfter(branch, afterPageId));
   });
   return page.id;
 }

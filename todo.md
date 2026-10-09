@@ -1,14 +1,22 @@
-## Dateien
-
-Weft sollte einen weiteren Element-Typ bekommen, der Dateien heißt. Man kann damit eine oder mehrere Dateien bereitstellen, die die Rezipienten des Moduls herunterladen können.
-Diese Dateien können optional über ein Passwort abgesichert werden. Erst wenn der Rezipient ein Passwort eingibt, werden die Dateien angezeigt. Die Dateien sind dabei wirklich verschlüsselt im Lernmodul abgelegt. Sie sind dabei AES-verschlüsselt. Das heißt, ohne das Passwort kommt man an die Dateien auch nicht dann ran, wenn man die .weft.zip Datei als ZIP öffnet und die Ordner durchschaut nach den Rohdateien. Man braucht dann trotzdem noch das Passwort. Aber die Metadaten wie Dateiname, Typ, Größe und so weiter stehen in den Metadaten der Folien und werden nicht verschlüsselt.
-
-## Player-Export
-
-Man exportiert eine Weft-Datei oder .weft.zip, die keine Metadaten enthält und demnach auch von Weft nicht bearbeitet werden kann. Aber wenn Weft sie öffnet, soll Weft das index.html abspielen. In dem Modus sind dann die Controls des Editors komplett verschwunden. Man sieht eigentlich nur ein Fenster mit schwarzem Rahmen, das das Lernmodul auf der ersten Seite anzeigt. Mit einem Button im schwarzen Rand kann man den Vollbildmodus triggern.
 
 ## Moderatornotizen
 
-# Fragen
+Ich hätte gerne ein Objekt auf den Folien, das später beim Abspielen gar nicht sichtbar ist. Es ist nur eine Art Notiz beim Bearbeiten - wie ein Post-It. Dabei soll die Notiz aus einer Top-Zeile bestehen, wo standardmäßig der Name des Nutzers (über Einstellungen eingegeben) stehen soll, sowie aus einem Text, der die Notiz an sich ist. Also ich klebe die Moderatornotiz in den Editor und steht schon das "Rasmus" und ich kann den Notiztext eingeben. Das Post-It ist in der Höhe begrenzt. Überschüssiger Text wird gescrollt. Und rechts neben der Top-Zeile ist ein Einklapp-Icon, womit ich die Notiz einklappen kann.
+Beim Abspielen des Lernmoduls soll absolut nichts von diesen Notizen sichtbar sein.
+
+## Barrierefreiheit
+
+Die Folien, die erstellt werden, sollen möglichst barrierefrei sein. Das bedeutet, der Inhalt der Folien soll sich auch für Nutzende mit Screenreadern erschließen lassen und auch mit Tastaturbedienung. Teste auf farbliche Kontraste kann Weft sicherlich nicht automatisch mit geben. Aber kannst Du schauen, ob und was gemacht werden muss, um die Barrierefreiheit möglichst zu gewährleisten? Es braucht vermutlich für Screenreader immer einen Button (den andere Nutzende nicht sehen), um "Weiter" zu triggern, oder? Wie sieht es mit Animationen aus - sollten die für Screanreader deaktiviert werden?
+
+## Mehr Schriften
+
+Einfach mehr
+
+## Audiodateien
+
+Es soll möglich sein, Audiodateien einzubinden. Wie Video müssten diese in ein generell abspielbares Format umgewandelt werden. Und wie das Video kann es zum Audio Stoppunkte geben, die bestimmte Events triggern können.
+
+# Offene Fragen generell
 
 Soll bei VanillaLM neben der background-color auch eine outside-color definiert werden, die dann die Farbe der schwarzen Ränder definiert? Die background-color ist ja eigentlich eine Information über die Hintergrundfarbe des Inhaltes. Andererseits sollte die Outside-Color immer Schwarz sein, wenn das Modul im Vollbildmodus bzw. auf dem Beamer gezeigt wird.
+

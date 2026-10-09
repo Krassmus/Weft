@@ -312,20 +312,27 @@
   // taken up to and including the one showing (so the last page reads 100), "remaining" the most
   // pages that can still follow it - along the rest of its own branch, then the longest branch of
   // every logic block still ahead.
+  function isJumpPage(pageId) {
+    return !!(module.pages[pageId] && module.pages[pageId].jump);
+  }
+
   function remainingPages() {
     var pageId = history[pos];
     var location = pageId ? findStartCursor(pageId) : null;
     if (!location) return 0;
-    var remaining = location.branch ? location.branch.pages.length - 1 - location.branch.pos : 0;
+    var remaining = 0;
+    if (location.branch) {
+      for (var r = location.branch.pos + 1; r < location.branch.pages.length; r++) if (!isJumpPage(location.branch.pages[r])) remaining++;
+    }
     for (var i = location.topIndex + 1; i < module.sequence.length; i++) {
       var node = module.sequence[i];
       if (node.kind === "page") {
-        remaining++;
+        if (!isJumpPage(node.pageId)) remaining++;
         continue;
       }
       var longest = 0;
       module.logicBlocks[node.logicBlockId].branches.forEach(function (branch) {
-        longest = Math.max(longest, branch.pageIds.length);
+        longest = Math.max(longest, branch.pageIds.filter(function (id) { return !isJumpPage(id); }).length);
       });
       remaining += longest;
     }
@@ -510,6 +517,38 @@
     return Object.assign({}, transition, { fromPageId: pageId });
   }
 
+  // A jump page (see PageJump in core/types.ts) is never shown: the learner is sent on at once, to the first of its ways out whose
+  // condition holds, else to its default. The page it names has to be part of the module; a way out that leads nowhere any more
+  // (the page was deleted) is skipped.
+  function jumpTarget(page) {
+    var targets = page.jump.targets || [];
+    for (var i = 0; i < targets.length; i++) {
+      if (findStartCursor(targets[i].pageId) && evalCondition(targets[i].condition)) return targets[i].pageId;
+    }
+    var fallback = page.jump.defaultPageId;
+    return fallback && findStartCursor(fallback) ? fallback : null;
+  }
+
+  // Follows jump pages from `node` to the page that is really shown (or the end). The cursor moves along: the sequence goes on
+  // after the page that was jumped to. A jump page with nowhere to go is passed over; so is one after too many jumps in a row (a
+  // loop the author made), so that such a module ends instead of hanging.
+  function resolveJumps(node) {
+    var jumps = 0;
+    while (node.type === "page" && module.pages[node.pageId] && module.pages[node.pageId].jump) {
+      var destination = jumps < 25 ? jumpTarget(module.pages[node.pageId]) : null;
+      jumps++;
+      var place = destination ? findStartCursor(destination) : null;
+      if (place) {
+        cursor = place;
+        node = { type: "page", pageId: destination };
+      } else {
+        advanceCursor();
+        node = resolveCurrentNode();
+      }
+    }
+    return node;
+  }
+
   function goNext() {
     // Captured before `pos` moves - this is the page being left, whose own transition (see
     // TransitionPanel.tsx) animates the swap to whatever renders next, in every branch below.
@@ -523,7 +562,7 @@
       return;
     }
     if (history.length > 0) advanceCursor();
-    var node = resolveCurrentNode();
+    var node = resolveJumps(resolveCurrentNode());
     if (node.type === "end") {
       pos = history.length; // one past the last page: the "finished" state
       render(pageTransition(outgoing));

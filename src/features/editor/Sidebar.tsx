@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import {
   addBranch,
+  addJumpToBranch,
+  addJumpToSequence,
   addLayout,
   addLogicBlockToSequence,
   addPageToBranch,
@@ -15,12 +17,14 @@ import {
 import type { PageContainerRef } from "../../core/document/actions";
 import { editedLayoutId, useDocumentStore } from "../../core/document/store";
 import { useTranslation } from "../../core/i18n/useTranslation";
-import type { LogicBlock } from "../../core/types";
+import type { LogicBlock, Page } from "../../core/types";
 import { ContextMenu, useContextMenu } from "./ContextMenu";
 import type { ContextMenuItem } from "./ContextMenu";
 import { SettingsTab } from "./panels/SettingsTab";
 import { VariablesTab } from "./panels/VariablesTab";
 import { SlideThumbnail } from "./SlideThumbnail";
+import { pageLabels } from "../../core/document/pageLabels";
+import jumpIconSvg from "../../../mockups/icons/arr_eol-right.svg?raw";
 import { useDragReorder } from "./useDragReorder";
 import { presenceColor, usePresence } from "../../core/collab/presence";
 import type { PeerPresence } from "../../core/collab/presence";
@@ -227,6 +231,9 @@ function SequenceTree({ openMenu, bind }: { openMenu: ReturnType<typeof useConte
         >
           + Logikblock
         </button>
+        <button type="button" className="weft-ghost-button weft-full-width" onClick={() => addJumpToSequence(-1)}>
+          + Sprungfolie
+        </button>
       </div>
     );
   }
@@ -248,6 +255,7 @@ function SequenceTree({ openMenu, bind }: { openMenu: ReturnType<typeof useConte
               onContextMenu={(e) =>
                 openMenu(e, [
                   { label: "Folie darunter einfügen", onClick: () => addPageToSequence(index, firstLayoutId()) },
+                  { label: "Sprungfolie darunter einfügen", onClick: () => addJumpToSequence(index) },
                   { label: "Logikblock darunter einfügen", onClick: () => addLogicBlockToSequence(index, firstLayoutId()) },
                   { separator: true },
                   { label: "Löschen", danger: true, onClick: () => removeSequenceNodeAt(index) },
@@ -266,6 +274,7 @@ function SequenceTree({ openMenu, bind }: { openMenu: ReturnType<typeof useConte
               onContextMenu={(e) =>
                 openMenu(e, [
                   { label: "Folie darunter einfügen", onClick: () => addPageToSequence(index, firstLayoutId()) },
+                  { label: "Sprungfolie darunter einfügen", onClick: () => addJumpToSequence(index) },
                   { label: "Logikblock darunter einfügen", onClick: () => addLogicBlockToSequence(index, firstLayoutId()) },
                   { label: "Zweig hinzufügen", onClick: () => addBranch(node.logicBlockId, firstLayoutId()) },
                   { separator: true },
@@ -302,6 +311,10 @@ function PageRow({
   const { dragClassName, ...dragAttrs } = dragProps;
   if (!page) return null;
 
+  if (page.jump) {
+    return <JumpRow page={page} index={index} active={active} isCurrent={isCurrent} onSelect={onSelect} onContextMenu={onContextMenu} dragClassName={dragClassName} dragAttrs={dragAttrs} />;
+  }
+
   return (
     <button
       type="button"
@@ -317,6 +330,53 @@ function PageRow({
     >
       <span className="weft-node-index">{index}</span>
       <SlideThumbnail blocks={[...orderedValues(layout?.blocks ?? {}), ...orderedValues(page.blocks)]} />
+    </button>
+  );
+}
+
+/** A jump page in the list: no picture, but what it is and where it leads to (its first way out and how many there are). */
+function JumpRow({
+  page,
+  index,
+  active,
+  isCurrent,
+  onSelect,
+  onContextMenu,
+  dragClassName,
+  dragAttrs,
+}: {
+  page: Page;
+  index: number | string;
+  active: boolean;
+  isCurrent?: boolean;
+  onSelect: () => void;
+  onContextMenu: (e: ReactMouseEvent) => void;
+  dragClassName: string;
+  dragAttrs: Omit<ReturnType<DragBind>, "dragClassName">;
+}) {
+  const content = useDocumentStore((s) => s.doc.content);
+  const labels = pageLabels(content);
+  const jump = page.jump;
+  if (!jump) return null;
+  const first = jump.targets[0]?.pageId ?? jump.defaultPageId;
+  const count = jump.targets.length + (jump.defaultPageId ? 1 : 0);
+  return (
+    <button
+      type="button"
+      className={"weft-node weft-node-page weft-node-jump" + (active ? " is-active" : isCurrent ? " is-current" : "") + dragClassName}
+      onClick={onSelect}
+      onContextMenu={onContextMenu}
+      data-page-id={page.id}
+      {...dragAttrs}
+    >
+      <span className="weft-node-index">{index}</span>
+      <span className="weft-node-jump-body">
+        <span className="weft-node-jump-icon" dangerouslySetInnerHTML={{ __html: jumpIconSvg }} />
+        <span className="weft-node-title">
+          Sprung{first && labels[first] ? ` → ${labels[first]}` : ""}
+          {count > 1 ? ` (+${count - 1})` : ""}
+        </span>
+      </span>
     </button>
   );
 }
@@ -374,6 +434,7 @@ function LogicBlockRow({
               onContextMenu={(e) =>
                 openMenu(e, [
                   { label: "Folie hinzufügen", onClick: () => addPageToBranch(logicBlock.id, branch.id, firstLayoutId()) },
+                  { label: "Sprungfolie hinzufügen", onClick: () => addJumpToBranch(logicBlock.id, branch.id) },
                   { separator: true },
                   { label: "Zweig löschen", danger: true, onClick: () => removeBranch(logicBlock.id, branch.id) },
                 ])
@@ -400,6 +461,7 @@ function LogicBlockRow({
                         label: "Folie zum Zweig hinzufügen",
                         onClick: () => addPageToBranch(logicBlock.id, branch.id, firstLayoutId()),
                       },
+                      { label: "Sprungfolie zum Zweig hinzufügen", onClick: () => addJumpToBranch(logicBlock.id, branch.id) },
                       { separator: true },
                       {
                         label: "Löschen",

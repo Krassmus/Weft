@@ -30,7 +30,7 @@ import { assignPatch, plain, removeWhere } from "./plain";
 import { branchPageIds } from "./sequence";
 import { DEFAULT_TRANSITION_DURATION_MS } from "./transitions";
 import { defaultLanguageOf, rotateDefaultLanguage } from "./translations";
-import { defaultInitialValue } from "./variables";
+import { defaultInitialValue, isBooleanVariable } from "./variables";
 import { defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
 import { blockEffectNodeId, createDefaultPageTimeline, setTriggerEdge, syncPageTimelineEvents } from "./pageTimeline";
 import { defaultArrowColor } from "./arrow";
@@ -51,6 +51,11 @@ function emptyPage(layoutId: string | null): Page {
     transition: { type: "none", durationMs: 500 },
     timeline: createDefaultPageTimeline(),
   };
+}
+
+/** A jump page (see PageJump): no blocks, never shown - what it does is in `jump`. */
+function emptyJumpPage(): Page {
+  return { ...emptyPage(null), jump: { targets: [], defaultPageId: null } };
 }
 
 // ---- Module settings -------------------------------------------------
@@ -129,6 +134,15 @@ export function removeVariable(id: string) {
 export function addPageToSequence(afterIndex: number, layoutId: string | null) {
   const page = emptyPage(layoutId);
   edit("Folie hinzufügen", (m) => {
+    m.pages[page.id] = page;
+    insertOrdered(m.sequence, page.id, { kind: "page", pageId: page.id }, afterIndex + 1);
+  });
+  return page.id;
+}
+
+export function addJumpToSequence(afterIndex: number) {
+  const page = emptyJumpPage();
+  edit("Sprungfolie hinzufügen", (m) => {
     m.pages[page.id] = page;
     insertOrdered(m.sequence, page.id, { kind: "page", pageId: page.id }, afterIndex + 1);
   });
@@ -304,6 +318,69 @@ export function addPageToBranch(logicBlockId: string, branchId: string, layoutId
     if (branch) insertOrdered(branch.pages, page.id, {});
   });
   return page.id;
+}
+
+export function addJumpToBranch(logicBlockId: string, branchId: string) {
+  const page = emptyJumpPage();
+  edit("Sprungfolie zu Zweig hinzufügen", (m) => {
+    m.pages[page.id] = page;
+    const branch = m.logicBlocks[logicBlockId]?.branches.find((b) => b.id === branchId);
+    if (branch) insertOrdered(branch.pages, page.id, {});
+  });
+  return page.id;
+}
+
+// ---- Jump pages ------------------------------------------------------------
+
+/** A new way out at the end of the list of a jump page's conditions: its condition starts as "first variable = its empty value". */
+export function addJumpTarget(pageId: string, targetPageId: string) {
+  edit("Sprungziel hinzufügen", (m) => {
+    const jump = m.pages[pageId]?.jump;
+    if (!jump) return;
+    const variable = m.variables[0];
+    jump.targets.push({
+      id: createId(),
+      pageId: targetPageId,
+      condition: plain({ variableId: variable?.id ?? "", comparator: "eq" as const, value: variable ? (isBooleanVariable(variable) ? true : variable.type === "number" ? 0 : "") : 0 }),
+    });
+  });
+}
+
+export function updateJumpTarget(pageId: string, targetId: string, patch: { pageId?: string; condition?: Partial<VariableCondition> }) {
+  edit("Sprungziel ändern", (m) => {
+    const target = m.pages[pageId]?.jump?.targets.find((t) => t.id === targetId);
+    if (!target) return;
+    if (patch.pageId !== undefined) target.pageId = patch.pageId;
+    if (patch.condition) target.condition = plain({ ...target.condition, ...patch.condition });
+  });
+}
+
+export function removeJumpTarget(pageId: string, targetId: string) {
+  edit("Sprungziel entfernen", (m) => {
+    const jump = m.pages[pageId]?.jump;
+    if (jump) removeWhere(jump.targets, (t) => t.id === targetId);
+  });
+}
+
+/** Moves a way out up (-1) or down (1) in the order they are checked in. */
+export function moveJumpTarget(pageId: string, targetId: string, direction: -1 | 1) {
+  edit("Reihenfolge ändern", (m) => {
+    const targets = m.pages[pageId]?.jump?.targets;
+    if (!targets) return;
+    const from = targets.findIndex((t) => t.id === targetId);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= targets.length) return;
+    const moved = plain(targets[from]);
+    targets.splice(from, 1);
+    targets.splice(to, 0, moved);
+  });
+}
+
+export function setJumpDefault(pageId: string, targetPageId: string | null) {
+  edit("Standardziel ändern", (m) => {
+    const jump = m.pages[pageId]?.jump;
+    if (jump) jump.defaultPageId = targetPageId;
+  });
 }
 
 export function removePageFromBranch(logicBlockId: string, branchId: string, pageId: string) {
@@ -1175,6 +1252,7 @@ export function pastePageAfter(afterPageId: string, sourcePage: Page): string | 
       layoutId: sourcePage.layoutId,
       blocks,
       groups,
+      ...(sourcePage.jump && { jump: plain(sourcePage.jump) }),
       transition: plain(sourcePage.transition),
       // Cloned first, then pruned below: edges naming the *old* blocks' ids no longer mean anything.
       timeline: structuredClone(sourcePage.timeline),

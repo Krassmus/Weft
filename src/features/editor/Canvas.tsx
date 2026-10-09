@@ -34,6 +34,7 @@ import { BlockView } from "./blocks/BlockView";
 import type { HandleId } from "./blocks/resizeMath";
 import { clampGroupMove, clampMove, groupBoundingBox, HANDLES, resizeFromHandle, round, scalePositionWithinBox } from "./blocks/resizeMath";
 import { Timeline } from "./Timeline";
+import { JumpOverview } from "./panels/JumpPanel";
 import { orderedValues } from "../../core/document/ordering";
 import { PresenceBar } from "./PresenceBar";
 import { branchPageIds, sequenceOf } from "../../core/document/sequence";
@@ -923,6 +924,8 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
               ))}
             </div>
           </div>
+        ) : target?.kind === "page" && target.page.jump ? (
+          <JumpOverview page={target.page} />
         ) : target?.kind === "page" ? (
           <div className="weft-canvas-stage-zoom" ref={zoomBoxRef}>
             <div
@@ -1060,7 +1063,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
           <div className="weft-canvas-empty">Noch keine Folie – lege links eine an.</div>
         )}
       </div>
-      {target?.kind === "page" && <Timeline page={target.page} />}
+      {target?.kind === "page" && !target.page.jump && <Timeline page={target.page} />}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { BlockPanel } from "./panels/BlockPanel";
 import { EventPanel } from "./panels/EventPanel";
 import { GroupPanel } from "./panels/GroupPanel";
 import { LayoutPanel } from "./panels/LayoutPanel";
+import { JumpPanel } from "./panels/JumpPanel";
 import { LogicBlockPanel } from "./panels/LogicBlockPanel";
 import { MultiBlockPanel } from "./panels/MultiBlockPanel";
 import { PagePanel } from "./panels/PagePanel";
@@ -48,6 +49,7 @@ function InspectorBody({
 
   if (selection.type === "page") {
     const page = doc.content.pages[selection.pageId];
+    if (page?.jump) return <JumpPanel page={page} />;
     return page ? <PagePanel page={page} /> : <EmptyState />;
   }
 

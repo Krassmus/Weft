@@ -617,9 +617,30 @@ export interface BlockGroup {
   blockIds: UUID[];
 }
 
+/** One way out of a jump page: where to go if `condition` holds. */
+export interface JumpTarget {
+  id: UUID;
+  /** The page to go to (by id - the page may have been deleted since: then this way is skipped). */
+  pageId: UUID;
+  condition: VariableCondition;
+}
+
+/**
+ * What makes a page a jump page: it is never shown. The moment the learner gets there he is sent on to another page - the
+ * first of `targets` whose condition holds (in this order, like the branches of a logic block), else `defaultPageId` (the
+ * "sonst"). Without a default and with nothing that holds, the jump page is just passed over. The sequence goes on after
+ * the page that was jumped to, as if the learner had got there the normal way.
+ */
+export interface PageJump {
+  targets: JumpTarget[];
+  defaultPageId: UUID | null;
+}
+
 export interface Page {
   id: UUID;
   layoutId: UUID | null;
+  /** Set for a jump page (see PageJump): then the page has no blocks and is not shown. */
+  jump?: PageJump;
   /** By block id - see Layout.blocks. */
   blocks: Record<UUID, Block>;
   /** This page's own groups (see BlockGroup) - empty for the vast majority of pages, which never

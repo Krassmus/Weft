@@ -400,6 +400,12 @@
   var cursor = { topIndex: 0, branch: null };
   var history = [];
   var pos = -1;
+  // The variables - and the place in the sequence/branches - as they were when each page of `history` was entered (same
+  // indices): going back to a page takes back what it and everything after it did. An answer given again isn't added on top of
+  // the one given before, a score can't be raised by going back and answering again and again, and a logic block after the
+  // page is decided anew by the new answer (the pages after it are forgotten until they are visited again).
+  var variablesAtEntry = [];
+  var cursorAtEntry = [];
 
   // Finds where a page lives in the top-level sequence/branch structure - a page inside a branch
   // is pointed at directly (not by evaluating that branch's own condition, which would need
@@ -523,6 +529,8 @@
       render(pageTransition(outgoing));
       return;
     }
+    variablesAtEntry[history.length] = Object.assign({}, variables);
+    cursorAtEntry[history.length] = JSON.parse(JSON.stringify(cursor));
     history.push(node.pageId);
     pos = history.length - 1;
     render(pageTransition(outgoing));
@@ -531,6 +539,13 @@
   function goPrev() {
     if (pos <= 0) return;
     pos--;
+    if (variablesAtEntry[pos]) {
+      variables = Object.assign({}, variablesAtEntry[pos]);
+      cursor = JSON.parse(JSON.stringify(cursorAtEntry[pos]));
+      history.length = pos + 1;
+      variablesAtEntry.length = pos + 1;
+      cursorAtEntry.length = pos + 1;
+    }
     render();
   }
 
@@ -541,6 +556,8 @@
     });
     cursor = { topIndex: 0, branch: null };
     history = [];
+    variablesAtEntry = [];
+    cursorAtEntry = [];
     pos = -1;
     goNext();
   }

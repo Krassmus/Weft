@@ -34,6 +34,7 @@ import type {
   ImageBlock,
   Page,
   QuizBlock,
+  QuizOption,
   ArrowBlock,
   ArrowStyle,
   FilesBlock,
@@ -1571,6 +1572,78 @@ function stripHtml(html: string): string {
   return div.textContent ?? "";
 }
 
+/** One answer in the sidebar: whether it is a correct one, and - folded away - what handling it right or wrong does. */
+function QuizOptionRow({
+  block,
+  option,
+  label,
+  variables,
+  onUpdate,
+}: {
+  block: QuizBlock;
+  option: QuizOption;
+  label: string;
+  variables: VariableDef[];
+  onUpdate: BlockPanelProps["onUpdate"];
+}) {
+  const onRight = option.onRight ?? [];
+  const onWrong = option.onWrong ?? [];
+  const count = onRight.length + onWrong.length;
+  const [open, setOpen] = useState(count > 0);
+  const patchOption = (patch: Partial<QuizOption>) =>
+    onUpdate({ options: block.options.map((o) => (o.id === option.id ? { ...o, ...patch } : o)) });
+  return (
+    <div className="weft-quiz-option">
+      <div className="weft-quiz-option-row">
+        <input
+          type="checkbox"
+          title="Richtig?"
+          checked={block.correctOptionIds.includes(option.id)}
+          onChange={(e) => {
+            const correctOptionIds = e.target.checked
+              ? [...block.correctOptionIds, option.id]
+              : block.correctOptionIds.filter((id) => id !== option.id);
+            onUpdate({ correctOptionIds });
+          }}
+        />
+        <span className="weft-quiz-option-row-label">{label}</span>
+        <button
+          type="button"
+          className={"weft-ghost-button weft-quiz-option-effects-toggle" + (count > 0 ? " has-effects" : "")}
+          title="Punkte & Effekte dieser Antwort"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
+          {count > 0 ? `Effekte (${count})` : "Effekte"}
+        </button>
+        <button
+          type="button"
+          className="weft-icon-button"
+          onClick={() =>
+            onUpdate({
+              options: block.options.filter((o) => o.id !== option.id),
+              correctOptionIds: block.correctOptionIds.filter((id) => id !== option.id),
+            })
+          }
+        >
+          ×
+        </button>
+      </div>
+      {open && (
+        <div className="weft-quiz-option-effects">
+          <p className="weft-hint">
+            Richtig behandelt heißt: angekreuzt, wenn die Antwort stimmt – und nicht angekreuzt, wenn sie nicht stimmt. Das gilt für jede Antwort einzeln, unabhängig davon, ob das Quiz insgesamt richtig ist.
+          </p>
+          <span className="weft-field-label">Richtig behandelt</span>
+          <EffectListEditor effects={onRight} variables={variables} onChange={(onRight) => patchOption({ onRight })} />
+          <span className="weft-field-label">Falsch behandelt</span>
+          <EffectListEditor effects={onWrong} variables={variables} onChange={(onWrong) => patchOption({ onWrong })} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function QuizEditor({ block, onUpdate }: { block: QuizBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
   const variables = useDocumentStore((s) => s.doc.content.variables);
   const { lang, defaultLang } = useEditingLanguage();
@@ -1582,32 +1655,14 @@ function QuizEditor({ block, onUpdate }: { block: QuizBlock; onUpdate: BlockPane
         <p className="weft-hint">Frage und Antworten direkt auf der Folie eingeben. Markierten Text hier formatieren.</p>
 
         {block.options.map((opt) => (
-          <div key={opt.id} className="weft-quiz-option-row">
-            <input
-              type="checkbox"
-              title="Richtig?"
-              checked={block.correctOptionIds.includes(opt.id)}
-              onChange={(e) => {
-                const correctOptionIds = e.target.checked
-                  ? [...block.correctOptionIds, opt.id]
-                  : block.correctOptionIds.filter((id) => id !== opt.id);
-                onUpdate({ correctOptionIds });
-              }}
-            />
-            <span className="weft-quiz-option-row-label">{stripHtml(quizOptionHtml(block, opt.id, lang, defaultLang)) || "(leer)"}</span>
-            <button
-              type="button"
-              className="weft-icon-button"
-              onClick={() =>
-                onUpdate({
-                  options: block.options.filter((o) => o.id !== opt.id),
-                  correctOptionIds: block.correctOptionIds.filter((id) => id !== opt.id),
-                })
-              }
-            >
-              ×
-            </button>
-          </div>
+          <QuizOptionRow
+            key={opt.id}
+            block={block}
+            option={opt}
+            label={stripHtml(quizOptionHtml(block, opt.id, lang, defaultLang)) || "(leer)"}
+            variables={variables}
+            onUpdate={onUpdate}
+          />
         ))}
         <button
           type="button"
@@ -1658,6 +1713,27 @@ function defaultEffectFor(variable: VariableDef): VariableEffect {
   if (isBooleanVariable(variable)) return { variableId: variable.id, op: "set", value: true };
   if (variable.type === "string") return { variableId: variable.id, op: "set", value: "" };
   return { variableId: variable.id, op: "add", value: 1 };
+}
+
+/** The value of an effect. A number is typed as text and only taken over once it is one: while "-" or "1." is on its way to
+ * being "-1" or "1.5" it stays as typed (minus points have to be typeable). */
+function EffectValueInput({ effect, numeric, onChange }: { effect: VariableEffect; numeric: boolean; onChange: (value: string | number) => void }) {
+  const [typed, setTyped] = useState<string | null>(null);
+  return (
+    <input
+      value={typed ?? String(effect.value)}
+      inputMode={numeric ? "decimal" : undefined}
+      onChange={(e) => {
+        const raw = e.target.value;
+        if (!numeric) return onChange(raw);
+        setTyped(raw);
+        const parsed = Number(raw.replace(",", "."));
+        if (raw.trim() !== "" && Number.isFinite(parsed)) onChange(parsed);
+        else if (raw.trim() === "") onChange(0);
+      }}
+      onBlur={() => setTyped(null)}
+    />
+  );
 }
 
 function EffectListEditor({
@@ -1730,13 +1806,11 @@ function EffectListEditor({
                 <option value="no">Nein</option>
               </select>
             ) : (
-              <input
-                value={String(effect.value)}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  // A number variable is set/added to with a number, never with text that merely looks like one.
-                  const numeric = effect.op === "add" || (effect.op === "set" && target?.type === "number");
-                  const value = numeric ? (Number.isFinite(Number(raw)) ? Number(raw) : 0) : raw;
+              <EffectValueInput
+                effect={effect}
+                // A number variable is set/added to with a number, never with text that merely looks like one.
+                numeric={effect.op === "add" || (effect.op === "set" && target?.type === "number")}
+                onChange={(value) => {
                   const next = [...effects];
                   next[index] = { ...effect, value } as VariableEffect;
                   onChange(next);

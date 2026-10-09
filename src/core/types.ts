@@ -212,6 +212,17 @@ export interface IframeBlock extends BaseBlock {
   forcedViewportWidth?: number;
 }
 
+/** One answer of a quiz. An option is "handled right" when it is ticked if it is a correct one and left alone if it isn't (so
+ * even knowing that an answer is wrong earns something); "handled wrong" is the opposite. Each case can have effects of its own
+ * (points of one kind or another, minus points ...), independent of the quiz as a whole being right. Optional so that a module
+ * saved before they existed loads as it is: no effects. */
+export interface QuizOption {
+  id: UUID;
+  html: string;
+  onRight?: VariableEffect[];
+  onWrong?: VariableEffect[];
+}
+
 export interface QuizBlock extends BaseBlock {
   kind: "quiz";
   translations?: Record<string, BlockTranslation>;
@@ -220,8 +231,9 @@ export interface QuizBlock extends BaseBlock {
    * before this held HTML is migrated on load (see unpack.ts) by escaping its old plain text
    * into an equivalent paragraph, so every reader can assume this is always already-safe HTML. */
   questionHtml: string;
-  options: { id: UUID; html: string }[];
+  options: QuizOption[];
   correctOptionIds: UUID[];
+  /** What happens once the quiz as a whole was answered right / wrong (all options as they should be / not). */
   onCorrect: VariableEffect[];
   onIncorrect: VariableEffect[];
   /** Auto-advance 1.5s after the feedback text appears - not immediately, so the learner still

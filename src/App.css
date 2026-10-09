@@ -2367,6 +2367,37 @@ button.weft-timeline-node-icon.is-animated:hover {
   color: var(--weft-text-muted);
 }
 
+.weft-quiz-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weft-quiz-option-effects .weft-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--weft-text-muted);
+}
+
+.weft-quiz-option-effects-toggle {
+  flex: none;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.weft-quiz-option-effects-toggle.has-effects {
+  color: var(--weft-accent, inherit);
+}
+
+.weft-quiz-option-effects {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 6px 20px;
+  padding-left: 8px;
+  border-left: 2px solid var(--weft-border);
+}
+
 .weft-block-list {
   list-style: none;
   margin: 0 0 8px;

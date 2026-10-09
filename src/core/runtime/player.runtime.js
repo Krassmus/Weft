@@ -1883,7 +1883,9 @@
       fireGraphEvent(quizFillEventId(block.id));
     });
 
-    var submit = el("button", { type: "submit", class: "weft-quiz-submit" }, []);
+    // A plain button, not a form's submit: a module may run in an iframe without allow-forms (the editor's preview, a player
+    // file), where a form never fires "submit".
+    var submit = el("button", { type: "button", class: "weft-quiz-submit" }, []);
     var submitIcon = el("span", { class: "weft-quiz-submit-icon" }, []);
     submitIcon.innerHTML = QUIZ_SUBMIT_ICON_SVG;
     submit.appendChild(submitIcon);
@@ -1912,6 +1914,8 @@
 
     form.addEventListener("submit", function (event) {
       event.preventDefault();
+    });
+    submit.addEventListener("click", function () {
       var checked = Array.prototype.slice
         .call(form.querySelectorAll("input:checked"))
         .map(function (input) {
@@ -1923,6 +1927,12 @@
           return block.correctOptionIds.indexOf(id) !== -1;
         });
       (correct ? block.onCorrect : block.onIncorrect).forEach(applyEffect);
+      // Each answer on its own: handled right (ticked if it is a correct one, left alone if it isn't) or wrong.
+      block.options.forEach(function (option) {
+        var ticked = checked.indexOf(option.id) !== -1;
+        var right = ticked === (block.correctOptionIds.indexOf(option.id) !== -1);
+        ((right ? option.onRight : option.onWrong) || []).forEach(applyEffect);
+      });
       // Fires both the plain, outcome-agnostic event (for a trigger configured against the
       // generic "Quiz abgeschickt" node - see quizSubmitNodeId in pageTimeline.ts, built when
       // neither advanceOnCorrect nor advanceOnIncorrect is on) AND the one matching this

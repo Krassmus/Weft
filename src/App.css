@@ -1213,8 +1213,8 @@ button.weft-timeline-node-icon.is-animated:hover {
   border-left: 1px solid var(--weft-accent);
 }
 
-/* Dashed by default: TimelineEdgeKind "unknown" - causally after the previous node, but on no
-   fixed schedule. .is-timed switches to solid for kind "timed" - happens automatically after a
+/* Dashed by default: TimelineEdgeKind "unknown" and "advance" - causally after the previous node, but on no
+   fixed schedule: it waits for the learner. .is-timed switches to solid for kind "timed" - happens automatically after a
    fixed delay. See TimelineEdge in core/types.ts. No horizontal margin - it butts directly against
    the icon circles on either side, no gap. margin-top centers it on the 26px icon above, since
    align-items on the track is flex-start (see .weft-timeline-track). */
@@ -1228,14 +1228,8 @@ button.weft-timeline-node-icon.is-animated:hover {
   border-top-style: solid;
 }
 
-/* "advance" (Weiter-triggered) - dotted, so it reads apart from both the solid "timed" line and
-   the default dashed "unknown" one at a glance, in the same accent-hover blue the canvas already
-   uses for a few other "this is the live/active one" treatments (e.g. BlockView's own
-   .is-group-selected outline). */
-.weft-timeline-line.is-advance {
-  border-top-style: dotted;
-  border-top-color: var(--weft-accent-hover);
-}
+/* "advance" (Weiter-triggered) has no style of its own: it is dashed like every edge that waits for the learner (a click on "Weiter" is
+   an interaction too) - solid is only for what happens by itself, see .is-timed above. */
 
 /* No edge at all between two adjacent nodes (currently only "Nächste Folie" set to "Gar nicht" -
    see Timeline.tsx's own TimelineLaneRow) - invisible, but still occupies the same flex space a

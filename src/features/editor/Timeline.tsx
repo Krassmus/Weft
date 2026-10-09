@@ -56,11 +56,10 @@ const EVENT_ICONS: Record<TimelineEventType, string> = {
 /** Exported for BlockEffectEditor in panels/BlockPanel.tsx, which lists these same nodes (minus
  * "end" - see BlockEffect.triggerEventId in core/types.ts) as trigger options for a block's own
  * Aufbau/Abbau, and wants them to read exactly the same as they do here. */
-/** The extra class an edge's own line gets for its `kind` - "timed" (solid) and "advance" (dashed,
- * accent-colored - see App.css) each get one; plain "unknown" edges keep the bare dashed default,
- * no extra class needed. */
+/** The extra class an edge's own line gets for its `kind`: only "timed" (solid - it happens by itself) has one. "unknown" and
+ * "advance" both wait for the learner and keep the bare dashed default, see App.css. */
 function edgeKindClass(kind: TimelineEdgeKind): string {
-  return kind === "timed" ? " is-timed" : kind === "advance" ? " is-advance" : "";
+  return kind === "timed" ? " is-timed" : "";
 }
 
 export function nodeLabel(node: TimelineNode): string {

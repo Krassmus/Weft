@@ -26,6 +26,12 @@ export type GraphEventKind =
   | "quiz-fill"
   /** The learner submitted a quiz (`quiz-submit:<blockId>`, with `:richtig` / `:falsch` once the outcome has its own event). */
   | "quiz-submit"
+  /** A button was clicked (`button-click:<blockId>`). Made to happen by the player. */
+  | "button-click"
+  /** The Aufbau/Abbau of a group as a whole (`group-entrance:<groupId>`, `group-exit:<groupId>`): it has no action of its own - what it
+   * triggers are the Aufbau/Abbau of its members, which do the work. */
+  | "group-entrance"
+  | "group-exit"
   /** The page is left, going on to the next one with `transition`. When several of these are reached, the first one wins. */
   | "end";
 

@@ -1700,18 +1700,26 @@
     };
     fillButton();
     languageRefreshers.push(fillButton);
+    // The click is an event of the page's graph (see core/eventGraph): whatever the author connected to it happens - by default
+    // "Nächste Folie". Besides that:
+    var clickEventId = "button-click:" + block.id;
     if (block.action === "prev") {
       button.disabled = pos <= 0;
-      button.addEventListener("click", goPrev);
-    } else if (block.action === "advance") {
-      // The same Weiter Space/→ is (see weiter): lets everything arrive that waits for it - the next build, or the
-      // page that is left. Once the module has ended, restarts instead, same as every other Weiter-ish control.
-      button.addEventListener("click", pos >= history.length ? restart : weiter);
+      button.addEventListener("click", function () {
+        happened(clickEventId);
+        goPrev();
+      });
     } else {
-      // "Nächste Folie" - always an unconditional, immediate jump, regardless of any build still waiting for Weiter on the
-      // current page. Once the module has ended, the
-      // same action restarts it instead of doing nothing.
-      button.addEventListener("click", pos >= history.length ? restart : goNext);
+      // "Weiter" (action "advance") is the same Weiter Space/→ is (see weiter): everything that waits for it arrives - the next
+      // build, or the page that is left. "event" does nothing besides the event. Once the module has ended, either restarts it.
+      button.addEventListener("click", function () {
+        if (pos >= history.length) {
+          restart();
+          return;
+        }
+        happened(clickEventId);
+        if (block.action === "advance") weiter();
+      });
     }
     wrap.appendChild(button);
     return wrap;

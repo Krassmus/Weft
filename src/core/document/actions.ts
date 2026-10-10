@@ -38,7 +38,11 @@ import {
   blockEffectNodeId,
   canTriggerFrom,
   createDefaultPageTimeline,
+  appendToWeiterChain,
+  ensureButtonTrigger,
   ensureEffectTriggers,
+  groupEffectNodeId,
+  spliceOutOfTriggers,
   isEndNodeId,
   quizEndNodeId,
   quizSubmitNodeId,
@@ -606,7 +610,10 @@ export function updateBlock(pageId: string, blockId: string, patch: Partial<Bloc
     if (!block) return;
     const hadEntrance = block.entranceEffect.type !== "off";
     const hadExit = block.exitEffect.type !== "off";
+    const hadButtonAction = block.kind === "button" ? block.action : null;
     assignPatch(block, patch);
+    // A button turned into one that "goes on" gets its trigger to "Nächste Folie" (see ensureButtonTrigger).
+    if (page && block.kind === "button" && block.action === "event" && hadButtonAction !== "event") ensureButtonTrigger(page, blockId);
     // An effect that has just been chosen gets its place in the chain of Weiter (see ensureEffectTriggers).
     if (page && ((!hadEntrance && block.entranceEffect.type !== "off") || (!hadExit && block.exitEffect.type !== "off"))) {
       ensureEffectTriggers(page, [blockId]);
@@ -818,6 +825,8 @@ export function groupBlocks(pageId: string, blockIds: string[]): string | null {
     dissolveGroupsTouching(page, ids);
     const members = groupToTopmostPosition(page.blocks, ids);
     page.groups.push({ id: groupId, blockIds: members });
+    // What belonged to the groups that were dissolved (their own events) is dealt with like any other event that goes away.
+    syncPageTimelineEvents(page);
     created = true;
   });
   return created ? groupId : null;
@@ -830,6 +839,8 @@ export function ungroupBlocks(pageId: string, groupId: string) {
     const page = m.pages[pageId];
     if (!page) return;
     removeWhere(page.groups, (g) => g.id === groupId);
+    // The group's own events go; its members are then triggered where the group was.
+    syncPageTimelineEvents(page);
   });
 }
 
@@ -885,38 +896,54 @@ export function updateBlockPositions(container: BlockContainerRef, positions: { 
   });
 }
 
-/** Fans a single new Aufbau/Abbau animation out to every block in `blockIds` - a group's "shared"
- * effect is UI sugar over each member's own, otherwise-untouched entranceEffect/exitEffect field
- * (see BlockGroup's own doc comment in types.ts: a group carries no effect of its own), just
- * written to every member in one undo step instead of one updateBlock call each. */
-export function setGroupEffect(pageId: string, blockIds: string[], phase: "entrance" | "exit", effect: BlockEffect) {
+/**
+ * The Aufbau/Abbau of a group as a whole: an event of its own in the page's graph (see BlockGroup.entranceEffect), which triggers the
+ * Aufbau/Abbau of every member - explicit triggers, shown in the graph as one event. The members carry the same effect themselves, so
+ * the player needs nothing of the group.
+ *
+ * Choosing an effect for a group that had none takes the members out of the Weiter chain (each was waiting there on its own) and puts
+ * the group's event at the end of it instead; "off" takes the group's event away again (what it triggered is then triggered where the
+ * group event was triggered - see syncPageTimelineEvents).
+ */
+export function setGroupEffect(pageId: string, groupId: string, phase: "entrance" | "exit", effect: BlockEffect) {
   edit("Animation ändern", (m) => {
     const page = m.pages[pageId];
-    if (!page) return;
-    let touched = false;
-    const chosen: string[] = [];
-    for (const blockId of blockIds) {
+    const group = page?.groups.find((g) => g.id === groupId);
+    if (!page || !group) return;
+    const key = phase === "entrance" ? "entranceEffect" : "exitEffect";
+    const hadGroupEffect = !!group[key] && group[key]!.type !== "off";
+    group[key] = plain(effect);
+    const memberNodes: string[] = [];
+    for (const blockId of group.blockIds) {
       const block = page.blocks[blockId];
       if (!block) continue;
-      const had = (phase === "entrance" ? block.entranceEffect : block.exitEffect).type !== "off";
       if (phase === "entrance") block.entranceEffect = plain(effect);
       else block.exitEffect = plain(effect);
-      if (!had && effect.type !== "off") chosen.push(blockId);
-      touched = true;
+      memberNodes.push(blockEffectNodeId(blockId, phase));
     }
-    if (touched) {
-      syncPageTimelineEvents(page);
-      ensureEffectTriggers(page, chosen);
+    const groupNode = groupEffectNodeId(groupId, phase);
+    if (effect.type !== "off" && !hadGroupEffect) {
+      for (const node of memberNodes) spliceOutOfTriggers(page, node);
+      appendToWeiterChain(page, groupNode);
+      for (const node of memberNodes) {
+        page.timeline.triggers[`t:${node}`] = { from: groupNode, to: node, delayMs: 0, weiter: false };
+      }
+    } else if (effect.type !== "off") {
+      // Members that are not driven by the group yet (one that got an effect of its own, one that came into the group later).
+      for (const node of memberNodes) {
+        if (!Object.values(page.timeline.triggers).some((t) => t.to === node)) {
+          page.timeline.triggers[`t:${node}`] = { from: groupNode, to: node, delayMs: 0, weiter: false };
+        }
+      }
     }
+    syncPageTimelineEvents(page);
   });
 }
 
-/** Fans a single trigger out to every member of a group's own entrance/exit node - same
- * PageTimeline.triggerEdges mechanism as the single-block setEventTrigger above, just applied to
- * every blockId in one undo step. */
+/** The trigger of a group's own Aufbau/Abbau event - the one trigger the group's panel edits. */
 export function setGroupEventTrigger(
   pageId: string,
-  blockIds: string[],
+  groupId: string,
   phase: "entrance" | "exit",
   from: string | null,
   delayMs: number,
@@ -925,9 +952,7 @@ export function setGroupEventTrigger(
   edit("Auslöser bearbeiten", (m) => {
     const page = m.pages[pageId];
     if (!page) return;
-    for (const blockId of blockIds) {
-      chainOnWeiter(page, blockEffectNodeId(blockId, phase), from, delayMs, kind);
-    }
+    chainOnWeiter(page, groupEffectNodeId(groupId, phase), from, delayMs, kind);
     syncPageTimelineEvents(page);
   });
 }
@@ -1468,6 +1493,7 @@ export function pasteBlockInto(
       syncPageTimelineEvents(page);
       // A block pasted with an Aufbau/Abbau takes its place in the chain of Weiter.
       ensureEffectTriggers(page, [newBlock.id]);
+      ensureButtonTrigger(page, newBlock.id);
     } else {
       const layout = m.layouts[target.layoutId];
       if (!layout) return;

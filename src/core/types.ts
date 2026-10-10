@@ -246,14 +246,12 @@ export interface ButtonBlock extends BaseBlock {
   kind: "button";
   text: string;
   translations?: Record<string, BlockTranslation>;
-  /** "prev" is disabled on the first slide; "next"/"advance" both turn into a restart once the
-   * module ended. "next" always jumps straight to the next page, regardless of any pending
-   * "Weiter"-triggered builds still queued on the current one (see player.runtime.js's
-   * advanceQueue) - the unconditional "skip ahead" action. "advance" instead steps that same
-   * queue one "Weiter" press at a time, exactly like Space/→ - reveals the next queued build if
-   * there is one, only actually leaving the page once the queue is empty (see
-   * player.runtime.js's advanceOne). */
-  action: "next" | "prev" | "advance";
+  /** What a click does besides being an event of the page's graph ("Button geklickt", see TimelineEventType): "advance" presses
+   * Weiter, exactly like Space/→ - everything that waits for Weiter arrives. "prev" goes back one slide (disabled on the first one).
+   * "event" does nothing of its own: what follows the click is what the graph says - by default a trigger to "Nächste Folie", which
+   * the author can change or take away (a button that only starts an animation). Once the module has ended, "advance" and "event"
+   * restart it instead. Format 4 and older had "next" here (jump to the next slide): see migrateButtonActions in io/unpack.ts. */
+  action: "event" | "prev" | "advance";
 }
 
 /** The basic PowerPoint/Keynote-style shapes ShapeBlock supports - "polygon" is any regular n-gon
@@ -518,7 +516,10 @@ export type TimelineEventType =
   | "video-end-loop"
   | "video-end-stop"
   | "block-entrance"
-  | "block-exit";
+  | "block-exit"
+  | "button-click"
+  | "group-entrance"
+  | "group-exit";
 
 export interface TimelineNode {
   id: string;
@@ -526,6 +527,8 @@ export interface TimelineNode {
   /** For kind "event": which block this node belongs to, so deleting/reconfiguring that block
    * can keep this node in sync (see syncPageTimelineEvents). */
   sourceBlockId?: UUID;
+  /** For a group's own Aufbau/Abbau event: the group. */
+  sourceGroupId?: UUID;
   /** Required when kind is "event": which event this is. */
   eventType?: TimelineEventType;
   /** Overrides the default per-kind/per-eventType label (see nodeLabel in Timeline.tsx) - e.g.
@@ -621,6 +624,12 @@ export interface PageTimeline {
 export interface BlockGroup {
   id: UUID;
   blockIds: UUID[];
+  /** The Aufbau/Abbau of the group as a whole: an event of its own in the page's graph (`group-entrance:<id>`,
+   * `group-exit:<id>`), which triggers the Aufbau/Abbau of the members (explicit triggers the graph shows as one line). The
+   * members carry the same effect themselves, so the player needs nothing of the group. Absent (or "off"): the group has no
+   * effect of its own - its members are in the graph one by one. */
+  entranceEffect?: BlockEffect;
+  exitEffect?: BlockEffect;
 }
 
 /** One way out of a jump page: where to go if `condition` holds. */
@@ -758,6 +767,9 @@ export interface WeftModule {
  *    are keyed by the event they cause, the timeline's lanes are computed instead of stored, and the
  *    undo history is no longer part of the file (it is local to whoever is editing: see UndoEntry
  *    in document/store.ts).
+ *  - 5: a button's "Nächste Folie" is a trigger from its click to a "Nächste Folie" event (ButtonBlock.action "next" became
+ *    "event"), and a group can have an Aufbau/Abbau of its own (BlockGroup.entranceEffect/exitEffect, with events of their own in
+ *    the page's graph).
  *  - 4: the page's event graph is stored as it is understood now (see PageTimeline and docs/event-graph.md): a list of triggers
  *    with an optional Weiter instead of trigger edges keyed by event, "Nächste Folie" as events of their own that carry the
  *    transition (`Page.transition` is gone), a quiz that goes on to the next page by a trigger and such an event (the flags
@@ -766,7 +778,7 @@ export interface WeftModule {
  * gated on this number. The small "field missing? give it its default" backfills in io/unpack.ts
  * run on every load - they write nothing at all to a document that already has the field.
  */
-export const CURRENT_FORMAT_VERSION = 4;
+export const CURRENT_FORMAT_VERSION = 5;
 
 export interface WeftDocument {
   formatVersion: number;

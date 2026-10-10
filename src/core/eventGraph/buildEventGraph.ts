@@ -1,7 +1,9 @@
 import { orderedValues } from "../document/ordering";
 import {
   blockEffectNodeId,
+  buttonClickNodeId,
   endNodeIds,
+  groupEffectNodeId,
   quizFillNodeId,
   quizSubmitNodeId,
   videoEndNodeId,
@@ -32,6 +34,15 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
     }
     if (block.exitEffect.type !== "off") events.push({ id: blockEffectNodeId(block.id, "exit"), kind: "exit" });
 
+    if (block.kind === "button") {
+      const id = buttonClickNodeId(block.id);
+      events.push({ id, kind: "button-click" });
+      // A button of the layout can't have a trigger of its own per page: what it does as an "event" button is to go on.
+      if (!pageBlockIds.has(block.id) && block.action === "event") {
+        triggers.push({ id: `layout:${id}`, from: id, to: "end", delayMs: 0, weiter: false });
+      }
+    }
+
     if (block.kind === "video") {
       events.push({ id: videoStartNodeId(block.id), kind: "video-start" });
       for (const stopPoint of block.stopPoints) events.push({ id: videoStopNodeId(block.id, stopPoint.id), kind: "video-stop" });
@@ -45,6 +56,11 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
       events.push({ id: quizSubmitNodeId(block.id, "richtig"), kind: "quiz-submit" });
       events.push({ id: quizSubmitNodeId(block.id, "falsch"), kind: "quiz-submit" });
     }
+  }
+
+  for (const group of page.groups) {
+    if (group.entranceEffect && group.entranceEffect.type !== "off") events.push({ id: groupEffectNodeId(group.id, "entrance"), kind: "group-entrance" });
+    if (group.exitEffect && group.exitEffect.type !== "off") events.push({ id: groupEffectNodeId(group.id, "exit"), kind: "group-exit" });
   }
 
   for (const endId of endNodeIds(page)) events.push({ id: endId, kind: "end", transition: page.timeline.ends[endId].transition });

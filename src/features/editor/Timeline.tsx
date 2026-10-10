@@ -40,6 +40,9 @@ const EVENT_LABELS: Record<TimelineEventType, string> = {
   "video-end-stop": "Ende des Videos",
   "block-entrance": "Erscheint",
   "block-exit": "Verschwindet",
+  "button-click": "Button geklickt",
+  "group-entrance": "Gruppe erscheint",
+  "group-exit": "Gruppe verschwindet",
 };
 
 // "richtig" keeps the checkmark; "falsch" gets its own (decline.svg) rather than sharing accept.svg
@@ -58,6 +61,9 @@ const EVENT_ICONS: Record<TimelineEventType, string> = {
   "video-end-stop": stopIconSvg,
   "block-entrance": visibilityVisibleIconSvg,
   "block-exit": visibilityInvisibleIconSvg,
+  "button-click": hand2IconSvg,
+  "group-entrance": visibilityVisibleIconSvg,
+  "group-exit": visibilityInvisibleIconSvg,
 };
 
 /** Exported for BlockEffectEditor in panels/BlockPanel.tsx, which lists these same nodes (minus

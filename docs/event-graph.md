@@ -247,4 +247,14 @@ und wenn sie fertig ist – bei einer Animation nach ihrer Dauer –, passiert d
    einer linearen Kette (`core/eventGraph/chains.ts`) lassen sich entlang der Linie ziehen (`reorderChain`): Verzögerungen und
    „Weiter“ bleiben an der Position, die Events wandern; ein Zug ist ein Rückgängig-Schritt.
 
-Noch nicht umgesetzt: Gruppen und Buttons als Event-Blöcke (Abschnitt 5), weil deren Events im Datenmodell noch fehlen.
+6. **Gruppen und Buttons als Event-Blöcke. (umgesetzt, Dateiformat 5)**
+   - Ein Button liefert das Event „Button geklickt“ (`button-click:<id>`, violett). Die Aktion „Nächste Folie“ gibt es nicht mehr:
+     `ButtonBlock.action` ist `advance` (Weiter), `prev` oder `event` (der Klick ist nur das Event); wird ein Button zu `event`, legt
+     der Editor einen Trigger zum „Nächste Folie“-Event an, den man im Graphen ändern oder entfernen kann. Migration: `next` wird
+     zu `event` mit diesem Trigger. Ein Button im Layout bekommt den Trigger im Export (er lässt sich pro Folie nicht speichern).
+   - Eine Gruppe kann einen Aufbau/Abbau als Ganzes haben (`BlockGroup.entranceEffect/exitEffect`): ein Event
+     (`group-entrance:<id>`, `group-exit:<id>`), das die Aufbauten der Mitglieder über explizite Trigger (0 ms, ohne Weiter) auslöst.
+     Der Graph fasst diese Mitglieder-Events zu dem einen Gruppen-Event zusammen, solange sie nur von der Gruppe ausgelöst werden.
+     Für eine ältere Gruppe ohne eigenen Effekt zeigt das Panel den ersten Mitglied-Effekt; die erste Änderung macht ihn zum
+     Gruppen-Effekt und nimmt die Mitglieder aus der Weiter-Kette (an deren Ende das Gruppen-Event tritt).
+   - Der Graph zeigt jetzt jeden gespeicherten Trigger (vorher nur den ersten eines Events).

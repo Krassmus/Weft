@@ -951,7 +951,7 @@ function ButtonEditor({ block, onUpdate }: { block: ButtonBlock; onUpdate: Block
         <span>Aktion</span>
         <select value={block.action} onChange={(e) => onUpdate({ action: e.target.value as ButtonBlock["action"] })}>
           <option value="advance">Weiter</option>
-          <option value="next">Nächste Folie</option>
+          <option value="event">Ereignis auslösen (im Graphen)</option>
           <option value="prev">Vorherige Folie</option>
         </select>
       </label>
@@ -961,8 +961,11 @@ function ButtonEditor({ block, onUpdate }: { block: ButtonBlock; onUpdate: Block
           geht es zur nächsten Folie. Genau wie Leertaste/Pfeil rechts.
         </p>
       )}
-      {block.action === "next" && (
-        <p className="weft-hint">Springt sofort zur nächsten Folie, unabhängig von noch wartenden Aufbauten.</p>
+      {block.action === "event" && (
+        <p className="weft-hint">
+          Der Klick ist ein Ereignis im Graphen („Button geklickt“). Was er auslöst, stellst du dort ein - zunächst geht es zur
+          nächsten Folie, unabhängig von noch wartenden Aufbauten.
+        </p>
       )}
       {block.action === "prev" && (
         <p className="weft-hint">

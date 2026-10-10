@@ -242,6 +242,23 @@ function migrateToEventGraph(doc: WeftDocument) {
   }
 }
 
+// Format 5: a button that went to the next slide ("next") is a button whose click is an event, with a trigger from it to "Nächste
+// Folie" like any other (ButtonBlock.action "event"). A button in a layout can't have a trigger per page - the player's graph
+// gives it the one to "Nächste Folie" (see buildEventGraph).
+function migrateButtonActions(doc: WeftDocument) {
+  const migrate = (block: Block, timeline: WeftDocument["content"]["pages"][string]["timeline"] | null) => {
+    if (block.kind !== "button") return;
+    const legacy = block as unknown as { action: string };
+    if (legacy.action !== "next") return;
+    legacy.action = "event";
+    if (timeline) {
+      timeline.triggers[`button:${block.id}`] = { from: `button-click:${block.id}`, to: "end", delayMs: 0, weiter: false };
+    }
+  };
+  for (const page of Object.values(doc.content.pages)) for (const block of Object.values(page.blocks)) migrate(block, page.timeline);
+  for (const layout of Object.values(doc.content.layouts)) for (const block of Object.values(layout.blocks)) migrate(block, null);
+}
+
 // Whatever a document of the current format may still lack (a save from a build in between): the two collections and the page's
 // own "Nächste Folie".
 function backfillEventGraph(doc: WeftDocument) {
@@ -406,6 +423,7 @@ export function unpackDocument(zipBytes: Uint8Array, options: { importAssets?: b
   if (fileVersion < 2) migrateMissingAdvanceTriggers(doc);
   if (fileVersion < 4) migrateToEventGraph(doc);
   backfillEventGraph(doc);
+  if (fileVersion < 5) migrateButtonActions(doc);
   doc.formatVersion = CURRENT_FORMAT_VERSION;
   syncAllPageTimelineEvents(doc);
   if (fileVersion === CURRENT_FORMAT_VERSION) {

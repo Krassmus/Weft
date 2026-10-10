@@ -1,7 +1,7 @@
 import { isSnapshot } from "../collab/mutationScope";
 import { formatTimeMMSS } from "../formatTime";
 import { orderedValues } from "./ordering";
-import type { Block, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode, VideoBlock } from "../types";
+import type { Block, BlockGroup, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode, VideoBlock } from "../types";
 
 /**
  * What every page's timeline starts out as (and what a page missing it is given on load, see io/unpack.ts): one trigger from the
@@ -167,6 +167,30 @@ function makeBlockEffectNode(block: Block, phase: "entrance" | "exit"): Timeline
   };
 }
 
+/** The event of a button being clicked (a user event: nothing can make it happen but the learner). */
+export function buttonClickNodeId(blockId: string): string {
+  return `button-click:${blockId}`;
+}
+
+/** A group's own Aufbau/Abbau event (see BlockGroup.entranceEffect). Kept in sync by hand with player.runtime.js - the player never
+ * needs it (it has no action of its own), only the graph does. */
+export function groupEffectNodeId(groupId: string, phase: "entrance" | "exit"): string {
+  return `group-${phase}:${groupId}`;
+}
+
+function makeButtonNode(block: Block): TimelineNode {
+  return { id: buttonClickNodeId(block.id), kind: "event", sourceBlockId: block.id, eventType: "button-click" };
+}
+
+function makeGroupEffectNode(group: BlockGroup, phase: "entrance" | "exit"): TimelineNode {
+  return {
+    id: groupEffectNodeId(group.id, phase),
+    kind: "event",
+    sourceGroupId: group.id,
+    eventType: phase === "entrance" ? "group-entrance" : "group-exit",
+  };
+}
+
 /** The one place that decides whether a graph event can be the `to` of a PageTimeline.
  * triggerEdges entry - i.e. whether anything can be scripted to cause it. Every UI that needs
  * this decision (EventPanel.tsx's editable "Ausgelöst durch"/its "Löst aus" target picker,
@@ -183,6 +207,8 @@ export const TRIGGERABLE_EVENT_TYPES: ReadonlySet<TimelineEventType> = new Set<T
   "video-start-manual",
   "block-entrance",
   "block-exit",
+  "group-entrance",
+  "group-exit",
 ]);
 
 export function isTriggerableNode(node: TimelineNode): boolean {
@@ -354,6 +380,12 @@ export function getBlockExitTrigger(page: Page, block: Block): ResolvedTrigger |
   return edge ? resolvedTriggerFromEdge(edge) : null;
 }
 
+/** The trigger of a group's own Aufbau/Abbau event, as stored (null: none). */
+export function getGroupEffectTrigger(page: Page, groupId: string, phase: "entrance" | "exit"): ResolvedTrigger | null {
+  const edge = findTriggerEdge(page.timeline, groupEffectNodeId(groupId, phase));
+  return edge ? resolvedTriggerFromEdge(edge) : null;
+}
+
 /** A video's own "Start des Videos" trigger - none when the learner has to press play. `VideoBlock.autoplay` is only the switch that
  * puts a trigger from the start of the page there (see syncPageTimelineEvents), no implicit default of its own. */
 export function getVideoStartTrigger(page: Page, video: VideoBlock): ResolvedTrigger | null {
@@ -447,6 +479,8 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
   }
   const videoLanes = videos.map((video) => ({ video, lane: buildVideoLane(video) }));
   for (const { lane } of videoLanes) lanes.push(lane);
+  // A button's click is an event of its own (a violet one: the learner does it); what it triggers is drawn from its triggers.
+  for (const block of blocks) if (block.kind === "button") lanes.push({ nodes: [makeButtonNode(block)], edges: [] });
 
   const nodesById = new Map<string, TimelineNode>();
   for (const lane of lanes) for (const node of lane.nodes) nodesById.set(node.id, node);
@@ -454,14 +488,21 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
   // A block with no Aufbau/Abbau at all (effect type "off") has no event. Any other type has one - with the trigger the page
   // stores for it, if any (without one it is shown on a row of its own and never happens: see the unreachable events in
   // docs/event-graph.md).
-  const entranceTargets: { block: Block; trigger: ResolvedTrigger | null }[] = [];
-  const exitTargets: { block: Block; trigger: ResolvedTrigger | null }[] = [];
+  // The same goes for the Aufbau/Abbau of a group (an event block of its own: see BlockGroup).
+  const effectTargets: { node: TimelineNode; trigger: ResolvedTrigger | null }[] = [];
   for (const block of blocks) {
-    if (block.entranceEffect.type !== "off") entranceTargets.push({ block, trigger: getBlockEntranceTrigger(page, block) });
-    if (block.exitEffect.type !== "off") exitTargets.push({ block, trigger: getBlockExitTrigger(page, block) });
+    if (block.entranceEffect.type !== "off") effectTargets.push({ node: makeBlockEffectNode(block, "entrance"), trigger: getBlockEntranceTrigger(page, block) });
+    if (block.exitEffect.type !== "off") effectTargets.push({ node: makeBlockEffectNode(block, "exit"), trigger: getBlockExitTrigger(page, block) });
   }
-  for (const { block } of entranceTargets) nodesById.set(blockEffectNodeId(block.id, "entrance"), makeBlockEffectNode(block, "entrance"));
-  for (const { block } of exitTargets) nodesById.set(blockEffectNodeId(block.id, "exit"), makeBlockEffectNode(block, "exit"));
+  for (const group of page.groups) {
+    for (const phase of ["entrance", "exit"] as const) {
+      const effect = phase === "entrance" ? group.entranceEffect : group.exitEffect;
+      if (!effect || effect.type === "off") continue;
+      const edge = findTriggerEdge(page.timeline, groupEffectNodeId(group.id, phase));
+      effectTargets.push({ node: makeGroupEffectNode(group, phase), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
+    }
+  }
+  for (const { node } of effectTargets) nodesById.set(node.id, node);
 
   for (const { video, lane } of videoLanes) {
     const trigger = getVideoStartTrigger(page, video);
@@ -486,11 +527,8 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
     if (list) list.push({ targetNode, trigger });
     else attachmentsBySource.set(sourceId, [{ targetNode, trigger }]);
   }
-  for (const { block, trigger } of entranceTargets) {
-    if (trigger && nodesById.has(trigger.from)) registerAttachment(makeBlockEffectNode(block, "entrance"), trigger.from, trigger);
-  }
-  for (const { block, trigger } of exitTargets) {
-    if (trigger && nodesById.has(trigger.from)) registerAttachment(makeBlockEffectNode(block, "exit"), trigger.from, trigger);
+  for (const { node, trigger } of effectTargets) {
+    if (trigger && nodesById.has(trigger.from)) registerAttachment(node, trigger.from, trigger);
   }
   // "Nächste Folie"'s own trigger (see getEndTrigger's own doc comment - a quiz outcome's own
   // "end:quiz:..." node is entirely separate and untouched by any of this) joins the very same
@@ -570,12 +608,9 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
   }
   // An Aufbau/Abbau nothing triggers (and nothing hangs off): still on a row of its own, so that it can be selected and given a
   // trigger.
-  for (const [phase, targets] of [["entrance", entranceTargets], ["exit", exitTargets]] as const) {
-    for (const { block } of targets) {
-      const id = blockEffectNodeId(block.id, phase);
-      if (attachedIds.has(id) || laneRoots.has(id)) continue;
-      lanes.push({ nodes: [makeBlockEffectNode(block, phase)], edges: [] });
-    }
+  for (const { node } of effectTargets) {
+    if (attachedIds.has(node.id) || laneRoots.has(node.id)) continue;
+    lanes.push({ nodes: [node], edges: [] });
   }
 
   // A stop point that doesn't actually pause the video (VideoStopPoint.stopsVideo false) has no
@@ -627,12 +662,17 @@ function blockEventIds(page: Page): Set<string> {
       for (const stopPoint of block.stopPoints) ids.add(videoStopNodeId(block.id, stopPoint.id));
       ids.add(videoEndNodeId(block.id));
     }
+    if (block.kind === "button") ids.add(buttonClickNodeId(block.id));
     if (block.kind === "quiz") {
       ids.add(quizFillNodeId(block.id));
       ids.add(quizSubmitNodeId(block.id));
       ids.add(quizSubmitNodeId(block.id, "richtig"));
       ids.add(quizSubmitNodeId(block.id, "falsch"));
     }
+  }
+  for (const group of page.groups) {
+    if (group.entranceEffect && group.entranceEffect.type !== "off") ids.add(groupEffectNodeId(group.id, "entrance"));
+    if (group.exitEffect && group.exitEffect.type !== "off") ids.add(groupEffectNodeId(group.id, "exit"));
   }
   return ids;
 }
@@ -696,6 +736,19 @@ export function syncPageTimelineEvents(page: Page): void {
 }
 
 /**
+ * A button whose action is "event" and whose click triggers nothing yet goes on to "Nächste Folie" - what a button that "goes to the
+ * next slide" is. Called by the action that has just made the button so (the author can then change or remove the trigger in the
+ * graph: it is not made again).
+ */
+export function ensureButtonTrigger(page: Page, blockId: string): void {
+  const block = page.blocks[blockId];
+  if (!block || block.kind !== "button" || block.action !== "event") return;
+  const click = buttonClickNodeId(blockId);
+  if (Object.values(page.timeline.triggers).some((t) => t.from === click)) return;
+  page.timeline.triggers[`t:button:${blockId}`] = { from: click, to: "end", delayMs: 0, weiter: false };
+}
+
+/**
  * Gives the Aufbau/Abbau of `blockIds` that has no trigger yet one: it waits for Weiter at the end of the chain, and "Nächste Folie"
  * stays the last link. Called by the action that has just chosen the effect (there are no implicit triggers any more, see
  * docs/event-graph.md) - never by the general sync, so that an effect from which the author took the trigger away stays so.
@@ -709,13 +762,31 @@ export function ensureEffectTriggers(page: Page, blockIds: string[]): void {
     const wanted: string[] = [];
     if (block.entranceEffect.type !== "off") wanted.push(blockEffectNodeId(blockId, "entrance"));
     if (block.exitEffect.type !== "off") wanted.push(blockEffectNodeId(blockId, "exit"));
-    for (const nodeId of wanted) {
-      if (hasIncoming(nodeId)) continue;
-      const tail = computeAdvanceChainTail(page, nodeId);
-      timeline.triggers[`t:${nodeId}`] = { from: tail, to: nodeId, delayMs: 0, weiter: true };
-      // "Nächste Folie" stays the last link of the chain it was the last link of.
-      const endTrigger = Object.values(timeline.triggers).find((t) => t.to === "end" && t.weiter && t.from === tail);
-      if (endTrigger && !waitsOn(page, tail, nodeId)) endTrigger.from = nodeId;
-    }
+    for (const nodeId of wanted) if (!hasIncoming(nodeId)) appendToWeiterChain(page, nodeId);
   }
+}
+
+/** `nodeId` waits for Weiter at the end of the chain; "Nächste Folie" stays the last link of the chain it was the last link of. */
+export function appendToWeiterChain(page: Page, nodeId: string): void {
+  const timeline = page.timeline;
+  const tail = computeAdvanceChainTail(page, nodeId);
+  timeline.triggers[`t:${nodeId}`] = { from: tail, to: nodeId, delayMs: 0, weiter: true };
+  const endTrigger = Object.values(timeline.triggers).find((t) => t.to === "end" && t.weiter && t.from === tail);
+  if (endTrigger && !waitsOn(page, tail, nodeId)) endTrigger.from = nodeId;
+}
+
+/**
+ * Takes `nodeId` out of the triggers around it without breaking them: whatever it triggered is now triggered by what triggered it
+ * (with the properties of its own link), and the triggers leading into it are dropped. Nothing leading into it: what it triggered
+ * loses that trigger.
+ */
+export function spliceOutOfTriggers(page: Page, nodeId: string): void {
+  const timeline = page.timeline;
+  const incoming = incomingTriggers(timeline, nodeId);
+  const via = incoming[0];
+  for (const out of outgoingTriggers(timeline, nodeId)) {
+    if (via && via.from !== out.to) timeline.triggers[out.id].from = via.from;
+    else delete timeline.triggers[out.id];
+  }
+  for (const trigger of incoming) delete timeline.triggers[trigger.id];
 }

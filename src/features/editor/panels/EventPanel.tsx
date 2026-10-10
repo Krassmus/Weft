@@ -1,4 +1,4 @@
-import { addTrigger, removeTrigger, setEventTitle, updateBlock, updateTrigger } from "../../../core/document/actions";
+import { addTrigger, removeTrigger, setEventTitle, setGroupEffect, updateBlock, updateTrigger } from "../../../core/document/actions";
 import {
   canTriggerFrom,
   endNodeIds,
@@ -24,6 +24,7 @@ import { TransitionPanel } from "./TransitionPanel";
 // IncomingTriggersSection below) - each only ever happens through genuine learner interaction or
 // real playback time that nothing could fake, so there's nothing here to edit, just to explain.
 const EVENT_HINTS: Partial<Record<TimelineEventType, string>> = {
+  "button-click": "Passiert, sobald die Lernperson den Button anklickt.",
   "quiz-fill-start": "Passiert, sobald die Lernperson eine erste Antwortoption auswählt.",
   "quiz-submit": "Passiert, sobald das Quiz abgeschickt wird.",
   "quiz-submit-correct": "Passiert, sobald das Quiz mit einer richtigen Antwort abgeschickt wird.",
@@ -68,6 +69,7 @@ export function EventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
   const node = rawNode.inlineChild && rawNode.children?.length === 1 ? rawNode.children[0].node : rawNode;
 
   const sourceBlock = node.sourceBlockId ? page.blocks[node.sourceBlockId] : undefined;
+  const sourceGroup = node.sourceGroupId ? page.groups.find((g) => g.id === node.sourceGroupId) : undefined;
   // Nothing can make it happen (see docs/event-graph.md): shown red in the graph, and said here.
   const unreachable = buildGraphModel(page).nodes.find((n) => n.id === node.id)?.unreachable ?? false;
 
@@ -103,6 +105,19 @@ export function EventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
         </div>
       )}
 
+      {sourceGroup && (
+        <div className="weft-event-source">
+          <span className="weft-hint">Gehört zu</span>
+          <button
+            type="button"
+            className="weft-event-trigger-row"
+            onClick={() => select({ type: "group", pageId: page.id, groupId: sourceGroup.id })}
+          >
+            <span>Gruppe ({sourceGroup.blockIds.length} Objekte)</span>
+          </button>
+        </div>
+      )}
+
       {node.kind === "end" && <TransitionPanel page={page} endId={node.id} />}
       <EffectSection page={page} node={node} />
 
@@ -128,6 +143,26 @@ function TitleField({ page, node }: { page: Page; node: TimelineNode }) {
 
 /** What an Aufbau/Abbau does: the same animation settings as that block's own panel (without the trigger - that is listed below). */
 function EffectSection({ page, node }: { page: Page; node: TimelineNode }) {
+  const group = node.sourceGroupId ? page.groups.find((g) => g.id === node.sourceGroupId) : undefined;
+  if (group && (node.eventType === "group-entrance" || node.eventType === "group-exit")) {
+    const phase = node.eventType === "group-entrance" ? "entrance" : "exit";
+    const effect = phase === "entrance" ? group.entranceEffect : group.exitEffect;
+    if (!effect) return null;
+    return (
+      <BlockEffectEditor
+        key={node.id}
+        title={phase === "entrance" ? "Aufbau" : "Abbau"}
+        page={page}
+        targetNodeId={node.id}
+        effect={effect}
+        trigger={null}
+        events={[]}
+        hideTrigger
+        onEffectChange={(next) => setGroupEffect(page.id, group.id, phase, next)}
+        onTriggerChange={() => undefined}
+      />
+    );
+  }
   const sourceBlock = node.sourceBlockId ? page.blocks[node.sourceBlockId] : undefined;
   if (!sourceBlock || (node.eventType !== "block-entrance" && node.eventType !== "block-exit")) return null;
   const phase = node.eventType === "block-entrance" ? "entrance" : "exit";

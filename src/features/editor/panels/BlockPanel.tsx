@@ -704,13 +704,14 @@ function VideoEditor({
         </label>
       </Collapsible>
 
-      <Collapsible title="Stoppunkte" defaultOpen={false}>
+      <Collapsible title="Zeitmarken" defaultOpen={block.stopPoints.length > 0}>
         <p className="weft-hint">
-          Ein Stoppunkt pausiert das Video an einer bestimmten Stelle, um dort z. B. Text oder ein Quiz zu zeigen.
+          Zeitmarken können das Video zu einem bestimmten Zeitpunkt pausieren und/oder verschiedene Events ausführen wie das Anzeigen
+          von Erklärtexten oder Quizzen.
         </p>
         {block.stopPoints.length > 0 && (
           <p className="weft-hint">
-            {block.stopPoints.length} Stoppunkt{block.stopPoints.length === 1 ? "" : "e"} angelegt.
+            {block.stopPoints.length} Zeitmarke{block.stopPoints.length === 1 ? "" : "n"} angelegt.
           </p>
         )}
         <button
@@ -719,7 +720,7 @@ function VideoEditor({
           disabled={!block.assetId}
           onClick={() => setStopPointDialogOpen(true)}
         >
-          + Stoppunkt hinzufügen
+          Zeitmarken konfigurieren
         </button>
         {!block.assetId && <p className="weft-hint">Zuerst eine Videodatei auswählen.</p>}
       </Collapsible>
@@ -733,9 +734,9 @@ function VideoEditor({
 
 
 /**
- * Opened from VideoEditor's "+ Stoppunkt hinzufügen" - the video plays here full-size (native
+ * Opened from VideoEditor's "Zeitmarken konfigurieren" - the video plays here full-size (native
  * controls, so scrubbing/volume/fullscreen all work for free) instead of the small, inert canvas
- * preview; "Stoppunkt erstellen" reads the <video>'s own currentTime rather than needing a
+ * preview; "Zeitmarke erstellen" reads the <video>'s own currentTime rather than needing a
  * separate scrubber. Existing stop points render as pause-icon markers along a mini-timeline
  * below, positioned by time/duration - clicking one selects it (toggling the same one again
  * deselects), opening a settings section underneath for just that point (currently just the
@@ -789,7 +790,7 @@ function VideoStopPointDialog({
     <div className="weft-modal-backdrop" onClick={onClose}>
       <div className="weft-modal" onClick={(e) => e.stopPropagation()}>
         <div className="weft-modal-header">
-          <h3>Stoppunkte</h3>
+          <h3>Zeitmarken</h3>
           <button type="button" className="weft-icon-button" title="Schließen" onClick={onClose}>
             ×
           </button>
@@ -808,7 +809,7 @@ function VideoStopPointDialog({
             Pausieren
           </button>
           <button type="button" className="weft-primary-button" onClick={addStopPointHere}>
-            Stoppunkt erstellen
+            Zeitmarke erstellen
           </button>
         </div>
 
@@ -830,7 +831,7 @@ function VideoStopPointDialog({
 
         {selectedStopPoint && (
           <div className="weft-stop-point-settings">
-            <p className="weft-stop-point-settings-title">Stoppunkt bei {formatTimeMMSS(selectedStopPoint.timeSeconds)}</p>
+            <p className="weft-stop-point-settings-title">Zeitmarke bei {formatTimeMMSS(selectedStopPoint.timeSeconds)}</p>
             <label className="weft-field weft-field-inline">
               <input
                 type="checkbox"
@@ -841,7 +842,7 @@ function VideoStopPointDialog({
             </label>
             {!selectedStopPoint.stopsVideo && <p className="weft-hint">Das Video läuft an dieser Stelle einfach weiter.</p>}
             <button type="button" className="weft-ghost-button" onClick={() => removeStopPoint(selectedStopPoint.id)}>
-              Stoppunkt entfernen
+              Zeitmarke entfernen
             </button>
           </div>
         )}

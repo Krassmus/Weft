@@ -38,7 +38,7 @@ const EVENT_LABELS: Record<TimelineEventType, string> = {
   "quiz-submit-incorrect": "Quiz abgeschickt",
   "video-start-auto": "Start des Videos",
   "video-start-manual": "Start des Videos",
-  "video-stop-point": "Stoppunkt",
+  "video-stop-point": "Zeitmarke",
   "video-end-loop": "Ende des Videos",
   "video-end-stop": "Ende des Videos",
   "block-entrance": "Erscheint",

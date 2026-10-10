@@ -4014,17 +4014,23 @@ button.weft-timeline-node-icon.is-red:hover,
   animation: weft-eg-grow 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
-/* A new line is drawn from its source to its target (pathLength is set to 1 for as long as that takes). */
-.weft-eg-line.is-drawing {
+/* A new line is uncovered from its source to its target: a mask path (white, pathLength 1) is drawn over it - the line itself keeps
+   its own look, dashed or solid, from the first moment. Duration and delay are set per line (Timeline.tsx): the new lines are drawn
+   one stretch after the other. */
+.weft-eg-mask-path {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 8;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  /* Duration and delay are set per line (Timeline.tsx): the new lines are drawn one stretch after the other. */
   animation: weft-eg-draw 0.32s linear both;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .weft-eg-node.is-new,
-  .weft-eg-line.is-drawing {
+  .weft-eg-node.is-new {
+    animation: none;
+  }
+  .weft-eg-mask-path {
     animation: none;
     stroke-dashoffset: 0;
   }

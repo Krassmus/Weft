@@ -495,7 +495,7 @@ function TimelineGraph({ page }: { page: Page }) {
               const bottom = Math.max(...points.map((p) => p.y)) + ICON / 2 + LABEL_HEIGHT;
               return <rect key={blockId} className="weft-eg-block" x={left} y={top} width={right - left} height={bottom - top} rx={12} />;
             })}
-            {[...layout.edges].sort((a, b) => Number(b.route === "detour") - Number(a.route === "detour")).map((edge) => {
+            {[...layout.edges].sort((a, b) => Number(b.route === "detour") - Number(a.route === "detour")).map((edge, edgeIndex) => {
               const info = model.edges.find((e) => e.id === edge.id)!;
               const u = at(edge.from);
               const v = at(edge.to);
@@ -506,18 +506,24 @@ function TimelineGraph({ page }: { page: Page }) {
                 "weft-eg-line" +
                 (waits ? " is-waiting" : "") +
                 (edge.route === "detour" ? " is-detour" : "") +
-                (drawing ? " is-drawing" : "") +
                 (hotEdges.has(edge.id) ? " is-hot" : lit ? " is-dim" : "");
               const d = edgePath(edge.route, u, v, columnWidth, detourY);
               const showDelay = !waits && info.delayMs > 0 && edge.route !== "detour";
               return (
                 <g key={edge.id}>
-                  {/* pathLength only while it is drawn: it would change what a dash is. */}
-                  <path
-                    className={className}
-                    d={d}
-                    {...(drawing ? { pathLength: 1, style: { animationDuration: `${DRAW_MS}ms`, animationDelay: `${fresh.edgeDelay.get(edge.id) ?? 0}ms` } } : {})}
-                  >
+                  {/* A new line is uncovered from its source to its target by a mask that is drawn - so it is painted as what it is
+                      (dashed if it waits for the learner), not as a solid line that turns dashed afterwards. */}
+                  {drawing && (
+                    <mask id={`weft-eg-mask-${edgeIndex}`} maskUnits="userSpaceOnUse" x={0} y={0} width={graphWidth} height={graphHeight}>
+                      <path
+                        className="weft-eg-mask-path"
+                        d={d}
+                        pathLength={1}
+                        style={{ animationDuration: `${DRAW_MS}ms`, animationDelay: `${fresh.edgeDelay.get(edge.id) ?? 0}ms` }}
+                      />
+                    </mask>
+                  )}
+                  <path className={className} d={d} mask={drawing ? `url(#weft-eg-mask-${edgeIndex})` : undefined}>
                     <title>{waits ? "Wartet auf die Lernperson" : info.delayMs > 0 ? `Nach ${info.delayMs / 1000} s` : "Passiert sofort"}</title>
                   </path>
                   {showDelay && (

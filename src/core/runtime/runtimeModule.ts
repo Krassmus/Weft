@@ -1,5 +1,5 @@
 import { orderedValues } from "../document/ordering";
-import { triggerEdgeList } from "../document/pageTimeline";
+import { buildEventGraph } from "../eventGraph/buildEventGraph";
 import { branchPageIds, sequenceOf } from "../document/sequence";
 import type { WeftModule } from "../types";
 
@@ -24,11 +24,16 @@ export function toRuntimeModule(module: WeftModule): unknown {
     ...module,
     sequence: sequenceOf(module).map(withoutOrder),
     layouts: mapValues(module.layouts, (layout) => ({ ...layout, blocks: orderedValues(layout.blocks).map(withoutOrder) })),
-    pages: mapValues(module.pages, (page) => ({
-      ...page,
-      blocks: orderedValues(page.blocks).map(withoutOrder),
-      timeline: { ...page.timeline, triggerEdges: triggerEdgeList(page.timeline) },
-    })),
+    pages: mapValues(module.pages, (page) => {
+      const { timeline: _timeline, ...rest } = page;
+      return {
+        ...rest,
+        blocks: orderedValues(page.blocks).map(withoutOrder),
+        // What happens on the page and what causes what, ready to run (see core/eventGraph): the player reads nothing of the
+        // stored timeline.
+        graph: buildEventGraph(page, page.layoutId ? module.layouts[page.layoutId] : null),
+      };
+    }),
     logicBlocks: mapValues(module.logicBlocks, (logicBlock) => ({
       ...logicBlock,
       branches: logicBlock.branches.map(({ pages: _pages, ...branch }) => ({ ...branch, pageIds: branchPageIds({ pages: _pages }) })),

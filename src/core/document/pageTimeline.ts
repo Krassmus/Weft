@@ -25,7 +25,7 @@ export function createDefaultPageTimeline(): PageTimeline {
   };
 }
 
-function quizFillNodeId(quizBlockId: string): string {
+export function quizFillNodeId(quizBlockId: string): string {
   return `quiz-fill:${quizBlockId}`;
 }
 
@@ -37,7 +37,7 @@ function quizFillNodeId(quizBlockId: string): string {
  * unsuffixed when `outcome` is omitted (the plain "Quiz abgeschickt" node built when neither flag
  * is on - see syncPageTimelineEvents), so that single, genuinely generic case doesn't churn ids
  * for no reason. Kept in sync by hand with player.runtime.js's own quizSubmitEventId. */
-function quizSubmitNodeId(quizBlockId: string, outcome?: "richtig" | "falsch"): string {
+export function quizSubmitNodeId(quizBlockId: string, outcome?: "richtig" | "falsch"): string {
   return outcome ? `quiz-submit:${quizBlockId}:${outcome}` : `quiz-submit:${quizBlockId}`;
 }
 
@@ -48,7 +48,7 @@ const QUIZ_OUTCOME_EVENT_TYPES = { richtig: "quiz-submit-correct", falsch: "quiz
  * generic "Nächste Folie" label/icon today (see nodeLabel/EVENT_ICONS in Timeline.tsx) - nothing
  * yet reads this id to show anything outcome-specific, but selecting one (see EventPanel.tsx) has
  * to land on *a* stable, distinct node, not the same one every other "end" would too. */
-function quizEndNodeId(quizId: string, outcome: "richtig" | "falsch"): string {
+export function quizEndNodeId(quizId: string, outcome: "richtig" | "falsch"): string {
   return `end:quiz:${quizId}:${outcome}`;
 }
 
@@ -97,15 +97,15 @@ function buildQuizLane(
   return { nodes, edges };
 }
 
-function videoStartNodeId(videoBlockId: string): string {
+export function videoStartNodeId(videoBlockId: string): string {
   return `video-start:${videoBlockId}`;
 }
 
-function videoEndNodeId(videoBlockId: string): string {
+export function videoEndNodeId(videoBlockId: string): string {
   return `video-end:${videoBlockId}`;
 }
 
-function videoStopNodeId(videoBlockId: string, stopPointId: string): string {
+export function videoStopNodeId(videoBlockId: string, stopPointId: string): string {
   return `video-stop:${videoBlockId}:${stopPointId}`;
 }
 

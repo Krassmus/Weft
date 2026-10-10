@@ -511,7 +511,8 @@
 
   function pageTransition(pageId) {
     var page = pageId && module.pages[pageId];
-    var transition = (page && page.transition) || { type: "none", durationMs: 500 };
+    var transition = nextTransition || (page && page.transition) || { type: "none", durationMs: 500 };
+    nextTransition = null;
     // Carries which page is being left, so a transition can look at it (Move's "content only" needs
     // to know whether the next page shares its layout).
     return Object.assign({}, transition, { fromPageId: pageId });
@@ -549,7 +550,15 @@
     return node;
   }
 
-  function goNext() {
+  // Next page; `transition` (the one of the "Nächste Folie" event that was reached) overrides the transition of the page.
+  // Event listeners must not pass their event as that argument - see goNextPage for those.
+  function goNext(transition) {
+    if (transition && typeof transition === "object" && typeof transition.durationMs === "number") nextTransition = transition;
+    goNextPage();
+  }
+  var nextTransition = null;
+
+  function goNextPage() {
     // Captured before `pos` moves - this is the page being left, whose own transition (see
     // TransitionPanel.tsx) animates the swap to whatever renders next, in every branch below.
     // Still correct for pos === -1 (no page shown yet, e.g. the very first goNext() call at
@@ -751,7 +760,7 @@
     // quiz auto-advance) already uses.
     if (isLeft) goPrev();
     else if (pos >= history.length) restart();
-    else advanceOne();
+    else weiter();
   });
 
   // ---- tap / click navigation ----
@@ -780,7 +789,7 @@
     if (now - lastTapAdvanceAt < 300) return;
     lastTapAdvanceAt = now;
     if (goBack) goPrev();
-    else advanceOne();
+    else weiter();
   });
 
   // ---- rendering ----
@@ -843,244 +852,97 @@
     return node;
   }
 
-  // ---- page-timeline event bus (drives page.timeline.triggerEdges - see PageTimeline in
-  // core/types.ts) ----
-  // A block's own Aufbau/Abbau, and a video's own start, are triggered by one of these ids, in
-  // exactly the same string shape the editor's own graph (see pageTimeline.ts's *NodeId
-  // functions) uses to name them - kept in sync by hand across the two files, the same way
-  // DEFAULT_VIEWPORT_WIDTH etc. already are, since this file can't import from there (see the
-  // file header: no imports, no build step). Reset per renderStage() call (a fresh page's blocks
-  // need fresh listeners, and any stale ones left over from the previous page's now-detached
-  // elements should never fire again).
-  var eventListeners = {};
-  // Every block-entrance/-exit and video-start node fires at most once per stage render, exactly
-  // like every other graph event already does (see hasFiredStart/hasFiredFill below) - besides
-  // matching what each of those actually means (an element doesn't appear twice; a video doesn't
-  // "start" twice), this is what keeps a trigger cycle the editor doesn't try to prevent (e.g. two
-  // blocks' own Aufbau each triggering the other's) from looping forever instead of just settling
-  // after one pass.
-  var firedTriggerableEvents = {};
-  function onGraphEvent(eventId, callback) {
-    if (!eventId) return;
-    (eventListeners[eventId] = eventListeners[eventId] || []).push(callback);
-  }
-  function fireGraphEvent(eventId) {
-    (eventListeners[eventId] || []).forEach(function (callback) {
-      callback();
+  // ---- the page's event graph (see core/eventGraph and docs/event-graph.md) ----
+  // page.graph is made by the editor when the module is exported: events (what can happen on the page) and triggers (what makes
+  // what happen). Nothing here knows about defaults, chains or queues - it only runs them.
+  //
+  // An event HAPPENS (see happened) and then sends all its outgoing triggers: a trigger either arrives after its delay or, if it
+  // waits for Weiter, once the learner presses Weiter. What arrives at an event makes its action run (see `performers`: an element
+  // appears, a video starts, the page is left); an event without an action just happens. An action tells that it is done by
+  // calling happened() itself - an element that fades in has appeared when the animation is over.
+  var graphGeneration = 0; // a new page shows a new graph: what is still on its way for the old one is dropped
+  var graphEvents = {}; // by id
+  var outgoingTriggers = {}; // event id -> [trigger]
+  var performers = {}; // event id -> function that runs the event's action
+  var waitingForWeiter = {}; // trigger id -> trigger, for the triggers whose source has happened and that wait for Weiter
+  var triggersDelivered = [];
+  // A loop of triggers without delay or Weiter would never let the page breathe: every delivery is asynchronous, and there is a cap
+  // on how many go out per second.
+  var MAX_DELIVERIES_PER_SECOND = 600;
+
+  function setUpGraph(page) {
+    graphGeneration++;
+    graphEvents = {};
+    outgoingTriggers = {};
+    performers = {};
+    waitingForWeiter = {};
+    triggersDelivered = [];
+    var graph = page.graph || { events: [], triggers: [] };
+    graph.events.forEach(function (event) {
+      graphEvents[event.id] = event;
+      // "Nächste Folie": the page is left, with this event's own transition. Whichever of them is reached first wins - the
+      // page is gone, and what is still on its way for it is dropped (see graphGeneration).
+      if (event.kind === "end") {
+        performers[event.id] = function () {
+          goNext(event.transition);
+        };
+      }
     });
-  }
-  // Fires `eventId` (see fireGraphEvent) but only ever once per stage render - for the "event
-  // nodes" whose own firing is itself scripted (see firedTriggerableEvents above), rather than
-  // ones guarded individually the way quiz/video's own intrinsic events already are.
-  function fireTriggerableEventOnce(eventId) {
-    if (firedTriggerableEvents[eventId]) return;
-    firedTriggerableEvents[eventId] = true;
-    fireGraphEvent(eventId);
+    graph.triggers.forEach(function (trigger) {
+      (outgoingTriggers[trigger.from] = outgoingTriggers[trigger.from] || []).push(trigger);
+    });
   }
 
-  // ---- "Weiter" (advance) queue - drives every kind:"advance" trigger edge, see
-  // TimelineEdgeKind's own doc comment in core/types.ts ----
-  // Ordered list of callbacks that are READY (their own `from` node has already fired) but
-  // haven't actually run yet - each one only runs once the learner presses Weiter again (see
-  // advanceOne), never the moment it becomes ready, unlike a plain graph event. Reset alongside
-  // eventListeners/firedTriggerableEvents in renderStage() - a fresh page starts its own queue
-  // from scratch.
-  var advanceQueue = [];
-  // Registers `cb` to become ready (queued, not run) the moment `fromEventId`'s own normal graph
-  // event fires - whether that's "start" firing synchronously at page load, a timed block effect
-  // firing after its delay, or another advance-step's own completion event firing once *it's*
-  // actually been stepped (see advanceOne) - chaining falls straight out of the existing event bus
-  // with no separate "chain" data structure needed.
-  function onAdvance(fromEventId, cb) {
-    onGraphEvent(fromEventId, function () {
-      advanceQueue.push(cb);
+  function overDeliveryCap() {
+    var now = Date.now();
+    triggersDelivered = triggersDelivered.filter(function (at) {
+      return now - at < 1000;
     });
-  }
-  // The one function that actually consumes a single Weiter-press (Space/→, or a button block
-  // whose action is "advance") - runs the next ready step if there is one; does nothing at all if
-  // the queue is empty (in particular: if "Nächste Folie" was set to "Gar nicht", nothing ever
-  // enqueues the actual page-leave, so Weiter can never leave this page on its own - see
-  // wireEndTrigger below). The degenerate case (no block uses Weiter) still matches today's exact
-  // behavior: "end" alone is queued, ready the instant "start" fires, so the very first press
-  // already leaves the page.
-  function advanceOne() {
-    if (advanceQueue.length) advanceQueue.shift()();
-  }
-  // Wires "Nächste Folie"'s own trigger (see resolveEndTrigger) into the SAME queue as every
-  // block's own Weiter-triggered Aufbau/Abbau - called once per renderStage(), so leaving the page
-  // is just the last link in the same chain rather than a separate mechanism.
-  function wireEndTrigger(page) {
-    var trigger = resolveEndTrigger(page);
-    if (!trigger) return;
-    onAdvance(trigger.from, function () {
-      (pos >= history.length ? restart : goNext)();
-    });
-  }
-  function quizFillEventId(blockId) {
-    return "quiz-fill:" + blockId;
-  }
-  // Kept in sync by hand with document/pageTimeline.ts's own quizSubmitNodeId - outcome-suffixed
-  // when given, so a trigger configured against the "richtig"/"falsch"-specific node in the
-  // editor's own graph (only possible once both outcomes have their own lane there - see
-  // buildQuizLane) resolves to a distinct id here too, not the same one both outcomes would
-  // otherwise share.
-  function quizSubmitEventId(blockId, outcome) {
-    return outcome ? "quiz-submit:" + blockId + ":" + outcome : "quiz-submit:" + blockId;
-  }
-  function videoStartEventId(blockId) {
-    return "video-start:" + blockId;
-  }
-  function videoStopEventId(blockId, stopPointId) {
-    return "video-stop:" + blockId + ":" + stopPointId;
-  }
-  function videoEndEventId(blockId) {
-    return "video-end:" + blockId;
-  }
-  function blockEffectEventId(blockId, phase) {
-    return "block-" + phase + ":" + blockId;
+    if (triggersDelivered.length >= MAX_DELIVERIES_PER_SECOND) return true;
+    triggersDelivered.push(now);
+    return false;
   }
 
-  // ---- trigger resolution (mirrors document/pageTimeline.ts's own getBlockEntranceTrigger/
-  // getBlockExitTrigger/getVideoStartTrigger/getEndTrigger/computeAdvanceChainTail by hand - see
-  // this file's header for why it can't just import them) ----
-  function findTriggerEdge(page, targetNodeId) {
-    var edges = (page.timeline && page.timeline.triggerEdges) || [];
-    for (var i = 0; i < edges.length; i++) {
-      if (edges[i].to === targetNodeId) return edges[i];
-    }
-    return null;
+  // The event has happened: its outgoing triggers go out.
+  function happened(eventId) {
+    var triggers = outgoingTriggers[eventId];
+    if (!triggers) return;
+    triggers.forEach(function (trigger) {
+      if (trigger.weiter) waitingForWeiter[trigger.id] = trigger;
+      else deliver(trigger, false);
+    });
   }
-  // { kind: "timed", from, delayMs } or { kind: "advance", from } - see TimelineEdgeKind's own
-  // doc comment in core/types.ts.
-  function resolvedTriggerFromEdge(edge) {
-    return edge.kind === "advance" ? { kind: "advance", from: edge.from } : { kind: "timed", from: edge.from, delayMs: edge.delayMs || 0 };
-  }
-  function isPageBlock(page, blockId) {
-    for (var i = 0; i < page.blocks.length; i++) {
-      if (page.blocks[i].id === blockId) return true;
-    }
-    return false;
-  }
-  // The end of whatever's EXPLICITLY chained onto "Weiter" via a real triggerEdges entry - "start"
-  // if nothing's explicitly chained. Doesn't know about any block still sitting at its own
-  // implicit default (see computeImplicitEntranceChain) - only computeAdvanceChainTail (below) is
-  // safe to use as "the" current tail; this half exists only because
-  // computeImplicitEntranceChain needs this same explicit-only answer as ITS OWN starting point.
-  function computeExplicitAdvanceChainTail(page, excludeNodeId) {
-    var edges = (page.timeline && page.timeline.triggerEdges) || [];
-    var advanceEdges = [];
-    var froms = {};
-    for (var i = 0; i < edges.length; i++) {
-      if (edges[i].kind === "advance" && edges[i].to !== excludeNodeId) {
-        advanceEdges.push(edges[i]);
-        froms[edges[i].from] = true;
+
+  // Lets a trigger arrive: after its delay, at its target. `now` runs a trigger without delay right here instead of on the next
+  // turn of the event loop - for the press of Weiter, which the learner is waiting on.
+  function deliver(trigger, now) {
+    var generation = graphGeneration;
+    var arrive = function () {
+      if (generation !== graphGeneration) return;
+      if (overDeliveryCap()) {
+        if (window.console) console.warn("Weft: too many triggers at once - a loop of events without delay?");
+        return;
       }
-    }
-    for (var j = 0; j < advanceEdges.length; j++) {
-      if (!froms[advanceEdges[j].to]) return advanceEdges[j].to;
-    }
-    return "start";
+      trigger_(trigger.to);
+    };
+    if (now && !trigger.delayMs) arrive();
+    else setTimeout(arrive, trigger.delayMs || 0);
   }
-  // Whether event startId can only happen after event targetId has - following what causes what:
-  // the stored trigger edge of a node, or else the (not yet stored) default implicitFrom (by node id)
-  // already hands it. Chaining targetId after something for which this is true would close a loop of
-  // events each waiting for the next, none of which could ever fire. Mirrors waitsOn in
-  // document/pageTimeline.ts.
-  function waitsOn(page, startId, targetId, implicitFrom) {
-    var seen = {};
-    var id = startId;
-    while (id !== undefined && !seen[id]) {
-      if (id === targetId) return true;
-      seen[id] = true;
-      var edge = findTriggerEdge(page, id);
-      id = edge ? edge.from : implicitFrom[id];
-    }
-    return false;
+
+  // Something reached the event: its action runs (and says itself when the event has happened), or - no action - it happens.
+  function trigger_(eventId) {
+    var perform = performers[eventId];
+    if (perform) perform();
+    else happened(eventId);
   }
-  // The Weiter queue as it stands: where every block still at its default Aufbau trigger sits in it
-  // (entranceFrom, by block id) and the queue's end (tail) - two blocks both at their untouched
-  // default are queued one after another (in block order), not both racing to be "right after Start
-  // der Folie". A block the end of the queue already waits for (the author chained other events onto
-  // its Aufbau by hand) can't go after that end - it'd wait for something that waits for it - and is
-  // queued right after "start" instead, in front of that chain. Mirrors walkAdvanceQueue in
-  // document/pageTimeline.ts.
-  function walkAdvanceQueue(page, excludeNodeId) {
-    var tail = computeExplicitAdvanceChainTail(page, excludeNodeId);
-    var entranceFrom = {};
-    var implicitFrom = {};
-    for (var i = 0; i < page.blocks.length; i++) {
-      var block = page.blocks[i];
-      if (block.entranceEffect.type === "off") continue; // no Aufbau at all - never part of the queue
-      var nodeId = blockEffectEventId(block.id, "entrance");
-      if (nodeId === excludeNodeId || findTriggerEdge(page, nodeId)) continue;
-      if (waitsOn(page, tail, nodeId, implicitFrom)) {
-        entranceFrom[block.id] = "start";
-        implicitFrom[nodeId] = "start";
-      } else {
-        entranceFrom[block.id] = tail;
-        implicitFrom[nodeId] = tail;
-        tail = nodeId;
-      }
-    }
-    return { entranceFrom: entranceFrom, tail: tail };
-  }
-  function computeImplicitEntranceChain(page) {
-    return walkAdvanceQueue(page, null).entranceFrom;
-  }
-  // The current true end of this page's whole Weiter queue, explicit edges and every
-  // still-at-its-own-implicit-default block both accounted for - "start" if the queue is entirely
-  // empty, and also "start" if that end already waits for the node itself (it can't go there).
-  // `excludeNodeId` leaves one node out of consideration entirely (pass null to not exclude
-  // anything).
-  function computeAdvanceChainTail(page, excludeNodeId) {
-    var walk = walkAdvanceQueue(page, excludeNodeId);
-    if (excludeNodeId === null) return walk.tail;
-    var implicitFrom = {};
-    for (var blockId in walk.entranceFrom) implicitFrom[blockEffectEventId(blockId, "entrance")] = walk.entranceFrom[blockId];
-    return waitsOn(page, walk.tail, excludeNodeId, implicitFrom) ? "start" : walk.tail;
-  }
-  // null means no Aufbau at all (entranceEffect.type "off" - see BlockEffectType's own doc
-  // comment in core/types.ts) - short-circuits here regardless of whatever trigger edge might
-  // still be stored, so toggling back to "none"/"fade"/"move" later picks up where it left off.
-  function resolveEntranceTrigger(page, block) {
-    if (block.entranceEffect.type === "off") return null;
-    var edge = findTriggerEdge(page, blockEffectEventId(block.id, "entrance"));
-    if (edge) return resolvedTriggerFromEdge(edge);
-    // A block merged in from the page's own layout keeps the old unconditional default - see
-    // getBlockEntranceTrigger's own doc comment in document/pageTimeline.ts for why.
-    if (!isPageBlock(page, block.id)) return { kind: "timed", from: "start", delayMs: 0 };
-    var chain = computeImplicitEntranceChain(page);
-    var from = chain[block.id];
-    return { kind: "advance", from: from === undefined ? "start" : from };
-  }
-  // null for "off" (no Abbau at all - same short-circuit as entrance) or a layout block (can
-  // never durably persist a per-page trigger anyway). With an actual Abbau configured and no
-  // explicit trigger edge yet, defaults to "Weiter" too, same as entrance - a freshly chosen
-  // "Fade" Abbau needs a real trigger to mean anything.
-  function resolveExitTrigger(page, block) {
-    if (block.exitEffect.type === "off") return null;
-    var edge = findTriggerEdge(page, blockEffectEventId(block.id, "exit"));
-    if (edge) return resolvedTriggerFromEdge(edge);
-    if (!isPageBlock(page, block.id)) return null;
-    var nodeId = blockEffectEventId(block.id, "exit");
-    return { kind: "advance", from: computeAdvanceChainTail(page, nodeId) };
-  }
-  function resolveVideoStartTrigger(page, block) {
-    var edge = findTriggerEdge(page, videoStartEventId(block.id));
-    if (edge) return resolvedTriggerFromEdge(edge);
-    return block.autoplay ? { kind: "timed", from: "start", delayMs: 0 } : null;
-  }
-  // "Nächste Folie"'s own trigger - always kind "advance" when non-null (see getEndTrigger's own
-  // doc comment in document/pageTimeline.ts: "end" only ever offers "Weiter" or "Gar nicht", never
-  // an arbitrary timed source). null means the page can only be left some other way (a button
-  // block, a quiz's own auto-advance). With no explicit edge, dynamically defaults to "Weiter,
-  // appended after everything else already queued" - the same dynamic default a block's own
-  // unconfigured Aufbau gets, so "end" keeps sliding to the back of the queue as blocks are added
-  // instead of firing too early.
-  function resolveEndTrigger(page) {
-    var edge = findTriggerEdge(page, "end");
-    if (!edge) return { kind: "advance", from: computeAdvanceChainTail(page, "end") };
-    return edge.kind === "advance" ? { kind: "advance", from: edge.from } : null;
+
+  // The learner pressed Weiter (Space, →, a tap, a button): every trigger that is waiting for it arrives.
+  function weiter() {
+    var waiting = waitingForWeiter;
+    waitingForWeiter = {};
+    Object.keys(waiting).forEach(function (id) {
+      deliver(waiting[id], true);
+    });
   }
 
   // The keyframes of one block animation as an Aufbau (hidden -> shown); an Abbau plays them
@@ -1128,38 +990,51 @@
     return frames;
   }
 
+  // The ids of the events a block makes - in the same shape the editor's graph uses (document/pageTimeline.ts's *NodeId functions);
+  // kept in sync by hand, this file can't import them.
+  function blockEffectEventId(blockId, phase) {
+    return "block-" + phase + ":" + blockId;
+  }
+  function quizFillEventId(blockId) {
+    return "quiz-fill:" + blockId;
+  }
+  function quizSubmitEventId(blockId, outcome) {
+    return outcome ? "quiz-submit:" + blockId + ":" + outcome : "quiz-submit:" + blockId;
+  }
+  function videoStartEventId(blockId) {
+    return "video-start:" + blockId;
+  }
+  function videoStopEventId(blockId, stopPointId) {
+    return "video-stop:" + blockId + ":" + stopPointId;
+  }
+  function videoEndEventId(blockId) {
+    return "video-end:" + blockId;
+  }
+
   /**
-   * Wires up one block's own Aufbau/Abbau (see BaseBlock.entranceEffect/exitEffect in
-   * core/types.ts, and PageTimeline.triggerEdges for who triggers it and after what delay, or
-   * whether it's Weiter-triggered instead - see resolveEntranceTrigger/resolveExitTrigger) -
-   * called once per block, right after it's built, from renderBlock. With an actual Aufbau
-   * configured (resolveEntranceTrigger non-null), the block starts hidden (visibility, not
-   * display: none, so it never needs a reflow to reveal) and is only ever shown once its
-   * entrance's trigger event actually fires (after its own delay for a timed trigger, or on the
-   * next Weiter press for an advance one - see onAdvance) - "none" as the effect type still means
-   * exactly that, it just reveals instantly instead of animating. With NO Aufbau at all
-   * (entranceEffect.type "off", the default - see BlockEffectType's own doc comment in
-   * core/types.ts - or a layout block, which can never durably carry its own per-page trigger
-   * either way), resolveEntranceTrigger returns null and the block is simply left at its natural
-   * visibility from the very start: no hiding, no wiring, exactly how every block behaved before
-   * entrance/exit effects existed at all. Abbau mirrors this the other way, and simply never runs
-   * at all when resolveExitTrigger returns null (the default). Once either actually happens, it
-   * fires its own synthetic graph event (see blockEffectEventId) so something ELSE can in turn be
-   * triggered by this block's own Aufbau/Abbau, exactly like any other event on the page (see
-   * TRIGGERABLE_EVENT_TYPES in document/pageTimeline.ts) - including another Weiter-triggered one,
-   * continuing the chain.
+   * Wires up one block's own Aufbau/Abbau (see BaseBlock.entranceEffect/exitEffect in core/types.ts): the block's events are in the
+   * page's graph (page.graph.events) when the effect is configured - an Aufbau means the block is hidden until its event
+   * happens, which it does when a trigger reaches it (see performers) and the animation (or its absence: "none" reveals instantly)
+   * has run. With no Aufbau at all (entranceEffect.type "off", the default) the block is simply there from the start. An Abbau
+   * likewise. Once either has happened, the event goes on to its own outgoing triggers - another Aufbau on Weiter, a video that
+   * starts, the page that is left.
    */
   function applyBlockEffects(wrap, block, page) {
     var entrance = block.entranceEffect || { type: "none", durationMs: 500 };
     var exit = block.exitEffect || { type: "none", durationMs: 500 };
-    var entranceTrigger = resolveEntranceTrigger(page, block);
-    var exitTrigger = resolveExitTrigger(page, block);
+    var entranceId = blockEffectEventId(block.id, "entrance");
+    var exitId = blockEffectEventId(block.id, "exit");
 
-    if (entranceTrigger) {
+    // An Aufbau that is configured (any type but "off") means the block is not there until the Aufbau event happens.
+    if (graphEvents[entranceId]) {
       wrap.style.visibility = "hidden";
-      var showEntrance = function () {
+      var shown = false;
+      performers[entranceId] = function () {
+        // Already there: nothing to do, and nothing happens again (so a loop through an Aufbau settles).
+        if (shown) return;
+        shown = true;
         var done = function () {
-          fireTriggerableEventOnce(blockEffectEventId(block.id, "entrance"));
+          happened(entranceId);
         };
         // The block stays visibility:hidden inline until the effect is over, and the animation itself
         // says "visible" (visibility is animatable, and fill: "both" keeps both ends in force): so the
@@ -1190,26 +1065,20 @@
           done();
         }
       };
-      if (entranceTrigger.kind === "advance") {
-        onAdvance(entranceTrigger.from, showEntrance);
-      } else {
-        onGraphEvent(entranceTrigger.from, function () {
-          setTimeout(showEntrance, entranceTrigger.delayMs || 0);
-        });
-      }
     }
-    // else: no Aufbau at all ("off") - stays at its natural visibility (visible), no wiring, no
-    // synthetic entrance event ever fires for it either - nothing could legitimately chain off an
-    // "off" block's entrance anyway (see syncPageTimelineEvents: it never gets a node at all).
+    // else: no Aufbau at all ("off") - stays at its natural visibility (visible), no event for it.
 
-    if (exitTrigger) {
-      // Idempotent, and also run by a timer shortly after the animation's duration - see showEntrance
-      // for why a "finish" event alone can't be relied on.
+    if (graphEvents[exitId]) {
+      var gone = false;
+      // Idempotent, and also run by a timer shortly after the animation's duration - see the Aufbau above for why a
+      // "finish" event alone can't be relied on.
       var hideExit = once(function () {
         wrap.style.visibility = "hidden";
-        fireTriggerableEventOnce(blockEffectEventId(block.id, "exit"));
+        happened(exitId);
       });
-      var runExit = function () {
+      performers[exitId] = function () {
+        if (gone) return;
+        gone = true;
         var duration = exit.durationMs || 500;
         // fill: "forwards" keeps the end state until hideExit hides the block - no frame at the
         // original state in between.
@@ -1225,13 +1094,6 @@
           hideExit();
         }
       };
-      if (exitTrigger.kind === "advance") {
-        onAdvance(exitTrigger.from, runExit);
-      } else {
-        onGraphEvent(exitTrigger.from, function () {
-          setTimeout(runExit, exitTrigger.delayMs || 0);
-        });
-      }
     }
   }
 
@@ -1576,13 +1438,9 @@
       // setting the attribute alone (as el()'s other boolean attrs do above) would silently
       // leave audible autoplay blocked.
       videoEl.muted = !!block.muted;
-      // A resolved start trigger (see resolveVideoStartTrigger) that ISN'T just what
-      // VideoBlock.autoplay alone already implies takes over entirely, scripted below - native
-      // autoplay is switched off in that case so the two mechanisms can never both try to start
-      // the same video at once (see this block's own trigger-wiring further down).
-      var startTrigger = resolveVideoStartTrigger(page, block);
-      var hasExplicitStartTrigger = !!findTriggerEdge(page, videoStartEventId(block.id));
-      videoEl.autoplay = !hasExplicitStartTrigger && !!block.autoplay;
+      // Never natively: a video that starts by itself does so because a trigger of the graph (from the start of the page, in the
+      // simplest case) tells it to - see its performer below. Native autoplay would start it a second way.
+      videoEl.autoplay = false;
 
       // Fires each stop point's own event (see videoStopEventId - a block elsewhere can use it as
       // an Aufbau/Abbau trigger, see BlockEffectEditor) the moment playback reaches it, and pauses
@@ -1602,7 +1460,7 @@
           for (var i = 0; i < block.stopPoints.length; i++) {
             var stopPoint = block.stopPoints[i];
             if (lastStopCheckTime < stopPoint.timeSeconds && current >= stopPoint.timeSeconds) {
-              fireGraphEvent(videoStopEventId(block.id, stopPoint.id));
+              happened(videoStopEventId(block.id, stopPoint.id));
               if (stopPoint.stopsVideo) shouldPause = true;
             }
           }
@@ -1626,39 +1484,25 @@
         // nothing to recover from there, just avoid an unhandled-rejection console error over it.
         videoEl.play().catch(function () {});
       });
-      // hasFiredStart guards against "video-start" refiring on every resume-after-pause - native
-      // <video> fires "play" each time playback (re)starts, but the event should only mean the
-      // *first* time, matching what "Start des Videos" actually shows in the editor's own graph.
+      // hasFiredStart guards against "video-start" happening again on every resume-after-pause - native <video> fires "play" each
+      // time playback (re)starts, but the event only means the *first* time, matching what "Video startet" shows in the
+      // editor's graph. Whatever made the video start - a trigger or the learner's own press of play - ends up here.
       var hasFiredStart = false;
       videoEl.addEventListener("play", function () {
         playButton.classList.add("is-hidden");
         if (!hasFiredStart) {
           hasFiredStart = true;
-          fireGraphEvent(videoStartEventId(block.id));
+          happened(videoStartEventId(block.id));
         }
       });
-      // A start trigger that isn't just native autoplay (see hasExplicitStartTrigger above) -
-      // either an explicit override, or autoplay was off to begin with and something else is
-      // meant to start this video - is scripted here instead: wait for its own source event, then
-      // actually call play() after the configured delay. The "play" listener above already fires
-      // videoStartEventId regardless of what caused play() to be called, so nothing else about
-      // how a video's own start propagates further needs to know or care which path started it.
-      if (startTrigger && hasExplicitStartTrigger) {
-        var playVideo = function () {
-          videoEl.play().catch(function () {});
-        };
-        if (startTrigger.kind === "advance") {
-          onAdvance(startTrigger.from, playVideo);
-        } else {
-          onGraphEvent(startTrigger.from, function () {
-            setTimeout(playVideo, startTrigger.delayMs || 0);
-          });
-        }
-      }
+      // What arrives at "Video startet": play. (The event itself happens in the listener above.)
+      performers[videoStartEventId(block.id)] = function () {
+        videoEl.play().catch(function () {});
+      };
       // Never fires at all for a looping video (the loop attribute pre-empts "ended" natively) -
       // matches "video-end-loop"/the ∞ icon's own meaning of "doesn't really end" exactly.
       videoEl.addEventListener("ended", function () {
-        fireGraphEvent(videoEndEventId(block.id));
+        happened(videoEndEventId(block.id));
       });
       videoEl.addEventListener("pause", function () {
         playButton.classList.remove("is-hidden");
@@ -1850,13 +1694,12 @@
       button.disabled = pos <= 0;
       button.addEventListener("click", goPrev);
     } else if (block.action === "advance") {
-      // Steps the same Weiter queue Space/→ does - reveals the next queued build if there is
-      // one, only actually leaving the page once it's empty (see advanceOne). Once the module has
-      // ended, restarts instead, same as every other Weiter-ish control.
-      button.addEventListener("click", pos >= history.length ? restart : advanceOne);
+      // The same Weiter Space/→ is (see weiter): lets everything arrive that waits for it - the next build, or the
+      // page that is left. Once the module has ended, restarts instead, same as every other Weiter-ish control.
+      button.addEventListener("click", pos >= history.length ? restart : weiter);
     } else {
-      // "Nächste Folie" - always an unconditional, immediate jump, regardless of any pending
-      // Weiter-triggered builds still queued on the current page. Once the module has ended, the
+      // "Nächste Folie" - always an unconditional, immediate jump, regardless of any build still waiting for Weiter on the
+      // current page. Once the module has ended, the
       // same action restarts it instead of doing nothing.
       button.addEventListener("click", pos >= history.length ? restart : goNext);
     }
@@ -1936,7 +1779,7 @@
     optionsWrap.addEventListener("change", function () {
       if (hasFiredFill) return;
       hasFiredFill = true;
-      fireGraphEvent(quizFillEventId(block.id));
+      happened(quizFillEventId(block.id));
     });
 
     // A plain button, not a form's submit: a module may run in an iframe without allow-forms (the editor's preview, a player
@@ -1998,9 +1841,10 @@
       // "richtig"/"falsch"-specific node, built once that outcome has its own lane) - whichever
       // of the two an author could actually have picked in the editor has a real listener here;
       // the other is just an id nothing happens to be registered against, same as any other
-      // no-op fireGraphEvent call.
-      fireGraphEvent(quizSubmitEventId(block.id));
-      fireGraphEvent(quizSubmitEventId(block.id, correct ? "richtig" : "falsch"));
+      // no-op happened() call. Going on to the next page after the feedback is a trigger of the graph (see
+      // core/eventGraph/buildEventGraph.ts) - nothing to do for it here.
+      happened(quizSubmitEventId(block.id));
+      happened(quizSubmitEventId(block.id, correct ? "richtig" : "falsch"));
 
       // Replaces the submit button rather than joining it (see the feedback element above), and
       // locks the options in place - both so a learner can't submit twice, and so the answer
@@ -2014,17 +1858,6 @@
       showFeedbackTitle();
       feedback.className = "weft-quiz-feedback " + (open ? "is-thanks" : correct ? "is-correct" : "is-incorrect");
       feedback.hidden = false;
-
-      if (correct ? block.advanceOnCorrect : block.advanceOnIncorrect) {
-        var posAtAnswer = pos;
-        // Delayed so the feedback text is still readable for a moment, and guarded by
-        // posAtAnswer so a learner who's already navigated away during that delay (Zurück, a
-        // button block, keyboard) doesn't get pulled forward again out from under them.
-        setTimeout(function () {
-          if (pos !== posAtAnswer) return;
-          (pos >= history.length ? restart : goNext)();
-        }, 1500);
-      }
     });
 
     wrap.appendChild(form);
@@ -2038,18 +1871,13 @@
   }
 
   function renderStage(pageId) {
-    // Fresh listeners (and fresh once-only guards, and a fresh Weiter queue) for a fresh page -
-    // see eventListeners's own comment above for why stale ones from whatever page was showing
-    // before must never carry over. In particular this means every page's own Weiter-build
-    // progress always restarts from the top on a fresh render of it - including navigating back to
-    // a page you'd already stepped through once - exactly how every other entrance/exit effect
-    // already behaves (nothing here is "remembered" across a re-render, same as always).
-    eventListeners = {};
-    firedTriggerableEvents = {};
-    advanceQueue = [];
+    // A fresh graph for a fresh page (see setUpGraph): what is still on its way for the page that was showing is dropped. In
+    // particular every page's own Weiter-build progress restarts from the top on a fresh render of it - including navigating
+    // back to a page you'd already stepped through once.
     languageRefreshers = [];
     languageSwitches = [];
     var page = module.pages[pageId];
+    setUpGraph(page);
     var stage = el("div", { class: "weft-stage", style: stageStyle() }, []);
     var layout = page.layoutId ? module.layouts[page.layoutId] : null;
     // Layout blocks are marked so a "content only" Move can leave them standing while the page's own
@@ -2062,11 +1890,10 @@
       });
     }
     page.blocks.forEach(function (b) { stage.appendChild(renderBlock(b, page)); });
-    wireEndTrigger(page);
-    // Every block's own entrance/exit listener is registered synchronously above, by the time
-    // renderBlock returns for it - so firing "start" here, still before this stage is even
-    // returned to be appended to the DOM, reaches all of them before the browser ever paints.
-    fireGraphEvent("start");
+    // Every block's own actions are registered synchronously above, by the time renderBlock returns for it - so the start of
+    // the page happens here, still before this stage is even returned to be appended to the DOM; what it triggers arrives
+    // right after (see deliver), when the blocks are on the page.
+    happened("start");
     return stage;
   }
 

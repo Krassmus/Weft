@@ -1,7 +1,7 @@
 import { isSnapshot } from "../collab/mutationScope";
 import { formatTimeMMSS } from "../formatTime";
 import { orderedValues } from "./ordering";
-import type { Block, Page, PageTimeline, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode, VideoBlock } from "../types";
+import type { Block, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode, VideoBlock } from "../types";
 
 /**
  * What every page's timeline starts out as (and what a page missing it is given on load, see io/unpack.ts): one trigger from the
@@ -239,7 +239,23 @@ export function triggerEdgeList(timeline: PageTimeline): TimelineEdge[] {
     });
 }
 
-/** The ids of the triggers that lead to `to`, in a fixed order. An event can have several; the editor's panels edit the first. */
+/** The triggers that lead to `to` (with their ids), in a fixed order. */
+export function incomingTriggers(timeline: PageTimeline, to: string): (PageTrigger & { id: string })[] {
+  return Object.keys(timeline.triggers)
+    .filter((id) => timeline.triggers[id].to === to)
+    .sort()
+    .map((id) => ({ id, ...timeline.triggers[id] }));
+}
+
+/** The triggers that start at `from` (with their ids), in a fixed order. */
+export function outgoingTriggers(timeline: PageTimeline, from: string): (PageTrigger & { id: string })[] {
+  return Object.keys(timeline.triggers)
+    .filter((id) => timeline.triggers[id].from === from)
+    .sort()
+    .map((id) => ({ id, ...timeline.triggers[id] }));
+}
+
+/** The ids of the triggers that lead to `to`, in a fixed order. An event can have several; the panels of a block edit the first. */
 function incomingTriggerIds(timeline: PageTimeline, to: string): string[] {
   return Object.keys(timeline.triggers)
     .filter((id) => timeline.triggers[id].to === to)
@@ -352,10 +368,10 @@ export function getEndTrigger(page: Page, endId = "end"): ResolvedTrigger | null
   return edge ? resolvedTriggerFromEdge(edge) : null;
 }
 
-/** Sets the trigger that causes `to` to one from `from` (`kind` "timed" by default; pass "advance" for a Weiter-triggered one -
- * `delayMs` is then the delay that runs after the press), or removes it entirely when `from` is null - the one place this
- * bookkeeping happens, shared by every UI that can create/edit/remove a trigger (see setEventTrigger in document/actions.ts). It
- * is one trigger per event that is edited here: other incoming triggers of `to` (the model allows several) are replaced. */
+/** Sets the (first) trigger that causes `to` to one from `from` (`kind` "timed" by default; pass "advance" for a Weiter-triggered one -
+ * `delayMs` is then the delay that runs after the press), or removes it when `from` is null - the place the panels of a block, which
+ * edit one trigger per event, do their bookkeeping (see setEventTrigger in document/actions.ts). Other incoming triggers of `to` (the
+ * model allows several, the event's own panel edits them) are left alone. */
 export function setTriggerEdge(
   timeline: PageTimeline,
   to: string,
@@ -363,10 +379,9 @@ export function setTriggerEdge(
   delayMs: number,
   kind: TimelineEdgeKind = "timed",
 ): void {
-  const key = `t:${to}`;
-  for (const id of incomingTriggerIds(timeline, to)) if (id !== key) delete timeline.triggers[id];
-  if (from) timeline.triggers[key] = { from, to, delayMs: kind === "advance" ? delayMs : delayMs, weiter: kind === "advance" };
-  else delete timeline.triggers[key];
+  const first = incomingTriggerIds(timeline, to)[0];
+  if (from) timeline.triggers[first ?? `t:${to}`] = { from, to, delayMs, weiter: kind === "advance" };
+  else if (first !== undefined) delete timeline.triggers[first];
 }
 
 /**
@@ -630,9 +645,10 @@ function blockEventIds(page: Page): Set<string> {
  * 2. A trigger whose source is gone (a deleted block, an effect set to "off") is not dropped on the spot: whatever led to the
  *    source now leads to what the source led to, so that a chain A - B - C stays one chain when B is removed.
  * 3. Triggers whose event or source no longer exists at all are dropped.
- * 4. An Aufbau/Abbau that has no trigger yet gets one: it waits for Weiter at the end of the chain, and "Nächste Folie" stays the
- *    last link (this is where a freshly chosen effect gets its place - there are no implicit triggers any more, see
- *    docs/event-graph.md). Everything else that a block can do (a video starting by itself) is set up by the action that changes it.
+ * 4. Titles of events that are gone are dropped.
+ *
+ * A freshly chosen Aufbau/Abbau gets its place in the chain from ensureEffectTriggers, called by the action that chose it - not
+ * from here: an effect whose trigger the author has taken away must stay without one (it is then shown as unreachable).
  *
  * Only what is really out of date is touched - an unchanged page stays an unchanged object.
  */
@@ -673,23 +689,33 @@ export function syncPageTimelineEvents(page: Page): void {
     if (!events.has(trigger.to) || !events.has(trigger.from)) delete timeline.triggers[id];
   }
 
-  // 4.
-  const needing: string[] = [];
-  const blocks = orderedValues(page.blocks);
+  // 4. Titles of events that are gone.
+  if (timeline.titles) {
+    for (const id of Object.keys(timeline.titles)) if (!events.has(id)) delete timeline.titles[id];
+  }
+}
+
+/**
+ * Gives the Aufbau/Abbau of `blockIds` that has no trigger yet one: it waits for Weiter at the end of the chain, and "Nächste Folie"
+ * stays the last link. Called by the action that has just chosen the effect (there are no implicit triggers any more, see
+ * docs/event-graph.md) - never by the general sync, so that an effect from which the author took the trigger away stays so.
+ */
+export function ensureEffectTriggers(page: Page, blockIds: string[]): void {
+  const timeline = page.timeline;
   const hasIncoming = (to: string) => Object.values(timeline.triggers).some((t) => t.to === to);
-  for (const block of blocks) {
-    const id = blockEffectNodeId(block.id, "entrance");
-    if (block.entranceEffect.type !== "off" && !hasIncoming(id)) needing.push(id);
-  }
-  for (const block of blocks) {
-    const id = blockEffectNodeId(block.id, "exit");
-    if (block.exitEffect.type !== "off" && !hasIncoming(id)) needing.push(id);
-  }
-  for (const nodeId of needing) {
-    const tail = computeAdvanceChainTail(page, nodeId);
-    timeline.triggers[`t:${nodeId}`] = { from: tail, to: nodeId, delayMs: 0, weiter: true };
-    // "Nächste Folie" stays the last link of the chain it was the last link of.
-    const endTrigger = Object.values(timeline.triggers).find((t) => t.to === "end" && t.weiter && t.from === tail);
-    if (endTrigger && !waitsOn(page, tail, nodeId)) endTrigger.from = nodeId;
+  for (const blockId of blockIds) {
+    const block = page.blocks[blockId];
+    if (!block) continue;
+    const wanted: string[] = [];
+    if (block.entranceEffect.type !== "off") wanted.push(blockEffectNodeId(blockId, "entrance"));
+    if (block.exitEffect.type !== "off") wanted.push(blockEffectNodeId(blockId, "exit"));
+    for (const nodeId of wanted) {
+      if (hasIncoming(nodeId)) continue;
+      const tail = computeAdvanceChainTail(page, nodeId);
+      timeline.triggers[`t:${nodeId}`] = { from: tail, to: nodeId, delayMs: 0, weiter: true };
+      // "Nächste Folie" stays the last link of the chain it was the last link of.
+      const endTrigger = Object.values(timeline.triggers).find((t) => t.to === "end" && t.weiter && t.from === tail);
+      if (endTrigger && !waitsOn(page, tail, nodeId)) endTrigger.from = nodeId;
+    }
   }
 }

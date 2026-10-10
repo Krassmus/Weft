@@ -3905,3 +3905,60 @@ button.weft-timeline-node-icon.is-red:hover,
 .weft-timeline-node-icon.is-hot {
   box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 25%, transparent);
 }
+
+
+/* ---- The triggers of an event in its panel (EventPanel.tsx) ---- */
+
+.weft-trigger-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.weft-trigger-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-panel);
+}
+
+.weft-trigger-card select {
+  width: 100%;
+  min-width: 0;
+}
+
+.weft-trigger-card-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.weft-trigger-card-delay {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.weft-trigger-card-delay input {
+  width: 64px;
+}
+
+.weft-trigger-card-weiter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.weft-trigger-card .weft-hint {
+  margin: 0;
+}

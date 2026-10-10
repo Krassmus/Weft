@@ -193,6 +193,7 @@ export function BlockEffectEditor({
   effect,
   trigger,
   events,
+  hideTrigger,
   onEffectChange,
   onTriggerChange,
 }: {
@@ -202,6 +203,8 @@ export function BlockEffectEditor({
   effect: BlockEffect;
   trigger: ResolvedTrigger | null;
   events: { id: string; label: string }[];
+  /** Leave out the trigger picker (the event's own panel lists all its triggers itself). */
+  hideTrigger?: boolean;
   onEffectChange: (effect: BlockEffect) => void;
   onTriggerChange: (from: string | null, delayMs: number, kind: TimelineEdgeKind) => void;
 }) {
@@ -253,15 +256,17 @@ export function BlockEffectEditor({
               </select>
             </label>
           )}
-          <TriggerPicker
-            page={page}
-            targetNodeId={targetNodeId}
-            trigger={trigger}
-            options={events}
-            allowNoTrigger={false}
-            noTriggerLabel=""
-            onChange={onTriggerChange}
-          />
+          {!hideTrigger && (
+            <TriggerPicker
+              page={page}
+              targetNodeId={targetNodeId}
+              trigger={trigger}
+              options={events}
+              allowNoTrigger={false}
+              noTriggerLabel=""
+              onChange={onTriggerChange}
+            />
+          )}
         </>
       )}
     </Collapsible>

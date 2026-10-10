@@ -597,6 +597,8 @@ export interface PageEnd {
 export interface PageTimeline {
   triggers: Record<string, PageTrigger>;
   ends: Record<string, PageEnd>;
+  /** A title the author gave an event instead of its standard one, by event id. Absent: the standard titles. */
+  titles?: Record<string, string>;
 }
 
 /** Several of a page's own blocks, bundled so they move (and resize, together,

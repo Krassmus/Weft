@@ -236,5 +236,9 @@ und wenn sie fertig ist – bei einer Animation nach ihrer Dauer –, passiert d
    Farben nach Typ (blau, gelb, violett, rot für unerreichbare Events), Hover hebt ein Event und seine Linien hervor. Quiz und
    Video sind Event-Blöcke (gemeinsamer Rahmen; Stopppunkte lassen ausgelöste Events nach unten gehen). **Noch offen aus dem
    Konzept:** Gruppen und Buttons als Event-Blöcke (dafür fehlen noch deren Events im Datenmodell), Titel-Überschreibung pro Event.
-4. **Seitenleiste** (Ein-/Ausgangstrigger-Listen, Titel, Warnung).
+4. **Seitenleiste** (Ein-/Ausgangstrigger-Listen, Titel, Warnung). **(umgesetzt)** `EventPanel.tsx`: Titel (überschreibbar,
+   `page.timeline.titles`), „Wird ausgelöst durch“ und „Löst aus“ als Listen (Quelle bzw. Ziel, Verzögerung, „wartet auf Weiter“,
+   Entfernen, Hinzufügen), Warnung bei unerreichbaren Events. Ein Aufbau/Abbau bekommt seinen Platz in der Weiter-Kette einmal, wenn
+   der Effekt gewählt wird (`ensureEffectTriggers`); nimmt man ihm später den Trigger, bleibt er ohne und ist rot. Das
+   Block-Panel bearbeitet weiter nur den ersten Trigger.
 5. **Animationen** (Verschieben, Erscheinen, Linien einzeichnen) und **Drag & Drop** in linearen Ketten.

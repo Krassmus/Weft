@@ -60,6 +60,11 @@ const EVENT_ICONS: Record<TimelineEventType, string> = {
 /** Exported for BlockEffectEditor in panels/BlockPanel.tsx, which lists these same nodes (minus
  * "end" - see BlockEffect.triggerEventId in core/types.ts) as trigger options for a block's own
  * Aufbau/Abbau, and wants them to read exactly the same as they do here. */
+/** The title of an event in the graph: the one the author gave it, else its standard one (see nodeLabel). */
+export function eventTitle(page: Page, node: TimelineNode): string {
+  return page.timeline.titles?.[node.id]?.trim() || nodeLabel(node);
+}
+
 export function nodeLabel(node: TimelineNode): string {
   if (node.label) return node.label;
   if (node.kind === "start") return "Start der Folie";
@@ -77,7 +82,7 @@ export function nodeLabel(node: TimelineNode): string {
 export function listPageTriggerEvents(page: Page): { id: string; label: string }[] {
   return listAllNodes(page)
     .filter((node) => node.kind !== "end")
-    .map((node) => ({ id: node.id, label: nodeLabel(node) }));
+    .map((node) => ({ id: node.id, label: eventTitle(page, node) }));
 }
 
 /** Every node that could be picked as a trigger TARGET (see TRIGGERABLE_EVENT_TYPES in
@@ -86,7 +91,7 @@ export function listPageTriggerEvents(page: Page): { id: string; label: string }
 export function listTriggerableNodes(page: Page): { id: string; label: string }[] {
   return listAllNodes(page)
     .filter(isTriggerableNode)
-    .map((node) => ({ id: node.id, label: nodeLabel(node) }));
+    .map((node) => ({ id: node.id, label: eventTitle(page, node) }));
 }
 
 /** The name of the transition of a "Nächste Folie" event, or nothing for a plain cut. */
@@ -326,7 +331,7 @@ export function Timeline({ page }: { page: Page }) {
                   unreachable={n.unreachable}
                 />
                 <span className="weft-timeline-node-label">
-                  {nodeLabel(n.node)}
+                  {eventTitle(page, n.node)}
                   {detail && <span className="weft-timeline-label-detail"> ({detail})</span>}
                 </span>
               </div>

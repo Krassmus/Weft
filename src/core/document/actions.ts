@@ -16,6 +16,7 @@ import type {
   Page,
   StaticBlock,
   TimelineEdgeKind,
+  PageTrigger,
   Transition,
   TransitionType,
   UUID,
@@ -36,6 +37,7 @@ import {
   blockEffectNodeId,
   canTriggerFrom,
   createDefaultPageTimeline,
+  ensureEffectTriggers,
   isEndNodeId,
   quizEndNodeId,
   quizSubmitNodeId,
@@ -601,7 +603,13 @@ export function updateBlock(pageId: string, blockId: string, patch: Partial<Bloc
     const page = m.pages[pageId];
     const block = page?.blocks[blockId];
     if (!block) return;
+    const hadEntrance = block.entranceEffect.type !== "off";
+    const hadExit = block.exitEffect.type !== "off";
     assignPatch(block, patch);
+    // An effect that has just been chosen gets its place in the chain of Weiter (see ensureEffectTriggers).
+    if (page && ((!hadEntrance && block.entranceEffect.type !== "off") || (!hadExit && block.exitEffect.type !== "off"))) {
+      ensureEffectTriggers(page, [blockId]);
+    }
     // The autoplay switch of a video is what puts a trigger from the start of the page to its start there (and takes that one away
     // again) - there is no implicit default any more, see syncPageTimelineEvents.
     if (page && block.kind === "video" && "autoplay" in patch) {
@@ -644,6 +652,46 @@ export function setEventTrigger(
     if (!page) return;
     chainOnWeiter(page, targetNodeId, from, delayMs, kind);
     syncPageTimelineEvents(page);
+  });
+}
+
+/** A new trigger from `from` to `to` (an event can have several incoming ones). */
+export function addTrigger(pageId: string, from: string, to: string, delayMs = 0, weiter = false) {
+  edit("Auslöser hinzufügen", (m) => {
+    const page = m.pages[pageId];
+    if (!page) return;
+    let id = `t:${to}`;
+    for (let n = 2; id in page.timeline.triggers; n++) id = `t:${to}:${n}`;
+    page.timeline.triggers[id] = { from, to, delayMs, weiter };
+  });
+}
+
+/** Changes one trigger of a page - where it comes from, where it goes, its delay, whether it waits for Weiter. */
+export function updateTrigger(pageId: string, triggerId: string, patch: Partial<Pick<PageTrigger, "from" | "to" | "delayMs" | "weiter">>) {
+  edit("Auslöser bearbeiten", (m) => {
+    const trigger = m.pages[pageId]?.timeline.triggers[triggerId];
+    if (trigger) assignPatch(trigger, patch);
+  });
+}
+
+export function removeTrigger(pageId: string, triggerId: string) {
+  edit("Auslöser entfernen", (m) => {
+    const page = m.pages[pageId];
+    if (page) delete page.timeline.triggers[triggerId];
+  });
+}
+
+/** The title of an event in the graph: the author's own instead of the standard one; empty means the standard title again. */
+export function setEventTitle(pageId: string, eventId: string, title: string) {
+  edit("Titel ändern", (m) => {
+    const page = m.pages[pageId];
+    if (!page) return;
+    const trimmed = title.trim();
+    // (Read the collection back after creating it: what `??=` evaluates to is the plain object, not the one in the document.)
+    if (trimmed) {
+      if (!page.timeline.titles) page.timeline.titles = {};
+      page.timeline.titles[eventId] = trimmed;
+    } else if (page.timeline.titles) delete page.timeline.titles[eventId];
   });
 }
 
@@ -823,14 +871,20 @@ export function setGroupEffect(pageId: string, blockIds: string[], phase: "entra
     const page = m.pages[pageId];
     if (!page) return;
     let touched = false;
+    const chosen: string[] = [];
     for (const blockId of blockIds) {
       const block = page.blocks[blockId];
       if (!block) continue;
+      const had = (phase === "entrance" ? block.entranceEffect : block.exitEffect).type !== "off";
       if (phase === "entrance") block.entranceEffect = plain(effect);
       else block.exitEffect = plain(effect);
+      if (!had && effect.type !== "off") chosen.push(blockId);
       touched = true;
     }
-    if (touched) syncPageTimelineEvents(page);
+    if (touched) {
+      syncPageTimelineEvents(page);
+      ensureEffectTriggers(page, chosen);
+    }
   });
 }
 
@@ -1389,6 +1443,8 @@ export function pasteBlockInto(
       if (!page) return;
       insertOrdered(page.blocks, newBlock.id, newBlock);
       syncPageTimelineEvents(page);
+      // A block pasted with an Aufbau/Abbau takes its place in the chain of Weiter.
+      ensureEffectTriggers(page, [newBlock.id]);
     } else {
       const layout = m.layouts[target.layoutId];
       if (!layout) return;

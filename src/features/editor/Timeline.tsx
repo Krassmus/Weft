@@ -183,6 +183,8 @@ function edgePath(route: EdgeRoute, u: Point, v: Point, columnWidth: number, det
 const MOVE_MS = 280;
 /** How long a new event takes to appear and a new trigger to be drawn. */
 const APPEAR_MS = 380;
+/** How long one stretch of new lines takes to be drawn; the stretches follow one another, left to right. */
+const DRAW_MS = 320;
 const DRAG_THRESHOLD_PX = 5;
 
 function prefersReducedMotion(): boolean {
@@ -354,9 +356,13 @@ function TimelineGraph({ page }: { page: Page }) {
   const positions = useAnimatedPositions(target, new Set(drag ? [drag.nodeId] : []), resizing);
   const at = (id: string): Point => positions.get(id) ?? target.get(id) ?? { x: PAD_X, y: PAD_TOP };
 
-  // What is new since the last time: it grows into view (events) or is drawn (lines) for a moment.
+  // What is new since the last time: it grows into view (events) or is drawn (lines) for a moment. The new lines are drawn one stretch
+  // after the other, left to right, as one line being painted: first everything that leads to a new event (the event grows into view
+  // when it is reached), then what leads on from it. A stretch is all the new lines that start in the same column.
+  type Fresh = { nodes: Set<string>; edges: Set<string>; edgeDelay: Map<string, number>; nodeDelay: Map<string, number> };
+  const emptyFresh = (): Fresh => ({ nodes: new Set(), edges: new Set(), edgeDelay: new Map(), nodeDelay: new Map() });
   const seenRef = useRef<{ nodes: Set<string>; edges: Set<string> } | null>(null);
-  const [fresh, setFresh] = useState<{ nodes: Set<string>; edges: Set<string> }>({ nodes: new Set(), edges: new Set() });
+  const [fresh, setFresh] = useState<Fresh>(emptyFresh);
   useLayoutEffect(() => {
     const nodes = new Set(model.nodes.map((n) => n.id));
     const edges = new Set(model.edges.map((e) => e.id));
@@ -366,9 +372,25 @@ function TimelineGraph({ page }: { page: Page }) {
     const addedNodes = new Set([...nodes].filter((id) => !previous.nodes.has(id)));
     const addedEdges = new Set([...edges].filter((id) => !previous.edges.has(id)));
     if (addedNodes.size === 0 && addedEdges.size === 0) return;
-    setFresh({ nodes: addedNodes, edges: addedEdges });
-    const timer = setTimeout(() => setFresh({ nodes: new Set(), edges: new Set() }), APPEAR_MS + 80);
+
+    const edgeById = new Map(model.edges.map((e) => [e.id, e]));
+    const columns = [...new Set([...addedEdges].map((id) => layout.col.get(edgeById.get(id)!.from) ?? 0))].sort((a, b) => a - b);
+    const edgeDelay = new Map<string, number>();
+    for (const id of addedEdges) edgeDelay.set(id, columns.indexOf(layout.col.get(edgeById.get(id)!.from) ?? 0) * DRAW_MS);
+    // An event appears once the lines into it are drawn.
+    const nodeDelay = new Map<string, number>();
+    for (const id of addedNodes) {
+      let latest = 0;
+      for (const edgeId of addedEdges) {
+        if (edgeById.get(edgeId)!.to === id) latest = Math.max(latest, (edgeDelay.get(edgeId) ?? 0) + DRAW_MS);
+      }
+      nodeDelay.set(id, latest);
+    }
+    setFresh({ nodes: addedNodes, edges: addedEdges, edgeDelay, nodeDelay });
+    const total = Math.max(0, ...edgeDelay.values()) + DRAW_MS;
+    const timer = setTimeout(() => setFresh(emptyFresh()), Math.max(total, ...nodeDelay.values()) + APPEAR_MS + 80);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model]);
 
   // Events and lines that stay lit while one is hovered: the event itself, its lines and the events at their other ends.
@@ -491,7 +513,11 @@ function TimelineGraph({ page }: { page: Page }) {
               return (
                 <g key={edge.id}>
                   {/* pathLength only while it is drawn: it would change what a dash is. */}
-                  <path className={className} d={d} {...(drawing ? { pathLength: 1 } : {})}>
+                  <path
+                    className={className}
+                    d={d}
+                    {...(drawing ? { pathLength: 1, style: { animationDuration: `${DRAW_MS}ms`, animationDelay: `${fresh.edgeDelay.get(edge.id) ?? 0}ms` } } : {})}
+                  >
                     <title>{waits ? "Wartet auf die Lernperson" : info.delayMs > 0 ? `Nach ${info.delayMs / 1000} s` : "Passiert sofort"}</title>
                   </path>
                   {showDelay && (
@@ -536,7 +562,11 @@ function TimelineGraph({ page }: { page: Page }) {
                   (draggable.has(n.id) ? " is-draggable" : "") +
                   (dragged ? " is-dragged" : "")
                 }
-                style={{ left: p.x - 35, top: p.y - ICON / 2 }}
+                style={{
+                  left: p.x - 35,
+                  top: p.y - ICON / 2,
+                  ...(fresh.nodes.has(n.id) ? { animationDelay: `${fresh.nodeDelay.get(n.id) ?? 0}ms` } : {}),
+                }}
                 onMouseEnter={() => setHovered(n.id)}
                 onPointerDown={draggable.has(n.id) ? (e) => startDrag(e, n.id) : undefined}
               >

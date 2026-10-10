@@ -4018,7 +4018,8 @@ button.weft-timeline-node-icon.is-red:hover,
 .weft-eg-line.is-drawing {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: weft-eg-draw 0.38s ease-out forwards;
+  /* Duration and delay are set per line (Timeline.tsx): the new lines are drawn one stretch after the other. */
+  animation: weft-eg-draw 0.32s linear both;
 }
 
 @media (prefers-reduced-motion: reduce) {

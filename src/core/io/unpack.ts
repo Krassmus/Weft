@@ -4,7 +4,9 @@ import { CURRENT_FORMAT_VERSION } from "../types";
 import type { Block, LiveInvitation, WeftDocument, WeftModule } from "../types";
 import { useAssetStore } from "../assets/assetStore";
 import { defaultEntranceEffect, defaultExitEffect } from "../document/blockEffects";
-import { blockEffectNodeId, createDefaultPageTimeline, syncPageTimelineEvents } from "../document/pageTimeline";
+import { createDefaultPageTimeline, syncPageTimelineEvents } from "../document/pageTimeline";
+import { legacyPageToTimeline } from "./legacyEventGraph";
+import type { LegacyPage } from "./legacyEventGraph";
 import { orderedIdRecord, orderedRecord, orderedRecordBy } from "../document/ordering";
 import { ensureBuiltinVariables } from "../document/variables";
 import { assetZipPath, COLLAB_FILE, customFontZipPath, encryptedScriptPath, HISTORY_FILE } from "./pack";
@@ -40,7 +42,7 @@ function migrateLegacyQuizHtml(doc: WeftDocument) {
 // between that and the animation duration existing has a transition but no durationMs on it yet -
 // backfill just that field rather than the whole object, so its type isn't lost.
 function migrateMissingTransitions(doc: WeftDocument) {
-  for (const page of Object.values(doc.content.pages)) {
+  for (const page of Object.values(doc.content.pages) as unknown as LegacyPage[]) {
     page.transition ??= { type: "none", durationMs: 500 };
     page.transition.durationMs ??= 500;
   }
@@ -48,9 +50,10 @@ function migrateMissingTransitions(doc: WeftDocument) {
 
 // Older saves predate the per-page timeline graph (see Timeline.tsx and PageTimeline in
 // types.ts) - default every page to the same start->end shape the old hardcoded UI always drew.
-function migrateMissingTimelines(doc: WeftDocument) {
+function migrateMissingTimelines(doc: WeftDocument, fileVersion: number) {
   for (const page of Object.values(doc.content.pages)) {
-    page.timeline ??= createDefaultPageTimeline();
+    // A file before format 4 is converted from the old shape by migrateToEventGraph below - until then it has the old one.
+    page.timeline ??= fileVersion < 4 ? ({ triggerEdges: {} } as unknown as typeof page.timeline) : createDefaultPageTimeline();
   }
 }
 
@@ -102,12 +105,13 @@ function migrateMissingBlockEffects(doc: WeftDocument) {
 // tolerating their presence.
 function migrateBlockEffectTriggers(doc: WeftDocument) {
   for (const page of Object.values(doc.content.pages)) {
-    page.timeline.triggerEdges ??= {};
+    const timeline = page.timeline as unknown as { triggerEdges: Record<string, unknown> };
+    timeline.triggerEdges ??= {};
     for (const block of Object.values(page.blocks)) {
       const legacyEntrance = block.entranceEffect as unknown as { triggerEventId?: string | null; delayMs?: number };
       if (legacyEntrance.triggerEventId !== undefined) {
         if (legacyEntrance.triggerEventId && !(legacyEntrance.triggerEventId === "start" && (legacyEntrance.delayMs ?? 0) === 0)) {
-          page.timeline.triggerEdges[blockEffectNodeId(block.id, "entrance")] = {
+          timeline.triggerEdges[`block-entrance:${block.id}`] = {
             from: legacyEntrance.triggerEventId,
             kind: "timed",
             delayMs: legacyEntrance.delayMs ?? 0,
@@ -119,7 +123,7 @@ function migrateBlockEffectTriggers(doc: WeftDocument) {
       const legacyExit = block.exitEffect as unknown as { triggerEventId?: string | null; delayMs?: number };
       if (legacyExit.triggerEventId !== undefined) {
         if (legacyExit.triggerEventId) {
-          page.timeline.triggerEdges[blockEffectNodeId(block.id, "exit")] = {
+          timeline.triggerEdges[`block-exit:${block.id}`] = {
             from: legacyExit.triggerEventId,
             kind: "timed",
             delayMs: legacyExit.delayMs ?? 0,
@@ -202,23 +206,49 @@ function migrateMissingGroups(doc: WeftDocument) {
 // never durably persist per-page anyway, migrating them would be pointless).
 function migrateMissingAdvanceTriggers(doc: WeftDocument) {
   for (const page of Object.values(doc.content.pages)) {
-    if (!page.timeline.triggerEdges["end"]) {
-      page.timeline.triggerEdges["end"] = { from: "start", kind: "advance" };
+    const edges = (page.timeline as unknown as { triggerEdges: Record<string, { from: string; kind: string; delayMs?: number }> }).triggerEdges;
+    if (!edges["end"]) {
+      edges["end"] = { from: "start", kind: "advance" };
     }
     for (const block of Object.values(page.blocks)) {
-      const entranceId = blockEffectNodeId(block.id, "entrance");
-      if (!page.timeline.triggerEdges[entranceId]) {
+      const entranceId = `block-entrance:${block.id}`;
+      if (!edges[entranceId]) {
         if (block.entranceEffect.type === "none") {
           block.entranceEffect.type = "off";
         } else if (block.entranceEffect.type !== "off") {
-          page.timeline.triggerEdges[entranceId] = { from: "start", kind: "timed", delayMs: 0 };
+          edges[entranceId] = { from: "start", kind: "timed", delayMs: 0 };
         }
       }
-      const exitId = blockEffectNodeId(block.id, "exit");
-      if (block.exitEffect.type === "none" && !page.timeline.triggerEdges[exitId]) {
+      const exitId = `block-exit:${block.id}`;
+      if (block.exitEffect.type === "none" && !edges[exitId]) {
         block.exitEffect.type = "off";
       }
     }
+  }
+}
+
+// Format 4 stores the event graph as triggers and "Nächste Folie" events (see PageTimeline); everything before has trigger edges
+// keyed by event, one transition per page and quiz flags - see io/legacyEventGraph.ts for what becomes what.
+function migrateToEventGraph(doc: WeftDocument) {
+  for (const page of Object.values(doc.content.pages)) {
+    const legacy = page as unknown as LegacyPage & { transition?: unknown };
+    page.timeline = legacyPageToTimeline(legacy);
+    delete legacy.transition;
+    for (const block of Object.values(page.blocks)) {
+      const quiz = block as unknown as { advanceOnCorrect?: unknown; advanceOnIncorrect?: unknown };
+      delete quiz.advanceOnCorrect;
+      delete quiz.advanceOnIncorrect;
+    }
+  }
+}
+
+// Whatever a document of the current format may still lack (a save from a build in between): the two collections and the page's
+// own "Nächste Folie".
+function backfillEventGraph(doc: WeftDocument) {
+  for (const page of Object.values(doc.content.pages)) {
+    page.timeline.triggers ??= {};
+    page.timeline.ends ??= {};
+    page.timeline.ends["end"] ??= { transition: { type: "none", durationMs: 500 } };
   }
 }
 
@@ -356,11 +386,11 @@ export function unpackDocument(zipBytes: Uint8Array, options: { importAssets?: b
   // every such module actually had before this setting existed.
   doc.content.keyboardNavigationEnabled ??= true;
   migrateLegacyQuizHtml(doc);
-  migrateMissingTransitions(doc);
-  migrateMissingTimelines(doc);
+  if (fileVersion < 4) migrateMissingTransitions(doc);
+  migrateMissingTimelines(doc, fileVersion);
   migrateMissingVideoStopPoints(doc);
   migrateMissingBlockEffects(doc);
-  migrateBlockEffectTriggers(doc);
+  if (fileVersion < 4) migrateBlockEffectTriggers(doc);
   migrateLegacyShapeCornerRadius(doc);
   migrateMissingGroups(doc);
   // Older saves predate languages: a single-language module.
@@ -374,6 +404,8 @@ export function unpackDocument(zipBytes: Uint8Array, options: { importAssets?: b
   // misread its (intentional) "no edge yet = Weiter" blocks as legacy and freeze them to "Start
   // der Folie" on every single reopen.
   if (fileVersion < 2) migrateMissingAdvanceTriggers(doc);
+  if (fileVersion < 4) migrateToEventGraph(doc);
+  backfillEventGraph(doc);
   doc.formatVersion = CURRENT_FORMAT_VERSION;
   syncAllPageTimelineEvents(doc);
   if (fileVersion === CURRENT_FORMAT_VERSION) {

@@ -268,7 +268,6 @@ function TimelineLaneRow({
 }) {
   const selection = useDocumentStore((s) => s.selection);
   const select = useDocumentStore((s) => s.select);
-  const transitionDetail = page.transition.type === "none" ? "" : TRANSITION_LABELS[page.transition.type];
 
   // Every node - "start", "end", or a block-contributed "event" - selects the very same way now:
   // as itself, not as a shortcut for whatever block happens to be behind it (see EventPanel.tsx's
@@ -338,7 +337,9 @@ function TimelineLaneRow({
               />
               <span className="weft-timeline-node-label">
                 {nodeLabel(displayNode)}
-                {node.kind === "end" && transitionDetail && <span className="weft-timeline-label-detail"> ({transitionDetail})</span>}
+                {node.kind === "end" && endTransitionLabel(page, node.id) && (
+                  <span className="weft-timeline-label-detail"> ({endTransitionLabel(page, node.id)})</span>
+                )}
               </span>
               {!node.inlineChild && node.children && node.children.length > 0 && (
                 <div className="weft-timeline-node-children">
@@ -380,6 +381,12 @@ function TimelineLaneRow({
   );
 }
 
+/** The name of the transition of a "Nächste Folie" event, or nothing for a plain cut. */
+function endTransitionLabel(page: Page, endId: string): string {
+  const type = page.timeline.ends[endId]?.transition.type ?? "none";
+  return type === "none" ? "" : TRANSITION_LABELS[type];
+}
+
 /** Marks a node as its own kind of animation - Aufbau, Abbau (always, regardless of whether an
  * actual animation type is currently configured for it - the node's whole identity already is
  * "this block's own Aufbau/Abbau"), or "Nächste Folie" specifically when the page's own outgoing
@@ -387,7 +394,7 @@ function TimelineLaneRow({
  * is-animated in App.css. Every other node (quiz/video's own intrinsic events, "start") is never
  * one - nothing about when they fire is itself an animation. */
 function isAnimatedNode(node: TimelineNode, page: Page): boolean {
-  if (node.kind === "end") return page.transition.type !== "none";
+  if (node.kind === "end") return (page.timeline.ends[node.id]?.transition.type ?? "none") !== "none";
   return node.eventType === "block-entrance" || node.eventType === "block-exit";
 }
 

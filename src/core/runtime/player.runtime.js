@@ -509,9 +509,19 @@
     cursor.topIndex++;
   }
 
+  function pageEndTransition(page) {
+    var events = (page && page.graph && page.graph.events) || [];
+    for (var i = 0; i < events.length; i++) {
+      if (events[i].id === "end") return events[i].transition;
+    }
+    return null;
+  }
+
   function pageTransition(pageId) {
     var page = pageId && module.pages[pageId];
-    var transition = nextTransition || (page && page.transition) || { type: "none", durationMs: 500 };
+    // A "Nächste Folie" that was reached brings its own transition (see goNext); anything else that goes on (a button block, the
+    // keyboard on a finished page) uses the one of the page's own "end".
+    var transition = nextTransition || pageEndTransition(page) || { type: "none", durationMs: 500 };
     nextTransition = null;
     // Carries which page is being left, so a transition can look at it (Move's "content only" needs
     // to know whether the next page shares its layout).

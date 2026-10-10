@@ -1,4 +1,4 @@
-import { setPageTransition, setPageTransitionDuration, updatePageTransition } from "../../../core/document/actions";
+import { setEndTransitionDuration, setEndTransitionType, updateEndTransition } from "../../../core/document/actions";
 import {
   DEFAULT_IRIS_CENTER,
   DIRECTION_LABELS,
@@ -20,9 +20,11 @@ const DIRECTIONS: TransitionDirection[] = ["left", "right", "up", "down"];
  * cube), content-only (move), a hard edge and the opening point (iris - the point itself is set by
  * dragging the red circle on the slide, see IrisCenterHandle in Canvas.tsx).
  */
-export function TransitionPanel({ page }: { page: Page }) {
-  const { type, durationMs } = page.transition;
-  const irisCenter = page.transition.irisCenter ?? DEFAULT_IRIS_CENTER;
+export function TransitionPanel({ page, endId }: { page: Page; endId: string }) {
+  const transition = page.timeline.ends[endId]?.transition;
+  if (!transition) return null;
+  const { type, durationMs } = transition;
+  const irisCenter = transition.irisCenter ?? DEFAULT_IRIS_CENTER;
   const irisCentered = irisCenter.x === DEFAULT_IRIS_CENTER.x && irisCenter.y === DEFAULT_IRIS_CENTER.y;
 
   return (
@@ -33,7 +35,7 @@ export function TransitionPanel({ page }: { page: Page }) {
       </p>
       <label className="weft-field">
         <span>Art</span>
-        <select value={type} onChange={(e) => setPageTransition(page.id, e.target.value as TransitionType)}>
+        <select value={type} onChange={(e) => setEndTransitionType(page.id, endId, e.target.value as TransitionType)}>
           {TRANSITION_TYPES.map((t) => (
             <option key={t} value={t}>
               {TRANSITION_LABELS[t]}
@@ -53,7 +55,7 @@ export function TransitionPanel({ page }: { page: Page }) {
             onChange={(e) => {
               const seconds = Number(e.target.value);
               if (!Number.isFinite(seconds) || seconds <= 0) return;
-              setPageTransitionDuration(page.id, Math.round(seconds * 1000));
+              setEndTransitionDuration(page.id, endId, Math.round(seconds * 1000));
             }}
           />
         </label>
@@ -63,8 +65,8 @@ export function TransitionPanel({ page }: { page: Page }) {
         <label className="weft-field">
           <span>Richtung</span>
           <select
-            value={transitionDirection(page.transition)}
-            onChange={(e) => updatePageTransition(page.id, { direction: e.target.value as TransitionDirection })}
+            value={transitionDirection(transition)}
+            onChange={(e) => updateEndTransition(page.id, endId, { direction: e.target.value as TransitionDirection })}
           >
             {DIRECTIONS.map((direction) => (
               <option key={direction} value={direction}>
@@ -80,8 +82,8 @@ export function TransitionPanel({ page }: { page: Page }) {
           <label className="weft-field weft-field-inline">
             <input
               type="checkbox"
-              checked={!!page.transition.contentOnly}
-              onChange={(e) => updatePageTransition(page.id, { contentOnly: e.target.checked })}
+              checked={!!transition.contentOnly}
+              onChange={(e) => updateEndTransition(page.id, endId, { contentOnly: e.target.checked })}
             />
             <span>Nur der Inhalt rutscht</span>
           </label>
@@ -97,8 +99,8 @@ export function TransitionPanel({ page }: { page: Page }) {
           <label className="weft-field weft-field-inline">
             <input
               type="checkbox"
-              checked={!!page.transition.hardEdge}
-              onChange={(e) => updatePageTransition(page.id, { hardEdge: e.target.checked })}
+              checked={!!transition.hardEdge}
+              onChange={(e) => updateEndTransition(page.id, endId, { hardEdge: e.target.checked })}
             />
             <span>Harter Rand</span>
           </label>
@@ -109,7 +111,7 @@ export function TransitionPanel({ page }: { page: Page }) {
             type="button"
             className="weft-ghost-button weft-full-width"
             disabled={irisCentered}
-            onClick={() => updatePageTransition(page.id, { irisCenter: undefined })}
+            onClick={() => updateEndTransition(page.id, endId, { irisCenter: undefined })}
           >
             Mittelpunkt zurücksetzen
           </button>

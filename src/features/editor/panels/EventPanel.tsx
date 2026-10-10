@@ -92,8 +92,8 @@ export function EventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
         </div>
       )}
 
-      {node.kind === "end" && <TransitionPanel page={page} />}
-      {node.kind === "end" && <EndTriggerSection page={page} />}
+      {node.kind === "end" && <TransitionPanel page={page} endId={node.id} />}
+      {node.kind === "end" && node.id === "end" && <EndTriggerSection page={page} />}
 
       <TriggerSection page={page} node={node} />
       <OutgoingTriggersSection page={page} node={node} />
@@ -196,12 +196,8 @@ function EndTriggerSection({ page }: { page: Page }) {
           onChange={(e) =>
             e.target.value === "weiter"
               ? setEventTrigger(page.id, "end", computeAdvanceChainTail(page, "end"), 0, "advance")
-              : // "Gar nicht" has to be an explicit, stored edge, not the ABSENCE of one - an
-                // absent edge is exactly what a page that's never been configured at all also
-                // looks like (see getEndTrigger's own doc comment), which defaults to "Weiter".
-                // Any non-"advance" kind reads back as "Gar nicht" there; "unknown" is simplest,
-                // since nothing else ever writes that kind for "end".
-                setEventTrigger(page.id, "end", "start", 0, "unknown")
+              : // "Gar nicht": no trigger leads to "Nächste Folie" - the page can then only be left some other way.
+                setEventTrigger(page.id, "end", null, 0)
           }
         >
           <option value="">Gar nicht</option>

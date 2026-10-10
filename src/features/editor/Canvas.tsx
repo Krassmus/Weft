@@ -20,7 +20,7 @@ import {
   updateBlock,
   updateBlockPositions,
   updateLayoutBlock,
-  updatePageTransition,
+  updateEndTransition,
 } from "../../core/document/actions";
 import type { VideoUploadResult } from "../../core/document/actions";
 import { useDocumentStore } from "../../core/document/store";
@@ -399,9 +399,9 @@ function resolveEditTarget(
  * anywhere on the slide (the point stays within it). The live position is only local until the
  * drag ends, like every other drag here, so a drag is one undo step.
  */
-function IrisCenterHandle({ page, stageRef }: { page: Page; stageRef: RefObject<HTMLDivElement | null> }) {
+function IrisCenterHandle({ page, endId, stageRef }: { page: Page; endId: string; stageRef: RefObject<HTMLDivElement | null> }) {
   const [live, setLive] = useState<{ x: number; y: number } | null>(null);
-  const shown = live ?? page.transition.irisCenter ?? DEFAULT_IRIS_CENTER;
+  const shown = live ?? page.timeline.ends[endId]?.transition.irisCenter ?? DEFAULT_IRIS_CENTER;
 
   function handlePointerDown(e: ReactPointerEvent) {
     if (e.button !== 0) return;
@@ -422,7 +422,7 @@ function IrisCenterHandle({ page, stageRef }: { page: Page; stageRef: RefObject<
       window.removeEventListener("pointerup", finish);
       window.removeEventListener("pointercancel", finish);
       document.body.classList.remove("weft-dragging");
-      updatePageTransition(page.id, { irisCenter: latest });
+      updateEndTransition(page.id, endId, { irisCenter: latest });
       suppressNextClick();
       setLive(null);
     }
@@ -1042,7 +1042,9 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
               {selection?.type === "event" &&
                 selection.pageId === target.page.id &&
                 (selection.nodeId === "end" || selection.nodeId.startsWith("end:")) &&
-                target.page.transition.type === "iris" && <IrisCenterHandle page={target.page} stageRef={stageRef} />}
+                target.page.timeline.ends[selection.nodeId]?.transition.type === "iris" && (
+                  <IrisCenterHandle page={target.page} endId={selection.nodeId} stageRef={stageRef} />
+                )}
               {activeGroup && !enteredGroupId && (
                 <GroupResizeOverlay page={target.page} group={activeGroup} stageRef={stageRef} onLiveChange={setGroupLiveOverrides} />
               )}

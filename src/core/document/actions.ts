@@ -32,7 +32,17 @@ import { DEFAULT_TRANSITION_DURATION_MS } from "./transitions";
 import { defaultLanguageOf, rotateDefaultLanguage } from "./translations";
 import { defaultInitialValue, isBooleanVariable } from "./variables";
 import { defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
-import { blockEffectNodeId, createDefaultPageTimeline, setTriggerEdge, syncPageTimelineEvents } from "./pageTimeline";
+import {
+  blockEffectNodeId,
+  canTriggerFrom,
+  createDefaultPageTimeline,
+  isEndNodeId,
+  quizEndNodeId,
+  quizSubmitNodeId,
+  setTriggerEdge,
+  syncPageTimelineEvents,
+  videoStartNodeId,
+} from "./pageTimeline";
 import { defaultArrowColor } from "./arrow";
 import { defaultShapeCornerRadii, defaultShapeFill, defaultShapeShadow, defaultShapeStroke } from "./shapeDefaults";
 import type { BlockContainerRef } from "./store";
@@ -48,7 +58,6 @@ function emptyPage(layoutId: string | null): Page {
     layoutId,
     blocks: {},
     groups: [],
-    transition: { type: "none", durationMs: 500 },
     timeline: createDefaultPageTimeline(),
   };
 }
@@ -206,31 +215,36 @@ export function setPageLayout(pageId: string, layoutId: string | null) {
   });
 }
 
-export function setPageTransition(pageId: string, type: TransitionType) {
+/** The transition of a "Nächste Folie" event (`endId`: "end", or a quiz outcome's own) of a page. */
+function endTransitionOf(m: WeftModule, pageId: string, endId: string): Transition | undefined {
+  return m.pages[pageId]?.timeline.ends[endId]?.transition;
+}
+
+export function setEndTransitionType(pageId: string, endId: string, type: TransitionType) {
   edit("Übergang ändern", (m) => {
-    const page = m.pages[pageId];
-    if (!page) return;
+    const transition = endTransitionOf(m, pageId, endId);
+    if (!transition) return;
     // A new type starts at its own natural length - unless the duration had been changed by hand
     // (anything other than the previous type's default), which is kept.
-    const untouched = page.transition.durationMs === DEFAULT_TRANSITION_DURATION_MS[page.transition.type];
-    page.transition.type = type;
-    if (untouched) page.transition.durationMs = DEFAULT_TRANSITION_DURATION_MS[type];
+    const untouched = transition.durationMs === DEFAULT_TRANSITION_DURATION_MS[transition.type];
+    transition.type = type;
+    if (untouched) transition.durationMs = DEFAULT_TRANSITION_DURATION_MS[type];
   });
 }
 
 /** Direction / content-only / hard edge / iris center - the options that only some transition types
  * have (see Transition in core/types.ts). */
-export function updatePageTransition(pageId: string, patch: Partial<Omit<Transition, "type" | "durationMs">>) {
+export function updateEndTransition(pageId: string, endId: string, patch: Partial<Omit<Transition, "type" | "durationMs">>) {
   edit("Übergang ändern", (m) => {
-    const page = m.pages[pageId];
-    if (page) assignPatch(page.transition, patch);
+    const transition = endTransitionOf(m, pageId, endId);
+    if (transition) assignPatch(transition, patch);
   });
 }
 
-export function setPageTransitionDuration(pageId: string, durationMs: number) {
+export function setEndTransitionDuration(pageId: string, endId: string, durationMs: number) {
   edit("Übergangsdauer ändern", (m) => {
-    const page = m.pages[pageId];
-    if (page) page.transition.durationMs = durationMs;
+    const transition = endTransitionOf(m, pageId, endId);
+    if (transition) transition.durationMs = durationMs;
   });
 }
 
@@ -536,8 +550,6 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
         correctOptionIds: [],
         onCorrect: [],
         onIncorrect: [],
-        advanceOnCorrect: false,
-        advanceOnIncorrect: false,
       };
   }
 }
@@ -590,11 +602,21 @@ export function updateBlock(pageId: string, blockId: string, patch: Partial<Bloc
     const block = page?.blocks[blockId];
     if (!block) return;
     assignPatch(block, patch);
+    // The autoplay switch of a video is what puts a trigger from the start of the page to its start there (and takes that one away
+    // again) - there is no implicit default any more, see syncPageTimelineEvents.
+    if (page && block.kind === "video" && "autoplay" in patch) {
+      const to = videoStartNodeId(block.id);
+      const existing = Object.values(page.timeline.triggers).find((t) => t.to === to);
+      if (block.autoplay && !existing) setTriggerEdge(page.timeline, to, "start", 0, "timed");
+      else if (!block.autoplay && existing && existing.from === "start" && !existing.weiter && existing.delayMs === 0) {
+        setTriggerEdge(page.timeline, to, null, 0);
+      }
+    }
     // Only a quiz's/video's own timeline-relevant fields, or any block's entrance/exit effect
     // type (see makeBlockEffectNode's own visibility rule in pageTimeline.ts), can change what
     // the timeline should show, so skip the (cheap but pointless) resync for every other block
     // edit, e.g. a position drag. Who triggers an effect, and after what delay, lives in
-    // page.timeline.triggerEdges now, not on the block itself - see setEventTrigger below.
+    // page.timeline.triggers, not on the block itself - see setEventTrigger below.
     const touchesEffect = "entranceEffect" in patch || "exitEffect" in patch;
     if (page && (block.kind === "quiz" || block.kind === "video" || touchesEffect)) syncPageTimelineEvents(page);
   });
@@ -620,7 +642,38 @@ export function setEventTrigger(
   edit("Auslöser bearbeiten", (m) => {
     const page = m.pages[pageId];
     if (!page) return;
-    setTriggerEdge(page.timeline, targetNodeId, from, delayMs, kind);
+    chainOnWeiter(page, targetNodeId, from, delayMs, kind);
+    syncPageTimelineEvents(page);
+  });
+}
+
+/** setTriggerEdge for one event - and when this makes it the next link after what "Nächste Folie" was waiting for, "Nächste Folie"
+ * goes after it, so that leaving the page stays the last link of the chain (a new build is added before it, not next to it). */
+function chainOnWeiter(page: Page, targetNodeId: string, from: string | null, delayMs: number, kind: TimelineEdgeKind): void {
+  setTriggerEdge(page.timeline, targetNodeId, from, delayMs, kind);
+  if (kind !== "advance" || !from || isEndNodeId(targetNodeId)) return;
+  const endTrigger = Object.values(page.timeline.triggers).find((t) => t.to === "end" && t.weiter);
+  if (endTrigger && endTrigger.from === from && !canTriggerFrom(page, targetNodeId, "end")) return;
+  if (endTrigger && endTrigger.from === from) endTrigger.from = targetNodeId;
+}
+
+/**
+ * "Weiter zur nächsten Folie" of a quiz's outcome: switching it on gives the page a "Nächste Folie" event of its own for that outcome,
+ * with the transition of the page's own, and a trigger from the outcome to it (1,5 seconds later, so that the feedback is still
+ * to be seen); switching it off takes both away.
+ */
+export function setQuizAdvance(pageId: string, quizId: string, outcome: "richtig" | "falsch", on: boolean) {
+  edit("Weiter nach dem Quiz", (m) => {
+    const page = m.pages[pageId];
+    if (!page) return;
+    const endId = quizEndNodeId(quizId, outcome);
+    if (on) {
+      if (!page.timeline.ends[endId]) page.timeline.ends[endId] = plain({ transition: page.timeline.ends["end"]?.transition ?? { type: "none", durationMs: 500 } });
+      page.timeline.triggers[`t:${endId}`] = { from: quizSubmitNodeId(quizId, outcome), to: endId, delayMs: 1500, weiter: false };
+    } else {
+      delete page.timeline.ends[endId];
+      for (const [id, trigger] of Object.entries(page.timeline.triggers)) if (trigger.to === endId) delete page.timeline.triggers[id];
+    }
     syncPageTimelineEvents(page);
   });
 }
@@ -796,7 +849,7 @@ export function setGroupEventTrigger(
     const page = m.pages[pageId];
     if (!page) return;
     for (const blockId of blockIds) {
-      setTriggerEdge(page.timeline, blockEffectNodeId(blockId, phase), from, delayMs, kind);
+      chainOnWeiter(page, blockEffectNodeId(blockId, phase), from, delayMs, kind);
     }
     syncPageTimelineEvents(page);
   });
@@ -1256,6 +1309,23 @@ function offsetPosition(position: BlockPosition): BlockPosition {
  * unrelated spot, so "paste" reads the same as "duplicate this page". Returns null if
  * `afterPageId` no longer exists (e.g. it was deleted between copy and paste).
  */
+/** `timeline` for a copy of its page whose blocks are `idMap` (old block id -> new): the ids of events carry the id of their block. */
+function remapTimeline(timeline: Page["timeline"], idMap: Map<UUID, UUID>): Page["timeline"] {
+  const remap = (id: string): string => {
+    let result = id;
+    for (const [from, to] of idMap) result = result.split(from).join(to);
+    return result;
+  };
+  const triggers: Page["timeline"]["triggers"] = {};
+  for (const trigger of Object.values(timeline.triggers)) {
+    const next = { from: remap(trigger.from), to: remap(trigger.to), delayMs: trigger.delayMs, weiter: trigger.weiter };
+    triggers[`t:${next.to}`] = next;
+  }
+  const ends: Page["timeline"]["ends"] = {};
+  for (const [id, end] of Object.entries(timeline.ends)) ends[remap(id)] = plain(end);
+  return { triggers, ends };
+}
+
 export function pastePageAfter(afterPageId: string, sourcePage: Page): string | null {
   const newPageId = createId();
   let inserted = false;
@@ -1283,9 +1353,9 @@ export function pastePageAfter(afterPageId: string, sourcePage: Page): string | 
       blocks,
       groups,
       ...(sourcePage.jump && { jump: plain(sourcePage.jump) }),
-      transition: plain(sourcePage.transition),
-      // Cloned first, then pruned below: edges naming the *old* blocks' ids no longer mean anything.
-      timeline: structuredClone(sourcePage.timeline),
+      // The triggers and "Nächste Folie" events of the copy: the same graph, the ids of the events that belong to blocks naming
+      // the new blocks.
+      timeline: remapTimeline(sourcePage.timeline, idMap),
     };
     syncPageTimelineEvents(newPage);
     m.pages[newPageId] = newPage;

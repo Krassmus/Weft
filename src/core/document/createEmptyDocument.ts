@@ -60,7 +60,6 @@ export function createEmptyDocument(): WeftDocument {
       },
     ]),
     groups: [],
-    transition: { type: "none", durationMs: 500 },
     timeline: createDefaultPageTimeline(),
   };
 
@@ -83,14 +82,11 @@ export function createEmptyDocument(): WeftDocument {
         correctOptionIds: [quizOptionYes],
         onCorrect: [{ variableId: scoreVariableId, op: "add", value: 1 }],
         onIncorrect: [],
-        advanceOnCorrect: false,
-        advanceOnIncorrect: false,
         entranceEffect: defaultEntranceEffect(),
         exitEffect: defaultExitEffect(),
       },
     ]),
     groups: [],
-    transition: { type: "none", durationMs: 500 },
     timeline: createDefaultPageTimeline(),
   };
   // This demo page's quiz block is built as a raw literal above rather than via addBlockToPage,
@@ -111,7 +107,6 @@ export function createEmptyDocument(): WeftDocument {
       },
     ]),
     groups: [],
-    transition: { type: "none", durationMs: 500 },
     timeline: createDefaultPageTimeline(),
   };
 
@@ -145,7 +140,6 @@ export function createEmptyDocument(): WeftDocument {
       },
     ]),
     groups: [],
-    transition: { type: "none", durationMs: 500 },
     timeline: createDefaultPageTimeline(),
   };
 

@@ -223,7 +223,13 @@ und wenn sie fertig ist – bei einer Animation nach ihrer Dauer –, passiert d
    (`buildEventGraph`), Kompilierung für den Player (`toRuntimeModule` legt `page.graph` ab); der Player führt nur noch aus
    (`setUpGraph`, `happened`, `deliver`, `weiter` in `player.runtime.js`). Gespeichert wird noch wie bisher, nach außen ändert
    sich nichts außer dem Weiter-Verhalten (siehe Abschnitt 3): Ein Druck löst jetzt alle wartenden Trigger aus.
-2. **Speichern im neuen Modell** und Migration (Abschnitt 8); „Nächste Folie“-Events mit eigenem Übergang.
+2. **Speichern im neuen Modell** und Migration (Abschnitt 8); „Nächste Folie“-Events mit eigenem Übergang. **(umgesetzt, Dateiformat 4)**
+   Gespeichert werden `page.timeline.triggers` (Trigger mit `weiter`) und `page.timeline.ends` (Übergang je „Nächste Folie“);
+   `Page.transition` und die Quiz-Flags `advanceOnCorrect`/`advanceOnIncorrect` gibt es nicht mehr. Die Migration beim Öffnen einer
+   älteren Datei (`io/legacyEventGraph.ts`) schreibt alle bisherigen Defaults als explizite Trigger aus. Neue Aufbauten/Abbauten
+   bekommen ihren Trigger beim Wählen des Effekts (`syncPageTimelineEvents`: Weiter am Ende der Kette, „Nächste Folie“ bleibt das
+   letzte Glied); wird ein Block gelöscht, überbrückt `syncPageTimelineEvents` die Kette. Im Editor wird weiter genau ein Trigger je
+   Event bearbeitet; das Modell erlaubt mehrere (Stufe 4).
 3. **Neuer Graph**: Layout, SVG-Darstellung, Event-Blöcke, Hover.
 4. **Seitenleiste** (Ein-/Ausgangstrigger-Listen, Titel, Warnung).
 5. **Animationen** (Verschieben, Erscheinen, Linien einzeichnen) und **Drag & Drop** in linearen Ketten.

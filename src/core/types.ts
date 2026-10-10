@@ -234,17 +234,12 @@ export interface QuizBlock extends BaseBlock {
   options: QuizOption[];
   correctOptionIds: UUID[];
   /** An open question rather than a test: nothing is right or wrong. Submitting it is thanked ("Danke!") instead of judged, correctOptionIds
-   * and onIncorrect/advanceOnIncorrect are ignored, onCorrect/advanceOnCorrect are what happens on submitting, and an answer's own effects
-   * are by whether it is ticked (onRight) or not (onWrong). Optional: a module saved before this is a test. */
+   * and onIncorrect are ignored, onCorrect is what happens on submitting (and it counts as "richtig" for the page's graph), and an
+   * answer's own effects are by whether it is ticked (onRight) or not (onWrong). Optional: a module saved before this is a test. */
   open?: boolean;
   /** What happens once the quiz as a whole was answered right / wrong (all options as they should be / not). */
   onCorrect: VariableEffect[];
   onIncorrect: VariableEffect[];
-  /** Auto-advance 1.5s after the feedback text appears - not immediately, so the learner still
-   * gets to see it before the slide moves on. Mirrors a "Weiter" button's own restart-at-the-end
-   * behavior once the module has ended. */
-  advanceOnCorrect: boolean;
-  advanceOnIncorrect: boolean;
 }
 
 export interface ButtonBlock extends BaseBlock {
@@ -566,33 +561,42 @@ export interface TimelineLane {
   edges: TimelineEdge[];
 }
 
-/** What causes one event of a page (see PageTimeline.triggerEdges, stored under the id of the event
- * it causes - so there is no `to` here). */
-export interface TriggerEdge {
+/**
+ * One trigger of a page (see PageTimeline.triggers): when the event `from` has happened, the event `to` happens `delayMs` later - if
+ * `weiter`, only once the learner has pressed Weiter after `from` (then `delayMs` runs from that press). The ids are those of the
+ * page's events (see core/eventGraph and docs/event-graph.md): "start", "end" or one of document/pageTimeline.ts's `*NodeId`.
+ * An event can have several incoming triggers; any one of them is enough to make it happen.
+ */
+export interface PageTrigger {
   from: string;
-  kind: TimelineEdgeKind;
-  /** Only meaningful when `kind` is "timed": how long after `from` this fires, in milliseconds. */
-  delayMs?: number;
+  to: string;
+  delayMs: number;
+  weiter: boolean;
 }
 
-/** What a page's timeline stores: every trigger relationship the author has actually chosen - a
- * block's own Aufbau/Abbau, a video's own non-autoplay start, "Nächste Folie"'s own, or a
- * free-standing "event X also fires event Y" link created directly in EventPanel.tsx - keyed by the
- * id of the event it causes. At most one edge per event (an event has at most one thing that
- * causes it - see findTriggerEdge in document/pageTimeline.ts), which is exactly what the keying
- * says: setting or removing one edge touches only that entry, so two people changing different
- * triggers of the same page never overwrite each other (a list that is replaced whole would).
- * The key may only ever be a node whose eventType is in TRIGGERABLE_EVENT_TYPES (document/
- * pageTimeline.ts) - see that set's own doc comment for which events can actually be caused this
- * way, and why most can't - or "end". syncPageTimelineEvents prunes entries whose event or source
- * no longer exists.
+/** A "Nächste Folie" event of a page: leaving it, with `transition` (how the slide goes away - see Transition). */
+export interface PageEnd {
+  transition: Transition;
+}
+
+/**
+ * What a page's event graph stores (see docs/event-graph.md): only what does not follow from its blocks. The events themselves
+ * - an element's Aufbau/Abbau, a video's start and stop points, what a quiz does - are derived (getPageLanes in
+ * document/pageTimeline.ts) and have stable ids made of the block's id; what is chosen by the author is here:
  *
- * Deliberately NOT stored: the rows of the graph the editor draws (TimelineLane) - the page's
- * start->end line plus one row per quiz outcome / video / chain of triggered events. They follow
- * entirely from the page's blocks and these edges, so they are computed (getPageLanes in
- * document/pageTimeline.ts), never saved. */
+ * - `triggers`: every line of the graph, by trigger id. Keyed so that two people changing different triggers of the same page never
+ *   overwrite each other (a list that is replaced whole would). A trigger whose event or source no longer exists is pruned by
+ *   syncPageTimelineEvents.
+ * - `ends`: the "Nächste Folie" events, by id: "end" is the page's own and always there; a quiz that goes on to the next page
+ *   after its feedback has `end:quiz:<blockId>:<richtig|falsch>`. Each has the transition of its own.
+ *
+ * There are no implicit triggers: an Aufbau that waits for Weiter at the end of the chain has a trigger of its own, put there when
+ * the effect was chosen (see syncPageTimelineEvents), and so has "Nächste Folie". Deliberately NOT stored: the rows of the graph
+ * the editor draws (TimelineLane) - they follow entirely from the blocks and these triggers, so they are computed.
+ */
 export interface PageTimeline {
-  triggerEdges: Record<string, TriggerEdge>;
+  triggers: Record<string, PageTrigger>;
+  ends: Record<string, PageEnd>;
 }
 
 /** Several of a page's own blocks, bundled so they move (and resize, together,
@@ -646,11 +650,6 @@ export interface Page {
   /** This page's own groups (see BlockGroup) - empty for the vast majority of pages, which never
    * group anything. */
   groups: BlockGroup[];
-  /** How this page animates out on the way to whatever the sequence/a branch says comes next -
-   * edited by selecting the "Nächste Folie" node at the right end of this page's timeline (see
-   * Timeline.tsx). Defaults to "none", which is also the only type the player actually animates
-   * today - "fade"/"move" are captured here ready for a player implementation to catch up to. */
-  transition: Transition;
   /** This page's timeline graph - see PageTimeline. */
   timeline: PageTimeline;
 }
@@ -757,11 +756,15 @@ export interface WeftModule {
  *    are keyed by the event they cause, the timeline's lanes are computed instead of stored, and the
  *    undo history is no longer part of the file (it is local to whoever is editing: see UndoEntry
  *    in document/store.ts).
+ *  - 4: the page's event graph is stored as it is understood now (see PageTimeline and docs/event-graph.md): a list of triggers
+ *    with an optional Weiter instead of trigger edges keyed by event, "Nächste Folie" as events of their own that carry the
+ *    transition (`Page.transition` is gone), a quiz that goes on to the next page by a trigger and such an event (the flags
+ *    `advanceOnCorrect`/`advanceOnIncorrect` are gone), and no implicit defaults any more.
  * Only migrations that CHANGE data (the conversion to the mergeable shape, the Weiter freeze) are
  * gated on this number. The small "field missing? give it its default" backfills in io/unpack.ts
  * run on every load - they write nothing at all to a document that already has the field.
  */
-export const CURRENT_FORMAT_VERSION = 3;
+export const CURRENT_FORMAT_VERSION = 4;
 
 export interface WeftDocument {
   formatVersion: number;

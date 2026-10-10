@@ -4,9 +4,9 @@ import pauseIconSvg from "../../../../mockups/icons/pause.svg?raw";
 import { CODE_THEMES } from "../../../core/code/codeThemes";
 import { AUTO_LANGUAGE, CODE_LANGUAGES } from "../../../core/code/highlight";
 import { createId } from "../../../core/id";
-import { addCustomFont, setEventTrigger } from "../../../core/document/actions";
+import { addCustomFont, setEventTrigger, setQuizAdvance } from "../../../core/document/actions";
 import type { VideoUploadResult } from "../../../core/document/actions";
-import { blockEffectNodeId, getBlockEntranceTrigger, getBlockExitTrigger } from "../../../core/document/pageTimeline";
+import { blockEffectNodeId, getBlockEntranceTrigger, getBlockExitTrigger, quizEndNodeId } from "../../../core/document/pageTimeline";
 import type { ResolvedTrigger } from "../../../core/document/pageTimeline";
 import { DIRECTION_LABELS } from "../../../core/document/transitions";
 import { useAssetStore } from "../../../core/assets/assetStore";
@@ -117,7 +117,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
       {block.kind === "video" && <VideoEditor block={block} onUpdate={onUpdate} onSetVideo={onSetVideo} />}
       {block.kind === "iframe" && <IframeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "button" && <ButtonEditor block={block} onUpdate={onUpdate} />}
-      {block.kind === "quiz" && <QuizEditor block={block} onUpdate={onUpdate} />}
+      {block.kind === "quiz" && <QuizEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "shape" && <ShapeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "arrow" && <ArrowEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "files" && <FilesEditor key={block.id} block={block} container={container} onUpdate={onUpdate} />}
@@ -1650,7 +1650,9 @@ function QuizOptionRow({
   );
 }
 
-function QuizEditor({ block, onUpdate }: { block: QuizBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
+function QuizEditor({ block, page, onUpdate }: { block: QuizBlock; page?: Page; onUpdate: BlockPanelProps["onUpdate"] }) {
+  // "Weiter zur nächsten Folie" of an outcome: a "Nächste Folie" event of its own for it, with a trigger from the outcome.
+  const goesOn = (outcome: "richtig" | "falsch") => !!page?.timeline.ends[quizEndNodeId(block.id, outcome)];
   const variables = useDocumentStore((s) => s.doc.content.variables);
   const { lang, defaultLang } = useEditingLanguage();
 
@@ -1692,12 +1694,13 @@ function QuizEditor({ block, onUpdate }: { block: QuizBlock; onUpdate: BlockPane
         <label className="weft-field weft-field-inline">
           <input
             type="checkbox"
-            checked={block.advanceOnCorrect}
-            onChange={(e) => onUpdate({ advanceOnCorrect: e.target.checked })}
+            checked={goesOn("richtig")}
+            disabled={!page}
+            onChange={(e) => page && setQuizAdvance(page.id, block.id, "richtig", e.target.checked)}
           />
           <span>Weiter zur nächsten Folie</span>
         </label>
-        {block.advanceOnCorrect && (
+        {goesOn("richtig") && (
           <p className="weft-hint">Passiert 1,5 Sekunden nach Erscheinen von "Richtig", damit die Rückmeldung noch zu sehen ist.</p>
         )}
       </Collapsible>
@@ -1707,12 +1710,13 @@ function QuizEditor({ block, onUpdate }: { block: QuizBlock; onUpdate: BlockPane
           <label className="weft-field weft-field-inline">
             <input
               type="checkbox"
-              checked={block.advanceOnIncorrect}
-              onChange={(e) => onUpdate({ advanceOnIncorrect: e.target.checked })}
+              checked={goesOn("falsch")}
+              disabled={!page}
+              onChange={(e) => page && setQuizAdvance(page.id, block.id, "falsch", e.target.checked)}
             />
             <span>Weiter zur nächsten Folie</span>
           </label>
-          {block.advanceOnIncorrect && (
+          {goesOn("falsch") && (
             <p className="weft-hint">
               Passiert 1,5 Sekunden nach Erscheinen der Rückmeldung, damit sie noch zu sehen ist.
             </p>

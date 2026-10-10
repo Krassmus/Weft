@@ -8,8 +8,7 @@ import hand2IconSvg from "../../../mockups/icons/hand2.svg?raw";
 import video2IconSvg from "../../../mockups/icons/video2.svg?raw";
 import stopIconSvg from "../../../mockups/icons/stop.svg?raw";
 import pauseIconSvg from "../../../mockups/icons/pause.svg?raw";
-import visibilityVisibleIconSvg from "../../../mockups/icons/visibility-visible.svg?raw";
-import visibilityInvisibleIconSvg from "../../../mockups/icons/visibility-invisible.svg?raw";
+import animationIconSvgRaw from "../../../mockups/icons/animation.svg?raw";
 import { reorderChain } from "../../core/document/actions";
 import { isTriggerableNode, listAllNodes } from "../../core/document/pageTimeline";
 import { findChain } from "../../core/eventGraph/chains";
@@ -21,6 +20,10 @@ import type { EdgeRoute } from "./eventGraph/layout";
 import { TRANSITION_LABELS } from "../../core/document/transitions";
 import type { Page, TimelineEventType, TimelineNode } from "../../core/types";
 
+
+// This icon sets its colour in a style attribute, which the colour of an event (see App.css) can't reach: as a fill attribute
+// it takes the colour of the event like the others do.
+const animationIconSvg = animationIconSvgRaw.replace(/style="fill:[^"]*"/g, 'fill="#28497c"');
 
 // No icon file for this in the set (see mockups/icons) - a plain "∞" glyph, drawn as an <svg
 // text> so it slots into TimelineNodeIcon exactly like every other, file-based icon here (same
@@ -59,11 +62,12 @@ const EVENT_ICONS: Record<TimelineEventType, string> = {
   "video-stop-point": pauseIconSvg,
   "video-end-loop": INFINITY_ICON_SVG,
   "video-end-stop": stopIconSvg,
-  "block-entrance": visibilityVisibleIconSvg,
-  "block-exit": visibilityInvisibleIconSvg,
+  // Aufbau and Abbau - the animations (Fade, Move, ...) - share one icon; their titles tell them apart.
+  "block-entrance": animationIconSvg,
+  "block-exit": animationIconSvg,
   "button-click": hand2IconSvg,
-  "group-entrance": visibilityVisibleIconSvg,
-  "group-exit": visibilityInvisibleIconSvg,
+  "group-entrance": animationIconSvg,
+  "group-exit": animationIconSvg,
 };
 
 /** Exported for BlockEffectEditor in panels/BlockPanel.tsx, which lists these same nodes (minus

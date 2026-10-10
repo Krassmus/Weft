@@ -241,4 +241,10 @@ und wenn sie fertig ist – bei einer Animation nach ihrer Dauer –, passiert d
    Entfernen, Hinzufügen), Warnung bei unerreichbaren Events. Ein Aufbau/Abbau bekommt seinen Platz in der Weiter-Kette einmal, wenn
    der Effekt gewählt wird (`ensureEffectTriggers`); nimmt man ihm später den Trigger, bleibt er ohne und ist rot. Das
    Block-Panel bearbeitet weiter nur den ersten Trigger.
-5. **Animationen** (Verschieben, Erscheinen, Linien einzeichnen) und **Drag & Drop** in linearen Ketten.
+5. **Animationen** (Verschieben, Erscheinen, Linien einzeichnen) und **Drag & Drop** in linearen Ketten. **(umgesetzt)** Events
+   gleiten bei Änderungen an ihren neuen Platz (`useAnimatedPositions`, 280 ms), ein neues Event wächst ins Bild, ein neuer Trigger
+   wird von der Quelle zum Ziel gezeichnet; bei „reduzierte Bewegung“ und beim Seitenwechsel gibt es keine Animation. Animationen
+   einer linearen Kette (`core/eventGraph/chains.ts`) lassen sich entlang der Linie ziehen (`reorderChain`): Verzögerungen und
+   „Weiter“ bleiben an der Position, die Events wandern; ein Zug ist ein Rückgängig-Schritt.
+
+Noch nicht umgesetzt: Gruppen und Buttons als Event-Blöcke (Abschnitt 5), weil deren Events im Datenmodell noch fehlen.

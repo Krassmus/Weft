@@ -27,6 +27,7 @@ import type {
 } from "../types";
 import { DEFAULT_CODE_THEME } from "../code/codeThemes";
 import { insertOrdered, moveOrdered, moveOrderedRun, orderedIdRecord, orderedKeys, orderedValues } from "./ordering";
+import { findChain, reorderedLinks } from "../eventGraph/chains";
 import { assignPatch, plain, removeWhere } from "./plain";
 import { branchPageIds } from "./sequence";
 import { DEFAULT_TRANSITION_DURATION_MS } from "./transitions";
@@ -678,6 +679,28 @@ export function removeTrigger(pageId: string, triggerId: string) {
   edit("Auslöser entfernen", (m) => {
     const page = m.pages[pageId];
     if (page) delete page.timeline.triggers[triggerId];
+  });
+}
+
+/**
+ * Puts the events of a linear chain (see findChain in core/eventGraph/chains.ts) in another order: `order` is the chain's events
+ * as they are to happen. The links keep their properties (delay, waits for Weiter) where they are - the rhythm stays, the events
+ * move. Does nothing if `order` is not a permutation of the chain `order[0]` is part of.
+ */
+export function reorderChain(pageId: string, order: string[]) {
+  edit("Reihenfolge ändern", (m) => {
+    const page = m.pages[pageId];
+    if (!page || order.length < 2) return;
+    const chain = findChain(page.timeline, order[0], (id) => id.startsWith("block-entrance:") || id.startsWith("block-exit:"));
+    if (!chain || chain.nodeIds.length !== order.length || !order.every((id) => chain.nodeIds.includes(id))) return;
+    const lastOut = chain.triggerIds.length > chain.nodeIds.length ? page.timeline.triggers[chain.triggerIds[chain.nodeIds.length]]?.to : null;
+    for (const [id, link] of reorderedLinks(chain, order, lastOut ?? null)) {
+      const trigger = page.timeline.triggers[id];
+      if (!trigger) continue;
+      trigger.from = link.from;
+      trigger.to = link.to;
+    }
+    syncPageTimelineEvents(page);
   });
 }
 

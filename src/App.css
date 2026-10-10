@@ -3962,3 +3962,60 @@ button.weft-timeline-node-icon.is-red:hover,
 .weft-trigger-card .weft-hint {
   margin: 0;
 }
+
+
+/* ---- The event graph moves (Timeline.tsx): a new event grows into view, a new line is drawn, a chain can be reordered ---- */
+
+@keyframes weft-eg-grow {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes weft-eg-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.weft-eg-node.is-new {
+  animation: weft-eg-grow 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+/* A new line is drawn from its source to its target (pathLength is set to 1 for as long as that takes). */
+.weft-eg-line.is-drawing {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: weft-eg-draw 0.38s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weft-eg-node.is-new,
+  .weft-eg-line.is-drawing {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* The icons of an event that is part of a chain can be dragged along the line. */
+.weft-eg-node.is-draggable .weft-timeline-node-icon {
+  cursor: grab;
+  touch-action: none;
+}
+
+.weft-eg-node.is-dragged {
+  z-index: 3;
+}
+
+.weft-eg-node.is-dragged .weft-timeline-node-icon {
+  cursor: grabbing;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}

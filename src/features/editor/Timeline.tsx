@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import playIconSvg from "../../../mockups/icons/play.svg?raw";
 import arrowRightIconSvg from "../../../mockups/icons/arr_1right.svg?raw";
 import acceptIconSvg from "../../../mockups/icons/accept.svg?raw";
@@ -9,7 +10,9 @@ import stopIconSvg from "../../../mockups/icons/stop.svg?raw";
 import pauseIconSvg from "../../../mockups/icons/pause.svg?raw";
 import visibilityVisibleIconSvg from "../../../mockups/icons/visibility-visible.svg?raw";
 import visibilityInvisibleIconSvg from "../../../mockups/icons/visibility-invisible.svg?raw";
+import { reorderChain } from "../../core/document/actions";
 import { isTriggerableNode, listAllNodes } from "../../core/document/pageTimeline";
+import { findChain } from "../../core/eventGraph/chains";
 import { useDocumentStore } from "../../core/document/store";
 import { buildGraphModel } from "./eventGraph/model";
 import type { EventColor, GraphNodeModel } from "./eventGraph/model";
@@ -170,10 +173,91 @@ function edgePath(route: EdgeRoute, u: Point, v: Point, columnWidth: number, det
   );
 }
 
+/** How long things take to move into place, in milliseconds. */
+const MOVE_MS = 280;
+/** How long a new event takes to appear and a new trigger to be drawn. */
+const APPEAR_MS = 380;
+const DRAG_THRESHOLD_PX = 5;
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function easeOut(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
 /**
- * Renders a page's event graph (see docs/event-graph.md): the events as round icons with their titles, the triggers as lines. What
- * the graph is made of comes from buildGraphModel (the events of the page's blocks, its triggers); where everything stands from
- * layoutGraph; this component turns that into pixels.
+ * The positions events are drawn at: `target`, but when it changes they slide there (so that an event pushed aside by a new one moves
+ * instead of jumping). New events are put at their place at once (they scale in instead - see Timeline), those in `immediate` (the one
+ * being dragged) follow their target without delay, and with `instant` or a preference for reduced motion nothing slides at all.
+ */
+function useAnimatedPositions(target: Map<string, Point>, immediate: Set<string>, instant: boolean): Map<string, Point> {
+  const [shown, setShown] = useState<Map<string, Point>>(target);
+  const shownRef = useRef(shown);
+  const frameRef = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+    frameRef.current = null;
+    const current = shownRef.current;
+    const from = new Map<string, Point>();
+    const settled = new Map<string, Point>();
+    let moving = false;
+    for (const [id, to] of target) {
+      const was = current.get(id);
+      if (!was || immediate.has(id) || instant || prefersReducedMotion()) {
+        settled.set(id, to);
+        continue;
+      }
+      from.set(id, was);
+      if (was.x !== to.x || was.y !== to.y) moving = true;
+    }
+    const apply = (positions: Map<string, Point>) => {
+      shownRef.current = positions;
+      setShown(positions);
+    };
+    if (!moving) {
+      const next = new Map(settled);
+      for (const [id, to] of target) if (!next.has(id)) next.set(id, to);
+      apply(next);
+      return;
+    }
+    const start = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / MOVE_MS);
+      const e = easeOut(t);
+      const next = new Map(settled);
+      for (const [id, a] of from) {
+        const b = target.get(id)!;
+        next.set(id, { x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e });
+      }
+      apply(next);
+      frameRef.current = t < 1 ? requestAnimationFrame(step) : null;
+    };
+    frameRef.current = requestAnimationFrame(step);
+    return () => {
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+    };
+    // The target is a new map whenever something about the layout changed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target]);
+
+  return shown;
+}
+
+/**
+ * Renders a page's event graph (see docs/event-graph.md). A page switch starts a fresh graph (nothing slides in from the other
+ * page's positions).
+ */
+export function Timeline({ page }: { page: Page }) {
+  return <TimelineGraph key={page.id} page={page} />;
+}
+
+/**
+ * The graph of one page: the events as round icons with their titles, the triggers as lines. What the graph is made of comes from
+ * buildGraphModel (the events of the page's blocks, its triggers); where everything stands from layoutGraph; this component turns
+ * that into pixels - and moves it:
  *
  * - Colour says what kind of event it is: blue is the normal kind, yellow an animation (Aufbau, Abbau, a transition), violet
  *   something the learner does; red an event nothing can make happen.
@@ -181,24 +265,43 @@ function edgePath(route: EdgeRoute, u: Point, v: Point, columnWidth: number, det
  * - A line that can't run to the right or down (back in time, or in from below) is drawn faint, as a detour behind everything.
  * - A quiz and a video are event blocks: their events share a frame.
  * - Hovering an event lifts it and its lines and dims the rest.
+ * - When something changes, events slide to their new place, a new event grows into view and a new line is drawn from its source
+ *   to its target.
+ * - Animations that follow each other one by one (a chain) can be put in another order by dragging one of them along the line;
+ *   the delays and waits stay where they are, the events move.
  * Every event selects itself when clicked, routing the Inspector to EventPanel.tsx.
  */
-export function Timeline({ page }: { page: Page }) {
+function TimelineGraph({ page }: { page: Page }) {
   const selection = useDocumentStore((s) => s.selection);
   const select = useDocumentStore((s) => s.select);
   const [hovered, setHovered] = useState<string | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const [availableWidth, setAvailableWidth] = useState(0);
+  const [resizing, setResizing] = useState(false);
+  // The event being dragged, and where its pointer is (x, in graph pixels) and the order it would take.
+  const [drag, setDrag] = useState<{ nodeId: string; x: number; order: string[] } | null>(null);
+  const suppressClickRef = useRef(false);
+  // The events of the chain being dragged, in the order they stood in when the drag began.
+  const chainIdsRef = useRef<string[]>([]);
 
   useLayoutEffect(() => {
     const el = frameRef.current;
     if (!el) return;
-    const measure = () => setAvailableWidth(el.clientWidth);
+    const measure = () => {
+      setResizing(true);
+      setAvailableWidth(el.clientWidth);
+    };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+  // A change of width is not a change of the graph: nothing slides for it.
+  useLayoutEffect(() => {
+    if (!resizing) return;
+    const timer = setTimeout(() => setResizing(false), 60);
+    return () => clearTimeout(timer);
+  }, [resizing, availableWidth]);
 
   const model = useMemo(() => buildGraphModel(page), [page]);
   const layout = useMemo(
@@ -216,15 +319,56 @@ export function Timeline({ page }: { page: Page }) {
   const rowsHeight = PAD_TOP + ICON / 2 + (layout.rows - 1) * ROW_HEIGHT + ICON / 2 + LABEL_HEIGHT;
   const graphHeight = rowsHeight + (detours.length > 0 ? 14 + detours.length * 8 : 0);
 
-  const at = (id: string): Point => ({
-    x: PAD_X + (layout.col.get(id) ?? 0) * columnWidth,
-    y: PAD_TOP + ICON / 2 + (layout.row.get(id) ?? 0) * ROW_HEIGHT,
-  });
+  // Where every event stands: its place in the layout - or, while one is being dragged, with the others closed up around it.
+  const target = useMemo(() => {
+    const positions = new Map<string, Point>();
+    for (const n of model.nodes) {
+      positions.set(n.id, {
+        x: PAD_X + (layout.col.get(n.id) ?? 0) * columnWidth,
+        y: PAD_TOP + ICON / 2 + (layout.row.get(n.id) ?? 0) * ROW_HEIGHT,
+      });
+    }
+    if (drag) {
+      // The places of the chain, from left to right, are taken in the new order; the dragged event itself follows the pointer.
+      const slots = [...drag.order].map((_, i) => positions.get(chainIdsRef.current[i])!).filter(Boolean);
+      drag.order.forEach((id, i) => {
+        const slot = slots[i];
+        if (!slot) return;
+        if (id === drag.nodeId) {
+          const lo = slots[0].x;
+          const hi = slots[slots.length - 1].x;
+          positions.set(id, { x: Math.min(hi, Math.max(lo, drag.x)), y: slot.y });
+        } else positions.set(id, slot);
+      });
+    }
+    return positions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model, layout, columnWidth, drag]);
+
+  const positions = useAnimatedPositions(target, new Set(drag ? [drag.nodeId] : []), resizing);
+  const at = (id: string): Point => positions.get(id) ?? target.get(id) ?? { x: PAD_X, y: PAD_TOP };
+
+  // What is new since the last time: it grows into view (events) or is drawn (lines) for a moment.
+  const seenRef = useRef<{ nodes: Set<string>; edges: Set<string> } | null>(null);
+  const [fresh, setFresh] = useState<{ nodes: Set<string>; edges: Set<string> }>({ nodes: new Set(), edges: new Set() });
+  useLayoutEffect(() => {
+    const nodes = new Set(model.nodes.map((n) => n.id));
+    const edges = new Set(model.edges.map((e) => e.id));
+    const previous = seenRef.current;
+    seenRef.current = { nodes, edges };
+    if (!previous || prefersReducedMotion()) return;
+    const addedNodes = new Set([...nodes].filter((id) => !previous.nodes.has(id)));
+    const addedEdges = new Set([...edges].filter((id) => !previous.edges.has(id)));
+    if (addedNodes.size === 0 && addedEdges.size === 0) return;
+    setFresh({ nodes: addedNodes, edges: addedEdges });
+    const timer = setTimeout(() => setFresh({ nodes: new Set(), edges: new Set() }), APPEAR_MS + 80);
+    return () => clearTimeout(timer);
+  }, [model]);
 
   // Events and lines that stay lit while one is hovered: the event itself, its lines and the events at their other ends.
   const hotNodes = new Set<string>();
   const hotEdges = new Set<string>();
-  if (hovered) {
+  if (hovered && !drag) {
     hotNodes.add(hovered);
     for (const edge of model.edges) {
       if (edge.from === hovered || edge.to === hovered) {
@@ -234,6 +378,7 @@ export function Timeline({ page }: { page: Page }) {
       }
     }
   }
+  const lit = hovered !== null && !drag;
 
   // The frame of every event block: round its events, with the kind of block written on it.
   const frames = new Map<string, { kind: string; ids: string[] }>();
@@ -249,6 +394,62 @@ export function Timeline({ page }: { page: Page }) {
     // A "Nächste Folie" that animates its transition is an animation.
     if (n.node.kind === "end" && (page.timeline.ends[n.id]?.transition.type ?? "none") !== "none") return "yellow";
     return n.color;
+  }
+
+  // The chain an event can be moved in: events that follow each other one by one, in one row.
+  function chainOf(nodeId: string): string[] | null {
+    const chain = findChain(page.timeline, nodeId, (id) => id.startsWith("block-entrance:") || id.startsWith("block-exit:"));
+    if (!chain) return null;
+    const row = layout.row.get(nodeId);
+    if (!chain.nodeIds.every((id) => layout.row.get(id) === row)) return null;
+    return chain.nodeIds;
+  }
+  const draggable = new Set<string>();
+  for (const n of model.nodes) if (chainOf(n.id)) draggable.add(n.id);
+
+  function startDrag(event: ReactPointerEvent, nodeId: string) {
+    if (event.button !== 0) return;
+    const chain = chainOf(nodeId);
+    if (!chain) return;
+    const graph = (event.currentTarget as HTMLElement).closest(".weft-eg") as HTMLElement | null;
+    if (!graph) return;
+    const startX = event.clientX;
+    const origin = graph.getBoundingClientRect().left;
+    let started = false;
+    chainIdsRef.current = chain;
+    const slotsX = chain.map((id) => PAD_X + (layout.col.get(id) ?? 0) * columnWidth);
+
+    const orderFor = (x: number): string[] => {
+      let best = 0;
+      for (let i = 0; i < slotsX.length; i++) if (Math.abs(slotsX[i] - x) < Math.abs(slotsX[best] - x)) best = i;
+      const others = chain.filter((id) => id !== nodeId);
+      others.splice(best, 0, nodeId);
+      return others;
+    };
+    const move = (e: PointerEvent) => {
+      if (!started) {
+        if (Math.abs(e.clientX - startX) < DRAG_THRESHOLD_PX) return;
+        started = true;
+        document.body.classList.add("weft-dragging");
+      }
+      const x = e.clientX - origin;
+      setDrag({ nodeId, x, order: orderFor(x) });
+    };
+    const finish = (e: PointerEvent) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+      document.body.classList.remove("weft-dragging");
+      if (!started) return;
+      suppressClickRef.current = true;
+      setTimeout(() => (suppressClickRef.current = false), 0);
+      const order = orderFor(e.clientX - origin);
+      setDrag(null);
+      if (order.some((id, i) => id !== chain[i])) reorderChain(page.id, order);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
   }
 
   let detourIndex = 0;
@@ -272,16 +473,19 @@ export function Timeline({ page }: { page: Page }) {
               const v = at(edge.to);
               const detourY = rowsHeight - LABEL_HEIGHT + 10 + (edge.route === "detour" ? detourIndex++ * 8 : 0);
               const waits = info.kind !== "timed";
+              const drawing = fresh.edges.has(edge.id);
               const className =
                 "weft-eg-line" +
                 (waits ? " is-waiting" : "") +
                 (edge.route === "detour" ? " is-detour" : "") +
-                (hotEdges.has(edge.id) ? " is-hot" : hovered ? " is-dim" : "");
+                (drawing ? " is-drawing" : "") +
+                (hotEdges.has(edge.id) ? " is-hot" : lit ? " is-dim" : "");
               const d = edgePath(edge.route, u, v, columnWidth, detourY);
               const showDelay = !waits && info.delayMs > 0 && edge.route !== "detour";
               return (
                 <g key={edge.id}>
-                  <path className={className} d={d}>
+                  {/* pathLength only while it is drawn: it would change what a dash is. */}
+                  <path className={className} d={d} {...(drawing ? { pathLength: 1 } : {})}>
                     <title>{waits ? "Wartet auf die Lernperson" : info.delayMs > 0 ? `Nach ${info.delayMs / 1000} s` : "Passiert sofort"}</title>
                   </path>
                   {showDelay && (
@@ -304,7 +508,7 @@ export function Timeline({ page }: { page: Page }) {
             const left = Math.min(...points.map((p) => p.x)) - FRAME_PAD - ICON / 2;
             const top = Math.min(...points.map((p) => p.y)) - FRAME_TOP - ICON / 2;
             return (
-              <span key={blockId} className="weft-eg-block-label" style={{ left: left + 10, top: top + 3 }}>
+              <span key={blockId} className="weft-eg-block-label" style={{ left: left + 10, top: top + 4 }}>
                 {BLOCK_FRAME_LABELS[frame.kind] ?? ""}
               </span>
             );
@@ -313,21 +517,32 @@ export function Timeline({ page }: { page: Page }) {
             const p = at(n.id);
             const color = colorOf(n);
             const selected = selection?.type === "event" && selection.pageId === page.id && selection.nodeId === n.id;
-            const dim = hovered !== null && !hotNodes.has(n.id);
+            const dim = lit && !hotNodes.has(n.id);
             const detail = n.node.kind === "end" ? endTransitionLabel(page, n.id) : "";
+            const dragged = drag?.nodeId === n.id;
             return (
               <div
                 key={n.id}
-                className={"weft-eg-node" + (dim ? " is-dim" : "")}
+                className={
+                  "weft-eg-node" +
+                  (dim ? " is-dim" : "") +
+                  (fresh.nodes.has(n.id) ? " is-new" : "") +
+                  (draggable.has(n.id) ? " is-draggable" : "") +
+                  (dragged ? " is-dragged" : "")
+                }
                 style={{ left: p.x - 35, top: p.y - ICON / 2 }}
                 onMouseEnter={() => setHovered(n.id)}
+                onPointerDown={draggable.has(n.id) ? (e) => startDrag(e, n.id) : undefined}
               >
                 <TimelineNodeIcon
                   node={n.node}
                   color={color}
                   isSelected={selected}
-                  isHot={hovered === n.id}
-                  onSelect={() => select({ type: "event", pageId: page.id, nodeId: n.id })}
+                  isHot={hovered === n.id && !drag}
+                  onSelect={() => {
+                    if (suppressClickRef.current) return;
+                    select({ type: "event", pageId: page.id, nodeId: n.id });
+                  }}
                   unreachable={n.unreachable}
                 />
                 <span className="weft-timeline-node-label">

@@ -17,6 +17,7 @@ import { useTranslation } from "../../../core/i18n/useTranslation";
 import type { Page, TimelineEdge, TimelineEventType, TimelineNode, VideoBlock } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
 import { listPageTriggerEvents, listTriggerableNodes, nodeLabel } from "../Timeline";
+import { buildGraphModel } from "../eventGraph/model";
 import { BlockEffectEditor } from "./BlockPanel";
 import { TransitionPanel } from "./TransitionPanel";
 import { TriggerPicker } from "./TriggerPicker";
@@ -70,6 +71,8 @@ export function EventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
   const node = rawNode.inlineChild && rawNode.children?.length === 1 ? rawNode.children[0].node : rawNode;
 
   const sourceBlock = node.sourceBlockId ? page.blocks[node.sourceBlockId] : undefined;
+  // Nothing can make it happen (see docs/event-graph.md): shown red in the graph, and said here.
+  const unreachable = buildGraphModel(page).nodes.find((n) => n.id === node.id)?.unreachable ?? false;
 
   return (
     <>
@@ -78,6 +81,15 @@ export function EventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
         <p className="weft-event-heading-title">{nodeLabel(node)}</p>
         {node.kind === "start" && <p className="weft-hint">Passiert automatisch, sobald diese Folie angezeigt wird.</p>}
       </div>
+
+      {unreachable && (
+        <div className="weft-placeholder-warning">
+          <p>
+            ⚠ Nichts löst dieses Ereignis aus - es passiert nie.
+            {node.kind === "end" ? " Die Folie lässt sich nur noch auf anderem Wege verlassen, zum Beispiel mit einem Button." : ""}
+          </p>
+        </div>
+      )}
 
       {sourceBlock && (
         <div className="weft-event-source">

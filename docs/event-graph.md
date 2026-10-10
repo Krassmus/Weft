@@ -230,6 +230,11 @@ und wenn sie fertig ist – bei einer Animation nach ihrer Dauer –, passiert d
    bekommen ihren Trigger beim Wählen des Effekts (`syncPageTimelineEvents`: Weiter am Ende der Kette, „Nächste Folie“ bleibt das
    letzte Glied); wird ein Block gelöscht, überbrückt `syncPageTimelineEvents` die Kette. Im Editor wird weiter genau ein Trigger je
    Event bearbeitet; das Modell erlaubt mehrere (Stufe 4).
-3. **Neuer Graph**: Layout, SVG-Darstellung, Event-Blöcke, Hover.
+3. **Neuer Graph**: Layout, SVG-Darstellung, Event-Blöcke, Hover. **(umgesetzt)** `features/editor/eventGraph/layout.ts` ordnet die
+   Events (Spalte = längster Weg vom Start, Zeile = Verzweigung, „Nächste Folie“ in der letzten Spalte), `Timeline.tsx` zeichnet
+   sie als SVG-Linien mit abgerundeten Ecken und die Rücksprünge / Zusammenführungen von unten als blasse 45°-Umwege hinter allem.
+   Farben nach Typ (blau, gelb, violett, rot für unerreichbare Events), Hover hebt ein Event und seine Linien hervor. Quiz und
+   Video sind Event-Blöcke (gemeinsamer Rahmen; Stopppunkte lassen ausgelöste Events nach unten gehen). **Noch offen aus dem
+   Konzept:** Gruppen und Buttons als Event-Blöcke (dafür fehlen noch deren Events im Datenmodell), Titel-Überschreibung pro Event.
 4. **Seitenleiste** (Ein-/Ausgangstrigger-Listen, Titel, Warnung).
 5. **Animationen** (Verschieben, Erscheinen, Linien einzeichnen) und **Drag & Drop** in linearen Ketten.

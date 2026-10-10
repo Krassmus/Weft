@@ -1021,67 +1021,6 @@ img.weft-thumb-block {
   background: var(--weft-panel);
 }
 
-/* A lane is its own track+labels row; independent (non-causally-related) events get a whole
-   extra lane rather than sharing one, so lanes stack with a little breathing room between them -
-   a fork group (see .weft-timeline-fork-group below) counts as one such item too, so its rows
-   stay just as evenly spaced from whatever comes before/after the group as ordinary lanes are
-   from each other. */
-.weft-timeline-lane:not(:last-child),
-.weft-timeline-fork-group:not(:last-child) {
-  margin-bottom: 10px;
-}
-
-/* Several lanes that all start at the same node (a quiz's "richtig"/"falsch" outcomes both
-   starting at "Ausfüllen" - see groupForkedLanes in Timeline.tsx) render as one visual fork
-   instead of repeating that shared node once per lane: the first lane keeps it for real, every
-   later one skips it entirely and starts instead with a blank .weft-timeline-fork-lead sized to
-   land its own line right under .weft-timeline-fork-spine - a single vertical line from the real
-   icon down to the last lane's own first (visible) node, positioned in JS via
-   getBoundingClientRect since a label can wrap to a different number of lines and throw off any
-   fixed pixel math. position: relative anchors that line's absolute left/top/height. */
-.weft-timeline-fork-group {
-  position: relative;
-}
-
-/* Dashed to match every other not-yet-scheduled edge (see .weft-timeline-line in App.css and
-   TimelineEdgeKind "unknown" in core/types.ts) - a fork not being drawn as an "end"-reaching edge
-   with its own real TimelineEdge, it's purely visual, but it should still read the same way. */
-.weft-timeline-fork-spine {
-  position: absolute;
-  width: 0;
-  border-left: 1px dashed var(--weft-accent);
-  pointer-events: none;
-}
-
-/* A fork branch's stand-in for the shared node it isn't repeating (see .weft-timeline-fork-group
-   above) - its width is set inline per render, in JS, to exactly where the spine lands, so the
-   branch's own line starts there instead of whatever position a normal .weft-timeline-lead-gap
-   would put it at. Pre-measurement (width: 0) it's simply not there yet - same one-frame gap
-   .weft-timeline-fork-spine itself tolerates, resolved before paint via useLayoutEffect. */
-.weft-timeline-fork-lead {
-  flex: 0 0 0;
-}
-
-/* align-items: flex-start (not center) because a node is now icon+label stacked, taller than the
-   bare connecting line - the line gets its own top margin below to line up with icon centers
-   instead (see .weft-timeline-line). */
-.weft-timeline-track {
-  display: flex;
-  align-items: flex-start;
-}
-
-/* A lane with no anchor at either end (see Timeline.tsx's `isIndependent`) - e.g. a video's own
-   "Start/Ende des Videos" - reads as its own free-floating mini-timeline rather than a path to/
-   from the page's start or end, so its events space themselves evenly across the full row instead
-   of sitting compactly near the left (see .weft-timeline-distribute-gap/.weft-timeline-line.
-   is-distributed below). overflow-x: auto is what makes "evenly spaced, but never closer together
-   than the line's own min-width" resolve to a horizontal scrollbar instead of cramming once there
-   are enough events that even the minimum no longer fits. */
-.weft-timeline-track.is-distributed {
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
 /* Icon and its own label stacked together, so a label always stays under its own icon regardless
    of how long the line before/after it is (a bare `justify-content: space-between` across two
    separate rows broke down as soon as lanes stopped being uniform - see "is-detached" below).
@@ -1135,34 +1074,6 @@ button.weft-timeline-node-icon:hover {
   color: var(--weft-accent);
 }
 
-/* Aufbau, Abbau, or a "Nächste Folie" with an animated transition (see isAnimatedNode in
-   Timeline.tsx) - the icon itself is always this color, the ring around it only picks it up on
-   hover (mirroring the plain :hover rule above, just with --weft-timeline-animated instead of
-   --weft-accent) so the neutral ring still reads as "not currently focused" at rest. */
-.weft-timeline-node-icon.is-animated {
-  color: var(--weft-timeline-animated);
-}
-
-button.weft-timeline-node-icon.is-animated:hover {
-  border-color: var(--weft-timeline-animated);
-  color: var(--weft-timeline-animated);
-}
-
-.weft-timeline-node-icon.is-selected {
-  border-color: var(--weft-accent);
-  background: var(--weft-accent-soft);
-  color: var(--weft-accent);
-}
-
-/* An animated node (see .is-animated above) keeps its own yellow, even while selected - two
-   extra classes beats .is-selected alone regardless of source order, so this doesn't need to sit
-   after it. */
-.weft-timeline-node-icon.is-animated.is-selected {
-  border-color: var(--weft-timeline-animated);
-  background: var(--weft-timeline-animated-soft);
-  color: var(--weft-timeline-animated);
-}
-
 /* Wider than the 26px icon it sits under (see .weft-timeline-node) and free to overflow past it
    both ways, since nothing here clips it - keeps a longer label (e.g. "Quiz abgeschickt
    (richtig)") from forcing the icons themselves further apart. Kept narrow enough, together with
@@ -1181,104 +1092,8 @@ button.weft-timeline-node-icon.is-animated:hover {
   color: var(--weft-text-faint);
 }
 
-/* Events triggered directly by a node that sits in the middle of its own lane (in practice, only
-   ever a video's own stop point - see TimelineNode.children in core/types.ts) stack vertically
-   right below it instead of forking off into their own horizontal lane - a lane starting from a
-   copy of a mid-lane node would otherwise make the video's own timeline look like it has two of
-   the same stop point on two different rows. */
-.weft-timeline-node-children {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 4px;
-}
-
-.weft-timeline-child {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.weft-timeline-child:not(:last-child) {
-  margin-bottom: 4px;
-}
-
-/* Always solid - unlike .weft-timeline-line, which can be dashed for an "unknown"-timing edge,
-   a stop point's own trigger always fires after an author-set delay (see buildBlockEffectLane's
-   own doc comment in document/pageTimeline.ts), so there's no "unknown"-timing case to style for
-   here. */
-.weft-timeline-child-connector {
-  width: 0;
-  height: 10px;
-  border-left: 1px solid var(--weft-accent);
-}
-
-/* Dashed by default: TimelineEdgeKind "unknown" and "advance" - causally after the previous node, but on no
-   fixed schedule: it waits for the learner. .is-timed switches to solid for kind "timed" - happens automatically after a
-   fixed delay. See TimelineEdge in core/types.ts. No horizontal margin - it butts directly against
-   the icon circles on either side, no gap. margin-top centers it on the 26px icon above, since
-   align-items on the track is flex-start (see .weft-timeline-track). */
-.weft-timeline-line {
-  margin: 13px 0 0;
-  height: 0;
-  border-top: 1px dashed var(--weft-accent);
-}
-
-.weft-timeline-line.is-timed {
-  border-top-style: solid;
-}
-
 /* "advance" (Weiter-triggered) has no style of its own: it is dashed like every edge that waits for the learner (a click on "Weiter" is
    an interaction too) - solid is only for what happens by itself, see .is-timed above. */
-
-/* No edge at all between two adjacent nodes (currently only "Nächste Folie" set to "Gar nicht" -
-   see Timeline.tsx's own TimelineLaneRow) - invisible, but still occupies the same flex space a
-   real line would, so the gap it provides doesn't collapse and run the two nodes together. */
-.weft-timeline-line.is-none {
-  border-top-color: transparent;
-}
-
-/* Only a line that actually reaches "end" stretches to fill the row - keeps every lane's "end"
-   aligned in one column on the right. A line that dead-ends at an event with no further
-   connection (e.g. a quiz whose outcome isn't wired to auto-advance yet) stays a short, fixed-
-   width stub instead, so it visually reads as "goes nowhere yet" rather than implying a
-   connection to "end" that isn't actually there. */
-.weft-timeline-line.is-to-end {
-  flex: 1;
-}
-
-.weft-timeline-line.is-detached {
-  flex: 0 0 48px;
-}
-
-/* An independent lane's own connecting line (see .weft-timeline-track.is-distributed above) grows
-   like .weft-timeline-distribute-gap on either side of it - same flex-basis/grow/shrink - so every
-   gap in the row (before the first event, between events, after the last) ends up the same width:
-   an imaginary event at each end of the row, the real ones between them equally spaced, exactly
-   like .weft-timeline-distribute-gap's own comment describes. flex-shrink: 0 is what turns "no
-   more room to grow" into "the row scrolls" instead of "the gaps get cramped" once there isn't
-   enough width left for every gap to keep its 32px minimum. */
-.weft-timeline-line.is-distributed {
-  flex: 1 0 32px;
-}
-
-/* Blank space before a lane whose first node isn't "start" (see Timeline.tsx) - keeps that first
-   icon from ever landing directly under "Start der Folie", which would wrongly suggest it begins
-   the moment the slide does, rather than at some unspecified point during it. */
-.weft-timeline-lead-gap {
-  flex: 0 0 56px;
-}
-
-/* One of these sits before the first event and after the last in an independent lane (see
-   .weft-timeline-track.is-distributed) - standing in for the "imaginary event" the author
-   described at each end of the row, so the real events between them divide the row evenly rather
-   than clustering near the left like a lane anchored to "start" would. Same flex sizing as
-   .weft-timeline-line.is-distributed, which is what makes every gap - this one included - grow to
-   the same width. */
-.weft-timeline-distribute-gap {
-  flex: 1 0 32px;
-  align-self: stretch;
-}
 
 .weft-preview-frame {
   width: 100%;
@@ -3932,4 +3747,161 @@ html {
 
 .weft-add-menu button:hover {
   background: var(--weft-input-bg);
+}
+
+
+/* ---- The event graph (Timeline.tsx, docs/event-graph.md) ---- */
+
+:root {
+  --weft-eg-blue: #4d8dff;
+  --weft-eg-yellow: #f5b83d;
+  --weft-eg-violet: #a66cff;
+  --weft-eg-red: #ef4444;
+}
+
+.weft-timeline {
+  overflow: auto;
+  padding: 10px 14px 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+
+.weft-eg {
+  position: relative;
+  margin: 0 auto;
+}
+
+.weft-eg-lines {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.weft-eg-line {
+  fill: none;
+  stroke: var(--weft-accent);
+  stroke-width: 1.5;
+  pointer-events: stroke;
+  transition: opacity 0.15s;
+}
+
+/* Waits for the learner (Weiter); solid is what happens by itself. */
+.weft-eg-line.is-waiting {
+  stroke-dasharray: 5 4;
+}
+
+/* Back in time, or in from below: a faint line behind everything else. */
+.weft-eg-line.is-detour {
+  opacity: 0.5;
+}
+
+.weft-eg-line.is-hot {
+  stroke-width: 2.4;
+  opacity: 1;
+}
+
+.weft-eg-line.is-dim {
+  opacity: 0.2;
+}
+
+.weft-eg-block {
+  fill: rgba(255, 255, 255, 0.025);
+  stroke: var(--weft-border);
+  stroke-dasharray: 3 4;
+}
+
+.weft-eg-block-label {
+  position: absolute;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--weft-text-faint);
+  pointer-events: none;
+}
+
+.weft-eg-delay {
+  font-size: 10px;
+  fill: var(--weft-text-muted);
+  pointer-events: none;
+}
+
+.weft-eg-node {
+  position: absolute;
+  width: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: opacity 0.15s;
+}
+
+.weft-eg-node.is-dim {
+  opacity: 0.35;
+}
+
+/* A marker that is selected without a colour of its own (the stop points in a video's own dialog). */
+.weft-timeline-node-icon.is-selected {
+  border-color: var(--weft-accent);
+  background: var(--weft-accent-soft);
+  color: var(--weft-accent);
+}
+
+/* Colour is the kind of event: blue the normal kind, yellow an animation, violet what the learner does, red: nothing can make it
+   happen. */
+.weft-timeline-node-icon.is-blue {
+  color: var(--weft-eg-blue);
+  border-color: color-mix(in srgb, var(--weft-eg-blue) 55%, transparent);
+}
+.weft-timeline-node-icon.is-yellow {
+  color: var(--weft-eg-yellow);
+  border-color: color-mix(in srgb, var(--weft-eg-yellow) 55%, transparent);
+}
+.weft-timeline-node-icon.is-violet {
+  color: var(--weft-eg-violet);
+  border-color: color-mix(in srgb, var(--weft-eg-violet) 55%, transparent);
+}
+.weft-timeline-node-icon.is-red {
+  color: var(--weft-eg-red);
+  border-color: var(--weft-eg-red);
+}
+
+button.weft-timeline-node-icon.is-blue:hover,
+.weft-timeline-node-icon.is-blue.is-selected,
+.weft-timeline-node-icon.is-blue.is-hot {
+  border-color: var(--weft-eg-blue);
+  color: var(--weft-eg-blue);
+}
+button.weft-timeline-node-icon.is-yellow:hover,
+.weft-timeline-node-icon.is-yellow.is-selected,
+.weft-timeline-node-icon.is-yellow.is-hot {
+  border-color: var(--weft-eg-yellow);
+  color: var(--weft-eg-yellow);
+}
+button.weft-timeline-node-icon.is-violet:hover,
+.weft-timeline-node-icon.is-violet.is-selected,
+.weft-timeline-node-icon.is-violet.is-hot {
+  border-color: var(--weft-eg-violet);
+  color: var(--weft-eg-violet);
+}
+button.weft-timeline-node-icon.is-red:hover,
+.weft-timeline-node-icon.is-red.is-selected,
+.weft-timeline-node-icon.is-red.is-hot {
+  border-color: var(--weft-eg-red);
+  color: var(--weft-eg-red);
+}
+
+.weft-timeline-node-icon.is-blue.is-selected {
+  background: color-mix(in srgb, var(--weft-eg-blue) 18%, var(--weft-panel-raised));
+}
+.weft-timeline-node-icon.is-yellow.is-selected {
+  background: color-mix(in srgb, var(--weft-eg-yellow) 18%, var(--weft-panel-raised));
+}
+.weft-timeline-node-icon.is-violet.is-selected {
+  background: color-mix(in srgb, var(--weft-eg-violet) 18%, var(--weft-panel-raised));
+}
+.weft-timeline-node-icon.is-red.is-selected {
+  background: color-mix(in srgb, var(--weft-eg-red) 18%, var(--weft-panel-raised));
+}
+
+.weft-timeline-node-icon.is-hot {
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 25%, transparent);
 }

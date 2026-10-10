@@ -1,4 +1,4 @@
-import { Fragment, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import playIconSvg from "../../../mockups/icons/play.svg?raw";
 import arrowRightIconSvg from "../../../mockups/icons/arr_1right.svg?raw";
 import acceptIconSvg from "../../../mockups/icons/accept.svg?raw";
@@ -9,10 +9,14 @@ import stopIconSvg from "../../../mockups/icons/stop.svg?raw";
 import pauseIconSvg from "../../../mockups/icons/pause.svg?raw";
 import visibilityVisibleIconSvg from "../../../mockups/icons/visibility-visible.svg?raw";
 import visibilityInvisibleIconSvg from "../../../mockups/icons/visibility-invisible.svg?raw";
-import { getPageLanes, isTriggerableNode, listAllNodes } from "../../core/document/pageTimeline";
+import { isTriggerableNode, listAllNodes } from "../../core/document/pageTimeline";
 import { useDocumentStore } from "../../core/document/store";
+import { buildGraphModel } from "./eventGraph/model";
+import type { EventColor, GraphNodeModel } from "./eventGraph/model";
+import { layoutGraph } from "./eventGraph/layout";
+import type { EdgeRoute } from "./eventGraph/layout";
 import { TRANSITION_LABELS } from "../../core/document/transitions";
-import type { Page, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode } from "../../core/types";
+import type { Page, TimelineEventType, TimelineNode } from "../../core/types";
 
 
 // No icon file for this in the set (see mockups/icons) - a plain "∞" glyph, drawn as an <svg
@@ -56,12 +60,6 @@ const EVENT_ICONS: Record<TimelineEventType, string> = {
 /** Exported for BlockEffectEditor in panels/BlockPanel.tsx, which lists these same nodes (minus
  * "end" - see BlockEffect.triggerEventId in core/types.ts) as trigger options for a block's own
  * Aufbau/Abbau, and wants them to read exactly the same as they do here. */
-/** The extra class an edge's own line gets for its `kind`: only "timed" (solid - it happens by itself) has one. "unknown" and
- * "advance" both wait for the learner and keep the bare dashed default, see App.css. */
-function edgeKindClass(kind: TimelineEdgeKind): string {
-  return kind === "timed" ? " is-timed" : "";
-}
-
 export function nodeLabel(node: TimelineNode): string {
   if (node.label) return node.label;
   if (node.kind === "start") return "Start der Folie";
@@ -91,335 +89,280 @@ export function listTriggerableNodes(page: Page): { id: string; label: string }[
     .map((node) => ({ id: node.id, label: nodeLabel(node) }));
 }
 
-type TimelineGroup = { kind: "lane"; lane: TimelineLane } | { kind: "fork"; lanes: TimelineLane[] };
-
-/**
- * Several lanes that all start at the very same node (e.g. a quiz's "Ausfüllen" - both its
- * "richtig" and "falsch" outcome lanes begin there, see buildQuizLane in document/pageTimeline.ts
- * - or two different blocks whose own Aufbau both happen to trigger off the very same event, see
- * buildBlockEffectLane) aren't actually independent paths - they're one shared start that then
- * forks. Grouping them here is what lets Timeline render that shared node exactly once with the
- * lanes visually splitting off it (see TimelineForkGroup), rather than repeating it once per lane
- * the way two truly unrelated lanes would. Not limited to lanes that happen to sit next to each
- * other in the array - a block's own Aufbau/Abbau lanes are always appended after every "intrinsic"
- * one (see syncPageTimelineEvents), so grouping has to find a match anywhere earlier in the list,
- * not just immediately before it. Only ever groups on a shared "event"-kind node (never "start") -
- * a shared "start" would have to use the bypass lane's own start->end edge as the fork's "trunk",
- * which reaches all the way to "end" and so isn't a sensible reference point for a short branch.
- */
-function groupForkedLanes(lanes: TimelineLane[]): TimelineGroup[] {
-  const groups: TimelineGroup[] = [];
-  const forkIndexByFirstNodeId = new Map<string, number>();
-  for (const lane of lanes) {
-    const firstNode = lane.nodes[0];
-    if (firstNode?.kind === "event") {
-      const existingIndex = forkIndexByFirstNodeId.get(firstNode.id);
-      if (existingIndex !== undefined) {
-        const existing = groups[existingIndex];
-        if (existing.kind === "lane") groups[existingIndex] = { kind: "fork", lanes: [existing.lane, lane] };
-        else existing.lanes.push(lane);
-        continue;
-      }
-      forkIndexByFirstNodeId.set(firstNode.id, groups.length);
-    }
-    groups.push({ kind: "lane", lane });
-  }
-  return groups;
-}
-
-/**
- * Renders a page's timeline (see mockups/timeline.png for where this is headed) from
- * page.timeline - a graph of lanes/nodes/edges (see PageTimeline in core/types.ts) that blocks
- * insert their own event/trigger nodes into (see syncPageTimelineEvents in
- * document/pageTimeline.ts), rather than this component scanning the page's blocks itself. Every
- * page always has the base lane createDefaultPageTimeline() creates - "start" straight to "end"
- * (the page's own transition, edited via TransitionPanel.tsx) - plus one extra lane per quiz
- * block's outcome that's actually wired to auto-advance, and one per video block. A lane doesn't
- * need to start at "start" or end at "end" - e.g. a quiz's own "Ausfüllen"/"Quiz abgeschickt"
- * events, or a non-autoplay video's "Start des Videos", aren't tied to the page's start, and
- * nothing about a video ever reaches "end" at all (only a quiz's outcome can trigger the next
- * slide) - see the "is-to-end"/"is-detached" line styling below, which only stretches a line to
- * fill the row (aligning every lane's "end" into one column) when it actually leads to "end". A
- * lane whose first node isn't itself "start" also gets a blank leading gap (see
- * .weft-timeline-lead-gap) so its icon never lines up under "Start der Folie" - that alignment
- * would read as "this begins exactly when the slide does", which is only true for an autoplay
- * video's own "Start des Videos" (see buildVideoLane), whose lane's first node genuinely is
- * "start" for exactly that reason. Lanes that share one starting node (a quiz's two outcomes) are
- * grouped and rendered as a visual fork instead - see groupForkedLanes/TimelineForkGroup. Every
- * node - "start", "end", or an "event" one - selects itself when clicked (see
- * TimelineLaneRow's own selectFor/isSelected), routing the Inspector to EventPanel.tsx; nothing
- * here ever selects the block behind an event or performs some other action directly.
- */
-export function Timeline({ page }: { page: Page }) {
-  const groups = groupForkedLanes(getPageLanes(page));
-  return (
-    <div className="weft-timeline">
-      {groups.map((group, i) =>
-        group.kind === "fork" ? (
-          <TimelineForkGroup key={i} lanes={group.lanes} page={page} />
-        ) : (
-          <div className="weft-timeline-lane" key={i}>
-            <TimelineLaneRow lane={group.lane} page={page} />
-          </div>
-        ),
-      )}
-    </div>
-  );
-}
-
-/**
- * Renders `lanes` (all sharing one first node) stacked as their own block, flowchart-style: the
- * first lane keeps its real leading icon+label; every later one skips that same node entirely
- * (it's already shown once, above) and instead starts with a blank lead of exactly the width
- * needed to line its own line up under .weft-timeline-fork-spine below, rather than under where
- * its own (unrendered) copy of the shared node would otherwise have sat. The spine itself is a
- * single dashed line (styled like every other not-yet-scheduled edge) from midway between the
- * first lane's first two nodes (not through the shared node's own icon/label, which a dead-center
- * line would otherwise strike through) down to the last lane's own first *visible* node - both
- * measured via getBoundingClientRect rather than assumed from fixed row heights, since a label
- * can wrap to a different number of lines depending on its text and silently throw off any fixed
- * pixel math. Re-measures on resize (a sidebar drag can rewrap a label, changing row heights) via
- * ResizeObserver, the same pattern Canvas.tsx's own iframe scaling uses.
- */
-function TimelineForkGroup({ lanes, page }: { lanes: TimelineLane[]; page: Page }) {
-  const groupRef = useRef<HTMLDivElement>(null);
-  const topIconRef = useRef<HTMLElement | null>(null);
-  const afterTopIconRef = useRef<HTMLElement | null>(null);
-  const bottomIconRef = useRef<HTMLElement | null>(null);
-  const [spine, setSpine] = useState<{ left: number; top: number; height: number; branchLineWidth: number } | null>(null);
-
-  useLayoutEffect(() => {
-    const group = groupRef.current;
-    function measure() {
-      const top = topIconRef.current;
-      const afterTop = afterTopIconRef.current;
-      const bottom = bottomIconRef.current;
-      if (!group || !top || !afterTop || !bottom) {
-        setSpine(null);
-        return;
-      }
-      const groupRect = group.getBoundingClientRect();
-      const topRect = top.getBoundingClientRect();
-      const afterTopRect = afterTop.getBoundingClientRect();
-      const bottomRect = bottom.getBoundingClientRect();
-      const topCenterX = topRect.left + topRect.width / 2;
-      const afterTopCenterX = afterTopRect.left + afterTopRect.width / 2;
-      const left = (topCenterX + afterTopCenterX) / 2 - groupRect.left;
-      const topY = topRect.top + topRect.height / 2 - groupRect.top;
-      const bottomY = bottomRect.top + bottomRect.height / 2 - groupRect.top;
-      // Every branch's own second node (its first visible one) should land at the same X as the
-      // top lane's own second node (afterTop) - not wherever a fixed-width line happens to end up
-      // - so the "Quiz abgeschickt" icons stay in one column same as "Nächste Folie" already does.
-      // The spine already lands at `left`; this is just how much further the branch's own line
-      // has to stretch from there to close the rest of the way to that shared target.
-      const afterTopLeft = afterTopRect.left - groupRect.left;
-      const branchLineWidth = Math.max(0, afterTopLeft - left);
-      setSpine({ left, top: topY, height: bottomY - topY, branchLineWidth });
-    }
-    measure();
-    if (!group) return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(group);
-    return () => observer.disconnect();
-  }, [lanes]);
-
-  return (
-    <div className="weft-timeline-fork-group" ref={groupRef}>
-      {spine && <div className="weft-timeline-fork-spine" style={{ left: spine.left, top: spine.top, height: spine.height }} />}
-      {lanes.map((lane, i) => (
-        <div className="weft-timeline-lane" key={i}>
-          <TimelineLaneRow
-            lane={lane}
-            page={page}
-            leadOverride={i > 0 ? { width: spine?.left, lineWidth: spine?.branchLineWidth } : undefined}
-            iconRefs={(nodeIndex) => {
-              if (i === 0 && nodeIndex === 0) return (el) => (topIconRef.current = el);
-              if (i === 0 && nodeIndex === 1) return (el) => (afterTopIconRef.current = el);
-              if (i === lanes.length - 1 && nodeIndex === (i > 0 ? 1 : 0)) return (el) => (bottomIconRef.current = el);
-              return undefined;
-            }}
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function TimelineLaneRow({
-  lane,
-  page,
-  leadOverride,
-  iconRefs,
-}: {
-  lane: TimelineLane;
-  page: Page;
-  /** Present (even with `width`/`lineWidth` still undefined, pre-measurement) when this lane is
-   * a fork branch (see TimelineForkGroup): its first node is already shown once, in the lane
-   * above, so it's skipped here entirely rather than repeated. In its place: a blank lead of
-   * exactly `width` px, landing this lane's own line right under the fork's connecting spine
-   * instead of whatever position its own (unrendered) copy of that node would have sat at, then
-   * that line itself sized to exactly `lineWidth` px (not the usual fixed .is-detached width) so
-   * its second node still lands at the same spot the lane above's own does, keeping every lane in
-   * the fork lined up in one column from there on, same as their "Nächste Folie" already is. */
-  leadOverride?: { width: number | undefined; lineWidth: number | undefined };
-  /** Ref-callback for the icon at a given node index, if TimelineForkGroup needs to measure it
-   * (to position .weft-timeline-fork-spine) - undefined for every index it doesn't care about. */
-  iconRefs?: (nodeIndex: number) => ((el: HTMLElement | null) => void) | undefined;
-}) {
-  const selection = useDocumentStore((s) => s.selection);
-  const select = useDocumentStore((s) => s.select);
-
-  // Every node - "start", "end", or a block-contributed "event" - selects the very same way now:
-  // as itself, not as a shortcut for whatever block happens to be behind it (see EventPanel.tsx's
-  // own doc comment for why clicking an event deliberately never opens that block's content/
-  // position editor any more).
-  function selectFor(node: TimelineNode): () => void {
-    return () => select({ type: "event", pageId: page.id, nodeId: node.id });
-  }
-
-  function isSelected(node: TimelineNode): boolean {
-    return selection?.type === "event" && selection.pageId === page.id && selection.nodeId === node.id;
-  }
-
-  // A lane anchored to neither "start" nor "end" reads as its own free-floating mini-timeline
-  // (e.g. a video's own "Start/Ende des Videos") rather than a path to/from the page's start or
-  // end - so instead of a compact cluster near the left (see .weft-timeline-lead-gap/is-detached),
-  // its events space themselves evenly across the full row, as if an imaginary event stood at
-  // each end (see .weft-timeline-track.is-distributed in App.css).
-  const isIndependent = lane.nodes[0]?.kind !== "start" && lane.nodes[lane.nodes.length - 1]?.kind !== "end";
-  // A fork branch skips its own first node entirely (see leadOverride's own doc comment above) -
-  // still need the edge it would have carried, from that unrendered node to the next, so the line
-  // right after the blank lead gets the right dashed/solid treatment.
-  const startIndex = leadOverride ? 1 : 0;
-  // A lane that runs from "start" all the way to "end" (the page's own main line, with its Aufbau/
-  // Abbau events in between) spaces all of its events evenly across the full row, so the line
-  // reads symmetrically - rather than clustering them next to "start" with only the last stretch
-  // up to "end" growing (see .weft-timeline-line.is-to-end).
-  const spansStartToEnd = !leadOverride && lane.nodes[0]?.kind === "start" && lane.nodes[lane.nodes.length - 1]?.kind === "end";
-  const leadEdge = leadOverride ? lane.edges.find((e) => e.from === lane.nodes[0]?.id && e.to === lane.nodes[1]?.id) : undefined;
-
-  return (
-    <div className={"weft-timeline-track" + (isIndependent ? " is-distributed" : "")}>
-      {leadOverride ? (
-        <>
-          <div className="weft-timeline-fork-lead" style={{ flex: `0 0 ${leadOverride.width ?? 0}px` }} />
-          {leadEdge && (
-            <div
-              className={"weft-timeline-line" + edgeKindClass(leadEdge.kind)}
-              style={{ flex: `0 0 ${leadOverride.lineWidth ?? 48}px` }}
-            />
-          )}
-        </>
-      ) : isIndependent ? (
-        <div className="weft-timeline-distribute-gap" />
-      ) : (
-        lane.nodes[0]?.kind !== "start" && <div className="weft-timeline-lead-gap" />
-      )}
-      {lane.nodes.slice(startIndex).map((node, idx) => {
-        const i = startIndex + idx;
-        const nextNode = lane.nodes[i + 1];
-        const edge = nextNode ? lane.edges.find((e) => e.from === node.id && e.to === nextNode.id) : undefined;
-        // A non-stopping stop point with exactly one child shows that child's own icon/label
-        // instead of its own (see TimelineNode.inlineChild's own doc comment) - purely a display
-        // swap: clicking still selects `node` itself (its real id - see selectFor/isSelected
-        // below), so EventPanel.tsx sees the stop point and redirects to the same child from
-        // there.
-        const displayNode = node.inlineChild && node.children?.length === 1 ? node.children[0].node : node;
-        return (
-          <Fragment key={node.id}>
-            <div className="weft-timeline-node">
-              <TimelineNodeIcon
-                node={displayNode}
-                isSelected={isSelected(node)}
-                isAnimated={isAnimatedNode(displayNode, page)}
-                onSelect={selectFor(node)}
-                iconRef={iconRefs?.(i)}
-              />
-              <span className="weft-timeline-node-label">
-                {nodeLabel(displayNode)}
-                {node.kind === "end" && endTransitionLabel(page, node.id) && (
-                  <span className="weft-timeline-label-detail"> ({endTransitionLabel(page, node.id)})</span>
-                )}
-              </span>
-              {!node.inlineChild && node.children && node.children.length > 0 && (
-                <div className="weft-timeline-node-children">
-                  {node.children.map(({ node: child }) => (
-                    <div className="weft-timeline-child" key={child.id}>
-                      <div className="weft-timeline-child-connector" />
-                      <TimelineNodeIcon
-                        node={child}
-                        isSelected={isSelected(child)}
-                        isAnimated={isAnimatedNode(child, page)}
-                        onSelect={selectFor(child)}
-                      />
-                      <span className="weft-timeline-node-label">{nodeLabel(child)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {nextNode && (
-              // Still rendered (just invisible - see .is-none in App.css) even with no edge at
-              // all between two adjacent nodes in the same lane - "Nächste Folie" set to "Gar
-              // nicht" is the one case where that happens (see syncPageTimelineEvents in
-              // document/pageTimeline.ts, which then leaves the bypass lane's own edge out
-              // entirely) - so the gap this div's own flex sizing provides doesn't collapse and
-              // run the two nodes' labels into each other.
-              <div
-                className={
-                  "weft-timeline-line" +
-                  (edge ? edgeKindClass(edge.kind) : " is-none") +
-                  (isIndependent ? " is-distributed" : nextNode.kind === "end" || spansStartToEnd ? " is-to-end" : " is-detached")
-                }
-              />
-            )}
-          </Fragment>
-        );
-      })}
-      {isIndependent && <div className="weft-timeline-distribute-gap" />}
-    </div>
-  );
-}
-
 /** The name of the transition of a "Nächste Folie" event, or nothing for a plain cut. */
 function endTransitionLabel(page: Page, endId: string): string {
   const type = page.timeline.ends[endId]?.transition.type ?? "none";
   return type === "none" ? "" : TRANSITION_LABELS[type];
 }
 
-/** Marks a node as its own kind of animation - Aufbau, Abbau (always, regardless of whether an
- * actual animation type is currently configured for it - the node's whole identity already is
- * "this block's own Aufbau/Abbau"), or "Nächste Folie" specifically when the page's own outgoing
- * Transition is actually animated (a plain cut isn't one) - see .weft-timeline-node-icon.
- * is-animated in App.css. Every other node (quiz/video's own intrinsic events, "start") is never
- * one - nothing about when they fire is itself an animation. */
-function isAnimatedNode(node: TimelineNode, page: Page): boolean {
-  if (node.kind === "end") return (page.timeline.ends[node.id]?.transition.type ?? "none") !== "none";
-  return node.eventType === "block-entrance" || node.eventType === "block-exit";
+// Sizes of the drawing, in pixels.
+const ICON = 26;
+const COLUMN_MIN = 92;
+const ROW_HEIGHT = 90;
+const PAD_X = 34;
+const PAD_TOP = 14;
+const FRAME_PAD = 12;
+/** More room above a frame, for the name of the block. */
+const FRAME_TOP = 22;
+const LABEL_HEIGHT = 34;
+
+interface Point {
+  x: number;
+  y: number;
 }
+
+/** A line through `points` with rounded corners. */
+function roundedPath(points: Point[], radius: number): string {
+  if (points.length < 2) return "";
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1];
+    const cur = points[i];
+    const next = points[i + 1];
+    const toPrev = Math.hypot(prev.x - cur.x, prev.y - cur.y);
+    const toNext = Math.hypot(next.x - cur.x, next.y - cur.y);
+    const r = Math.min(radius, toPrev / 2, toNext / 2);
+    const before = { x: cur.x + ((prev.x - cur.x) / toPrev) * r, y: cur.y + ((prev.y - cur.y) / toPrev) * r };
+    const after = { x: cur.x + ((next.x - cur.x) / toNext) * r, y: cur.y + ((next.y - cur.y) / toNext) * r };
+    d += ` L ${before.x} ${before.y} Q ${cur.x} ${cur.y} ${after.x} ${after.y}`;
+  }
+  const last = points[points.length - 1];
+  return `${d} L ${last.x} ${last.y}`;
+}
+
+/** The line of one trigger from `u` to `v` (centres of the two icons). `detourY`: where a detour runs, below the graph. */
+function edgePath(route: EdgeRoute, u: Point, v: Point, columnWidth: number, detourY: number): string {
+  const half = ICON / 2;
+  if (route === "straight") return `M ${u.x + half} ${u.y} L ${v.x - half} ${v.y}`;
+  if (route === "vertical") {
+    // Under the icon and its label, straight down into the one below.
+    return `M ${u.x} ${u.y + half + LABEL_HEIGHT} L ${v.x} ${v.y - half}`;
+  }
+  if (route === "down") {
+    // Right, then down in the gap between the columns, then right again into the event from the left.
+    const gap = u.x + Math.min(columnWidth / 2, half + 34);
+    return roundedPath(
+      [
+        { x: u.x + half, y: u.y },
+        { x: gap, y: u.y },
+        { x: gap, y: v.y },
+        { x: v.x - half, y: v.y },
+      ],
+      9,
+    );
+  }
+  // A detour: leaves at 45° (down and right), runs along the bottom and comes back at 45° from below left.
+  const drop = detourY - u.y;
+  const rise = detourY - v.y;
+  return roundedPath(
+    [
+      { x: u.x + half, y: u.y },
+      { x: u.x + half + drop, y: detourY },
+      { x: v.x - half - rise, y: detourY },
+      { x: v.x - half, y: v.y },
+    ],
+    14,
+  );
+}
+
+/**
+ * Renders a page's event graph (see docs/event-graph.md): the events as round icons with their titles, the triggers as lines. What
+ * the graph is made of comes from buildGraphModel (the events of the page's blocks, its triggers); where everything stands from
+ * layoutGraph; this component turns that into pixels.
+ *
+ * - Colour says what kind of event it is: blue is the normal kind, yellow an animation (Aufbau, Abbau, a transition), violet
+ *   something the learner does; red an event nothing can make happen.
+ * - A line is dashed when it waits for the learner (Weiter), solid when it happens by itself - with its delay written on it.
+ * - A line that can't run to the right or down (back in time, or in from below) is drawn faint, as a detour behind everything.
+ * - A quiz and a video are event blocks: their events share a frame.
+ * - Hovering an event lifts it and its lines and dims the rest.
+ * Every event selects itself when clicked, routing the Inspector to EventPanel.tsx.
+ */
+export function Timeline({ page }: { page: Page }) {
+  const selection = useDocumentStore((s) => s.selection);
+  const select = useDocumentStore((s) => s.select);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [availableWidth, setAvailableWidth] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = frameRef.current;
+    if (!el) return;
+    const measure = () => setAvailableWidth(el.clientWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const model = useMemo(() => buildGraphModel(page), [page]);
+  const layout = useMemo(
+    () =>
+      layoutGraph(
+        model.nodes.map((n) => ({ id: n.id, isEnd: n.node.kind === "end" })),
+        model.edges.map((e) => ({ id: e.id, from: e.from, to: e.to, down: e.down })),
+      ),
+    [model],
+  );
+
+  const columnWidth = layout.cols > 1 ? Math.max(COLUMN_MIN, (availableWidth - 2 * PAD_X) / (layout.cols - 1)) : COLUMN_MIN;
+  const detours = layout.edges.filter((e) => e.route === "detour");
+  const graphWidth = 2 * PAD_X + (layout.cols - 1) * columnWidth;
+  const rowsHeight = PAD_TOP + ICON / 2 + (layout.rows - 1) * ROW_HEIGHT + ICON / 2 + LABEL_HEIGHT;
+  const graphHeight = rowsHeight + (detours.length > 0 ? 14 + detours.length * 8 : 0);
+
+  const at = (id: string): Point => ({
+    x: PAD_X + (layout.col.get(id) ?? 0) * columnWidth,
+    y: PAD_TOP + ICON / 2 + (layout.row.get(id) ?? 0) * ROW_HEIGHT,
+  });
+
+  // Events and lines that stay lit while one is hovered: the event itself, its lines and the events at their other ends.
+  const hotNodes = new Set<string>();
+  const hotEdges = new Set<string>();
+  if (hovered) {
+    hotNodes.add(hovered);
+    for (const edge of model.edges) {
+      if (edge.from === hovered || edge.to === hovered) {
+        hotEdges.add(edge.id);
+        hotNodes.add(edge.from);
+        hotNodes.add(edge.to);
+      }
+    }
+  }
+
+  // The frame of every event block: round its events, with the kind of block written on it.
+  const frames = new Map<string, { kind: string; ids: string[] }>();
+  for (const n of model.nodes) {
+    if (!n.blockId || !n.blockKind) continue;
+    const frame = frames.get(n.blockId) ?? { kind: n.blockKind, ids: [] };
+    frame.ids.push(n.id);
+    frames.set(n.blockId, frame);
+  }
+
+  function colorOf(n: GraphNodeModel): EventColor | "red" {
+    if (n.unreachable) return "red";
+    // A "Nächste Folie" that animates its transition is an animation.
+    if (n.node.kind === "end" && (page.timeline.ends[n.id]?.transition.type ?? "none") !== "none") return "yellow";
+    return n.color;
+  }
+
+  let detourIndex = 0;
+  return (
+    <div className="weft-timeline">
+      <div className="weft-eg-frame" ref={frameRef}>
+        <div className="weft-eg" style={{ width: graphWidth, height: graphHeight }} onMouseLeave={() => setHovered(null)}>
+          <svg className="weft-eg-lines" width={graphWidth} height={graphHeight}>
+            {[...frames.entries()].map(([blockId, frame]) => {
+              if (frame.ids.length < 2) return null;
+              const points = frame.ids.map(at);
+              const left = Math.min(...points.map((p) => p.x)) - FRAME_PAD - ICON / 2;
+              const right = Math.max(...points.map((p) => p.x)) + FRAME_PAD + ICON / 2;
+              const top = Math.min(...points.map((p) => p.y)) - FRAME_TOP - ICON / 2;
+              const bottom = Math.max(...points.map((p) => p.y)) + ICON / 2 + LABEL_HEIGHT;
+              return <rect key={blockId} className="weft-eg-block" x={left} y={top} width={right - left} height={bottom - top} rx={12} />;
+            })}
+            {[...layout.edges].sort((a, b) => Number(b.route === "detour") - Number(a.route === "detour")).map((edge) => {
+              const info = model.edges.find((e) => e.id === edge.id)!;
+              const u = at(edge.from);
+              const v = at(edge.to);
+              const detourY = rowsHeight - LABEL_HEIGHT + 10 + (edge.route === "detour" ? detourIndex++ * 8 : 0);
+              const waits = info.kind !== "timed";
+              const className =
+                "weft-eg-line" +
+                (waits ? " is-waiting" : "") +
+                (edge.route === "detour" ? " is-detour" : "") +
+                (hotEdges.has(edge.id) ? " is-hot" : hovered ? " is-dim" : "");
+              const d = edgePath(edge.route, u, v, columnWidth, detourY);
+              const showDelay = !waits && info.delayMs > 0 && edge.route !== "detour";
+              return (
+                <g key={edge.id}>
+                  <path className={className} d={d}>
+                    <title>{waits ? "Wartet auf die Lernperson" : info.delayMs > 0 ? `Nach ${info.delayMs / 1000} s` : "Passiert sofort"}</title>
+                  </path>
+                  {showDelay && (
+                    <text
+                      className="weft-eg-delay"
+                      x={edge.route === "straight" ? (u.x + v.x) / 2 : edge.route === "vertical" ? u.x + 8 : u.x + columnWidth / 2 + 4}
+                      y={edge.route === "straight" ? u.y - 6 : edge.route === "vertical" ? (u.y + v.y) / 2 + ICON / 2 + LABEL_HEIGHT / 2 : v.y - 6}
+                      textAnchor={edge.route === "vertical" ? "start" : "middle"}
+                    >
+                      {`${Math.round((info.delayMs / 1000) * 10) / 10} s`}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+          {[...frames.entries()].map(([blockId, frame]) => {
+            if (frame.ids.length < 2) return null;
+            const points = frame.ids.map(at);
+            const left = Math.min(...points.map((p) => p.x)) - FRAME_PAD - ICON / 2;
+            const top = Math.min(...points.map((p) => p.y)) - FRAME_TOP - ICON / 2;
+            return (
+              <span key={blockId} className="weft-eg-block-label" style={{ left: left + 10, top: top + 3 }}>
+                {BLOCK_FRAME_LABELS[frame.kind] ?? ""}
+              </span>
+            );
+          })}
+          {model.nodes.map((n) => {
+            const p = at(n.id);
+            const color = colorOf(n);
+            const selected = selection?.type === "event" && selection.pageId === page.id && selection.nodeId === n.id;
+            const dim = hovered !== null && !hotNodes.has(n.id);
+            const detail = n.node.kind === "end" ? endTransitionLabel(page, n.id) : "";
+            return (
+              <div
+                key={n.id}
+                className={"weft-eg-node" + (dim ? " is-dim" : "")}
+                style={{ left: p.x - 35, top: p.y - ICON / 2 }}
+                onMouseEnter={() => setHovered(n.id)}
+              >
+                <TimelineNodeIcon
+                  node={n.node}
+                  color={color}
+                  isSelected={selected}
+                  isHot={hovered === n.id}
+                  onSelect={() => select({ type: "event", pageId: page.id, nodeId: n.id })}
+                  unreachable={n.unreachable}
+                />
+                <span className="weft-timeline-node-label">
+                  {nodeLabel(n.node)}
+                  {detail && <span className="weft-timeline-label-detail"> ({detail})</span>}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const BLOCK_FRAME_LABELS: Record<string, string> = { quiz: "Quiz", video: "Video" };
 
 function TimelineNodeIcon({
   node,
+  color,
   isSelected,
-  isAnimated,
+  isHot,
+  unreachable,
   onSelect,
-  iconRef,
 }: {
   node: TimelineNode;
+  color: EventColor | "red";
   isSelected: boolean;
-  isAnimated: boolean;
+  isHot: boolean;
+  unreachable: boolean;
   onSelect: () => void;
-  iconRef?: (el: HTMLElement | null) => void;
 }) {
   const icon = node.kind === "end" ? arrowRightIconSvg : node.kind === "event" && node.eventType ? EVENT_ICONS[node.eventType] : playIconSvg;
-  const className = "weft-timeline-node-icon" + (isAnimated ? " is-animated" : "") + (isSelected ? " is-selected" : "");
+  const className = "weft-timeline-node-icon is-" + color + (isSelected ? " is-selected" : "") + (isHot ? " is-hot" : "");
   return (
     <button
-      ref={iconRef}
       type="button"
       className={className}
       onClick={onSelect}
-      title={nodeLabel(node)}
+      title={unreachable ? `${nodeLabel(node)} – nichts löst dieses Ereignis aus` : nodeLabel(node)}
       dangerouslySetInnerHTML={{ __html: icon }}
     />
   );

@@ -1685,11 +1685,35 @@ button.weft-timeline-node-icon:hover {
   color: var(--weft-text-faint);
 }
 
+/* The title is an input that looks like a heading: the standard title is its placeholder, and looks the same. */
 .weft-event-heading-title {
-  margin: 2px 0 0;
+  display: block;
+  width: calc(100% + 12px);
+  margin: 2px -6px 0;
+  padding: 3px 5px;
+  border: 1px solid transparent;
+  border-radius: var(--weft-radius-sm);
+  background: transparent;
+  font: inherit;
   font-size: 15px;
   font-weight: 600;
   color: var(--weft-text);
+  text-overflow: ellipsis;
+}
+
+.weft-event-heading-title::placeholder {
+  color: var(--weft-text);
+  opacity: 1;
+}
+
+.weft-event-heading-title:hover {
+  border-color: var(--weft-border);
+}
+
+.weft-event-heading-title:focus {
+  outline: none;
+  border-color: var(--weft-accent);
+  background: var(--weft-input-bg);
 }
 
 .weft-event-source {

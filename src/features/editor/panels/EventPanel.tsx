@@ -15,7 +15,7 @@ import { useTranslation } from "../../../core/i18n/useTranslation";
 import type { Page, TimelineEventType, TimelineNode } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
 import { buildGraphModel } from "../eventGraph/model";
-import { eventTitle, listPageTriggerEvents, listTriggerableNodes, nodeLabel } from "../Timeline";
+import { listPageTriggerEvents, listTriggerableNodes, nodeLabel } from "../Timeline";
 import { BlockEffectEditor } from "./BlockPanel";
 import { TransitionPanel } from "./TransitionPanel";
 
@@ -77,7 +77,7 @@ export function EventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
     <>
       <div className="weft-event-heading">
         <span className="weft-event-heading-kind">Ereignis</span>
-        <p className="weft-event-heading-title">{eventTitle(page, node)}</p>
+        <EventTitleInput page={page} node={node} />
         {node.kind === "start" && <p className="weft-hint">Passiert automatisch, sobald diese Folie angezeigt wird.</p>}
       </div>
 
@@ -89,8 +89,6 @@ export function EventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
           </p>
         </div>
       )}
-
-      <TitleField page={page} node={node} />
 
       {sourceBlock && (
         <div className="weft-event-source">
@@ -127,22 +125,21 @@ export function EventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
   );
 }
 
-/** The title of the event in the graph: empty keeps the standard one. */
-function TitleField({ page, node }: { page: Page; node: TimelineNode }) {
+/** The title of the event, as the heading of the panel and editable in place: empty keeps the standard one (shown the same, as the
+ * placeholder). The title is trimmed when the field is left - while typing, "Mein " has to stay "Mein ". */
+function EventTitleInput({ page, node }: { page: Page; node: TimelineNode }) {
   return (
-    <label className="weft-field">
-      <span>Titel im Graphen</span>
-      <input
-        value={page.timeline.titles?.[node.id] ?? ""}
-        placeholder={nodeLabel(node)}
-        onChange={(e) => setEventTitle(page.id, node.id, e.target.value)}
-        // Spaces at the ends are only trimmed once the field is left - while typing, "Mein " has to stay "Mein ".
-        onBlur={(e) => {
-          const stored = page.timeline.titles?.[node.id];
-          if (stored !== undefined && stored !== stored.trim()) setEventTitle(page.id, node.id, e.target.value.trim());
-        }}
-      />
-    </label>
+    <input
+      className="weft-event-heading-title"
+      aria-label="Titel des Ereignisses"
+      value={page.timeline.titles?.[node.id] ?? ""}
+      placeholder={nodeLabel(node)}
+      onChange={(e) => setEventTitle(page.id, node.id, e.target.value)}
+      onBlur={(e) => {
+        const stored = page.timeline.titles?.[node.id];
+        if (stored !== undefined && stored !== stored.trim()) setEventTitle(page.id, node.id, e.target.value.trim());
+      }}
+    />
   );
 }
 

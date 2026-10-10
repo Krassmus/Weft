@@ -136,6 +136,11 @@ function TitleField({ page, node }: { page: Page; node: TimelineNode }) {
         value={page.timeline.titles?.[node.id] ?? ""}
         placeholder={nodeLabel(node)}
         onChange={(e) => setEventTitle(page.id, node.id, e.target.value)}
+        // Spaces at the ends are only trimmed once the field is left - while typing, "Mein " has to stay "Mein ".
+        onBlur={(e) => {
+          const stored = page.timeline.titles?.[node.id];
+          if (stored !== undefined && stored !== stored.trim()) setEventTitle(page.id, node.id, e.target.value.trim());
+        }}
       />
     </label>
   );

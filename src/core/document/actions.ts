@@ -716,11 +716,12 @@ export function setEventTitle(pageId: string, eventId: string, title: string) {
   edit("Titel ändern", (m) => {
     const page = m.pages[pageId];
     if (!page) return;
-    const trimmed = title.trim();
+    // Kept as typed (a space at the end is on its way to the next word - the field shows what is stored); the panel trims it when
+    // the field is left. Only a title of nothing but whitespace is no title.
     // (Read the collection back after creating it: what `??=` evaluates to is the plain object, not the one in the document.)
-    if (trimmed) {
+    if (title.trim()) {
       if (!page.timeline.titles) page.timeline.titles = {};
-      page.timeline.titles[eventId] = trimmed;
+      page.timeline.titles[eventId] = title;
     } else if (page.timeline.titles) delete page.timeline.titles[eventId];
   });
 }

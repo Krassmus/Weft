@@ -34,6 +34,7 @@ import { BlockView } from "./blocks/BlockView";
 import type { HandleId } from "./blocks/resizeMath";
 import { clampGroupMove, clampMove, groupBoundingBox, HANDLES, resizeFromHandle, round, scalePositionWithinBox } from "./blocks/resizeMath";
 import { Timeline } from "./Timeline";
+import { videoPreviewFor } from "./eventGraph/preview";
 import { JumpOverview } from "./panels/JumpPanel";
 import { orderedValues } from "../../core/document/ordering";
 import { PresenceBar } from "./PresenceBar";
@@ -557,6 +558,8 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
   const [marqueeHoverIds, setMarqueeHoverIds] = useState<string[] | null>(null);
 
   const target = resolveEditTarget(doc, selection, lastPageIdRef.current);
+  // A video on the slide shows the moment an event selected in the graph is about (see videoPreviewFor).
+  const videoPreview = target?.kind === "page" ? videoPreviewFor(target.page, selection) : null;
   if (target?.kind === "page") lastPageIdRef.current = target.page.id;
   const aspect = aspectRatioCss(doc.content.aspectRatio);
   // Move-snapping candidates for a page block: the (locked, read-only) layout blocks showing
@@ -1008,6 +1011,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                   <BlockView
                     key={block.id}
                     block={block}
+                    videoPreviewTime={videoPreview?.blockId === block.id ? videoPreview.time : null}
                     locked={false}
                     selected={isSoloSelected}
                     groupSelected={groupSelected}

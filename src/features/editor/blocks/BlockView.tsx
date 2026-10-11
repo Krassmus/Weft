@@ -91,6 +91,8 @@ function layerMenuItems(
 
 interface BlockViewProps {
   block: Block;
+  /** For a video: the moment of it that an event selected in the graph is about (see videoPreviewFor) - shown as a still. */
+  videoPreviewTime?: number | "end" | null;
   selected: boolean;
   locked: boolean;
   onSelect?: () => void;
@@ -159,6 +161,7 @@ interface BlockViewProps {
 
 export function BlockView({
   block,
+  videoPreviewTime = null,
   selected,
   locked,
   onSelect,
@@ -453,6 +456,7 @@ export function BlockView({
           <BlockContent
             block={block.kind === "arrow" && livePoints ? { ...block, points: livePoints } : block}
             selected={selected}
+            videoPreviewTime={videoPreviewTime}
             frameSelect={frameSelectRef}
             onUpdate={onUpdate}
             onDelete={onDelete}
@@ -505,6 +509,7 @@ export function BlockView({
 function BlockContent({
   block,
   selected,
+  videoPreviewTime,
   frameSelect,
   onUpdate,
   onDelete,
@@ -513,6 +518,7 @@ function BlockContent({
 }: {
   block: Block;
   selected: boolean;
+  videoPreviewTime: number | "end" | null;
   frameSelect: MutableRefObject<boolean>;
   onUpdate?: (patch: Partial<Block>) => void;
   onDelete?: () => void;
@@ -564,13 +570,7 @@ function BlockContent({
       // which render through the same player.runtime.js the export uses.
       return block.assetId ? (
         <div className="weft-edit-block-video-wrap">
-          <video
-            src={getObjectUrl(block.assetId)}
-            loop={block.loop}
-            muted={block.muted}
-            playsInline
-            className="weft-edit-block-video"
-          />
+          <EditorVideo src={getObjectUrl(block.assetId)} loop={block.loop} muted={block.muted} previewTime={videoPreviewTime} />
           <div className="weft-edit-block-video-icon" dangerouslySetInnerHTML={{ __html: video2IconSvg }} />
         </div>
       ) : (
@@ -894,6 +894,30 @@ function EditableRichText({
       }}
       onMouseUp={saveSelection}
       onKeyUp={saveSelection}
+    />
+  );
+}
+
+/** The video on the canvas: a still, the first frame - or the frame at the moment an event of the graph that is selected is about. */
+function EditorVideo({ src, loop, muted, previewTime }: { src: string | undefined; loop: boolean; muted: boolean; previewTime: number | "end" | null }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const video = ref.current;
+    if (!video || !ready) return;
+    const wanted = previewTime === "end" ? Math.max(0, (video.duration || 0) - 0.05) : (previewTime ?? 0);
+    if (Math.abs(video.currentTime - wanted) > 0.01) video.currentTime = wanted;
+  }, [previewTime, ready]);
+  return (
+    <video
+      ref={ref}
+      src={src}
+      loop={loop}
+      muted={muted}
+      playsInline
+      preload="auto"
+      className="weft-edit-block-video"
+      onLoadedMetadata={() => setReady(true)}
     />
   );
 }

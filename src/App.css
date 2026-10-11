@@ -830,6 +830,11 @@ img.weft-thumb-block {
   transform: translate(-50%, -50%);
 }
 
+/* The line is not to shine through a marker: the selected one has its tint on top of the (opaque) ground of the others, not instead. */
+.weft-timeline-node-icon.weft-stop-point-marker.is-selected {
+  background: color-mix(in srgb, var(--weft-accent) 18%, var(--weft-panel-raised));
+}
+
 /* Settings for whichever stop point is currently selected (see VideoStopPointDialog) - appears
    below the mini-timeline once a marker's been clicked, rather than every stop point showing its
    own inline controls at once. */

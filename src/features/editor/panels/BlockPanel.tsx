@@ -844,6 +844,12 @@ function VideoStopPointDialog({
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedStopPointId((current) => (current === sp.id ? null : sp.id));
+                // The video goes to the time mark, as it does for a click on the line.
+                const video = videoRef.current;
+                if (video) {
+                  video.currentTime = sp.timeSeconds;
+                  setCurrentTime(video.currentTime);
+                }
               }}
               dangerouslySetInnerHTML={{ __html: stopPointIconSvg(sp.stopsVideo) }}
             />

@@ -83,7 +83,7 @@ export function videoStartNodeId(videoBlockId: string): string {
   return `video-start:${videoBlockId}`;
 }
 
-/** A video goes on after a stop point had paused it (see PageTrigger.hideOnResume) - only exists in what is exported. */
+/** A video goes on after a stop point (that stops it) had paused it - the learner pressing play again. */
 export function videoResumeNodeId(videoBlockId: string, stopPointId: string): string {
   return `video-resume:${videoBlockId}:${stopPointId}`;
 }
@@ -133,6 +133,20 @@ function buildVideoLane(video: VideoBlock): TimelineLane {
     edges.push({ from: previousId, to: stopId, kind: "timed", delayMs: Math.max(0, (stopPoint.timeSeconds - previousTimeSeconds) * 1000) });
     previousId = stopId;
     previousTimeSeconds = stopPoint.timeSeconds;
+    // A stop point that stops the video has the video going on as an event of its own - the learner presses play. The graph shows
+    // it in the same node as the time mark as long as nothing else leads from it (see foldCompanions in the editor's model.ts).
+    if (stopPoint.stopsVideo) {
+      const resumeId = videoResumeNodeId(video.id, stopPoint.id);
+      nodes.push({
+        id: resumeId,
+        kind: "event",
+        sourceBlockId: video.id,
+        eventType: "video-resume",
+        label: `Video läuft weiter (${formatTimeMMSS(stopPoint.timeSeconds)})`,
+      });
+      edges.push({ from: stopId, to: resumeId, kind: "unknown" });
+      previousId = resumeId;
+    }
   }
 
   nodes.push({ id: endId, kind: "event", sourceBlockId: video.id, eventType: video.loop ? "video-end-loop" : "video-end-stop" });
@@ -564,7 +578,7 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
     for (;;) {
       const kids = attachmentsBySource.get(currentNode.id);
       if (!kids || kids.length === 0) return;
-      if (currentNode.kind === "event" && currentNode.eventType === "video-stop-point") {
+      if (currentNode.kind === "event" && (currentNode.eventType === "video-stop-point" || currentNode.eventType === "video-resume")) {
         for (const { targetNode, trigger } of kids) {
           (currentNode.children ??= []).push({ node: targetNode, delayMs: trigger.kind === "timed" ? trigger.delayMs : 0 });
         }
@@ -664,7 +678,10 @@ function blockEventIds(page: Page): Set<string> {
     if (block.exitEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "exit"));
     if (block.kind === "video") {
       ids.add(videoStartNodeId(block.id));
-      for (const stopPoint of block.stopPoints) ids.add(videoStopNodeId(block.id, stopPoint.id));
+      for (const stopPoint of block.stopPoints) {
+        ids.add(videoStopNodeId(block.id, stopPoint.id));
+        if (stopPoint.stopsVideo) ids.add(videoResumeNodeId(block.id, stopPoint.id));
+      }
       ids.add(videoEndNodeId(block.id));
     }
     if (block.kind === "button") ids.add(buttonClickNodeId(block.id));
@@ -703,6 +720,16 @@ export function syncPageTimelineEvents(page: Page): void {
   timeline.ends ??= {};
   if (!timeline.ends["end"]) timeline.ends["end"] = { transition: { type: "none", durationMs: 500 } };
 
+  // 0. A trigger flagged `hideOnResume` (what the editor wrote before "Video läuft weiter" was an event of its own) becomes the
+  // Abbau of that block, triggered by the video going on.
+  for (const trigger of Object.values(timeline.triggers)) {
+    if (!trigger.hideOnResume) continue;
+    delete trigger.hideOnResume;
+    const from = /^video-stop:([^:]+):([^:]+)$/.exec(trigger.from);
+    const to = /^block-entrance:(.+)$/.exec(trigger.to);
+    if (from && to) setDisappearsOnResume(page, to[1], videoResumeNodeId(from[1], from[2]), true);
+  }
+
   const events = blockEventIds(page);
 
   // 1.
@@ -738,6 +765,38 @@ export function syncPageTimelineEvents(page: Page): void {
   if (timeline.titles) {
     for (const id of Object.keys(timeline.titles)) if (!events.has(id)) delete timeline.titles[id];
   }
+}
+
+/** Whether block `blockId` disappears when the video goes on at `resumeId` (an Abbau triggered by that "Video läuft weiter"). */
+export function disappearsOnResume(page: Page, blockId: string, resumeId: string): boolean {
+  const exitId = blockEffectNodeId(blockId, "exit");
+  return Object.values(page.timeline.triggers).some((t) => t.from === resumeId && t.to === exitId);
+}
+
+/**
+ * Makes block `blockId` disappear when the video goes on at `resumeId` - or not any more. It is the Abbau of the block, triggered by
+ * the event "Video läuft weiter": a block that had no Abbau gets one that hides it at once, and loses it again when this was the
+ * only thing that triggered it. The shortcut of the "verschwindet wieder, wenn das Video weiterläuft" switch; everything it does is
+ * an ordinary Abbau and an ordinary trigger, which the graph draws as one node with two events (see foldCompanions in model.ts).
+ */
+export function setDisappearsOnResume(page: Page, blockId: string, resumeId: string, on: boolean): void {
+  const block = page.blocks[blockId];
+  if (!block) return;
+  const triggers = page.timeline.triggers;
+  const exitId = blockEffectNodeId(blockId, "exit");
+  const existing = Object.keys(triggers).find((id) => triggers[id].from === resumeId && triggers[id].to === exitId);
+  if (on) {
+    if (block.exitEffect.type === "off") block.exitEffect = { type: "none", durationMs: 0 };
+    if (existing === undefined) {
+      let id = `t:${exitId}`;
+      for (let n = 2; id in triggers; n++) id = `t:${exitId}:${n}`;
+      triggers[id] = { from: resumeId, to: exitId, delayMs: 0, weiter: false };
+    }
+    return;
+  }
+  if (existing !== undefined) delete triggers[existing];
+  const stillTriggered = Object.values(triggers).some((t) => t.to === exitId);
+  if (block.exitEffect.type === "none" && !stillTriggered) block.exitEffect = { type: "off", durationMs: 0 };
 }
 
 /**

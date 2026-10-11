@@ -71,16 +71,27 @@ die Folie nur auf anderen Wegen verlassen werden (zum Beispiel ein Button, der d
 - **durchgezogen**: passiert von selbst (nach der Verzögerung),
 - **gestrichelt**: wartet auf den Lernenden („Weiter“),
 - eine Verzögerung steht als kleine Beschriftung an der Linie,
-- **doppelt**: der Trigger hat „verschwindet wieder, wenn das Video weiterläuft“ (siehe unten).
+- **doppelt**: zwischen zwei Knoten gibt es zwei Trigger (siehe „Ein Knoten, mehrere Events“). Doppellinien haben keine
+  Beschriftung: Sie sagen, dass hier mehr passiert, als die Linie zeigen kann – Verzögerungen stehen im Panel.
 
-### Abkürzung: Aufbau, der mit dem Weiterspielen eines Videos wieder verschwindet
+### Ein Knoten, mehrere Events
 
-Ein Trigger von einer Zeitmarke, die das Video anhält, zu dem Aufbau eines Objekts darf die Eigenschaft `hideOnResume` haben.
-Im Graphen ist das **eine** Doppellinie – das Objekt erscheint an der Zeitmarke und ist weg, sobald das Video weiterläuft. Das ist
-bewusst eine Abweichung vom Prinzip „jede Wirkung ist ein Event mit eigenem Trigger“, damit der Graph übersichtlich bleibt. Der
-Export schreibt es aus: ein Event `video-resume:<Block>:<Zeitmarke>` (passiert, wenn das Video nach dieser Zeitmarke wieder
-abgespielt wird), das einen normalen Trigger auf den Abbau des Objekts hat. Der Player kennt die Abkürzung nicht. Ein Objekt kann
-wieder erscheinen, wenn die Zeitmarke noch einmal erreicht wird.
+Ein Knoten im Graphen kann mehrere Events zeigen (**Begleiter**), um Platz zu sparen. Jedes ist ein Event für sich – mit eigener ID,
+eigenen Triggern und eigenem Titel; sie teilen sich nur den Platz. Das wird beim Zeichnen **abgeleitet**, nicht gespeichert (keine
+neuen IDs, keine Migration), und Autor:innen können nichts selbst bündeln. Nur bestimmte Event-Blöcke bilden Knoten mit mehreren
+Events:
+
+- **Video, Zeitmarke, die das Video anhält:** Sie hat das Event „Video läuft weiter“ (`video-resume:<Block>:<Zeitmarke>`, passiert,
+  wenn die Lernperson das Video danach wieder abspielt). Es steht im Knoten der Zeitmarke, solange es nur den Abbau von Objekten
+  auslöst, die dieselbe Zeitmarke erscheinen lässt, und jeder dieser Abbaue nur von ihm ausgelöst wird und selbst nichts auslöst.
+  Dieser Abbau steht dann im Knoten des Aufbaus. Zwischen den beiden Knoten laufen dann zwei Trigger: eine Doppellinie.
+- Sobald etwas anderes angeschlossen wird – „Video läuft weiter“ löst etwas anderes aus, der Abbau wird noch von etwas anderem
+  ausgelöst oder löst selbst etwas aus –, bekommen die Events wieder eigene Knoten, und die Linien laufen einzeln.
+
+Ein Klick auf einen Knoten zeigt in der Seitenleiste alle seine Events untereinander. Die Schalterkurzform „verschwindet wieder,
+wenn das Video weiterläuft“ am Trigger von der Zeitmarke zum Aufbau legt dafür den Abbau (falls das Objekt keinen hat: einen, der es
+sofort ausblendet) und den Trigger von „Video läuft weiter“ an – alles normale Events und Trigger. Das Objekt kann wieder
+erscheinen, wenn die Zeitmarke noch einmal erreicht wird. Der Player und der Export kennen keine Sonderfälle.
 
 ## 4. Feste Events
 

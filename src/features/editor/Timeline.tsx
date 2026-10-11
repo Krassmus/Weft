@@ -39,6 +39,7 @@ const EVENT_LABELS: Record<TimelineEventType, string> = {
   "video-start-auto": "Start des Videos",
   "video-start-manual": "Start des Videos",
   "video-stop-point": "Zeitmarke",
+  "video-resume": "Video läuft weiter",
   "video-end-loop": "Ende des Videos",
   "video-end-stop": "Ende des Videos",
   "block-entrance": "Erscheint",
@@ -60,6 +61,8 @@ const EVENT_ICONS: Record<TimelineEventType, string> = {
   // Same icon VideoStopPointDialog's own mini-timeline markers use (see panels/BlockPanel.tsx) -
   // so a stop point reads as the same thing whether you're looking at it there or here.
   "video-stop-point": pauseIconSvg,
+  // The learner presses play again.
+  "video-resume": playIconSvg,
   "video-end-loop": INFINITY_ICON_SVG,
   "video-end-stop": stopIconSvg,
   // Aufbau and Abbau - the animations (Fade, Move, ...) - share one icon; their titles tell them apart.
@@ -123,6 +126,15 @@ const FRAME_PAD = 12;
 /** More room above a frame, for the name of the block. */
 const FRAME_TOP = 22;
 const LABEL_HEIGHT = 34;
+/** A node that shows more than one event (see foldCompanions in eventGraph/model.ts): the icons side by side in one capsule. */
+const BUNDLE_GAP = 4;
+const BUNDLE_PAD = 3;
+
+/** Half the width of a node: its icon, or the capsule of the icons of the events it shows. */
+function nodeHalfWidth(n: GraphNodeModel | undefined): number {
+  const k = n?.companions.length ?? 0;
+  return k === 0 ? ICON / 2 : (ICON * (1 + k) + BUNDLE_GAP * k) / 2 + BUNDLE_PAD;
+}
 
 interface Point {
   x: number;
@@ -149,22 +161,22 @@ function roundedPath(points: Point[], radius: number): string {
 }
 
 /** The line of one trigger from `u` to `v` (centres of the two icons). `detourY`: where a detour runs, below the graph. */
-function edgePath(route: EdgeRoute, u: Point, v: Point, columnWidth: number, detourY: number): string {
+function edgePath(route: EdgeRoute, u: Point, v: Point, columnWidth: number, detourY: number, uHalf = ICON / 2, vHalf = ICON / 2): string {
   const half = ICON / 2;
-  if (route === "straight") return `M ${u.x + half} ${u.y} L ${v.x - half} ${v.y}`;
+  if (route === "straight") return `M ${u.x + uHalf} ${u.y} L ${v.x - vHalf} ${v.y}`;
   if (route === "vertical") {
     // Under the icon and its label, straight down into the one below.
     return `M ${u.x} ${u.y + half + LABEL_HEIGHT} L ${v.x} ${v.y - half}`;
   }
   if (route === "down") {
     // Right, then down in the gap between the columns, then right again into the event from the left.
-    const gap = u.x + Math.min(columnWidth / 2, half + 34);
+    const gap = u.x + Math.min(columnWidth / 2, uHalf + 34);
     return roundedPath(
       [
-        { x: u.x + half, y: u.y },
+        { x: u.x + uHalf, y: u.y },
         { x: gap, y: u.y },
         { x: gap, y: v.y },
-        { x: v.x - half, y: v.y },
+        { x: v.x - vHalf, y: v.y },
       ],
       9,
     );
@@ -174,10 +186,10 @@ function edgePath(route: EdgeRoute, u: Point, v: Point, columnWidth: number, det
   const rise = detourY - v.y;
   return roundedPath(
     [
-      { x: u.x + half, y: u.y },
-      { x: u.x + half + drop, y: detourY },
-      { x: v.x - half - rise, y: detourY },
-      { x: v.x - half, y: v.y },
+      { x: u.x + uHalf, y: u.y },
+      { x: u.x + uHalf + drop, y: detourY },
+      { x: v.x - vHalf - rise, y: detourY },
+      { x: v.x - vHalf, y: v.y },
     ],
     14,
   );
@@ -316,6 +328,7 @@ function TimelineGraph({ page }: { page: Page }) {
   }, [resizing, availableWidth]);
 
   const model = useMemo(() => buildGraphModel(page), [page]);
+  const nodeById = useMemo(() => new Map(model.nodes.map((n) => [n.id, n])), [model]);
   const layout = useMemo(
     () =>
       layoutGraph(
@@ -512,8 +525,9 @@ function TimelineGraph({ page }: { page: Page }) {
                 (info.doubled ? " is-double" : "") +
                 (edge.route === "detour" ? " is-detour" : "") +
                 (hotEdges.has(edge.id) ? " is-hot" : lit ? " is-dim" : "");
-              const d = edgePath(edge.route, u, v, columnWidth, detourY);
-              const showDelay = !waits && info.delayMs > 0 && edge.route !== "detour";
+              const d = edgePath(edge.route, u, v, columnWidth, detourY, nodeHalfWidth(nodeById.get(edge.from)), nodeHalfWidth(nodeById.get(edge.to)));
+              // A double line is not labelled: it says that more happens than the line can tell.
+              const showDelay = !waits && !info.doubled && info.delayMs > 0 && edge.route !== "detour";
               return (
                 <g key={edge.id}>
                   {/* A new line is uncovered from its source to its target by a mask that is drawn - so it is painted as what it is
@@ -531,8 +545,13 @@ function TimelineGraph({ page }: { page: Page }) {
                   <g mask={drawing ? `url(#weft-eg-mask-${edgeIndex})` : undefined}>
                     <path className={className} d={d}>
                       <title>
-                        {(waits ? "Wartet auf die Lernperson" : info.delayMs > 0 ? `Nach ${info.delayMs / 1000} s` : "Passiert sofort") +
-                          (info.doubled ? " - und verschwindet wieder, wenn das Video weiterläuft" : "")}
+                        {info.doubled
+                          ? "Zwei Auslöser - die Ereignisse stehen zusammen in ihren Knoten"
+                          : waits
+                            ? "Wartet auf die Lernperson"
+                            : info.delayMs > 0
+                              ? `Nach ${info.delayMs / 1000} s`
+                              : "Passiert sofort"}
                       </title>
                     </path>
                     {/* A double line: the wide line with a narrow one in the colour of the ground over it. */}
@@ -566,7 +585,10 @@ function TimelineGraph({ page }: { page: Page }) {
           {model.nodes.map((n) => {
             const p = at(n.id);
             const color = colorOf(n);
-            const selected = selection?.type === "event" && selection.pageId === page.id && selection.nodeId === n.id;
+            const selected =
+              selection?.type === "event" &&
+              selection.pageId === page.id &&
+              (selection.nodeId === n.id || n.companions.some((c) => c.id === selection.nodeId));
             const dim = lit && !hotNodes.has(n.id);
             const detail = n.node.kind === "end" ? endTransitionLabel(page, n.id) : "";
             const dragged = drag?.nodeId === n.id;
@@ -588,17 +610,39 @@ function TimelineGraph({ page }: { page: Page }) {
                 onMouseEnter={() => setHovered(n.id)}
                 onPointerDown={draggable.has(n.id) ? (e) => startDrag(e, n.id) : undefined}
               >
-                <TimelineNodeIcon
-                  node={n.node}
-                  color={color}
-                  isSelected={selected}
-                  isHot={hovered === n.id && !drag}
-                  onSelect={() => {
-                    if (suppressClickRef.current) return;
-                    select({ type: "event", pageId: page.id, nodeId: n.id });
-                  }}
-                  unreachable={n.unreachable}
-                />
+                {n.companions.length === 0 ? (
+                  <TimelineNodeIcon
+                    node={n.node}
+                    color={color}
+                    isSelected={selected}
+                    isHot={hovered === n.id && !drag}
+                    onSelect={() => {
+                      if (suppressClickRef.current) return;
+                      select({ type: "event", pageId: page.id, nodeId: n.id });
+                    }}
+                    unreachable={n.unreachable}
+                  />
+                ) : (
+                  // Several events in one node: each icon is its own event, a click on any of them selects the node (the panel
+                  // lists all its events).
+                  <div className="weft-eg-bundle">
+                    {[n, ...n.companions].map((member) => (
+                      <TimelineNodeIcon
+                        key={member.id}
+                        node={member.node}
+                        color={colorOf(member)}
+                        isSelected={selected}
+                        isHot={hovered === n.id && !drag}
+                        onSelect={() => {
+                          if (suppressClickRef.current) return;
+                          select({ type: "event", pageId: page.id, nodeId: n.id });
+                        }}
+                        unreachable={member.unreachable}
+                        title={eventTitle(page, member.node)}
+                      />
+                    ))}
+                  </div>
+                )}
                 <span className="weft-timeline-node-label">
                   {eventTitle(page, n.node)}
                   {detail && <span className="weft-timeline-label-detail"> ({detail})</span>}
@@ -621,6 +665,7 @@ function TimelineNodeIcon({
   isHot,
   unreachable,
   onSelect,
+  title,
 }: {
   node: TimelineNode;
   color: EventColor | "red";
@@ -628,6 +673,7 @@ function TimelineNodeIcon({
   isHot: boolean;
   unreachable: boolean;
   onSelect: () => void;
+  title?: string;
 }) {
   const icon = node.kind === "end" ? arrowRightIconSvg : node.kind === "event" && node.eventType ? EVENT_ICONS[node.eventType] : playIconSvg;
   const className = "weft-timeline-node-icon is-" + color + (isSelected ? " is-selected" : "") + (isHot ? " is-hot" : "");
@@ -636,7 +682,7 @@ function TimelineNodeIcon({
       type="button"
       className={className}
       onClick={onSelect}
-      title={unreachable ? `${nodeLabel(node)} – nichts löst dieses Ereignis aus` : nodeLabel(node)}
+      title={unreachable ? `${title ?? nodeLabel(node)} – nichts löst dieses Ereignis aus` : (title ?? nodeLabel(node))}
       dangerouslySetInnerHTML={{ __html: icon }}
     />
   );

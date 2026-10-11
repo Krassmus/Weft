@@ -46,6 +46,7 @@ import {
   isEndNodeId,
   quizEndNodeId,
   quizSubmitNodeId,
+  setDisappearsOnResume,
   setTriggerEdge,
   syncPageTimelineEvents,
   videoStartNodeId,
@@ -675,10 +676,21 @@ export function addTrigger(pageId: string, from: string, to: string, delayMs = 0
 }
 
 /** Changes one trigger of a page - where it comes from, where it goes, its delay, whether it waits for Weiter. */
-export function updateTrigger(pageId: string, triggerId: string, patch: Partial<Pick<PageTrigger, "from" | "to" | "delayMs" | "weiter" | "hideOnResume">>) {
+export function updateTrigger(pageId: string, triggerId: string, patch: Partial<Pick<PageTrigger, "from" | "to" | "delayMs" | "weiter">>) {
   edit("Auslöser bearbeiten", (m) => {
     const trigger = m.pages[pageId]?.timeline.triggers[triggerId];
     if (trigger) assignPatch(trigger, patch);
+  });
+}
+
+/** Block `blockId` disappears when the video goes on at `resumeId` ("Video läuft weiter") - or not any more (see setDisappearsOnResume
+ * in document/pageTimeline.ts). */
+export function setDisappearsOnResumeOf(pageId: string, blockId: string, resumeId: string, on: boolean) {
+  edit("Auslöser bearbeiten", (m) => {
+    const page = m.pages[pageId];
+    if (!page) return;
+    setDisappearsOnResume(page, blockId, resumeId, on);
+    syncPageTimelineEvents(page);
   });
 }
 

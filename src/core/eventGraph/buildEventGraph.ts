@@ -46,7 +46,11 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
 
     if (block.kind === "video") {
       events.push({ id: videoStartNodeId(block.id), kind: "video-start" });
-      for (const stopPoint of block.stopPoints) events.push({ id: videoStopNodeId(block.id, stopPoint.id), kind: "video-stop" });
+      for (const stopPoint of block.stopPoints) {
+        events.push({ id: videoStopNodeId(block.id, stopPoint.id), kind: "video-stop" });
+        // The player lets "the video goes on" happen when the learner presses play again after this stop point stopped the video.
+        if (stopPoint.stopsVideo) events.push({ id: videoResumeNodeId(block.id, stopPoint.id), kind: "video-resume" });
+      }
       events.push({ id: videoEndNodeId(block.id), kind: "video-end" });
     }
 
@@ -71,26 +75,6 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
     const trigger = page.timeline.triggers[id];
     if (!known.has(trigger.from) || !known.has(trigger.to)) continue;
     triggers.push({ id, from: trigger.from, to: trigger.to, delayMs: trigger.delayMs, weiter: trigger.weiter });
-  }
-
-  // "Disappears when the video goes on" (PageTrigger.hideOnResume) is one line in the editor's graph; here it is what it means: the
-  // video going on is an event, and it triggers the Abbau of what the time mark showed.
-  for (const id of Object.keys(page.timeline.triggers).sort()) {
-    const trigger = page.timeline.triggers[id];
-    if (!trigger.hideOnResume || !known.has(trigger.from) || !trigger.from.startsWith("video-stop:") || !trigger.to.startsWith("block-entrance:")) continue;
-    const [, videoBlockId, stopPointId] = trigger.from.split(":");
-    const resumeId = videoResumeNodeId(videoBlockId, stopPointId);
-    if (!known.has(resumeId)) {
-      known.add(resumeId);
-      events.push({ id: resumeId, kind: "video-resume" });
-    }
-    const exitId = blockEffectNodeId(trigger.to.slice("block-entrance:".length), "exit");
-    if (!known.has(exitId)) {
-      // A block without an Abbau of its own: it is gone at once.
-      known.add(exitId);
-      events.push({ id: exitId, kind: "exit" });
-    }
-    triggers.push({ id: `resume:${id}`, from: resumeId, to: exitId, delayMs: 0, weiter: false });
   }
 
   return { events, triggers };

@@ -501,7 +501,8 @@ export type TimelineNodeKind = "start" | "end" | "event";
  * actually ending. "video-stop-point": one of that video's own VideoStopPoint entries, placed
  * between "video-start-*" and "video-end-*" in playback order (see buildVideoLane) - always the
  * same pause icon regardless of VideoStopPoint.stopsVideo, matching VideoStopPointDialog's own
- * markers, which don't distinguish that either. "block-entrance"/"block-exit": any page block's
+ * markers, which don't distinguish that either. "video-resume": the video goes on playing after
+ * a stop point that stopped it (only those have one) - the learner pressing play again. "block-entrance"/"block-exit": any page block's
  * own Aufbau/Abbau (see BaseBlock.entranceEffect/exitEffect), once it's configured with something
  * other than the trivial default (see buildBlockEffectLane in document/pageTimeline.ts) - lets an
  * effect's trigger/timing show up in the graph itself, not just in that block's own panel. */
@@ -513,6 +514,7 @@ export type TimelineEventType =
   | "video-start-auto"
   | "video-start-manual"
   | "video-stop-point"
+  | "video-resume"
   | "video-end-loop"
   | "video-end-stop"
   | "block-entrance"
@@ -575,9 +577,9 @@ export interface PageTrigger {
   to: string;
   delayMs: number;
   weiter: boolean;
-  /** Only for a trigger from a time mark of a video that stops it, to an Aufbau: what appears there also disappears again when the
-   * video goes on. In the graph that is one line drawn double instead of two more events ("video goes on", "disappears") - the
-   * export spells them out (see buildEventGraph). */
+  /** Legacy, from before "Video läuft weiter" was an event of its own: such a trigger (from a time mark that stops the video, to an
+   * Aufbau) is turned into the Abbau of that block, triggered by the video going on, by syncPageTimelineEvents - and the flag
+   * removed. Never written any more. */
   hideOnResume?: boolean;
 }
 

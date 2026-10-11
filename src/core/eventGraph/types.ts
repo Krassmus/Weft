@@ -21,7 +21,7 @@ export type GraphEventKind =
   /** A video reaches one of its stop points (`video-stop:<blockId>:<stopPointId>`). Made to happen by the player. */
   | "video-stop"
   /** A video that a stop point has paused goes on playing (`video-resume:<blockId>:<stopPointId>`). Made to happen by the player;
-   * only there when a trigger asks for it (PageTrigger.hideOnResume). */
+   * there for every stop point that stops the video. */
   | "video-resume"
   /** A video ends (`video-end:<blockId>`). Made to happen by the player. */
   | "video-end"

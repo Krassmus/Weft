@@ -16,6 +16,12 @@ export interface GraphNodeModel {
   outRight: boolean;
   /** Nothing can make it happen: no path leads to it from the start of the page or from something the learner does. */
   unreachable: boolean;
+  /**
+   * The events that are shown in this node as well (see foldCompanions): a time mark that stops a video shows "Video läuft weiter"
+   * with it, an Aufbau shows the Abbau that goes with it. Each is an event of its own with its own triggers - they only share the
+   * place in the graph. Empty for nearly every node.
+   */
+  companions: GraphNodeModel[];
 }
 
 export interface GraphEdgeModel {
@@ -26,13 +32,16 @@ export interface GraphEdgeModel {
   delayMs: number;
   /** What it leads to has to hang below its source rather than stand to its right (see GraphNodeModel.outRight). */
   down: boolean;
-  /** What appears here also disappears again when the video goes on (PageTrigger.hideOnResume): drawn as a double line. */
+  /** Two triggers between the same two nodes (their events are shown together, see foldCompanions) - drawn as a double line, which
+   * says that here more happens than the line can tell. */
   doubled: boolean;
 }
 
 export interface GraphModel {
   nodes: GraphNodeModel[];
   edges: GraphEdgeModel[];
+  /** The node that shows an event: for an event that is shown in another one's node (a companion) that node's id. */
+  shownIn: Map<string, string>;
 }
 
 /** Events that happen because the learner does something. */
@@ -77,6 +86,48 @@ function collapseGroups(
   };
 }
 
+/**
+ * Events that are shown together in one node (the author never groups anything: this follows from the triggers). A video that a
+ * time mark has stopped goes on when the learner presses play: that event ("Video läuft weiter") is shown in the node of the time
+ * mark, as long as the only thing it triggers is the Abbau of something that the same time mark makes appear - and that Abbau, which
+ * nothing else triggers and which triggers nothing, is shown in the node of that Aufbau. Between the two nodes there are then two
+ * triggers: a double line.
+ *
+ * As soon as something else is connected - "Video läuft weiter" triggers anything else, the Abbau is triggered by something else or
+ * triggers something itself - the events get nodes of their own again.
+ *
+ * Returns companion event id -> the id of the event whose node shows it.
+ */
+function foldCompanions(page: Page, nodes: TimelineNode[]): Map<string, string> {
+  const fold = new Map<string, string>();
+  const ids = new Set(nodes.map((n) => n.id));
+  const triggers = Object.values(page.timeline.triggers);
+  for (const node of nodes) {
+    if (node.eventType !== "video-resume") continue;
+    const stopId = node.id.replace(/^video-resume:/, "video-stop:");
+    if (!ids.has(stopId)) continue;
+    const pairs: [string, string][] = [];
+    let companion = true;
+    for (const out of triggers.filter((t) => t.from === node.id)) {
+      const exit = out.to;
+      const block = /^block-exit:(.+)$/.exec(exit);
+      const entrance = block ? `block-entrance:${block[1]}` : null;
+      const onlyThis = triggers.filter((t) => t.to === exit).length === 1;
+      const endsHere = !triggers.some((t) => t.from === exit);
+      const sameMark = entrance !== null && triggers.some((t) => t.from === stopId && t.to === entrance);
+      if (!entrance || !ids.has(entrance) || !ids.has(exit) || !onlyThis || !endsHere || !sameMark) {
+        companion = false;
+        break;
+      }
+      pairs.push([entrance, exit]);
+    }
+    if (!companion) continue;
+    fold.set(node.id, stopId);
+    for (const [entrance, exit] of pairs) fold.set(exit, entrance);
+  }
+  return fold;
+}
+
 /** The graph the editor shows for `page`: its events (see getPageLanes) as nodes and the triggers - the intrinsic ones of a block's
  * events and those of the page - as edges, each once. */
 export function buildGraphModel(page: Page): GraphModel {
@@ -86,15 +137,11 @@ export function buildGraphModel(page: Page): GraphModel {
 
   let edges: GraphEdgeModel[] = [];
   const seen = new Set<string>();
-  const addEdge = (from: string, to: string, kind: TimelineEdgeKind, delayMs: number, doubled = false) => {
+  const addEdge = (from: string, to: string, kind: TimelineEdgeKind, delayMs: number) => {
     const key = `${from}>${to}`;
-    if (!nodeIds.has(from) || !nodeIds.has(to)) return;
-    if (seen.has(key)) {
-      if (doubled) edges.find((e) => e.id === key)!.doubled = true;
-      return;
-    }
+    if (!nodeIds.has(from) || !nodeIds.has(to) || seen.has(key)) return;
     seen.add(key);
-    edges.push({ id: key, from, to, kind, delayMs, down: false, doubled });
+    edges.push({ id: key, from, to, kind, delayMs, down: false, doubled: false });
   };
   for (const lane of lanes) {
     for (const edge of lane.edges) addEdge(edge.from, edge.to, edge.kind, edge.delayMs ?? 0);
@@ -103,7 +150,7 @@ export function buildGraphModel(page: Page): GraphModel {
   // Every trigger the page stores - an event can have several incoming ones, which the lanes only show one of.
   for (const id of Object.keys(page.timeline.triggers).sort()) {
     const trigger = page.timeline.triggers[id];
-    addEdge(trigger.from, trigger.to, trigger.weiter ? "advance" : "timed", trigger.delayMs, !!trigger.hideOnResume);
+    addEdge(trigger.from, trigger.to, trigger.weiter ? "advance" : "timed", trigger.delayMs);
   }
 
   const incoming = new Set(edges.map((edge) => edge.to));
@@ -136,7 +183,7 @@ export function buildGraphModel(page: Page): GraphModel {
     ) {
       color = "yellow";
     }
-    else if (isUserEvent(node)) color = "violet";
+    else if (isUserEvent(node) || node.eventType === "video-resume") color = "violet";
     // A video start nothing triggers is the learner pressing play.
     else if (node.eventType?.startsWith("video-start") && !incoming.has(node.id)) color = "violet";
     return {
@@ -145,18 +192,41 @@ export function buildGraphModel(page: Page): GraphModel {
       color,
       blockId: inEventBlock ? block.id : undefined,
       blockKind: inEventBlock ? block.kind : undefined,
-      outRight: node.eventType !== "video-stop-point",
+      outRight: node.eventType !== "video-stop-point" && node.eventType !== "video-resume",
       unreachable: !reachable.has(node.id),
+      companions: [],
     };
   });
 
-  // What a stop point triggers outside of its own video hangs below it; its own video goes on to the right.
-  const byId = new Map(models.map((m) => [m.id, m]));
+  // Events that share a node: the node of the first stands for both, and the triggers of the second start/end there.
+  const fold = foldCompanions(page, nodes);
+  const all = new Map(models.map((m) => [m.id, m]));
+  const primaries = models.filter((m) => !fold.has(m.id));
+  for (const [companion, primary] of fold) all.get(primary)!.companions.push(all.get(companion)!);
+
+  const shownEdges: GraphEdgeModel[] = [];
+  const byKey = new Map<string, GraphEdgeModel>();
   for (const edge of edges) {
-    const from = byId.get(edge.from);
-    const to = byId.get(edge.to);
+    const from = fold.get(edge.from) ?? edge.from;
+    const to = fold.get(edge.to) ?? edge.to;
+    if (from === to) continue;
+    const key = `${from}>${to}`;
+    const have = byKey.get(key);
+    if (have) {
+      have.doubled = true;
+      continue;
+    }
+    const merged = { ...edge, id: key, from, to };
+    byKey.set(key, merged);
+    shownEdges.push(merged);
+  }
+
+  // What a stop point triggers outside of its own video hangs below it; its own video goes on to the right.
+  for (const edge of shownEdges) {
+    const from = all.get(edge.from);
+    const to = all.get(edge.to);
     if (from && to && !from.outRight && from.blockId !== to.blockId) edge.down = true;
   }
 
-  return { nodes: models, edges };
+  return { nodes: primaries, edges: shownEdges, shownIn: fold };
 }

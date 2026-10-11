@@ -21,7 +21,7 @@ export function videoPreviewFor(page: Page, selection: SelectionRef | null): Vid
     const [kind, blockId, stopPointId] = id.split(":");
     const block = page.blocks[blockId ?? ""];
     if (block?.kind === "video") {
-      if (kind === "video-stop") {
+      if (kind === "video-stop" || kind === "video-resume") {
         const stopPoint = block.stopPoints.find((s) => s.id === stopPointId);
         return stopPoint ? { blockId: block.id, time: stopPoint.timeSeconds } : null;
       }

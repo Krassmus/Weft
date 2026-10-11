@@ -1,6 +1,7 @@
-import { addTrigger, removeTrigger, setEventTitle, setGroupEffect, updateBlock, updateTrigger } from "../../../core/document/actions";
+import { addTrigger, removeTrigger, setDisappearsOnResumeOf, setEventTitle, setGroupEffect, updateBlock, updateTrigger } from "../../../core/document/actions";
 import {
   canTriggerFrom,
+  disappearsOnResume,
   endNodeIds,
   findNode,
   getBlockEntranceTrigger,
@@ -30,6 +31,7 @@ const EVENT_HINTS: Partial<Record<TimelineEventType, string>> = {
   "quiz-submit-correct": "Passiert, sobald das Quiz mit einer richtigen Antwort abgeschickt wird.",
   "quiz-submit-incorrect": "Passiert, sobald das Quiz mit einer falschen Antwort abgeschickt wird.",
   "video-stop-point": "Passiert, sobald die Wiedergabe diesen Zeitpunkt im Video erreicht.",
+  "video-resume": "Passiert, sobald die Lernperson das Video nach der Zeitmarke weiterspielt.",
   "video-end-loop": "Passiert nie - das Video läuft in einer Endlosschleife und endet nicht.",
   "video-end-stop": "Passiert, sobald das Video zu Ende ist.",
 };
@@ -50,8 +52,26 @@ const EVENT_HINTS: Partial<Record<TimelineEventType, string>> = {
  *
  * "start" has no incoming triggers (it is the one event nothing on the page causes); "Nächste Folie" has no outgoing ones (the slide is
  * already gone by the time it fires).
+ *
+ * A node of the graph can show more than one event (see foldCompanions in eventGraph/model.ts): selecting it lists all of them, one
+ * below the other, each with everything above.
  */
 export function EventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
+  const model = buildGraphModel(page);
+  const primary = model.nodes.find((n) => n.id === (model.shownIn.get(nodeId) ?? nodeId));
+  const ids = primary ? [primary.id, ...primary.companions.map((c) => c.id)] : [nodeId];
+  return (
+    <>
+      {ids.map((id, index) => (
+        <div key={id} className={index > 0 ? "weft-event-bundle-member" : undefined}>
+          <SingleEventPanel page={page} nodeId={id} />
+        </div>
+      ))}
+    </>
+  );
+}
+
+function SingleEventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
   const select = useDocumentStore((s) => s.select);
   const { t } = useTranslation();
   const rawNode = findNode(page, nodeId);
@@ -71,7 +91,10 @@ export function EventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
   const sourceBlock = node.sourceBlockId ? page.blocks[node.sourceBlockId] : undefined;
   const sourceGroup = node.sourceGroupId ? page.groups.find((g) => g.id === node.sourceGroupId) : undefined;
   // Nothing can make it happen (see docs/event-graph.md): shown red in the graph, and said here.
-  const unreachable = buildGraphModel(page).nodes.find((n) => n.id === node.id)?.unreachable ?? false;
+  const unreachable =
+    buildGraphModel(page)
+      .nodes.flatMap((n) => [n, ...n.companions])
+      .find((n) => n.id === node.id)?.unreachable ?? false;
 
   return (
     <>
@@ -184,13 +207,15 @@ function EffectSection({ page, node }: { page: Page; node: TimelineNode }) {
   );
 }
 
-/** Whether a trigger from `from` to `to` can have its result go away again when the video goes on: from a time mark that stops
- * the video, to the Aufbau of something (see PageTrigger.hideOnResume). */
-function canHideOnResume(page: Page, from: string, to: string): boolean {
-  if (!from.startsWith("video-stop:") || !to.startsWith("block-entrance:")) return false;
-  const [, videoBlockId, stopPointId] = from.split(":");
-  const video = page.blocks[videoBlockId ?? ""];
-  return video?.kind === "video" && video.stopPoints.some((s) => s.id === stopPointId && s.stopsVideo);
+/** The block whose Aufbau a trigger from `from` to `to` is, when `from` is a time mark that stops the video: that block can be made to
+ * disappear again when the video goes on (see setDisappearsOnResume). Else null. */
+function resumableBlock(page: Page, from: string, to: string): { blockId: string; resumeId: string } | null {
+  const mark = /^video-stop:([^:]+):([^:]+)$/.exec(from);
+  const entrance = /^block-entrance:(.+)$/.exec(to);
+  if (!mark || !entrance || !(entrance[1] in page.blocks)) return null;
+  const video = page.blocks[mark[1]];
+  if (video?.kind !== "video" || !video.stopPoints.some((s) => s.id === mark[2] && s.stopsVideo)) return null;
+  return { blockId: entrance[1], resumeId: `video-resume:${mark[1]}:${mark[2]}` };
 }
 
 /** One trigger as a small card: the event at its other end, the delay, whether it waits for Weiter, and a way to remove it. */
@@ -203,7 +228,7 @@ function TriggerCard({
   delayMs,
   weiter,
   loop,
-  hideOnResume,
+  resumable,
   onEndpoint,
 }: {
   page: Page;
@@ -216,8 +241,8 @@ function TriggerCard({
   weiter: boolean;
   /** Whether this trigger would close a loop (see canTriggerFrom). */
   loop: boolean;
-  /** Present when the result can go away again when the video goes on (see canHideOnResume). */
-  hideOnResume?: boolean;
+  /** Present when the result can go away again when the video goes on (see resumableBlock). */
+  resumable?: { blockId: string; resumeId: string };
   onEndpoint: (id: string) => void;
 }) {
   // The current end stays listed even if it isn't among the offered ones (e.g. an event that is not a choice any more).
@@ -254,12 +279,12 @@ function TriggerCard({
           ×
         </button>
       </div>
-      {hideOnResume !== undefined && (
+      {resumable && (
         <label className="weft-field weft-field-inline">
           <input
             type="checkbox"
-            checked={hideOnResume}
-            onChange={(e) => updateTrigger(page.id, triggerId, { hideOnResume: e.target.checked ? true : undefined })}
+            checked={disappearsOnResume(page, resumable.blockId, resumable.resumeId)}
+            onChange={(e) => setDisappearsOnResumeOf(page.id, resumable.blockId, resumable.resumeId, e.target.checked)}
           />
           <span>verschwindet wieder, wenn das Video weiterläuft</span>
         </label>
@@ -305,7 +330,7 @@ function IncomingTriggersSection({ page, node }: { page: Page; node: TimelineNod
               delayMs={trigger.delayMs}
               weiter={trigger.weiter}
               loop={!canTriggerFrom(page, trigger.from, node.id) && trigger.from !== "start"}
-              hideOnResume={canHideOnResume(page, trigger.from, trigger.to) ? !!trigger.hideOnResume : undefined}
+              resumable={resumableBlock(page, trigger.from, trigger.to) ?? undefined}
               onEndpoint={(from) => updateTrigger(page.id, trigger.id, { from })}
             />
           ))}
@@ -351,7 +376,7 @@ function OutgoingTriggersSection({ page, node }: { page: Page; node: TimelineNod
                 delayMs={trigger.delayMs}
                 weiter={trigger.weiter}
                 loop={!canTriggerFrom(page, node.id, trigger.to) && node.id !== "start"}
-                hideOnResume={canHideOnResume(page, trigger.from, trigger.to) ? !!trigger.hideOnResume : undefined}
+                resumable={resumableBlock(page, trigger.from, trigger.to) ?? undefined}
                 onEndpoint={(to) => updateTrigger(page.id, trigger.id, { to })}
               />
             );

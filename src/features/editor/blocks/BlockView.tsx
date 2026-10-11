@@ -898,16 +898,37 @@ function EditableRichText({
   );
 }
 
-/** The video on the canvas: a still, the first frame - or the frame at the moment an event of the graph that is selected is about. */
+/**
+ * The video on the canvas: a still, the first frame - or the frame at the moment an event of the graph that is selected is about.
+ * Every moment gets an element of its own (see StillVideo), and a new one when the window comes back after having been away: a
+ * video element that had been moved to a frame before stopped following once the app had been in the background (the picture
+ * stayed where it was until the slide was changed - which made a new element), a fresh one always shows the frame it is asked for.
+ */
 function EditorVideo({ src, loop, muted, previewTime }: { src: string | undefined; loop: boolean; muted: boolean; previewTime: number | "end" | null }) {
-  const ref = useRef<HTMLVideoElement>(null);
-  const [ready, setReady] = useState(false);
+  const [generation, setGeneration] = useState(0);
   useEffect(() => {
+    const back = () => {
+      if (document.visibilityState !== "hidden") setGeneration((g) => g + 1);
+    };
+    document.addEventListener("visibilitychange", back);
+    window.addEventListener("focus", back);
+    return () => {
+      document.removeEventListener("visibilitychange", back);
+      window.removeEventListener("focus", back);
+    };
+  }, []);
+  return <StillVideo key={`${previewTime ?? "first"}:${generation}`} src={src} loop={loop} muted={muted} previewTime={previewTime} />;
+}
+
+/** One still of a video: the element loads and goes to the wanted moment once, then stays. */
+function StillVideo({ src, loop, muted, previewTime }: { src: string | undefined; loop: boolean; muted: boolean; previewTime: number | "end" | null }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  function toMoment() {
     const video = ref.current;
-    if (!video || !ready) return;
+    if (!video) return;
     const wanted = previewTime === "end" ? Math.max(0, (video.duration || 0) - 0.05) : (previewTime ?? 0);
     if (Math.abs(video.currentTime - wanted) > 0.01) video.currentTime = wanted;
-  }, [previewTime, ready]);
+  }
   return (
     <video
       ref={ref}
@@ -917,7 +938,7 @@ function EditorVideo({ src, loop, muted, previewTime }: { src: string | undefine
       playsInline
       preload="auto"
       className="weft-edit-block-video"
-      onLoadedMetadata={() => setReady(true)}
+      onLoadedMetadata={toMoment}
     />
   );
 }

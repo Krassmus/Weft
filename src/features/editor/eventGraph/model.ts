@@ -26,6 +26,8 @@ export interface GraphEdgeModel {
   delayMs: number;
   /** What it leads to has to hang below its source rather than stand to its right (see GraphNodeModel.outRight). */
   down: boolean;
+  /** What appears here also disappears again when the video goes on (PageTrigger.hideOnResume): drawn as a double line. */
+  doubled: boolean;
 }
 
 export interface GraphModel {
@@ -84,11 +86,15 @@ export function buildGraphModel(page: Page): GraphModel {
 
   let edges: GraphEdgeModel[] = [];
   const seen = new Set<string>();
-  const addEdge = (from: string, to: string, kind: TimelineEdgeKind, delayMs: number) => {
+  const addEdge = (from: string, to: string, kind: TimelineEdgeKind, delayMs: number, doubled = false) => {
     const key = `${from}>${to}`;
-    if (seen.has(key) || !nodeIds.has(from) || !nodeIds.has(to)) return;
+    if (!nodeIds.has(from) || !nodeIds.has(to)) return;
+    if (seen.has(key)) {
+      if (doubled) edges.find((e) => e.id === key)!.doubled = true;
+      return;
+    }
     seen.add(key);
-    edges.push({ id: key, from, to, kind, delayMs, down: false });
+    edges.push({ id: key, from, to, kind, delayMs, down: false, doubled });
   };
   for (const lane of lanes) {
     for (const edge of lane.edges) addEdge(edge.from, edge.to, edge.kind, edge.delayMs ?? 0);
@@ -97,7 +103,7 @@ export function buildGraphModel(page: Page): GraphModel {
   // Every trigger the page stores - an event can have several incoming ones, which the lanes only show one of.
   for (const id of Object.keys(page.timeline.triggers).sort()) {
     const trigger = page.timeline.triggers[id];
-    addEdge(trigger.from, trigger.to, trigger.weiter ? "advance" : "timed", trigger.delayMs);
+    addEdge(trigger.from, trigger.to, trigger.weiter ? "advance" : "timed", trigger.delayMs, !!trigger.hideOnResume);
   }
 
   const incoming = new Set(edges.map((edge) => edge.to));

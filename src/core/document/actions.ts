@@ -675,7 +675,7 @@ export function addTrigger(pageId: string, from: string, to: string, delayMs = 0
 }
 
 /** Changes one trigger of a page - where it comes from, where it goes, its delay, whether it waits for Weiter. */
-export function updateTrigger(pageId: string, triggerId: string, patch: Partial<Pick<PageTrigger, "from" | "to" | "delayMs" | "weiter">>) {
+export function updateTrigger(pageId: string, triggerId: string, patch: Partial<Pick<PageTrigger, "from" | "to" | "delayMs" | "weiter" | "hideOnResume">>) {
   edit("Auslöser bearbeiten", (m) => {
     const trigger = m.pages[pageId]?.timeline.triggers[triggerId];
     if (trigger) assignPatch(trigger, patch);

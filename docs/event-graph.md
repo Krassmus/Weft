@@ -70,7 +70,17 @@ die Folie nur auf anderen Wegen verlassen werden (zum Beispiel ein Button, der d
 
 - **durchgezogen**: passiert von selbst (nach der Verzögerung),
 - **gestrichelt**: wartet auf den Lernenden („Weiter“),
-- eine Verzögerung steht als kleine Beschriftung an der Linie.
+- eine Verzögerung steht als kleine Beschriftung an der Linie,
+- **doppelt**: der Trigger hat „verschwindet wieder, wenn das Video weiterläuft“ (siehe unten).
+
+### Abkürzung: Aufbau, der mit dem Weiterspielen eines Videos wieder verschwindet
+
+Ein Trigger von einer Zeitmarke, die das Video anhält, zu dem Aufbau eines Objekts darf die Eigenschaft `hideOnResume` haben.
+Im Graphen ist das **eine** Doppellinie – das Objekt erscheint an der Zeitmarke und ist weg, sobald das Video weiterläuft. Das ist
+bewusst eine Abweichung vom Prinzip „jede Wirkung ist ein Event mit eigenem Trigger“, damit der Graph übersichtlich bleibt. Der
+Export schreibt es aus: ein Event `video-resume:<Block>:<Zeitmarke>` (passiert, wenn das Video nach dieser Zeitmarke wieder
+abgespielt wird), das einen normalen Trigger auf den Abbau des Objekts hat. Der Player kennt die Abkürzung nicht. Ein Objekt kann
+wieder erscheinen, wenn die Zeitmarke noch einmal erreicht wird.
 
 ## 4. Feste Events
 

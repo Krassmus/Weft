@@ -4067,3 +4067,25 @@ button.weft-timeline-node-icon.is-red:hover,
   cursor: grabbing;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
 }
+
+
+/* A trigger whose result also goes away again when the video goes on (PageTrigger.hideOnResume): a double line - a wide line with
+   a narrow one in the colour of the ground drawn over it (so it works for any shape of line, dashed or not). */
+.weft-eg-line.is-double {
+  stroke-width: 5;
+}
+
+.weft-eg-line.is-double.is-hot {
+  stroke-width: 5.5;
+}
+
+.weft-eg-line-gap {
+  fill: none;
+  stroke: var(--weft-panel);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.weft-eg-line-gap.is-waiting {
+  stroke-dasharray: 5 4;
+}

@@ -509,6 +509,7 @@ function TimelineGraph({ page }: { page: Page }) {
               const className =
                 "weft-eg-line" +
                 (waits ? " is-waiting" : "") +
+                (info.doubled ? " is-double" : "") +
                 (edge.route === "detour" ? " is-detour" : "") +
                 (hotEdges.has(edge.id) ? " is-hot" : lit ? " is-dim" : "");
               const d = edgePath(edge.route, u, v, columnWidth, detourY);
@@ -527,9 +528,16 @@ function TimelineGraph({ page }: { page: Page }) {
                       />
                     </mask>
                   )}
-                  <path className={className} d={d} mask={drawing ? `url(#weft-eg-mask-${edgeIndex})` : undefined}>
-                    <title>{waits ? "Wartet auf die Lernperson" : info.delayMs > 0 ? `Nach ${info.delayMs / 1000} s` : "Passiert sofort"}</title>
-                  </path>
+                  <g mask={drawing ? `url(#weft-eg-mask-${edgeIndex})` : undefined}>
+                    <path className={className} d={d}>
+                      <title>
+                        {(waits ? "Wartet auf die Lernperson" : info.delayMs > 0 ? `Nach ${info.delayMs / 1000} s` : "Passiert sofort") +
+                          (info.doubled ? " - und verschwindet wieder, wenn das Video weiterläuft" : "")}
+                      </title>
+                    </path>
+                    {/* A double line: the wide line with a narrow one in the colour of the ground over it. */}
+                    {info.doubled && <path className={"weft-eg-line-gap" + (waits ? " is-waiting" : "")} d={d} />}
+                  </g>
                   {showDelay && (
                     <text
                       className="weft-eg-delay"

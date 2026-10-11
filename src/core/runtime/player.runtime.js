@@ -1020,6 +1020,9 @@
   function videoEndEventId(blockId) {
     return "video-end:" + blockId;
   }
+  function videoResumeEventId(blockId, stopPointId) {
+    return "video-resume:" + blockId + ":" + stopPointId;
+  }
 
   /**
    * Wires up one block's own Aufbau/Abbau (see BaseBlock.entranceEffect/exitEffect in core/types.ts): the block's events are in the
@@ -1036,13 +1039,23 @@
     var exitId = blockEffectEventId(block.id, "exit");
 
     // An Aufbau that is configured (any type but "off") means the block is not there until the Aufbau event happens.
+    // Whether the block is there now (after its Aufbau, until its Abbau) - an Aufbau of a block that is there does nothing, and
+    // nothing happens again (so a loop through an Aufbau settles); one that has gone again can come back (a time mark of a video
+    // that is reached once more).
+    var shown = false;
+    var gone = false;
+    // The animation of an Abbau stays in force (fill forwards) until the block comes back - then it must go.
+    var exitAnimation = null;
     if (graphEvents[entranceId]) {
       wrap.style.visibility = "hidden";
-      var shown = false;
       performers[entranceId] = function () {
-        // Already there: nothing to do, and nothing happens again (so a loop through an Aufbau settles).
         if (shown) return;
         shown = true;
+        gone = false;
+        if (exitAnimation) {
+          exitAnimation.cancel();
+          exitAnimation = null;
+        }
         var done = function () {
           happened(entranceId);
         };
@@ -1079,16 +1092,22 @@
     // else: no Aufbau at all ("off") - stays at its natural visibility (visible), no event for it.
 
     if (graphEvents[exitId]) {
-      var gone = false;
       // Idempotent, and also run by a timer shortly after the animation's duration - see the Aufbau above for why a
       // "finish" event alone can't be relied on.
       var hideExit = once(function () {
         wrap.style.visibility = "hidden";
+        shown = false;
         happened(exitId);
       });
       performers[exitId] = function () {
         if (gone) return;
         gone = true;
+        // (A fresh `once` for a block that comes back and goes again.)
+        hideExit = once(function () {
+          wrap.style.visibility = "hidden";
+          shown = false;
+          happened(exitId);
+        });
         var duration = exit.durationMs || 500;
         // fill: "forwards" keeps the end state until hideExit hides the block - no frame at the
         // original state in between.
@@ -1096,6 +1115,7 @@
         var frames = effectFrames(wrap, exit, "exit");
         if (frames) {
           animation = wrap.animate(frames, { duration: duration, easing: exit.type === "anvil" ? "linear" : "ease", fill: "forwards" });
+          exitAnimation = animation;
         }
         if (animation) {
           animation.onfinish = hideExit;
@@ -1462,19 +1482,28 @@
       // Doesn't force currentTime back to the stop point itself on pause - it only pauses wherever
       // playback happens to be when the check catches it, so scrubbing past one on purpose doesn't
       // get yanked back.
+      // The stop point that has paused the video, until it goes on: that is an event of its own ("video-resume").
+      var pausedAtStopPoint = null;
       if (block.stopPoints && block.stopPoints.length > 0) {
         var lastStopCheckTime = -1;
         videoEl.addEventListener("timeupdate", function () {
           var current = videoEl.currentTime;
           var shouldPause = false;
+          var pausedHere = null;
           for (var i = 0; i < block.stopPoints.length; i++) {
             var stopPoint = block.stopPoints[i];
             if (lastStopCheckTime < stopPoint.timeSeconds && current >= stopPoint.timeSeconds) {
               happened(videoStopEventId(block.id, stopPoint.id));
-              if (stopPoint.stopsVideo) shouldPause = true;
+              if (stopPoint.stopsVideo) {
+                shouldPause = true;
+                pausedHere = stopPoint.id;
+              }
             }
           }
-          if (shouldPause) videoEl.pause();
+          if (shouldPause) {
+            pausedAtStopPoint = pausedHere;
+            videoEl.pause();
+          }
           lastStopCheckTime = current;
         });
       }
@@ -1500,6 +1529,11 @@
       var hasFiredStart = false;
       videoEl.addEventListener("play", function () {
         playButton.classList.add("is-hidden");
+        if (pausedAtStopPoint !== null) {
+          var resumedAt = pausedAtStopPoint;
+          pausedAtStopPoint = null;
+          happened(videoResumeEventId(block.id, resumedAt));
+        }
         if (!hasFiredStart) {
           hasFiredStart = true;
           happened(videoStartEventId(block.id));

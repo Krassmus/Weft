@@ -83,6 +83,11 @@ export function videoStartNodeId(videoBlockId: string): string {
   return `video-start:${videoBlockId}`;
 }
 
+/** A video goes on after a stop point had paused it (see PageTrigger.hideOnResume) - only exists in what is exported. */
+export function videoResumeNodeId(videoBlockId: string, stopPointId: string): string {
+  return `video-resume:${videoBlockId}:${stopPointId}`;
+}
+
 export function videoEndNodeId(videoBlockId: string): string {
   return `video-end:${videoBlockId}`;
 }

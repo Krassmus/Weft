@@ -184,6 +184,15 @@ function EffectSection({ page, node }: { page: Page; node: TimelineNode }) {
   );
 }
 
+/** Whether a trigger from `from` to `to` can have its result go away again when the video goes on: from a time mark that stops
+ * the video, to the Aufbau of something (see PageTrigger.hideOnResume). */
+function canHideOnResume(page: Page, from: string, to: string): boolean {
+  if (!from.startsWith("video-stop:") || !to.startsWith("block-entrance:")) return false;
+  const [, videoBlockId, stopPointId] = from.split(":");
+  const video = page.blocks[videoBlockId ?? ""];
+  return video?.kind === "video" && video.stopPoints.some((s) => s.id === stopPointId && s.stopsVideo);
+}
+
 /** One trigger as a small card: the event at its other end, the delay, whether it waits for Weiter, and a way to remove it. */
 function TriggerCard({
   page,
@@ -194,6 +203,7 @@ function TriggerCard({
   delayMs,
   weiter,
   loop,
+  hideOnResume,
   onEndpoint,
 }: {
   page: Page;
@@ -206,6 +216,8 @@ function TriggerCard({
   weiter: boolean;
   /** Whether this trigger would close a loop (see canTriggerFrom). */
   loop: boolean;
+  /** Present when the result can go away again when the video goes on (see canHideOnResume). */
+  hideOnResume?: boolean;
   onEndpoint: (id: string) => void;
 }) {
   // The current end stays listed even if it isn't among the offered ones (e.g. an event that is not a choice any more).
@@ -242,6 +254,16 @@ function TriggerCard({
           ×
         </button>
       </div>
+      {hideOnResume !== undefined && (
+        <label className="weft-field weft-field-inline">
+          <input
+            type="checkbox"
+            checked={hideOnResume}
+            onChange={(e) => updateTrigger(page.id, triggerId, { hideOnResume: e.target.checked ? true : undefined })}
+          />
+          <span>verschwindet wieder, wenn das Video weiterläuft</span>
+        </label>
+      )}
       {loop && <p className="weft-hint">⟲ Das schließt einen Kreis: Die Ereignisse lösen sich gegenseitig aus.</p>}
     </li>
   );
@@ -283,6 +305,7 @@ function IncomingTriggersSection({ page, node }: { page: Page; node: TimelineNod
               delayMs={trigger.delayMs}
               weiter={trigger.weiter}
               loop={!canTriggerFrom(page, trigger.from, node.id) && trigger.from !== "start"}
+              hideOnResume={canHideOnResume(page, trigger.from, trigger.to) ? !!trigger.hideOnResume : undefined}
               onEndpoint={(from) => updateTrigger(page.id, trigger.id, { from })}
             />
           ))}
@@ -328,6 +351,7 @@ function OutgoingTriggersSection({ page, node }: { page: Page; node: TimelineNod
                 delayMs={trigger.delayMs}
                 weiter={trigger.weiter}
                 loop={!canTriggerFrom(page, node.id, trigger.to) && node.id !== "start"}
+                hideOnResume={canHideOnResume(page, trigger.from, trigger.to) ? !!trigger.hideOnResume : undefined}
                 onEndpoint={(to) => updateTrigger(page.id, trigger.id, { to })}
               />
             );

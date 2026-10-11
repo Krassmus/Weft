@@ -575,6 +575,10 @@ export interface PageTrigger {
   to: string;
   delayMs: number;
   weiter: boolean;
+  /** Only for a trigger from a time mark of a video that stops it, to an Aufbau: what appears there also disappears again when the
+   * video goes on. In the graph that is one line drawn double instead of two more events ("video goes on", "disappears") - the
+   * export spells them out (see buildEventGraph). */
+  hideOnResume?: boolean;
 }
 
 /** A "Nächste Folie" event of a page: leaving it, with `transition` (how the slide goes away - see Transition). */

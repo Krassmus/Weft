@@ -4076,15 +4076,6 @@ button.weft-timeline-node-icon.is-red:hover,
   border-top: 1px solid var(--weft-border);
 }
 
-/* Several events in one node (foldCompanions in eventGraph/model.ts): their icons side by side in one capsule. */
-.weft-eg-bundle {
-  display: flex;
-  gap: 4px;
-  padding: 0 3px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--weft-text-muted) 12%, var(--weft-panel));
-}
-
 /* Two triggers between the same two nodes: a double line - a wide line with a narrow one in the colour of the ground drawn over it
    (so it works for any shape of line, dashed or not). */
 .weft-eg-line.is-double {

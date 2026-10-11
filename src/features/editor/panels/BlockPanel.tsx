@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
-import pauseIconSvg from "../../../../mockups/icons/pause.svg?raw";
+import { stopPointIconSvg } from "../stopPointIcon";
 import { CODE_THEMES } from "../../../core/code/codeThemes";
 import { AUTO_LANGUAGE, CODE_LANGUAGES } from "../../../core/code/highlight";
 import { createId } from "../../../core/id";
@@ -845,7 +845,7 @@ function VideoStopPointDialog({
                 e.stopPropagation();
                 setSelectedStopPointId((current) => (current === sp.id ? null : sp.id));
               }}
-              dangerouslySetInnerHTML={{ __html: pauseIconSvg }}
+              dangerouslySetInnerHTML={{ __html: stopPointIconSvg(sp.stopsVideo) }}
             />
           ))}
         </div>

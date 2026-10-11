@@ -128,6 +128,7 @@ function buildVideoLane(video: VideoBlock): TimelineLane {
       kind: "event",
       sourceBlockId: video.id,
       eventType: "video-stop-point",
+      stopsVideo: stopPoint.stopsVideo,
       label: `Zeitmarke (${formatTimeMMSS(stopPoint.timeSeconds)})`,
     });
     edges.push({ from: previousId, to: stopId, kind: "timed", delayMs: Math.max(0, (stopPoint.timeSeconds - previousTimeSeconds) * 1000) });

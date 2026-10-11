@@ -88,7 +88,7 @@ Events:
 - Sobald etwas anderes angeschlossen wird – „Video läuft weiter“ löst etwas anderes aus, der Abbau wird noch von etwas anderem
   ausgelöst oder löst selbst etwas aus –, bekommen die Events wieder eigene Knoten, und die Linien laufen einzeln.
 
-Ein Klick auf einen Knoten zeigt in der Seitenleiste alle seine Events untereinander. Die Schalterkurzform „verschwindet wieder,
+Ein Knoten zeigt das Icon seines ersten Events (der Titel des Icons nennt alle). Ein Klick darauf zeigt in der Seitenleiste alle seine Events untereinander. Die Schalterkurzform „verschwindet wieder,
 wenn das Video weiterläuft“ am Trigger von der Zeitmarke zum Aufbau legt dafür den Abbau (falls das Objekt keinen hat: einen, der es
 sofort ausblendet) und den Trigger von „Video läuft weiter“ an – alles normale Events und Trigger. Das Objekt kann wieder
 erscheinen, wenn die Zeitmarke noch einmal erreicht wird. Der Player und der Export kennen keine Sonderfälle.

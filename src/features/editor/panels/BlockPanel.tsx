@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
 import pauseIconSvg from "../../../../mockups/icons/pause.svg?raw";
 import { CODE_THEMES } from "../../../core/code/codeThemes";
@@ -756,7 +757,31 @@ function VideoStopPointDialog({
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [duration, setDuration] = useState(0);
+  // Where the video is now (seconds): the timeline below it is coloured up to there.
+  const [currentTime, setCurrentTime] = useState(0);
   const [selectedStopPointId, setSelectedStopPointId] = useState<string | null>(null);
+
+  // While the video plays, follow it every frame ("timeupdate" alone comes only a few times a second).
+  useEffect(() => {
+    let frame = 0;
+    const tick = () => {
+      const video = videoRef.current;
+      if (video && !video.paused) setCurrentTime(video.currentTime);
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  // A click on the timeline goes to that place in the video.
+  function seekTo(event: ReactMouseEvent<HTMLDivElement>) {
+    const video = videoRef.current;
+    if (!video || duration <= 0) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const fraction = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+    video.currentTime = fraction * duration;
+    setCurrentTime(video.currentTime);
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -802,32 +827,28 @@ function VideoStopPointDialog({
           controls
           className="weft-stop-point-video"
           onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+          onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+          onSeeked={(e) => setCurrentTime(e.currentTarget.currentTime)}
         />
 
-        <div className="weft-format-row">
-          <button type="button" className="weft-ghost-button" onClick={() => videoRef.current?.pause()}>
-            Pausieren
-          </button>
-          <button type="button" className="weft-primary-button" onClick={addStopPointHere}>
-            Zeitmarke erstellen
-          </button>
+        {/* The timeline: the line is coloured up to where the video is now; a click on it goes there. */}
+        <div className="weft-stop-point-track" onClick={seekTo}>
+          <div className="weft-stop-point-progress" style={{ width: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%` }} />
+          {block.stopPoints.map((sp) => (
+            <button
+              key={sp.id}
+              type="button"
+              className={"weft-timeline-node-icon weft-stop-point-marker" + (sp.id === selectedStopPointId ? " is-selected" : "")}
+              style={{ left: `${duration > 0 ? (sp.timeSeconds / duration) * 100 : 0}%` }}
+              title={formatTimeMMSS(sp.timeSeconds)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedStopPointId((current) => (current === sp.id ? null : sp.id));
+              }}
+              dangerouslySetInnerHTML={{ __html: pauseIconSvg }}
+            />
+          ))}
         </div>
-
-        {block.stopPoints.length > 0 && (
-          <div className="weft-stop-point-track">
-            {block.stopPoints.map((sp) => (
-              <button
-                key={sp.id}
-                type="button"
-                className={"weft-timeline-node-icon weft-stop-point-marker" + (sp.id === selectedStopPointId ? " is-selected" : "")}
-                style={{ left: `${duration > 0 ? (sp.timeSeconds / duration) * 100 : 0}%` }}
-                title={formatTimeMMSS(sp.timeSeconds)}
-                onClick={() => setSelectedStopPointId((current) => (current === sp.id ? null : sp.id))}
-                dangerouslySetInnerHTML={{ __html: pauseIconSvg }}
-              />
-            ))}
-          </div>
-        )}
 
         {selectedStopPoint && (
           <div className="weft-stop-point-settings">
@@ -846,6 +867,14 @@ function VideoStopPointDialog({
             </button>
           </div>
         )}
+        <div className="weft-format-row weft-stop-point-actions">
+          <button type="button" className="weft-ghost-button" onClick={() => videoRef.current?.pause()}>
+            Pausieren
+          </button>
+          <button type="button" className="weft-primary-button" onClick={addStopPointHere}>
+            Zeitmarke erstellen
+          </button>
+        </div>
       </div>
     </div>,
     document.body,

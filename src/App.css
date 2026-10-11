@@ -801,6 +801,23 @@ img.weft-thumb-block {
   height: 26px;
   margin: 16px 13px 4px;
   border-top: 1px solid var(--weft-border);
+  cursor: pointer;
+}
+
+/* The buttons at the foot of the dialog, under the timeline (and the settings of a selected time mark). */
+.weft-stop-point-actions {
+  margin-top: 16px;
+}
+
+/* The part of the line the video has played (and it is where the picture is now). */
+.weft-stop-point-progress {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--weft-accent);
+  pointer-events: none;
 }
 
 /* Reuses .weft-timeline-node-icon for the same circle-with-icon look as the page timeline's own

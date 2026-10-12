@@ -1,4 +1,12 @@
-import { getPageLanes, listAllNodes } from "../../../core/document/pageTimeline";
+import { orderedValues } from "../../../core/document/ordering";
+import {
+  blockEffectNodeId,
+  buttonClickNodeId,
+  getPageLanes,
+  listAllNodes,
+  quizFillNodeId,
+  videoStartNodeId,
+} from "../../../core/document/pageTimeline";
 import type { Block, Page, TimelineEdgeKind, TimelineNode } from "../../../core/types";
 
 /** What kind an event is, which is what its colour says (docs/event-graph.md, section 2): the learner doing something (violet), an
@@ -154,6 +162,25 @@ export function buildGraphModel(page: Page): GraphModel {
   }
 
   const incoming = new Set(edges.map((edge) => edge.to));
+
+  // What a block itself makes happen - the learner filling in a quiz or clicking a button, a video the learner starts - can only
+  // happen once the block is there, after its Aufbau. A line from the Aufbau to those events (no trigger: nothing is stored or
+  // exported for it) puts them after it in the graph instead of beside the start of the page.
+  const afterAppearing = new Set<string>();
+  for (const block of orderedValues(page.blocks)) {
+    if (block.entranceEffect.type === "off") continue;
+    const entrance = blockEffectNodeId(block.id, "entrance");
+    const own: string[] = [];
+    if (block.kind === "quiz") own.push(quizFillNodeId(block.id));
+    else if (block.kind === "button") own.push(buttonClickNodeId(block.id));
+    else if (block.kind === "video" && !incoming.has(videoStartNodeId(block.id))) own.push(videoStartNodeId(block.id));
+    for (const id of own) {
+      if (!nodeIds.has(entrance) || !nodeIds.has(id)) continue;
+      addEdge(entrance, id, "unknown", 0);
+      afterAppearing.add(id);
+    }
+  }
+
   const { visible, shown } = collapseGroups(page, nodes, edges);
   nodes = visible;
   edges = shown;
@@ -166,6 +193,7 @@ export function buildGraphModel(page: Page): GraphModel {
   };
   for (const node of nodes) {
     // The start of the page, what the learner does, and a video the learner can always start.
+    if (afterAppearing.has(node.id)) continue;
     if (node.kind === "start" || isUserEvent(node) || node.eventType === "video-start-manual" || node.eventType === "video-start-auto") mark(node.id);
   }
   while (queue.length > 0) {
@@ -175,7 +203,9 @@ export function buildGraphModel(page: Page): GraphModel {
 
   const models: GraphNodeModel[] = nodes.map((node) => {
     const block = node.sourceBlockId ? page.blocks[node.sourceBlockId] : undefined;
-    const inEventBlock = block && (block.kind === "quiz" || block.kind === "video");
+    // Only the events the block itself makes (a quiz's, a video's) are drawn in its frame - not its Aufbau and Abbau.
+    const inEventBlock =
+      block && (block.kind === "quiz" || block.kind === "video") && node.eventType !== "block-entrance" && node.eventType !== "block-exit";
     let color: EventColor = "blue";
     if (
       node.kind === "event" &&

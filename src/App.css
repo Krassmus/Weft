@@ -4012,10 +4012,6 @@ button.weft-timeline-node-icon.is-red:hover,
   margin: 0;
 }
 
-.weft-delay-unit {
-  color: var(--weft-text-muted);
-}
-
 .weft-delay-step {
   flex: none;
   width: 30px;

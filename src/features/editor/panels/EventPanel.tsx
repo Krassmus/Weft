@@ -245,7 +245,6 @@ function DelayControl({ delayMs, onChange }: { delayMs: number; onChange: (delay
           if (Number.isFinite(value) && value >= 0) onChange(Math.round(value * 1000));
         }}
       />
-      <span className="weft-delay-unit">s</span>
       <button type="button" className="weft-delay-step" aria-label="0,1 Sekunden mehr" onClick={() => setSeconds(seconds + 0.1)}>
         +
       </button>
@@ -310,7 +309,7 @@ function TriggerCard({
         </button>
       </div>
       <div className="weft-field">
-        <span>Verzögerung</span>
+        <span>Verzögerung (in Sekunden)</span>
         <DelayControl delayMs={delayMs} onChange={(ms) => updateTrigger(page.id, triggerId, { delayMs: ms })} />
       </div>
       <label className="weft-field">

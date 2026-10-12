@@ -1204,6 +1204,16 @@ button.weft-timeline-node-icon:hover {
   outline-color: var(--weft-accent-hover);
 }
 
+/* The block of the event that is selected in the graph: the dashed outline of a hover. While the mouse really is over a block (of the
+   same slide) that block alone has it - there are never two. */
+.weft-edit-block.is-event-hover:not(.is-locked) {
+  outline-color: var(--weft-accent-hover);
+}
+
+.weft-stage:has(.weft-edit-block:not(.is-locked):hover) .weft-edit-block.is-event-hover:not(:hover) {
+  outline-color: transparent;
+}
+
 .weft-edit-block.is-selected {
   outline: 2px solid var(--weft-accent);
 }

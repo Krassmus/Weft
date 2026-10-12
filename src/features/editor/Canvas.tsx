@@ -24,6 +24,7 @@ import {
 } from "../../core/document/actions";
 import type { VideoUploadResult } from "../../core/document/actions";
 import { useDocumentStore } from "../../core/document/store";
+import { findNode } from "../../core/document/pageTimeline";
 import { DEFAULT_IRIS_CENTER } from "../../core/document/transitions";
 import type { BlockContainerRef } from "../../core/document/store";
 import { warnAboutVideoUploads } from "../../core/io/fileIO";
@@ -560,6 +561,12 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
   const target = resolveEditTarget(doc, selection, lastPageIdRef.current);
   // A video on the slide shows the moment an event selected in the graph is about (see videoPreviewFor).
   const videoPreview = target?.kind === "page" ? videoPreviewFor(target.page, selection) : null;
+  // The object an event selected in the graph belongs to (the "Gehört zu" of its panel) is marked like a hovered one (see
+  // BlockView's eventHover): the one of the node itself, so that never more than one block is.
+  const eventBlockId =
+    target?.kind === "page" && selection?.type === "event" && selection.pageId === target.page.id
+      ? findNode(target.page, selection.nodeId)?.sourceBlockId
+      : undefined;
   if (target?.kind === "page") lastPageIdRef.current = target.page.id;
   const aspect = aspectRatioCss(doc.content.aspectRatio);
   // Move-snapping candidates for a page block: the (locked, read-only) layout blocks showing
@@ -1016,6 +1023,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                     selected={isSoloSelected}
                     groupSelected={groupSelected}
                     marqueeHover={marqueeHoverIds?.includes(block.id) ?? false}
+                    eventHover={eventBlockId === block.id}
                     isPartOfCurrentSelection={isPartOfCurrentSelection}
                     livePositionOverride={groupLiveOverrides?.find((p) => p.id === block.id)?.position ?? null}
                     onSelect={() => {

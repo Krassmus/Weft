@@ -3991,14 +3991,56 @@ button.weft-timeline-node-icon.is-red:hover,
   min-width: 0;
 }
 
-.weft-trigger-card-delay {
+/* The delay of a trigger: the number with "s", - and + (0,1 s steps) and a slider (see DelayControl in EventPanel.tsx). */
+.weft-delay-control {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.weft-trigger-card-delay input {
-  width: 72px;
+.weft-delay-control input[type="number"] {
+  width: 52px;
+  min-width: 0;
+  text-align: center;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.weft-delay-control input[type="number"]::-webkit-inner-spin-button,
+.weft-delay-control input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.weft-delay-unit {
+  color: var(--weft-text-muted);
+}
+
+.weft-delay-step {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-panel-raised);
+  color: var(--weft-text);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.weft-delay-step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.weft-delay-slider {
+  flex: 1;
+  min-width: 40px;
+  height: 30px;
+  margin: 0;
+  accent-color: var(--weft-accent);
 }
 
 .weft-trigger-card .weft-hint {

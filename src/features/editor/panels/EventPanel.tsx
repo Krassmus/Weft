@@ -218,6 +218,51 @@ function resumableBlock(page: Page, from: string, to: string): { blockId: string
   return { blockId: entrance[1], resumeId: `video-resume:${mark[1]}:${mark[2]}` };
 }
 
+/** The longest delay the slider of a DelayControl reaches (seconds); longer ones can be typed. */
+const DELAY_SLIDER_MAX_SECONDS = 2;
+
+/**
+ * A delay in seconds: the number (any value from 0, typed), "−" / "+" that change it by 0,1 s and a small slider from 0 to 2 s - for
+ * the iPad, where typing a number is the slow way. A longer delay than the slider reaches is shown with the slider at its end.
+ */
+function DelayControl({ delayMs, onChange }: { delayMs: number; onChange: (delayMs: number) => void }) {
+  const seconds = delayMs / 1000;
+  // Tenths of a second: 0.1 + 0.2 is not 0.3.
+  const setSeconds = (value: number) => onChange(Math.max(0, Math.round(value * 10)) * 100);
+  return (
+    <span className="weft-delay-control">
+      <button type="button" className="weft-delay-step" aria-label="0,1 Sekunden weniger" disabled={delayMs <= 0} onClick={() => setSeconds(seconds - 0.1)}>
+        −
+      </button>
+      <input
+        type="number"
+        min={0}
+        step={0.1}
+        value={seconds}
+        aria-label="Verzögerung (Sekunden)"
+        onChange={(e) => {
+          const value = Number(e.target.value);
+          if (Number.isFinite(value) && value >= 0) onChange(Math.round(value * 1000));
+        }}
+      />
+      <span className="weft-delay-unit">s</span>
+      <button type="button" className="weft-delay-step" aria-label="0,1 Sekunden mehr" onClick={() => setSeconds(seconds + 0.1)}>
+        +
+      </button>
+      <input
+        type="range"
+        className="weft-delay-slider"
+        min={0}
+        max={DELAY_SLIDER_MAX_SECONDS}
+        step={0.1}
+        value={Math.min(seconds, DELAY_SLIDER_MAX_SECONDS)}
+        aria-label="Verzögerung einstellen"
+        onChange={(e) => setSeconds(Number(e.target.value))}
+      />
+    </span>
+  );
+}
+
 /** One trigger as a small card, top to bottom: how it is triggered (by itself or by the learner's Weiter), the delay, and the event at
  * its other end - "Nach Event" for an incoming trigger (what has to have happened), "Event" for an outgoing one (what it causes). */
 function TriggerCard({
@@ -264,23 +309,10 @@ function TriggerCard({
           ×
         </button>
       </div>
-      <label className="weft-field">
+      <div className="weft-field">
         <span>Verzögerung</span>
-        <span className="weft-trigger-card-delay">
-          <input
-            type="number"
-            min={0}
-            step={0.1}
-            value={delayMs / 1000}
-            aria-label="Verzögerung (Sekunden)"
-            onChange={(e) => {
-              const seconds = Number(e.target.value);
-              if (Number.isFinite(seconds) && seconds >= 0) updateTrigger(page.id, triggerId, { delayMs: Math.round(seconds * 1000) });
-            }}
-          />
-          <span>s</span>
-        </span>
-      </label>
+        <DelayControl delayMs={delayMs} onChange={(ms) => updateTrigger(page.id, triggerId, { delayMs: ms })} />
+      </div>
       <label className="weft-field">
         <span>{direction === "incoming" ? "Nach Event" : "Event"}</span>
         <select value={endpoint} onChange={(e) => onEndpoint(e.target.value)} title={endpointLabel}>

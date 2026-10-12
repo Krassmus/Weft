@@ -218,10 +218,12 @@ function resumableBlock(page: Page, from: string, to: string): { blockId: string
   return { blockId: entrance[1], resumeId: `video-resume:${mark[1]}:${mark[2]}` };
 }
 
-/** One trigger as a small card: the event at its other end, the delay, whether it waits for Weiter, and a way to remove it. */
+/** One trigger as a small card, top to bottom: how it is triggered (by itself or by the learner's Weiter), the delay, and the event at
+ * its other end - "Nach Event" for an incoming trigger (what has to have happened), "Event" for an outgoing one (what it causes). */
 function TriggerCard({
   page,
   triggerId,
+  direction,
   endpoint,
   endpointLabel,
   options,
@@ -233,6 +235,7 @@ function TriggerCard({
 }: {
   page: Page;
   triggerId: string;
+  direction: "incoming" | "outgoing";
   /** The event at the other end of the trigger (its source for an incoming one, its target for an outgoing one). */
   endpoint: string;
   endpointLabel: string;
@@ -249,36 +252,46 @@ function TriggerCard({
   const listed = options.some((o) => o.id === endpoint);
   return (
     <li className="weft-trigger-card">
-      <select value={endpoint} onChange={(e) => onEndpoint(e.target.value)} title={endpointLabel}>
-        {!listed && <option value={endpoint}>{endpointLabel}</option>}
-        {options.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <div className="weft-trigger-card-row">
-        <label className="weft-trigger-card-delay" title="Verzögerung (Sekunden)">
+      <div className="weft-trigger-card-row weft-trigger-card-head">
+        <label className="weft-field">
+          <span>Auslösertyp</span>
+          <select value={weiter ? "weiter" : "auto"} onChange={(e) => updateTrigger(page.id, triggerId, { weiter: e.target.value === "weiter" })}>
+            <option value="auto">Automatisch</option>
+            <option value="weiter">Mit Weiter (Nutzerinteraktion)</option>
+          </select>
+        </label>
+        <button type="button" className="weft-event-trigger-remove" aria-label="Auslöser entfernen" onClick={() => removeTrigger(page.id, triggerId)}>
+          ×
+        </button>
+      </div>
+      <label className="weft-field">
+        <span>Verzögerung</span>
+        <span className="weft-trigger-card-delay">
           <input
             type="number"
             min={0}
             step={0.1}
             value={delayMs / 1000}
+            aria-label="Verzögerung (Sekunden)"
             onChange={(e) => {
               const seconds = Number(e.target.value);
               if (Number.isFinite(seconds) && seconds >= 0) updateTrigger(page.id, triggerId, { delayMs: Math.round(seconds * 1000) });
             }}
           />
           <span>s</span>
-        </label>
-        <label className="weft-trigger-card-weiter">
-          <input type="checkbox" checked={weiter} onChange={(e) => updateTrigger(page.id, triggerId, { weiter: e.target.checked })} />
-          <span>wartet auf Weiter</span>
-        </label>
-        <button type="button" className="weft-event-trigger-remove" aria-label="Auslöser entfernen" onClick={() => removeTrigger(page.id, triggerId)}>
-          ×
-        </button>
-      </div>
+        </span>
+      </label>
+      <label className="weft-field">
+        <span>{direction === "incoming" ? "Nach Event" : "Event"}</span>
+        <select value={endpoint} onChange={(e) => onEndpoint(e.target.value)} title={endpointLabel}>
+          {!listed && <option value={endpoint}>{endpointLabel}</option>}
+          {options.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </label>
       {resumable && (
         <label className="weft-field weft-field-inline">
           <input
@@ -324,6 +337,7 @@ function IncomingTriggersSection({ page, node }: { page: Page; node: TimelineNod
               key={trigger.id}
               page={page}
               triggerId={trigger.id}
+              direction="incoming"
               endpoint={trigger.from}
               endpointLabel={labelOf(trigger.from)}
               options={options}
@@ -370,6 +384,7 @@ function OutgoingTriggersSection({ page, node }: { page: Page; node: TimelineNod
                 key={trigger.id}
                 page={page}
                 triggerId={trigger.id}
+                direction="outgoing"
                 endpoint={trigger.to}
                 endpointLabel={labelOf(trigger.to)}
                 options={options}

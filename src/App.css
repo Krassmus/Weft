@@ -3981,28 +3981,24 @@ button.weft-timeline-node-icon.is-red:hover,
 
 .weft-trigger-card-row {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
+}
+
+/* The type of the trigger takes the width, the remove button sits at its end. */
+.weft-trigger-card-head > .weft-field {
+  flex: 1;
+  min-width: 0;
 }
 
 .weft-trigger-card-delay {
   display: flex;
   align-items: center;
   gap: 4px;
-  flex: none;
 }
 
 .weft-trigger-card-delay input {
-  width: 64px;
-}
-
-.weft-trigger-card-weiter {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-  font-size: 12px;
+  width: 72px;
 }
 
 .weft-trigger-card .weft-hint {

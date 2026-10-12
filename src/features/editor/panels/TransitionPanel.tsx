@@ -8,6 +8,7 @@ import {
 } from "../../../core/document/transitions";
 import type { Page, TransitionDirection, TransitionType } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
+import { SecondsControl } from "./SecondsControl";
 
 const DIRECTIONS: TransitionDirection[] = ["left", "right", "up", "down"];
 
@@ -45,20 +46,15 @@ export function TransitionPanel({ page, endId }: { page: Page; endId: string }) 
       </label>
 
       {type !== "none" && (
-        <label className="weft-field">
-          <span>Dauer (Sekunden)</span>
-          <input
-            type="number"
-            min={0.1}
-            step={0.1}
-            value={durationMs / 1000}
-            onChange={(e) => {
-              const seconds = Number(e.target.value);
-              if (!Number.isFinite(seconds) || seconds <= 0) return;
-              setEndTransitionDuration(page.id, endId, Math.round(seconds * 1000));
-            }}
+        <div className="weft-field">
+          <span>Dauer (in Sekunden)</span>
+          <SecondsControl
+            label="Dauer (Sekunden)"
+            minMs={100}
+            valueMs={durationMs}
+            onChange={(ms) => setEndTransitionDuration(page.id, endId, ms)}
           />
-        </label>
+        </div>
       )}
 
       {(type === "move" || type === "cube") && (

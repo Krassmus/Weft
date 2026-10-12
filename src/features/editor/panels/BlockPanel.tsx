@@ -18,6 +18,7 @@ import { CURATED_FONT_FAMILIES } from "../../../core/fonts/curatedFonts";
 import { DEFAULT_FONT_FAMILY } from "../../../core/fonts/fontFaceCss";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
+import { SecondsControl } from "./SecondsControl";
 import { addFilesToBlock, removeFileFromBlock, setFilesPassword } from "../../../core/document/filesActions";
 import type { BlockContainerRef } from "../../../core/document/store";
 import { confirmDestructive, pickFilesFromDisk, pickFontFile, warnAboutVideoUploads } from "../../../core/io/fileIO";
@@ -227,20 +228,15 @@ export function BlockEffectEditor({
       {effect.type !== "off" && (
         <>
           {effect.type !== "none" && (
-            <label className="weft-field">
-              <span>Dauer (Sekunden)</span>
-              <input
-                type="number"
-                min={0.1}
-                step={0.1}
-                value={effect.durationMs / 1000}
-                onChange={(e) => {
-                  const seconds = Number(e.target.value);
-                  if (!Number.isFinite(seconds) || seconds <= 0) return;
-                  onEffectChange({ ...effect, durationMs: Math.round(seconds * 1000) });
-                }}
+            <div className="weft-field">
+              <span>Dauer (in Sekunden)</span>
+              <SecondsControl
+                label="Dauer (Sekunden)"
+                minMs={100}
+                valueMs={effect.durationMs}
+                onChange={(durationMs) => onEffectChange({ ...effect, durationMs })}
               />
-            </label>
+            </div>
           )}
           {effect.type === "wipe" && (
             <label className="weft-field">

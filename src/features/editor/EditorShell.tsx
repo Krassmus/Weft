@@ -51,6 +51,8 @@ import { useDeleteSelection } from "./useDeleteSelection";
 const SIDEBAR_WIDTH_MIN = 220;
 const SIDEBAR_WIDTH_MAX = 560;
 const SIDEBAR_WIDTH_DEFAULT = 260;
+const RESIZER_WIDTH = 6;
+const INSPECTOR_WIDTH = 300;
 
 // Which module to silently re-open on the next launch - just a path string, so plain
 // localStorage rather than anything in the document/undo model itself; it's a UI convenience,
@@ -109,6 +111,42 @@ export function EditorShell() {
   // there's no selection UI to keep it in sync with once PresentationView has taken over anyway.
   const [presentStartPageId, setPresentStartPageId] = useState<string | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_WIDTH_DEFAULT);
+
+  // On a narrow window (an iPad upright) the two sidebars leave the middle a few pixels: when the work area would get less than a
+  // third of the width, the right sidebar becomes a drawer over it - out of the way until something is selected or its tab is
+  // tapped, and gone again with a tap on the empty work area. With a third or more it is a fixed column, as always.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [bodyWidth, setBodyWidth] = useState(0);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const selection = useDocumentStore((s) => s.selection);
+  const compact = bodyWidth > 0 && (bodyWidth - sidebarWidth - RESIZER_WIDTH - INSPECTOR_WIDTH) * 3 < bodyWidth;
+  const compactRef = useRef(compact);
+  compactRef.current = compact;
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const measure = () => setBodyWidth(el.clientWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [player !== null]);
+  // Something with properties was selected: they are what the drawer is for.
+  useEffect(() => {
+    if (selection && selection.type !== "page") setInspectorOpen(true);
+  }, [selection]);
+  // A tap on the empty work area (not on an object, a button, the graph...) puts the drawer away again.
+  useEffect(() => {
+    function onPointerDown(e: PointerEvent) {
+      if (!compactRef.current) return;
+      const target = e.target;
+      if (!(target instanceof Element) || !target.closest(".weft-canvas")) return;
+      if (target.closest("button, input, select, textarea, a, [contenteditable='true'], .weft-edit-block, .weft-resize-handle, .weft-eg-node, [class*='weft-group']")) return;
+      setInspectorOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
 
   // Dragging the splitter only ever changes the sidebar's own width - the canvas column is "1fr"
   // in the grid below, so it's always the one that gives up (or gets back) the space. startWidth
@@ -612,11 +650,29 @@ export function EditorShell() {
   return (
     <div className="weft-shell">
       {inAppMenu && <AppBar onCommand={runCommand} onOpenRecent={(path) => void handleOpenRecentRef.current(path)} />}
-      <div className="weft-body" style={{ gridTemplateColumns: `${sidebarWidth}px 6px 1fr 300px` }}>
+      <div
+        className="weft-body"
+        ref={bodyRef}
+        style={{ gridTemplateColumns: compact ? `${sidebarWidth}px ${RESIZER_WIDTH}px 1fr` : `${sidebarWidth}px ${RESIZER_WIDTH}px 1fr ${INSPECTOR_WIDTH}px` }}
+      >
         <Sidebar />
         <div className="weft-resizer" onPointerDown={handleResizerPointerDown} title={t("toolbar.resizerTitle")} />
         <Canvas onPresent={handlePresent} />
-        <Inspector />
+        <div className={"weft-inspector-slot" + (compact ? " is-drawer" : "") + (compact && inspectorOpen ? " is-open" : "")}>
+          {compact && (
+            <button
+              type="button"
+              className="weft-inspector-tab"
+              aria-expanded={inspectorOpen}
+              aria-label="Eigenschaften"
+              title="Eigenschaften"
+              onClick={() => setInspectorOpen((open) => !open)}
+            >
+              {inspectorOpen ? "›" : "‹"}
+            </button>
+          )}
+          <Inspector />
+        </div>
       </div>
       <CollabDialogs />
       <LibraryDialogs onOpen={(path) => void handleOpenRecentRef.current(path)} currentPath={currentPath} />

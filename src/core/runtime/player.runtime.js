@@ -1033,6 +1033,154 @@
   }
 
   /**
+   * The Abbau "Zersplittern": the block breaks into shards that fly off the slide like in an explosion - up, down, to the sides and
+   * towards the viewer. Every shard is a copy of the whole block, cut to a polygon (clip-path) of a jittered grid whose cells are
+   * split into two triangles, and moves, turns and fades on its own (Web Animations). A video is a picture of the frame it is
+   * showing; an embedded page can't be copied (its content would load again, and a picture of it is not to be had), so the
+   * caller breaks nothing there. Returns a function that takes the shards away (the block comes back).
+   */
+  function shatterBlock(wrap, durationMs, done) {
+    var stage = wrap.parentNode;
+    var boxWidth = wrap.offsetWidth;
+    var boxHeight = wrap.offsetHeight;
+    if (!stage || !boxWidth || !boxHeight || typeof wrap.animate !== "function") {
+      done();
+      return function () {};
+    }
+    var stageRect = stage.getBoundingClientRect();
+    var stageWidth = stageRect.width || 960;
+
+    // The block as it looks now, as the template of every shard: a video becomes a canvas marker, an iframe an empty box.
+    var template = wrap.cloneNode(true);
+    template.removeAttribute("id");
+    var sourceVideos = wrap.querySelectorAll("video");
+    var templateVideos = template.querySelectorAll("video");
+    for (var v = 0; v < templateVideos.length; v++) {
+      var marker = document.createElement("canvas");
+      marker.className = "weft-shatter-video";
+      var videoStyle = templateVideos[v].getAttribute("style") || "";
+      marker.setAttribute("style", videoStyle + ";width:100%;height:100%;");
+      marker.weftSource = sourceVideos[v];
+      templateVideos[v].parentNode.replaceChild(marker, templateVideos[v]);
+    }
+    var frames = template.querySelectorAll("iframe");
+    for (var f = 0; f < frames.length; f++) {
+      var empty = document.createElement("div");
+      empty.setAttribute("style", "width:100%;height:100%;background:#f4f4f5;");
+      frames[f].parentNode.replaceChild(empty, frames[f]);
+    }
+
+    var overlay = document.createElement("div");
+    overlay.className = "weft-shatter";
+    overlay.setAttribute(
+      "style",
+      "position:absolute;pointer-events:none;overflow:visible;perspective:900px;left:" +
+        wrap.style.left + ";top:" + wrap.style.top + ";width:" + wrap.style.width + ";height:" + wrap.style.height + ";" +
+        (wrap.style.transform ? "transform:" + wrap.style.transform + ";" : ""),
+    );
+
+    // A jittered grid: the vertices inside the block are moved by up to a third of a cell, every cell is two triangles.
+    var cols = 6;
+    var rows = Math.max(3, Math.min(8, Math.round((cols * boxHeight) / boxWidth)));
+    var vertices = [];
+    for (var r = 0; r <= rows; r++) {
+      var row = [];
+      for (var c = 0; c <= cols; c++) {
+        var x = (c / cols) * 100;
+        var y = (r / rows) * 100;
+        if (c > 0 && c < cols) x += (Math.random() - 0.5) * (100 / cols) * 0.66;
+        if (r > 0 && r < rows) y += (Math.random() - 0.5) * (100 / rows) * 0.66;
+        row.push([x, y]);
+      }
+      vertices.push(row);
+    }
+    var triangles = [];
+    for (var rr = 0; rr < rows; rr++) {
+      for (var cc = 0; cc < cols; cc++) {
+        var a = vertices[rr][cc];
+        var b = vertices[rr][cc + 1];
+        var d = vertices[rr + 1][cc];
+        var e = vertices[rr + 1][cc + 1];
+        if (Math.random() < 0.5) {
+          triangles.push([a, b, e]);
+          triangles.push([a, e, d]);
+        } else {
+          triangles.push([a, b, d]);
+          triangles.push([b, e, d]);
+        }
+      }
+    }
+
+    var duration = Math.max(200, durationMs);
+    var animations = [];
+    triangles.forEach(function (points) {
+      var shard = template.cloneNode(true);
+      shard.setAttribute(
+        "style",
+        "position:absolute;left:0;top:0;width:100%;height:100%;visibility:visible;margin:0;transform:none;" +
+          "clip-path:polygon(" + points.map(function (p) { return p[0].toFixed(2) + "% " + p[1].toFixed(2) + "%"; }).join(",") + ");",
+      );
+      // The frame of each video, drawn into the shard's own canvas.
+      var markers = shard.querySelectorAll("canvas.weft-shatter-video");
+      for (var m = 0; m < markers.length; m++) {
+        var source = templateVideos.length > m ? sourceVideos[m] : null;
+        var canvas = markers[m];
+        if (!source) continue;
+        canvas.width = source.videoWidth || source.clientWidth || 1;
+        canvas.height = source.videoHeight || source.clientHeight || 1;
+        try {
+          canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
+        } catch (err) {
+          // a frame that can't be drawn: the shard shows nothing of the video
+        }
+      }
+      overlay.appendChild(shard);
+
+      // The shard flies away from the middle of the block, with some luck in every direction - and some of them towards the viewer.
+      var centerX = (points[0][0] + points[1][0] + points[2][0]) / 3 - 50;
+      var centerY = (points[0][1] + points[1][1] + points[2][1]) / 3 - 50;
+      var length = Math.sqrt(centerX * centerX + centerY * centerY) || 1;
+      var angle = Math.atan2(centerY, centerX) + (Math.random() - 0.5) * 1.6;
+      var distance = stageWidth * (0.35 + Math.random() * 0.75);
+      var dx = Math.cos(angle) * distance * (0.6 + length / 80);
+      var dy = Math.sin(angle) * distance * (0.6 + length / 80) * 0.8 + stageWidth * 0.08;
+      var towardsViewer = Math.random() < 0.35;
+      var dz = towardsViewer ? 300 + Math.random() * 500 : -(Math.random() * 300);
+      var turns = (Math.random() < 0.5 ? -1 : 1) * (180 + Math.random() * 360);
+      var axis = [Math.random() - 0.5, Math.random() - 0.5, Math.random() * 0.6 + 0.4];
+      var end =
+        "translate3d(" + dx.toFixed(1) + "px," + dy.toFixed(1) + "px," + dz.toFixed(1) + "px) rotate3d(" +
+        axis[0].toFixed(2) + "," + axis[1].toFixed(2) + "," + axis[2].toFixed(2) + "," + turns.toFixed(0) + "deg)";
+      var delay = Math.random() * duration * 0.18;
+      animations.push(
+        shard.animate(
+          [
+            { transform: "translate3d(0,0,0) rotate3d(0,0,1,0deg)", opacity: 1, offset: 0 },
+            { opacity: 1, offset: 0.55 },
+            { transform: end, opacity: 0, offset: 1 },
+          ],
+          { duration: duration * 0.82, delay: delay, easing: "cubic-bezier(.3,.05,.85,.5)", fill: "forwards" },
+        ),
+      );
+    });
+
+    stage.insertBefore(overlay, wrap.nextSibling);
+    // The block itself is gone from this moment on; the shards stand where it was.
+    wrap.style.visibility = "hidden";
+    var finished = once(function () {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      done();
+    });
+    setTimeout(finished, duration + 150);
+    return function cancel() {
+      animations.forEach(function (animation) {
+        animation.cancel();
+      });
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    };
+  }
+
+  /**
    * Shows `target` (hidden inline until now) with an Aufbau `effect`, then calls `done`.
    *
    * The element stays visibility:hidden inline until the effect is over, and the animation itself says "visible" (visibility is
@@ -1110,6 +1258,8 @@
     var gone = false;
     // The animation of an Abbau stays in force (fill forwards) until the block comes back - then it must go.
     var exitAnimation = null;
+    // Takes the shards of a "Zersplittern" away again when the block comes back.
+    var cancelShatter = null;
     if (graphEvents[entranceId]) {
       wrap.style.visibility = "hidden";
       performers[entranceId] = function () {
@@ -1119,6 +1269,10 @@
         if (exitAnimation) {
           exitAnimation.cancel();
           exitAnimation = null;
+        }
+        if (cancelShatter) {
+          cancelShatter();
+          cancelShatter = null;
         }
         revealWithEffect(wrap, entrance, function () {
           happened(entranceId);
@@ -1145,6 +1299,13 @@
           happened(exitId);
         });
         var duration = exit.durationMs || 500;
+        // "Zersplittern": the block breaks into pieces that fly off (see shatterBlock) - not an embedded page, which can't be
+        // copied: that one just fades.
+        if (exit.type === "shatter" && block.kind !== "iframe") {
+          cancelShatter = shatterBlock(wrap, duration, hideExit);
+          return;
+        }
+        if (exit.type === "shatter") exit = { type: "fade", durationMs: exit.durationMs };
         // fill: "forwards" keeps the end state until hideExit hides the block - no frame at the
         // original state in between.
         var animation = null;

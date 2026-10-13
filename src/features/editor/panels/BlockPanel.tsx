@@ -178,8 +178,12 @@ const BLOCK_EFFECT_LABELS: Record<Exclude<BlockEffectType, "off">, { entrance: s
   wipe: { entrance: "Wischen", exit: "Wischen" },
   anvil: { entrance: "Amboss", exit: "Amboss (nach oben weg)" },
   blur: { entrance: "Weichzeichnen", exit: "Weichzeichnen" },
+  // Only an Abbau (see BLOCK_EFFECT_EXIT_ONLY).
+  shatter: { entrance: "Zersplittern", exit: "Zersplittern" },
 };
-const BLOCK_EFFECT_ORDER: Exclude<BlockEffectType, "off">[] = ["none", "fade", "move", "iris", "wipe", "anvil", "blur"];
+const BLOCK_EFFECT_ORDER: Exclude<BlockEffectType, "off">[] = ["none", "fade", "move", "iris", "wipe", "anvil", "blur", "shatter"];
+/** Effects that make no sense as an Aufbau (a thing that breaks to pieces and flies off can't appear that way). */
+const BLOCK_EFFECT_EXIT_ONLY: BlockEffectType[] = ["shatter"];
 
 /**
  * Editor for one block's Aufbau or Abbau - the animation itself (BaseBlock.entranceEffect/
@@ -226,7 +230,7 @@ export function BlockEffectEditor({
         <span>Art</span>
         <select value={effect.type} onChange={(e) => onEffectChange({ ...effect, type: e.target.value as BlockEffectType })}>
           <option value="off">{offLabel}</option>
-          {BLOCK_EFFECT_ORDER.map((type) => (
+          {BLOCK_EFFECT_ORDER.filter((type) => phase === "exit" || !BLOCK_EFFECT_EXIT_ONLY.includes(type)).map((type) => (
             <option key={type} value={type}>
               {BLOCK_EFFECT_LABELS[type][phase]}
             </option>

@@ -7,6 +7,7 @@ import { FilesView } from "./blocks/FilesView";
 import { ShapeSvg } from "./blocks/ShapeSvg";
 import { buttonText, listItemHtml, quizOptionHtml, quizQuestionHtml, textHtml } from "../../core/document/translations";
 import { ListMarkerView } from "./blocks/ListMarkerView";
+import { fitListMarkers } from "./blocks/listCaret";
 import { playerStringsFor } from "../../core/i18n/playerStrings";
 import { useEditingLanguage } from "./useEditingLanguage";
 import { CodeView } from "./blocks/CodeView";
@@ -77,7 +78,13 @@ function ThumbBlock({ block, exportPxPerCqw, qrSvg }: { block: Block; exportPxPe
   }
   if (block.kind === "list") {
     return (
-      <div className="weft-thumb-block weft-thumb-block-list" style={{ ...style, gap: `${block.spacing}cqw` }}>
+      <div
+        ref={(el) => {
+          if (el) fitListMarkers(el, ".weft-thumb-block-list-item", ".weft-thumb-block-list-item-text");
+        }}
+        className="weft-thumb-block weft-thumb-block-list"
+        style={{ ...style, gap: `${block.spacing}cqw` }}
+      >
         {block.items.map((item, index) => (
           <div key={item.id} className="weft-thumb-block-list-item">
             <ListMarkerView block={block} index={index} />

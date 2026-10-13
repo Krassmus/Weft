@@ -156,3 +156,32 @@ export function focusItem(
   if (range && el.contains(range.startContainer)) placeCaret(range);
   else focusItem(el, where.line === "first" ? "start" : "end");
 }
+
+/**
+ * The size of the mark of an item relative to the text of the list: that of the first character of the item (a heading, a smaller
+ * word...), as a factor of the size the item's text element has. 1 when the first character has no size of its own.
+ */
+export function markerScaleFor(textElement: HTMLElement): number {
+  const base = parseFloat(getComputedStyle(textElement).fontSize);
+  if (!base) return 1;
+  const walker = document.createTreeWalker(textElement, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!(node.nodeValue ?? "").trim()) continue;
+    const parent = node.parentElement;
+    if (!parent) break;
+    const size = parseFloat(getComputedStyle(parent).fontSize);
+    return size && base ? Math.round((size / base) * 1000) / 1000 : 1;
+  }
+  return 1;
+}
+
+/** Sets the size of every mark of the list `root` (rows of `.weft-list-marker` + `textSelector`) to that of its item's first character. */
+export function fitListMarkers(root: HTMLElement, rowSelector: string, textSelector: string): void {
+  for (const row of Array.from(root.querySelectorAll<HTMLElement>(rowSelector))) {
+    const text = row.querySelector<HTMLElement>(textSelector);
+    const marker = row.querySelector<HTMLElement>(".weft-list-marker");
+    if (!text || !marker) continue;
+    const scale = markerScaleFor(text);
+    marker.style.fontSize = scale === 1 ? "" : `${scale}em`;
+  }
+}

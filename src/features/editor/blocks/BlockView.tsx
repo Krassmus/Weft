@@ -34,7 +34,7 @@ import { createId } from "../../../core/id";
 import { confirmDestructive } from "../../../core/io/fileIO";
 import type { ArrowPoint, Block, BlockPosition, IframeBlock, ListBlock, QuizBlock } from "../../../core/types";
 import { ListMarkerView } from "./ListMarkerView";
-import { caretAt, caretOnLine, caretX, focusItem, textLength } from "./listCaret";
+import { caretAt, caretOnLine, caretX, fitListMarkers, focusItem, textLength } from "./listCaret";
 import { ContextMenu, useContextMenu } from "../ContextMenu";
 import type { ContextMenuItem } from "../ContextMenu";
 import { registerActiveEditable, saveSelection } from "./richText";
@@ -799,6 +799,11 @@ function ListBlockCanvas({
     const text = rootRef.current?.querySelector<HTMLElement>(`[data-list-item="${pending.itemId}"] .weft-edit-block-list-item-text`);
     if (text) focusItem(text, pending.where);
   }, [block.items]);
+
+  // The mark of every item is as large as the item's first character.
+  useLayoutEffect(() => {
+    if (rootRef.current) fitListMarkers(rootRef.current, ".weft-edit-block-list-item", ".weft-edit-block-list-item-text");
+  });
 
   const textOf = (itemId: string) => listItemHtml(block, itemId, lang, defaultLang);
 

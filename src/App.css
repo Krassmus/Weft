@@ -1607,64 +1607,65 @@ button.weft-timeline-node-icon:hover {
   box-sizing: border-box;
 }
 
+/* The marks hang on the baseline of the first line of their item (a flex row aligned by baseline), so they follow the text's own
+   size: the mark is as large as the first character of the item (its size is set in em by markerScaleFor in listCaret.ts / the
+   player). A dot and a dash are drawn (not typed characters, which sit low and thin), placed around the middle of the lower case
+   letters; the picture is centred there as well. */
 .weft-edit-block-list-item,
 .weft-list-item,
 .weft-thumb-block-list-item {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   gap: 0.5em;
 }
 
-/* One line height for the whole list (the same in the player and the thumbnails), so that the mark can be as high as a line. */
 .weft-edit-block-list,
 .weft-list,
 .weft-thumb-block-list {
   line-height: 1.35;
 }
 
-/* The mark stands in the middle of the item's first line: its box is as high as that line and centres what is in it. A dot and a
-   dash are drawn (not typed characters, which sit low and thin). */
 .weft-list-marker {
   flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 1.35em;
   min-width: 1.1em;
+  text-align: center;
 }
 
 .weft-list-marker.is-dot::before {
   content: "";
+  display: inline-block;
   width: 0.42em;
   height: 0.42em;
   border-radius: 50%;
   background: currentColor;
+  vertical-align: 0.11em;
 }
 
 .weft-list-marker.is-dash::before {
   content: "";
+  display: inline-block;
   width: 0.62em;
   height: 0.13em;
   border-radius: 0.07em;
   background: currentColor;
+  vertical-align: 0.255em;
 }
 
 .weft-list-marker.is-number {
   min-width: 1.6em;
-  justify-content: flex-end;
+  text-align: right;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-/* A picture as the mark: its height is a setting of the list (in em, inline), centred on the first line - it may reach past it. */
+/* A picture as the mark: its height (in em, a setting of the list) and its place on the baseline are inline. */
 .weft-list-marker.is-image {
   min-width: 1.2em;
 }
 
 .weft-list-marker.is-image img,
 .weft-list-marker-empty {
-  display: block;
-  flex: none;
+  display: inline-block;
   width: auto;
   max-width: 6em;
   object-fit: contain;

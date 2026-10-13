@@ -7,10 +7,12 @@ export function ListMarkerView({ block, index }: { block: ListBlock; index: numb
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
   if (block.marker === "image") {
     const src = block.markerAssetId ? getObjectUrl(block.markerAssetId) : undefined;
-    const height = `${block.markerSize ?? DEFAULT_MARKER_SIZE}em`;
+    const size = block.markerSize ?? DEFAULT_MARKER_SIZE;
+    // Centred on the middle of the lower case letters (0.32em above the baseline).
+    const style = { height: `${size}em`, verticalAlign: `${(0.32 - size / 2).toFixed(3)}em` };
     return (
       <span className="weft-list-marker is-image">
-        {src ? <img src={src} alt="" draggable={false} style={{ height }} /> : <span className="weft-list-marker-empty" style={{ height }} />}
+        {src ? <img src={src} alt="" draggable={false} style={style} /> : <span className="weft-list-marker-empty" style={style} />}
       </span>
     );
   }

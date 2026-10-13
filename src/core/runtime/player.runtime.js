@@ -1716,8 +1716,18 @@
         var marker = el("span", { class: "weft-list-marker is-" + block.marker }, []);
         if (block.marker === "image") {
           if (block.markerAssetId) {
+            var markerSize = block.markerSize || 1.2;
+            // Centred on the middle of the lower case letters (0.32em above the baseline).
             marker.appendChild(
-              el("img", { src: assetSrc(block.markerAssetId), alt: "", style: "height:" + (block.markerSize || 1.2) + "em;" }, []),
+              el(
+                "img",
+                {
+                  src: assetSrc(block.markerAssetId),
+                  alt: "",
+                  style: "height:" + markerSize + "em;vertical-align:" + (0.32 - markerSize / 2).toFixed(3) + "em;",
+                },
+                [],
+              ),
             );
           }
         } else if (block.marker === "number") {
@@ -1733,11 +1743,32 @@
         listBox.appendChild(row);
         listItemElements[item.id] = row;
       });
+      // The mark of every item is as large as the item's first character (known once the list is laid out in the page).
+      var fitListMarkers = function () {
+        if (!listBox.isConnected) return;
+        listTexts.forEach(function (entry) {
+          var base = parseFloat(getComputedStyle(entry.element).fontSize);
+          var walker = document.createTreeWalker(entry.element, NodeFilter.SHOW_TEXT);
+          var scale = 1;
+          for (var textNode = walker.nextNode(); textNode; textNode = walker.nextNode()) {
+            if (!(textNode.nodeValue || "").trim()) continue;
+            var size = textNode.parentElement ? parseFloat(getComputedStyle(textNode.parentElement).fontSize) : 0;
+            if (size && base) scale = Math.round((size / base) * 1000) / 1000;
+            break;
+          }
+          var markerElement = entry.element.parentNode.querySelector(".weft-list-marker");
+          if (markerElement) markerElement.style.fontSize = scale === 1 ? "" : scale + "em";
+        });
+      };
+      // (The page is put on the screen right after this; fonts may arrive a little later.)
+      setTimeout(fitListMarkers, 0);
+      setTimeout(fitListMarkers, 300);
       languageRefreshers.push(function () {
         listTexts.forEach(function (entry) {
           entry.element.innerHTML = listItemHtml(block, entry.item);
           applyVariablesToNode(entry.element);
         });
+        fitListMarkers();
       });
       wrap.appendChild(listBox);
       wrap.weftListItems = listItemElements;

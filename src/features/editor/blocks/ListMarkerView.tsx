@@ -7,8 +7,16 @@ export function ListMarkerView({ block, index }: { block: ListBlock; index: numb
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
   if (block.marker === "image") {
     const src = block.markerAssetId ? getObjectUrl(block.markerAssetId) : undefined;
-    return <span className="weft-list-marker is-image">{src ? <img src={src} alt="" draggable={false} /> : <span className="weft-list-marker-empty" />}</span>;
+    const height = `${block.markerSize ?? DEFAULT_MARKER_SIZE}em`;
+    return (
+      <span className="weft-list-marker is-image">
+        {src ? <img src={src} alt="" draggable={false} style={{ height }} /> : <span className="weft-list-marker-empty" style={{ height }} />}
+      </span>
+    );
   }
-  const glyph = block.marker === "dash" ? "–" : block.marker === "number" ? `${index + 1}.` : "•";
-  return <span className={"weft-list-marker is-" + block.marker}>{glyph}</span>;
+  // A dot and a dash are drawn by the stylesheet (see .weft-list-marker.is-dot); only a number is text.
+  return <span className={"weft-list-marker is-" + block.marker}>{block.marker === "number" ? `${index + 1}.` : ""}</span>;
 }
+
+/** The height of the picture of an image mark in em, when the list has no setting of its own. */
+export const DEFAULT_MARKER_SIZE = 1.2;

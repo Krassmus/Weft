@@ -1715,9 +1715,14 @@
         var row = el("div", { class: "weft-list-item" }, []);
         var marker = el("span", { class: "weft-list-marker is-" + block.marker }, []);
         if (block.marker === "image") {
-          if (block.markerAssetId) marker.appendChild(el("img", { src: assetSrc(block.markerAssetId), alt: "" }, []));
-        } else {
-          marker.textContent = block.marker === "dash" ? "\u2013" : block.marker === "number" ? index + 1 + "." : "\u2022";
+          if (block.markerAssetId) {
+            marker.appendChild(
+              el("img", { src: assetSrc(block.markerAssetId), alt: "", style: "height:" + (block.markerSize || 1.2) + "em;" }, []),
+            );
+          }
+        } else if (block.marker === "number") {
+          // (A dot and a dash are drawn by the stylesheet.)
+          marker.textContent = index + 1 + ".";
         }
         var itemText = el("span", { class: "weft-list-item-text" }, []);
         itemText.innerHTML = listItemHtml(block, item);

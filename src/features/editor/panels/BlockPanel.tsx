@@ -1078,6 +1078,19 @@ function ListEditor({
           />
         </label>
       )}
+      {block.marker === "image" && (
+        <div className="weft-field">
+          <span>Größe des Bildes</span>
+          <StepperSlider
+            label="Größe des Bildes"
+            value={block.markerSize ?? 1.2}
+            min={0.5}
+            max={4}
+            step={0.1}
+            onChange={(markerSize) => onUpdate({ markerSize: Math.round(markerSize * 10) / 10 })}
+          />
+        </div>
+      )}
       <div className="weft-field">
         <span>Abstand zwischen den Punkten</span>
         <StepperSlider label="Abstand" value={block.spacing} min={0} max={6} step={0.2} onChange={(spacing) => onUpdate({ spacing: Math.round(spacing * 10) / 10 })} />

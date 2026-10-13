@@ -148,6 +148,8 @@ export interface ListBlock extends BaseBlock {
   marker: ListMarkerKind;
   /** marker "image": the picture in front of every item. */
   markerAssetId?: UUID | null;
+  /** marker "image": the height of the picture, in em of the text (default 1.2). */
+  markerSize?: number;
   /** The space between two items, in cqw (percent of the slide's width - it scales with the slide, like the text does). */
   spacing: number;
   /** The Aufbau is made by each item on its own, one event per item. Only on a page (a layout has no events to trigger them). */

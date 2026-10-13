@@ -155,34 +155,57 @@ body {
 
 .weft-list-item {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 0.5em;
 }
 
+/* One line height for the whole list, so that the mark can be as high as a line (see the same rules in App.css). */
+.weft-list {
+  line-height: 1.35;
+}
+
+/* The mark stands in the middle of the item's first line. */
 .weft-list-marker {
   flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.35em;
   min-width: 1.1em;
-  text-align: center;
+}
+
+.weft-list-marker.is-dot::before {
+  content: "";
+  width: 0.42em;
+  height: 0.42em;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.weft-list-marker.is-dash::before {
+  content: "";
+  width: 0.62em;
+  height: 0.13em;
+  border-radius: 0.07em;
+  background: currentColor;
 }
 
 .weft-list-marker.is-number {
   min-width: 1.6em;
-  text-align: right;
+  justify-content: flex-end;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .weft-list-marker.is-image {
-  align-self: flex-start;
-  display: flex;
-  align-items: center;
-  height: 1.4em;
   min-width: 1.2em;
 }
 
 .weft-list-marker.is-image img {
   display: block;
-  height: 1em;
+  flex: none;
   width: auto;
-  max-width: 2em;
+  max-width: 6em;
   object-fit: contain;
 }
 

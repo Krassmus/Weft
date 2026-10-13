@@ -211,6 +211,12 @@ textarea {
   flex: 1;
 }
 
+/* With the drawer out, the work area can be scrolled by its width: what is selected can be brought out from under it. */
+.weft-body.has-drawer-open .weft-canvas-stage-wrap::after {
+  content: "";
+  flex: 0 0 300px;
+}
+
 /* The tab on the edge of the drawer: stays where a finger finds it when the drawer is out of the way. */
 .weft-inspector-tab {
   position: absolute;

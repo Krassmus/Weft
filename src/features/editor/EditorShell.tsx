@@ -135,6 +135,31 @@ export function EditorShell() {
   useEffect(() => {
     if (selection && selection.type !== "page") setInspectorOpen(true);
   }, [selection]);
+  // The drawer covers the right end of the work area: what is selected (or being edited) there would be under it - and on a tablet
+  // the caret and the selection are drawn by the system above the page, so they would show through the drawer. The work area gets
+  // room to scroll (see .has-drawer-open in App.css) and is scrolled so that the object is left of the drawer.
+  const drawerOpen = compact && inspectorOpen;
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const timer = setTimeout(() => {
+      const wrap = document.querySelector<HTMLElement>(".weft-canvas-stage-wrap");
+      const drawer = document.querySelector<HTMLElement>(".weft-inspector-slot.is-drawer");
+      if (!wrap || !drawer) return;
+      const active = document.activeElement;
+      const target = (active instanceof Element ? active.closest<HTMLElement>(".weft-edit-block") : null) ?? wrap.querySelector<HTMLElement>(".weft-edit-block.is-selected");
+      if (!target) return;
+      // Where the drawer will stand (it may still be sliding in: its own rectangle moves with it).
+      const body = bodyRef.current;
+      if (!body) return;
+      const free = body.getBoundingClientRect().left + drawer.offsetLeft - 12;
+      const rect = target.getBoundingClientRect();
+      if (rect.right <= free) return;
+      // As far as the object's right edge needs - but its left edge stays in view.
+      const delta = Math.min(rect.right - free, rect.left - (wrap.getBoundingClientRect().left + 8));
+      if (delta > 0) wrap.scrollBy({ left: delta, behavior: "smooth" });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [drawerOpen, selection]);
   // A tap on the empty work area (not on an object, a button, the graph...) puts the drawer away again.
   useEffect(() => {
     function onPointerDown(e: PointerEvent) {
@@ -651,7 +676,7 @@ export function EditorShell() {
     <div className="weft-shell">
       {inAppMenu && <AppBar onCommand={runCommand} onOpenRecent={(path) => void handleOpenRecentRef.current(path)} />}
       <div
-        className="weft-body"
+        className={"weft-body" + (drawerOpen ? " has-drawer-open" : "")}
         ref={bodyRef}
         style={{ gridTemplateColumns: compact ? `${sidebarWidth}px ${RESIZER_WIDTH}px 1fr` : `${sidebarWidth}px ${RESIZER_WIDTH}px 1fr ${INSPECTOR_WIDTH}px` }}
       >

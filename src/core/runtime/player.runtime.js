@@ -1080,8 +1080,10 @@
     );
 
     // A jittered grid: the vertices inside the block are moved by up to a third of a cell, every cell is two triangles.
-    var cols = 6;
-    var rows = Math.max(3, Math.min(8, Math.round((cols * boxHeight) / boxWidth)));
+    // Around 14 cells (28 shards) however the block is shaped: every shard is a copy of the block's content to be laid out and
+    // painted, so their number is what the effect costs.
+    var cols = Math.max(3, Math.min(7, Math.round(Math.sqrt((14 * boxWidth) / boxHeight))));
+    var rows = Math.max(2, Math.min(6, Math.round(14 / cols)));
     var vertices = [];
     for (var r = 0; r <= rows; r++) {
       var row = [];
@@ -1114,14 +1116,36 @@
     var duration = Math.max(200, durationMs);
     var animations = [];
     triangles.forEach(function (points) {
-      var shard = template.cloneNode(true);
+      // A shard is only as large as the triangle's bounding box (a picture of the block's content is moved inside it): the
+      // many layers the browser has to keep and move add up to about the area of the block, not to as many times that.
+      var minX = Math.min(points[0][0], points[1][0], points[2][0]);
+      var maxX = Math.max(points[0][0], points[1][0], points[2][0]);
+      var minY = Math.min(points[0][1], points[1][1], points[2][1]);
+      var maxY = Math.max(points[0][1], points[1][1], points[2][1]);
+      var left = (minX / 100) * boxWidth;
+      var top = (minY / 100) * boxHeight;
+      var width = Math.max(1, ((maxX - minX) / 100) * boxWidth);
+      var height = Math.max(1, ((maxY - minY) / 100) * boxHeight);
+      var polygon = points
+        .map(function (p) {
+          return (((p[0] - minX) / (maxX - minX || 1)) * 100).toFixed(2) + "% " + (((p[1] - minY) / (maxY - minY || 1)) * 100).toFixed(2) + "%";
+        })
+        .join(",");
+      var content = template.cloneNode(true);
+      content.setAttribute(
+        "style",
+        "position:absolute;left:" + (-left).toFixed(2) + "px;top:" + (-top).toFixed(2) + "px;width:" + boxWidth + "px;height:" + boxHeight +
+          "px;visibility:visible;margin:0;transform:none;",
+      );
+      var shard = document.createElement("div");
       shard.setAttribute(
         "style",
-        "position:absolute;left:0;top:0;width:100%;height:100%;visibility:visible;margin:0;transform:none;" +
-          "clip-path:polygon(" + points.map(function (p) { return p[0].toFixed(2) + "% " + p[1].toFixed(2) + "%"; }).join(",") + ");",
+        "position:absolute;overflow:hidden;contain:strict;will-change:transform,opacity;left:" + left.toFixed(2) + "px;top:" + top.toFixed(2) +
+          "px;width:" + width.toFixed(2) + "px;height:" + height.toFixed(2) + "px;clip-path:polygon(" + polygon + ");",
       );
+      shard.appendChild(content);
       // The frame of each video, drawn into the shard's own canvas.
-      var markers = shard.querySelectorAll("canvas.weft-shatter-video");
+      var markers = content.querySelectorAll("canvas.weft-shatter-video");
       for (var m = 0; m < markers.length; m++) {
         var source = templateVideos.length > m ? sourceVideos[m] : null;
         var canvas = markers[m];

@@ -692,6 +692,9 @@ export function EditorShell() {
               aria-expanded={inspectorOpen}
               aria-label="Eigenschaften"
               title="Eigenschaften"
+              // Like the format buttons of the panel: a tap on it must not take the focus - and with it the marked text - away
+              // from the slide (see TextEditor in panels/BlockPanel.tsx).
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setInspectorOpen((open) => !open)}
             >
               {inspectorOpen ? "›" : "‹"}

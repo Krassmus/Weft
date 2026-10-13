@@ -256,6 +256,12 @@ export function BlockView({
     if (!isFreelyMovableBlock) {
       const stage = stageRect();
       if (!stage || edgeDistancePx(e.clientX, e.clientY, position, stage) > edgeThreshold(position, stage)) return;
+      // A finger on text that is marked: that is the handles of the selection (or the text being marked) - nothing to start
+      // moving the block from, which would throw the selection away.
+      if (e.pointerType === "touch") {
+        const marked = window.getSelection();
+        if (marked && !marked.isCollapsed && marked.anchorNode && wrapRef.current?.contains(marked.anchorNode)) return;
+      }
     }
 
     // Suppress native text/image drag-selection now, at pointerdown - by the time a pointermove

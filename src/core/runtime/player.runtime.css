@@ -145,6 +145,60 @@ body {
   margin-bottom: 0;
 }
 
+/* A list (ListBlock): kept in step by hand with .weft-edit-block-list* / .weft-thumb-block-list* in App.css. */
+.weft-list {
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.weft-list-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+}
+
+.weft-list-marker {
+  flex: none;
+  min-width: 1.1em;
+  text-align: center;
+}
+
+.weft-list-marker.is-number {
+  min-width: 1.6em;
+  text-align: right;
+}
+
+.weft-list-marker.is-image {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  height: 1.4em;
+  min-width: 1.2em;
+}
+
+.weft-list-marker.is-image img {
+  display: block;
+  height: 1em;
+  width: auto;
+  max-width: 2em;
+  object-fit: contain;
+}
+
+.weft-list-item-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.weft-list-item-text > :first-child {
+  margin-top: 0;
+}
+
+.weft-list-item-text > :last-child {
+  margin-bottom: 0;
+}
+
 /* Every size/spacing value below is kept in sync by hand, em-for-em, with BlockView.tsx's static
    editor-canvas preview (.weft-edit-block-quiz* in App.css) and SlideThumbnail.tsx's own version
    (.weft-thumb-block-quiz* in App.css) - all three share the same 1.7cqw block base font-size, so

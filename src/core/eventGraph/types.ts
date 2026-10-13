@@ -16,6 +16,8 @@ export type GraphEventKind =
   | "entrance"
   /** A block's Abbau: the block disappears. `id` is `block-exit:<blockId>`. */
   | "exit"
+  /** The Aufbau of one item of a list: the item appears. `id` is `list-item:<blockId>:<itemId>`. */
+  | "list-item"
   /** A video starts playing (`video-start:<blockId>`) - by an incoming trigger or by the learner pressing play. */
   | "video-start"
   /** A video reaches one of its stop points (`video-stop:<blockId>:<stopPointId>`). Made to happen by the player. */

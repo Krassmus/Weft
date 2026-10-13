@@ -142,6 +142,14 @@ Eine Gruppe ist ein Event-Block mit eigenen Events („Gruppe erscheint“, „G
 **explizite** Trigger, die der Block nach außen zu **einer** Linie zusammenfasst. So gibt es keine Events mal N im Graphen und
 trotzdem keine impliziten Trigger.
 
+### Listen
+
+Ein Listen-Block (`ListBlock`) hat einen Aufbau wie jedes Objekt – oder, mit dem Schalter **„Jeder Listenpunkt einzeln“**, einen Aufbau
+**pro Listenpunkt**. Dann hat die Liste als Ganzes kein Aufbau-Event, sondern jeder Punkt ein eigenes
+(`list-item:<Block>:<Punkt>`, im Graphen „Listenpunkt n“), alle mit dem Effekt des Listen-Aufbaus. Neue Punkte (und alle beim
+Einschalten) bekommen ihren Platz in der Weiter-Kette, einer nach dem anderen; Trigger und Reihenfolge sind danach im Graphen frei
+änderbar. Der Abbau gilt immer für die ganze Liste. In einem Layout gibt es den Schalter nicht (es gibt dort keine Trigger).
+
 ### Buttons
 
 Ein Button-Block liefert das nutzerseitige Event „Button geklickt“. Ein Button mit der Aktion „Nächste Folie“ ist damit ein Trigger

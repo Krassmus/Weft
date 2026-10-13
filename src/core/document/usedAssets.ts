@@ -2,6 +2,7 @@ import type { Block, StaticBlock, WeftModule } from "../types";
 
 function assetIdsOf(block: Block | StaticBlock): string[] {
   if (block.kind === "files") return block.files.map((file) => file.id);
+  if (block.kind === "list") return block.marker === "image" && block.markerAssetId ? [block.markerAssetId] : [];
   return (block.kind === "image" || block.kind === "video") && block.assetId ? [block.assetId] : [];
 }
 

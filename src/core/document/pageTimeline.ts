@@ -1,7 +1,7 @@
 import { isSnapshot } from "../collab/mutationScope";
 import { formatTimeMMSS } from "../formatTime";
 import { orderedValues } from "./ordering";
-import type { Block, BlockGroup, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode, VideoBlock } from "../types";
+import type { Block, BlockGroup, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode, VideoBlock } from "../types";
 
 /**
  * What every page's timeline starts out as (and what a page missing it is given on load, see io/unpack.ts): one trigger from the
@@ -169,6 +169,7 @@ const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
   shape: "Form",
   arrow: "Pfeil",
   files: "Dateien",
+  list: "Liste",
 };
 
 /** Kept in sync by hand with player.runtime.js's own blockEffectEventId - see that file's header
@@ -184,6 +185,27 @@ function makeBlockEffectNode(block: Block, phase: "entrance" | "exit"): Timeline
     sourceBlockId: block.id,
     eventType: phase === "entrance" ? "block-entrance" : "block-exit",
     label: `${BLOCK_KIND_LABELS[block.kind]} ${phase === "entrance" ? "erscheint" : "verschwindet"}`,
+  };
+}
+
+/** The Aufbau of one item of a list (see ListBlock.itemEntrance). Kept in sync by hand with player.runtime.js. */
+export function listItemNodeId(blockId: string, itemId: string): string {
+  return `list-item:${blockId}:${itemId}`;
+}
+
+/** Whether the Aufbau of `block` is made by each of its items on its own: a list on a page with an Aufbau and the switch on. (The
+ * block has then no Aufbau event of its own.) */
+export function isListPerItem(block: Block): boolean {
+  return block.kind === "list" && !!block.itemEntrance && block.entranceEffect.type !== "off";
+}
+
+function makeListItemNode(block: ListBlock, index: number, itemId: string): TimelineNode {
+  return {
+    id: listItemNodeId(block.id, itemId),
+    kind: "event",
+    sourceBlockId: block.id,
+    eventType: "list-item-entrance",
+    label: `Listenpunkt ${index + 1}`,
   };
 }
 
@@ -229,6 +251,7 @@ export const TRIGGERABLE_EVENT_TYPES: ReadonlySet<TimelineEventType> = new Set<T
   "block-exit",
   "group-entrance",
   "group-exit",
+  "list-item-entrance",
 ]);
 
 export function isTriggerableNode(node: TimelineNode): boolean {
@@ -511,7 +534,15 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
   // The same goes for the Aufbau/Abbau of a group (an event block of its own: see BlockGroup).
   const effectTargets: { node: TimelineNode; trigger: ResolvedTrigger | null }[] = [];
   for (const block of blocks) {
-    if (block.entranceEffect.type !== "off") effectTargets.push({ node: makeBlockEffectNode(block, "entrance"), trigger: getBlockEntranceTrigger(page, block) });
+    if (block.kind === "list" && isListPerItem(block)) {
+      // Each item of the list is an Aufbau of its own - and the list as a whole has none.
+      block.items.forEach((item, index) => {
+        const edge = findTriggerEdge(page.timeline, listItemNodeId(block.id, item.id));
+        effectTargets.push({ node: makeListItemNode(block, index, item.id), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
+      });
+    } else if (block.entranceEffect.type !== "off") {
+      effectTargets.push({ node: makeBlockEffectNode(block, "entrance"), trigger: getBlockEntranceTrigger(page, block) });
+    }
     if (block.exitEffect.type !== "off") effectTargets.push({ node: makeBlockEffectNode(block, "exit"), trigger: getBlockExitTrigger(page, block) });
   }
   for (const group of page.groups) {
@@ -675,7 +706,9 @@ export function getPageLanes(page: Page): TimelineLane[] {
 function blockEventIds(page: Page): Set<string> {
   const ids = new Set<string>(["start"]);
   for (const block of orderedValues(page.blocks)) {
-    if (block.entranceEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "entrance"));
+    if (block.kind === "list" && isListPerItem(block)) {
+      for (const item of block.items) ids.add(listItemNodeId(block.id, item.id));
+    } else if (block.entranceEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "entrance"));
     if (block.exitEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "exit"));
     if (block.kind === "video") {
       ids.add(videoStartNodeId(block.id));
@@ -825,9 +858,25 @@ export function ensureEffectTriggers(page: Page, blockIds: string[]): void {
     const block = page.blocks[blockId];
     if (!block) continue;
     const wanted: string[] = [];
-    if (block.entranceEffect.type !== "off") wanted.push(blockEffectNodeId(blockId, "entrance"));
+    if (block.kind === "list" && isListPerItem(block)) for (const item of block.items) wanted.push(listItemNodeId(blockId, item.id));
+    else if (block.entranceEffect.type !== "off") wanted.push(blockEffectNodeId(blockId, "entrance"));
     if (block.exitEffect.type !== "off") wanted.push(blockEffectNodeId(blockId, "exit"));
     for (const nodeId of wanted) if (!hasIncoming(nodeId)) appendToWeiterChain(page, nodeId);
+  }
+}
+
+/**
+ * The items of a list with an Aufbau for each item (see isListPerItem) that have no trigger yet take their place in the chain of
+ * Weiter, in the order of the list. `onlyItemIds`: just those (a new item - one whose trigger the author has taken away stays so).
+ */
+export function ensureListItemTriggers(page: Page, blockId: string, onlyItemIds?: string[]): void {
+  const block = page.blocks[blockId];
+  if (!block || block.kind !== "list" || !isListPerItem(block)) return;
+  const triggers = page.timeline.triggers;
+  for (const item of block.items) {
+    if (onlyItemIds && !onlyItemIds.includes(item.id)) continue;
+    const nodeId = listItemNodeId(blockId, item.id);
+    if (!Object.values(triggers).some((t) => t.to === nodeId)) appendToWeiterChain(page, nodeId);
   }
 }
 

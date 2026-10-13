@@ -5,7 +5,8 @@ import type { Block } from "../../core/types";
 import { ArrowSvg } from "./blocks/ArrowSvg";
 import { FilesView } from "./blocks/FilesView";
 import { ShapeSvg } from "./blocks/ShapeSvg";
-import { buttonText, quizOptionHtml, quizQuestionHtml, textHtml } from "../../core/document/translations";
+import { buttonText, listItemHtml, quizOptionHtml, quizQuestionHtml, textHtml } from "../../core/document/translations";
+import { ListMarkerView } from "./blocks/ListMarkerView";
 import { playerStringsFor } from "../../core/i18n/playerStrings";
 import { useEditingLanguage } from "./useEditingLanguage";
 import { CodeView } from "./blocks/CodeView";
@@ -63,6 +64,18 @@ function ThumbBlock({ block }: { block: Block }) {
 
   if (block.kind === "text") {
     return <div className="weft-thumb-block weft-thumb-block-text" style={style} dangerouslySetInnerHTML={{ __html: textHtml(block, lang, defaultLang) }} />;
+  }
+  if (block.kind === "list") {
+    return (
+      <div className="weft-thumb-block weft-thumb-block-list" style={{ ...style, gap: `${block.spacing}cqw` }}>
+        {block.items.map((item, index) => (
+          <div key={item.id} className="weft-thumb-block-list-item">
+            <ListMarkerView block={block} index={index} />
+            <span className="weft-thumb-block-list-item-text" dangerouslySetInnerHTML={{ __html: listItemHtml(block, item.id, lang, defaultLang) }} />
+          </div>
+        ))}
+      </div>
+    );
   }
   if (block.kind === "language") {
     return (

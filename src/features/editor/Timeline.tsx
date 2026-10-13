@@ -47,6 +47,7 @@ const EVENT_LABELS: Record<TimelineEventType, string> = {
   "button-click": "Button geklickt",
   "group-entrance": "Gruppe erscheint",
   "group-exit": "Gruppe verschwindet",
+  "list-item-entrance": "Listenpunkt",
 };
 
 // "richtig" keeps the checkmark; "falsch" gets its own (decline.svg) rather than sharing accept.svg
@@ -71,6 +72,7 @@ const EVENT_ICONS: Record<TimelineEventType, string> = {
   "button-click": hand2IconSvg,
   "group-entrance": animationIconSvg,
   "group-exit": animationIconSvg,
+  "list-item-entrance": animationIconSvg,
 };
 
 /** Exported for BlockEffectEditor in panels/BlockPanel.tsx, which lists these same nodes (minus
@@ -435,7 +437,7 @@ function TimelineGraph({ page }: { page: Page }) {
 
   // The chain an event can be moved in: events that follow each other one by one, in one row.
   function chainOf(nodeId: string): string[] | null {
-    const chain = findChain(page.timeline, nodeId, (id) => id.startsWith("block-entrance:") || id.startsWith("block-exit:"));
+    const chain = findChain(page.timeline, nodeId, (id) => id.startsWith("block-entrance:") || id.startsWith("block-exit:") || id.startsWith("list-item:"));
     if (!chain) return null;
     const row = layout.row.get(nodeId);
     if (!chain.nodeIds.every((id) => layout.row.get(id) === row)) return null;

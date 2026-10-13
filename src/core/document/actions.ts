@@ -42,6 +42,8 @@ import {
   ensureButtonTrigger,
   ensureEffectTriggers,
   groupEffectNodeId,
+  ensureListItemTriggers,
+  isListPerItem,
   spliceOutOfTriggers,
   isEndNodeId,
   quizEndNodeId,
@@ -491,6 +493,19 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
   switch (kind) {
     case "text":
       return { ...base, kind, position, html: "<p>Neuer Text</p>" };
+    case "list":
+      return {
+        ...base,
+        kind,
+        position: { x: 10, y: 35, width: 80, height: 40 },
+        items: [
+          { id: createId(), html: "<p>Erster Punkt</p>" },
+          { id: createId(), html: "<p>Zweiter Punkt</p>" },
+          { id: createId(), html: "<p>Dritter Punkt</p>" },
+        ],
+        marker: "dot",
+        spacing: 1.2,
+      };
     case "language":
       return { ...base, kind, position: { x: 74, y: 3, width: 23, height: 7 } };
     case "code":
@@ -612,6 +627,7 @@ export function updateBlock(pageId: string, blockId: string, patch: Partial<Bloc
     const hadEntrance = block.entranceEffect.type !== "off";
     const hadExit = block.exitEffect.type !== "off";
     const hadButtonAction = block.kind === "button" ? block.action : null;
+    const hadListItems = block.kind === "list" && isListPerItem(block) ? new Set(block.items.map((item) => item.id)) : null;
     assignPatch(block, patch);
     // A button turned into one that "goes on" gets its trigger to "Nächste Folie" (see ensureButtonTrigger).
     if (page && block.kind === "button" && block.action === "event" && hadButtonAction !== "event") ensureButtonTrigger(page, blockId);
@@ -635,7 +651,18 @@ export function updateBlock(pageId: string, blockId: string, patch: Partial<Bloc
     // edit, e.g. a position drag. Who triggers an effect, and after what delay, lives in
     // page.timeline.triggers, not on the block itself - see setEventTrigger below.
     const touchesEffect = "entranceEffect" in patch || "exitEffect" in patch;
-    if (page && (block.kind === "quiz" || block.kind === "video" || touchesEffect)) syncPageTimelineEvents(page);
+    const touchesList = block.kind === "list" && ("items" in patch || "itemEntrance" in patch);
+    if (page && (block.kind === "quiz" || block.kind === "video" || touchesEffect || touchesList)) syncPageTimelineEvents(page);
+    // A list whose items have an Aufbau of their own: a new item (or all of them, when the switch has just been turned on) takes its
+    // place in the chain of Weiter - after the sync, which has dropped what the other mode had.
+    if (page && block.kind === "list" && isListPerItem(block) && (touchesList || touchesEffect)) {
+      const fresh = block.items.map((item) => item.id).filter((id) => !hadListItems?.has(id));
+      ensureListItemTriggers(page, block.id, fresh);
+    }
+    // ...and when the switch has been turned off, the list as a whole gets its Aufbau's place.
+    if (page && block.kind === "list" && !isListPerItem(block) && block.entranceEffect.type !== "off" && touchesList) {
+      ensureEffectTriggers(page, [blockId]);
+    }
   });
 }
 
@@ -710,7 +737,7 @@ export function reorderChain(pageId: string, order: string[]) {
   edit("Reihenfolge ändern", (m) => {
     const page = m.pages[pageId];
     if (!page || order.length < 2) return;
-    const chain = findChain(page.timeline, order[0], (id) => id.startsWith("block-entrance:") || id.startsWith("block-exit:"));
+    const chain = findChain(page.timeline, order[0], (id) => id.startsWith("block-entrance:") || id.startsWith("block-exit:") || id.startsWith("list-item:"));
     if (!chain || chain.nodeIds.length !== order.length || !order.every((id) => chain.nodeIds.includes(id))) return;
     const lastOut = chain.triggerIds.length > chain.nodeIds.length ? page.timeline.triggers[chain.triggerIds[chain.nodeIds.length]]?.to : null;
     for (const [id, link] of reorderedLinks(chain, order, lastOut ?? null)) {
@@ -1212,6 +1239,10 @@ export async function setBlockImage(pageId: string, blockId: string, file: File)
     if (block && block.kind === "image") {
       block.assetId = assetId;
       block.position = fitToAspect(block.position, percentRatio);
+    } else if (block && block.kind === "list") {
+      // The picture in front of the items.
+      block.markerAssetId = assetId;
+      block.marker = "image";
     }
   });
 }
@@ -1255,6 +1286,9 @@ export async function setLayoutBlockImage(layoutId: string, blockId: string, fil
     if (block && block.kind === "image") {
       block.assetId = assetId;
       block.position = fitToAspect(block.position, percentRatio);
+    } else if (block && block.kind === "list") {
+      block.markerAssetId = assetId;
+      block.marker = "image";
     }
   });
 }

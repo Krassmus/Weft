@@ -3,7 +3,7 @@ import { isTranslated } from "../../../core/document/translations";
 import { useDocumentStore } from "../../../core/document/store";
 import { useTranslation } from "../../../core/i18n/useTranslation";
 import { flagForLocale, languageName } from "../../../core/i18n/languages";
-import type { ButtonBlock, QuizBlock, TextBlock } from "../../../core/types";
+import type { ButtonBlock, ListBlock, QuizBlock, TextBlock } from "../../../core/types";
 import { useEditingLanguage } from "../useEditingLanguage";
 
 /**
@@ -13,7 +13,7 @@ import { useEditingLanguage } from "../useEditingLanguage";
  * one setting shared by the canvas, the thumbnails and every switch like this (see
  * DocumentState.editingLanguage). Only appears while the module offers more than one language.
  */
-export function LanguageSelect({ block }: { block: TextBlock | QuizBlock | ButtonBlock }) {
+export function LanguageSelect({ block }: { block: TextBlock | QuizBlock | ButtonBlock | ListBlock }) {
   const { lang, defaultLang, languages } = useEditingLanguage();
   const setEditingLanguage = useDocumentStore((s) => s.setEditingLanguage);
   const { lang: uiLanguage } = useTranslation();

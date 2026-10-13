@@ -24,11 +24,16 @@ function allTextHtml(module: WeftModule): string {
       else if (block.kind === "quiz") {
         html.push(block.questionHtml);
         for (const option of block.options) html.push(option.html);
+      } else if (block.kind === "list") {
+        for (const item of block.items) html.push(item.html);
       }
     }
   }
   for (const layout of Object.values(module.layouts)) {
-    for (const block of Object.values(layout.blocks)) if (block.kind === "text") html.push(block.html);
+    for (const block of Object.values(layout.blocks)) {
+      if (block.kind === "text") html.push(block.html);
+      else if (block.kind === "list") for (const item of block.items) html.push(item.html);
+    }
   }
   return html.join("\n");
 }

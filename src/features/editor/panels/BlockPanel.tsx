@@ -7,7 +7,7 @@ import { AUTO_LANGUAGE, CODE_LANGUAGES } from "../../../core/code/highlight";
 import { createId } from "../../../core/id";
 import { addCustomFont, setEventTrigger, setQuizAdvance } from "../../../core/document/actions";
 import type { VideoUploadResult } from "../../../core/document/actions";
-import { blockEffectNodeId, getBlockEntranceTrigger, getBlockExitTrigger, quizEndNodeId } from "../../../core/document/pageTimeline";
+import { blockEffectNodeId, getBlockEntranceTrigger, getBlockExitTrigger, isListPerItem, quizEndNodeId } from "../../../core/document/pageTimeline";
 import type { ResolvedTrigger } from "../../../core/document/pageTimeline";
 import { DIRECTION_LABELS } from "../../../core/document/transitions";
 import { useAssetStore } from "../../../core/assets/assetStore";
@@ -19,6 +19,7 @@ import { DEFAULT_FONT_FAMILY } from "../../../core/fonts/fontFaceCss";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
 import { SecondsControl } from "./SecondsControl";
+import { StepperSlider } from "./StepperSlider";
 import { addFilesToBlock, removeFileFromBlock, setFilesPassword } from "../../../core/document/filesActions";
 import type { BlockContainerRef } from "../../../core/document/store";
 import { confirmDestructive, pickFilesFromDisk, pickFontFile, warnAboutVideoUploads } from "../../../core/io/fileIO";
@@ -34,6 +35,8 @@ import type {
   CodeBlock,
   IframeBlock,
   ImageBlock,
+  ListBlock,
+  ListMarkerKind,
   Page,
   QuizBlock,
   QuizOption,
@@ -62,7 +65,7 @@ import { listPageTriggerEvents } from "../Timeline";
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { buttonText, buttonTextPatch, quizOptionHtml } from "../../../core/document/translations";
+import { buttonText, buttonTextPatch, listItemHtml, quizOptionHtml } from "../../../core/document/translations";
 import { useEditingLanguage } from "../useEditingLanguage";
 import { LanguageSelect } from "./LanguageSelect";
 import { TexEditor } from "./TexEditor";
@@ -112,7 +115,10 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
       {/* Same formatting toolbar for both - a quiz's question and options are rich text edited
           directly on the canvas exactly like a text block's own content, just several regions
           sharing one block instead of one filling it (see EditableRichText in BlockView.tsx). */}
-      {(block.kind === "text" || block.kind === "quiz") && <TextEditor block={block.kind === "text" ? block : undefined} onUpdate={onUpdate} />}
+      {(block.kind === "text" || block.kind === "quiz" || block.kind === "list") && (
+        <TextEditor block={block.kind === "text" ? block : undefined} onUpdate={onUpdate} />
+      )}
+      {block.kind === "list" && <ListEditor block={block} page={page} onUpdate={onUpdate} onSetImage={onSetImage} />}
       {block.kind === "code" && <CodeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "tex" && <TexEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "image" && <ImageEditor block={block} onUpdate={onUpdate} onSetImage={onSetImage} />}
@@ -133,6 +139,8 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
             effect={block.entranceEffect}
             trigger={getBlockEntranceTrigger(page, block)}
             events={triggerEvents}
+            // A list whose items appear one by one has no Aufbau event of its own: the triggers are those of its items.
+            hideTrigger={isListPerItem(block)}
             onEffectChange={(entranceEffect) => onUpdate({ entranceEffect })}
             onTriggerChange={(from, delayMs, kind) =>
               setEventTrigger(page.id, blockEffectNodeId(block.id, "entrance"), from, delayMs, kind)
@@ -962,6 +970,127 @@ function IframeEditor({ block, onUpdate }: { block: IframeBlock; onUpdate: Block
             per QR-Code teilnimmt.
           </span>
         </label>
+      )}
+    </Collapsible>
+  );
+}
+
+const LIST_MARKER_LABELS: Record<ListMarkerKind, string> = {
+  dot: "Punkt",
+  dash: "Strich",
+  number: "Nummer",
+  image: "Eigenes Bild",
+};
+
+/** The settings of a list: its items (add, order, remove - the text itself is edited on the slide), the mark in front of them, the
+ * space between them, and - on a page - whether the Aufbau is the list's as a whole or each item's. */
+function ListEditor({
+  block,
+  page,
+  onUpdate,
+  onSetImage,
+}: {
+  block: ListBlock;
+  page?: Page;
+  onUpdate: BlockPanelProps["onUpdate"];
+  onSetImage: BlockPanelProps["onSetImage"];
+}) {
+  const { lang, defaultLang } = useEditingLanguage();
+  const perItem = isListPerItem(block);
+  function move(index: number, by: number) {
+    const target = index + by;
+    if (target < 0 || target >= block.items.length) return;
+    const items = [...block.items];
+    [items[index], items[target]] = [items[target], items[index]];
+    onUpdate({ items });
+  }
+  return (
+    <Collapsible title="Liste">
+      <LanguageSelect block={block} />
+      <p className="weft-hint">Die Punkte direkt auf der Folie eingeben. Markierten Text unter „Inhalt“ formatieren.</p>
+      <ul className="weft-list-items">
+        {block.items.map((item, index) => (
+          <li key={item.id} className="weft-list-items-row">
+            <span className="weft-list-items-label">{stripHtml(listItemHtml(block, item.id, lang, defaultLang)) || "(leer)"}</span>
+            <button type="button" className="weft-ghost-button" title="Nach oben" disabled={index === 0} onClick={() => move(index, -1)}>
+              ↑
+            </button>
+            <button
+              type="button"
+              className="weft-ghost-button"
+              title="Nach unten"
+              disabled={index === block.items.length - 1}
+              onClick={() => move(index, 1)}
+            >
+              ↓
+            </button>
+            <button
+              type="button"
+              className="weft-event-trigger-remove"
+              aria-label="Listenpunkt entfernen"
+              disabled={block.items.length < 2}
+              onClick={() => onUpdate({ items: block.items.filter((other) => other.id !== item.id) })}
+            >
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button
+        type="button"
+        className="weft-ghost-button weft-full-width"
+        onClick={() => onUpdate({ items: [...block.items, { id: createId(), html: "Neuer Punkt" }] })}
+      >
+        + Listenpunkt
+      </button>
+
+      <label className="weft-field">
+        <span>Aufzählungszeichen</span>
+        <select value={block.marker} onChange={(e) => onUpdate({ marker: e.target.value as ListMarkerKind })}>
+          {(Object.keys(LIST_MARKER_LABELS) as ListMarkerKind[]).map((marker) => (
+            <option key={marker} value={marker}>
+              {LIST_MARKER_LABELS[marker]}
+            </option>
+          ))}
+        </select>
+      </label>
+      {block.marker === "image" && (
+        <label className="weft-field">
+          <span>Bilddatei für die Zeichen</span>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onSetImage(file);
+            }}
+          />
+        </label>
+      )}
+      <div className="weft-field">
+        <span>Abstand zwischen den Punkten</span>
+        <StepperSlider label="Abstand" value={block.spacing} min={0} max={6} step={0.2} onChange={(spacing) => onUpdate({ spacing: Math.round(spacing * 10) / 10 })} />
+      </div>
+
+      {page && (
+        <>
+          <label className="weft-field">
+            <span>Aufbau</span>
+            <select value={block.itemEntrance ? "items" : "list"} onChange={(e) => onUpdate({ itemEntrance: e.target.value === "items" })}>
+              <option value="list">Die ganze Liste auf einmal</option>
+              <option value="items">Jeder Listenpunkt einzeln</option>
+            </select>
+          </label>
+          {block.itemEntrance && block.entranceEffect.type === "off" && (
+            <p className="weft-hint">Wähle unter „Aufbau“ eine Animation, damit die Punkte nacheinander erscheinen.</p>
+          )}
+          {perItem && (
+            <p className="weft-hint">
+              Jeder Punkt ist ein eigenes Ereignis im Graphen (standardmäßig nacheinander mit Weiter) und erscheint mit dem Effekt von
+              „Aufbau“ unten. Der Abbau gilt für die ganze Liste.
+            </p>
+          )}
+        </>
       )}
     </Collapsible>
   );

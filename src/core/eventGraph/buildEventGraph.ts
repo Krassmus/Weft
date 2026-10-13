@@ -4,6 +4,7 @@ import {
   buttonClickNodeId,
   endNodeIds,
   groupEffectNodeId,
+  listItemNodeId,
   quizFillNodeId,
   quizSubmitNodeId,
   videoEndNodeId,
@@ -28,7 +29,10 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
   const pageBlockIds = new Set(Object.keys(page.blocks));
   const blocks: Block[] = [...orderedValues(layout?.blocks ?? {}), ...orderedValues(page.blocks)];
   for (const block of blocks) {
-    if (block.entranceEffect.type !== "off") {
+    if (block.kind === "list" && block.itemEntrance && block.entranceEffect.type !== "off" && pageBlockIds.has(block.id)) {
+      // Each item of the list appears on its own, with the list's effect; the list as a whole has no Aufbau event.
+      for (const item of block.items) events.push({ id: listItemNodeId(block.id, item.id), kind: "list-item" });
+    } else if (block.entranceEffect.type !== "off") {
       const id = blockEffectNodeId(block.id, "entrance");
       events.push({ id, kind: "entrance" });
       if (!pageBlockIds.has(block.id)) triggers.push({ id: `layout:${id}`, from: "start", to: id, delayMs: 0, weiter: false });

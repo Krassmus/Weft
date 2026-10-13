@@ -14,6 +14,8 @@ import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
 import { aspectRatioNumeric } from "../../../core/aspectRatio";
 import {
   buttonText,
+  listItemHtml,
+  listItemPatch,
   quizOptionHtml,
   quizOptionPatch,
   quizQuestionHtml,
@@ -28,7 +30,8 @@ import { useAssetStore } from "../../../core/assets/assetStore";
 import { useDocumentStore } from "../../../core/document/store";
 import { createId } from "../../../core/id";
 import { confirmDestructive } from "../../../core/io/fileIO";
-import type { ArrowPoint, Block, BlockPosition, IframeBlock, QuizBlock } from "../../../core/types";
+import type { ArrowPoint, Block, BlockPosition, IframeBlock, ListBlock, QuizBlock } from "../../../core/types";
+import { ListMarkerView } from "./ListMarkerView";
 import { ContextMenu, useContextMenu } from "../ContextMenu";
 import type { ContextMenuItem } from "../ContextMenu";
 import { registerActiveEditable, saveSelection } from "./richText";
@@ -613,6 +616,8 @@ function BlockContent({
           onSendToBack={onSendToBack}
         />
       );
+    case "list":
+      return <ListBlockCanvas block={block} selected={selected} onUpdate={onUpdate} onDelete={onDelete} onBringToFront={onBringToFront} onSendToBack={onSendToBack} />;
     case "shape":
       return <ShapeSvg block={block} />;
     case "arrow":
@@ -742,6 +747,84 @@ function QuizBlockCanvas({
         <span className="weft-edit-block-quiz-submit-icon" dangerouslySetInnerHTML={{ __html: acceptSvg }} />
         {playerStringsFor(lang).submit}
       </div>
+      <ContextMenu menu={contextMenu.menu} onClose={contextMenu.close} />
+    </div>
+  );
+}
+
+/**
+ * A list on the canvas: every item is rich text edited in place (like the options of a quiz), with its mark in front. A new item
+ * comes with the context menu (or the sidebar), an item goes with the trash can at its end, after a short question.
+ */
+function ListBlockCanvas({
+  block,
+  selected,
+  onUpdate,
+  onDelete,
+  onBringToFront,
+  onSendToBack,
+}: {
+  block: ListBlock;
+  selected: boolean;
+  onUpdate?: (patch: Partial<Block>) => void;
+  onDelete?: () => void;
+  onBringToFront?: () => void;
+  onSendToBack?: () => void;
+}) {
+  const contextMenu = useContextMenu();
+  const { lang, defaultLang } = useEditingLanguage();
+  const layerItems = layerMenuItems(onBringToFront, onSendToBack, onDelete, "Objekt löschen");
+  const deleteBlockItems: ContextMenuItem[] = layerItems.length > 0 ? [{ separator: true }, ...layerItems] : [];
+
+  function addItem() {
+    onUpdate?.({ items: [...block.items, { id: createId(), html: "Neuer Punkt" }] });
+  }
+  function removeItem(itemId: string) {
+    onUpdate?.({ items: block.items.filter((item) => item.id !== itemId) });
+  }
+  async function removeItemWithConfirm(itemId: string) {
+    if (await confirmDestructive("Wirklich löschen?", "Listenpunkt löschen")) removeItem(itemId);
+  }
+
+  return (
+    <div
+      className="weft-edit-block-list"
+      style={{ gap: `${block.spacing}cqw` }}
+      onContextMenu={(e) => contextMenu.open(e, [{ label: "+ Listenpunkt hinzufügen", onClick: addItem }, ...deleteBlockItems])}
+    >
+      {block.items.map((item, index) => (
+        <div
+          key={item.id}
+          className="weft-edit-block-list-item"
+          onContextMenu={(e) =>
+            contextMenu.open(e, [
+              { label: "+ Listenpunkt hinzufügen", onClick: addItem },
+              { separator: true },
+              { label: "Listenpunkt löschen", danger: true, onClick: () => removeItem(item.id) },
+              ...deleteBlockItems,
+            ])
+          }
+        >
+          <ListMarkerView block={block} index={index} />
+          <EditableRichText
+            className="weft-edit-block-list-item-text"
+            html={listItemHtml(block, item.id, lang, defaultLang)}
+            editable={selected}
+            autoFocus={false}
+            onCommit={(html) => onUpdate?.(listItemPatch(block, item.id, lang, defaultLang, html))}
+          />
+          {selected && block.items.length > 1 && (
+            <button
+              type="button"
+              className="weft-edit-block-list-item-delete"
+              title="Listenpunkt löschen"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => void removeItemWithConfirm(item.id)}
+              dangerouslySetInnerHTML={{ __html: trashIconSvg }}
+            />
+          )}
+        </div>
+      ))}
       <ContextMenu menu={contextMenu.menu} onClose={contextMenu.close} />
     </div>
   );

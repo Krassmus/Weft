@@ -108,6 +108,8 @@ export interface BlockTranslation {
   options?: Record<UUID, string>;
   /** ButtonBlock. */
   text?: string;
+  /** ListBlock: each item's html by item id. */
+  items?: Record<UUID, string>;
 }
 
 export interface TextBlock extends BaseBlock {
@@ -119,6 +121,35 @@ export interface TextBlock extends BaseBlock {
    * and absent on every block saved before this existed, which therefore stay unscrollable: the
    * overflowing text is simply cut off at the block's edge. */
   scrollable?: boolean;
+}
+
+/** What stands in front of the items of a ListBlock. */
+export type ListMarkerKind = "dot" | "dash" | "number" | "image";
+
+/** One item of a list: rich HTML, like TextBlock.html. */
+export interface ListItem {
+  id: UUID;
+  html: string;
+}
+
+/**
+ * A list of texts. Each item is rich text edited in place on the slide, like the options of a quiz. Its Aufbau is either the
+ * list's as a whole (the block's own `entranceEffect`, an event of the block) or - with `itemEntrance` - the same effect for
+ * every item one by one, each an event of its own in the page's graph (`list-item:<blockId>:<itemId>`, see listItemNodeId in
+ * document/pageTimeline.ts), by default one after the other on Weiter. The Abbau is always the list's as a whole.
+ */
+export interface ListBlock extends BaseBlock {
+  kind: "list";
+  items: ListItem[];
+  /** Other languages' wording, by locale - see BlockTranslation. */
+  translations?: Record<string, BlockTranslation>;
+  marker: ListMarkerKind;
+  /** marker "image": the picture in front of every item. */
+  markerAssetId?: UUID | null;
+  /** The space between two items, in cqw (percent of the slide's width - it scales with the slide, like the text does). */
+  spacing: number;
+  /** The Aufbau is made by each item on its own, one event per item. Only on a page (a layout has no events to trigger them). */
+  itemEntrance?: boolean;
 }
 
 /** A drop-down with which a learner picks the language of the module (it sets `userlanguage`) -
@@ -416,7 +447,7 @@ export interface FilesBlock extends BaseBlock {
  * navigation button (or a shape, which carries no state at all) has nothing graded to exclude, so
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
-export type StaticBlock = TextBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock | ArrowBlock | FilesBlock;
+export type StaticBlock = TextBlock | ListBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock | ArrowBlock | FilesBlock;
 export type Block = StaticBlock | QuizBlock;
 
 /** A block as it's first made, before it has been put somewhere (and so given its `order`). */
@@ -521,7 +552,8 @@ export type TimelineEventType =
   | "block-exit"
   | "button-click"
   | "group-entrance"
-  | "group-exit";
+  | "group-exit"
+  | "list-item-entrance";
 
 export interface TimelineNode {
   id: string;

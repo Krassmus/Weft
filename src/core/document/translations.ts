@@ -1,4 +1,4 @@
-import type { BlockTranslation, ButtonBlock, QuizBlock, TextBlock, WeftModule } from "../types";
+import type { BlockTranslation, ButtonBlock, ListBlock, QuizBlock, TextBlock, WeftModule } from "../types";
 
 /**
  * Per-language wording of the blocks that carry text (text, quiz, button). The block's own fields
@@ -8,7 +8,7 @@ import type { BlockTranslation, ButtonBlock, QuizBlock, TextBlock, WeftModule } 
  * block's own fields.
  */
 
-type Translatable = TextBlock | QuizBlock | ButtonBlock;
+type Translatable = TextBlock | QuizBlock | ButtonBlock | ListBlock;
 type Translations = Record<string, BlockTranslation> | undefined;
 
 export function defaultLanguageOf(languages: readonly string[]): string | null {
@@ -48,6 +48,11 @@ export function quizOptionHtml(
   return translationOf(block.translations, language, defaultLanguage)?.options?.[optionId] ?? own;
 }
 
+export function listItemHtml(block: ListBlock, itemId: string, language: string | null, defaultLanguage: string | null): string {
+  const own = block.items.find((item) => item.id === itemId)?.html ?? "";
+  return translationOf(block.translations, language, defaultLanguage)?.items?.[itemId] ?? own;
+}
+
 export function buttonText(block: ButtonBlock, language: string | null, defaultLanguage: string | null): string {
   return translationOf(block.translations, language, defaultLanguage)?.text ?? block.text;
 }
@@ -59,6 +64,7 @@ export function isTranslated(block: Translatable, language: string | null, defau
   const translation = block.translations?.[language];
   if (block.kind === "text") return translation?.html !== undefined;
   if (block.kind === "quiz") return translation?.questionHtml !== undefined;
+  if (block.kind === "list") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
   return translation?.text !== undefined;
 }
 
@@ -103,6 +109,22 @@ export function quizOptionPatch(
   ) as Partial<QuizBlock>;
 }
 
+export function listItemPatch(
+  block: ListBlock,
+  itemId: string,
+  language: string | null,
+  defaultLanguage: string | null,
+  html: string,
+) {
+  return wordingPatch(
+    block,
+    language,
+    defaultLanguage,
+    { items: block.items.map((item) => (item.id === itemId ? { ...item, html } : item)) },
+    (t) => ({ ...t, items: { ...t.items, [itemId]: html } }),
+  ) as Partial<ListBlock>;
+}
+
 export function buttonTextPatch(block: ButtonBlock, language: string | null, defaultLanguage: string | null, text: string) {
   return wordingPatch(block, language, defaultLanguage, { text }, (t) => ({ ...t, text })) as Partial<ButtonBlock>;
 }
@@ -121,7 +143,7 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
     ...Object.values(content.layouts).flatMap((layout) => Object.values(layout.blocks)),
   ];
   for (const block of blocks) {
-    if (block.kind !== "text" && block.kind !== "quiz" && block.kind !== "button") continue;
+    if (block.kind !== "text" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "list") continue;
     const incoming = block.translations?.[newDefault];
     const outgoing: BlockTranslation = {};
     if (block.kind === "text") {
@@ -130,6 +152,12 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
     } else if (block.kind === "button") {
       outgoing.text = block.text;
       if (incoming?.text !== undefined) block.text = incoming.text;
+    } else if (block.kind === "list") {
+      outgoing.items = Object.fromEntries(block.items.map((item) => [item.id, item.html]));
+      for (const item of block.items) {
+        const translated = incoming?.items?.[item.id];
+        if (translated !== undefined) item.html = translated;
+      }
     } else {
       outgoing.questionHtml = block.questionHtml;
       outgoing.options = Object.fromEntries(block.options.map((o) => [o.id, o.html]));

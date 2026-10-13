@@ -255,6 +255,11 @@
     return t && t.html !== undefined ? t.html : block.html;
   }
 
+  function listItemHtml(block, item) {
+    var t = currentTranslation(block);
+    return t && t.items && t.items[item.id] !== undefined ? t.items[item.id] : item.html;
+  }
+
   function quizQuestionHtml(block) {
     var t = currentTranslation(block);
     return t && t.questionHtml !== undefined ? t.questionHtml : block.questionHtml;
@@ -1011,6 +1016,9 @@
   function quizSubmitEventId(blockId, outcome) {
     return outcome ? "quiz-submit:" + blockId + ":" + outcome : "quiz-submit:" + blockId;
   }
+  function listItemEventId(blockId, itemId) {
+    return "list-item:" + blockId + ":" + itemId;
+  }
   function videoStartEventId(blockId) {
     return "video-start:" + blockId;
   }
@@ -1022,6 +1030,62 @@
   }
   function videoResumeEventId(blockId, stopPointId) {
     return "video-resume:" + blockId + ":" + stopPointId;
+  }
+
+  /**
+   * Shows `target` (hidden inline until now) with an Aufbau `effect`, then calls `done`.
+   *
+   * The element stays visibility:hidden inline until the effect is over, and the animation itself says "visible" (visibility is
+   * animatable, and fill: "both" keeps both ends in force): so it is already shown - at its starting state - from the very first
+   * frame of the animation (no flash of the finished element before it begins), and stays shown at its end state however late
+   * the "finish" event is delivered. That event comes with a rendered frame, which a page in a throttled or hidden iframe can
+   * hold back for a long time, or never get - so the effect is completed by the animation's end OR a timer just after its
+   * duration, whichever is first (once()): inline state cleaned up, and `done` called - the event that the next build in the
+   * Weiter chain is waiting for.
+   */
+  function revealWithEffect(target, effect, done) {
+    var frames = effectFrames(target, effect, "entrance");
+    if (frames) {
+      var duration = effect.durationMs || 500;
+      var visible = frames.map(function (frame) {
+        return Object.assign({ visibility: "visible" }, frame);
+      });
+      // Anvil lands on its own timing curves; the others ease as a whole.
+      var animation = target.animate(visible, { duration: duration, easing: effect.type === "anvil" ? "linear" : "ease", fill: "both" });
+      var complete = once(function () {
+        target.style.visibility = "";
+        animation.cancel();
+        done();
+      });
+      animation.onfinish = complete;
+      setTimeout(complete, duration + 100);
+    } else {
+      target.style.visibility = "";
+      done();
+    }
+  }
+
+  /**
+   * The items of a list whose Aufbau is each item's (ListBlock.itemEntrance): the item events are in the page's graph; every item
+   * is hidden until its event happens and then appears with the list's effect, and the event goes on to its outgoing triggers
+   * (usually the next item, on Weiter).
+   */
+  function applyListItemEffects(block, itemElements) {
+    var effect = block.entranceEffect || { type: "none", durationMs: 500 };
+    block.items.forEach(function (item) {
+      var id = listItemEventId(block.id, item.id);
+      var itemEl = itemElements[item.id];
+      if (!graphEvents[id] || !itemEl) return;
+      itemEl.style.visibility = "hidden";
+      var shown = false;
+      performers[id] = function () {
+        if (shown) return;
+        shown = true;
+        revealWithEffect(itemEl, effect, function () {
+          happened(id);
+        });
+      };
+    });
   }
 
   /**
@@ -1056,37 +1120,9 @@
           exitAnimation.cancel();
           exitAnimation = null;
         }
-        var done = function () {
+        revealWithEffect(wrap, entrance, function () {
           happened(entranceId);
-        };
-        // The block stays visibility:hidden inline until the effect is over, and the animation itself
-        // says "visible" (visibility is animatable, and fill: "both" keeps both ends in force): so the
-        // block is already shown - at its starting state - from the very first frame of the animation
-        // (no flash of the finished block before it begins), and stays shown at its end state however
-        // late the "finish" event is delivered.
-        // That event comes with a rendered frame, which a page in a throttled or hidden iframe can hold
-        // back for a long time, or never get - so the effect is completed by the animation's end OR a
-        // timer just after its duration, whichever is first (once()): inline state cleaned up, and the
-        // entrance event fired that the next build in the Weiter chain is waiting for.
-        var frames = effectFrames(wrap, entrance, "entrance");
-        if (frames) {
-          var duration = entrance.durationMs || 500;
-          var visible = frames.map(function (frame) {
-            return Object.assign({ visibility: "visible" }, frame);
-          });
-          // Anvil lands on its own timing curves; the others ease as a whole.
-          var animation = wrap.animate(visible, { duration: duration, easing: entrance.type === "anvil" ? "linear" : "ease", fill: "both" });
-          var complete = once(function () {
-            wrap.style.visibility = "";
-            animation.cancel();
-            done();
-          });
-          animation.onfinish = complete;
-          setTimeout(complete, duration + 100);
-        } else {
-          wrap.style.visibility = "";
-          done();
-        }
+        });
       };
     }
     // else: no Aufbau at all ("off") - stays at its natural visibility (visible), no event for it.
@@ -1419,6 +1455,36 @@
       };
       fillText();
       languageRefreshers.push(fillText);
+    } else if (block.kind === "list") {
+      // Same markup and spacing as the editor's ListBlockCanvas (BlockView.tsx) and the thumbnails.
+      var listBox = el("div", { class: "weft-list", style: "gap:" + (block.spacing || 0) + "cqw;" }, []);
+      var listItemElements = {};
+      var listTexts = [];
+      block.items.forEach(function (item, index) {
+        var row = el("div", { class: "weft-list-item" }, []);
+        var marker = el("span", { class: "weft-list-marker is-" + block.marker }, []);
+        if (block.marker === "image") {
+          if (block.markerAssetId) marker.appendChild(el("img", { src: assetSrc(block.markerAssetId), alt: "" }, []));
+        } else {
+          marker.textContent = block.marker === "dash" ? "\u2013" : block.marker === "number" ? index + 1 + "." : "\u2022";
+        }
+        var itemText = el("span", { class: "weft-list-item-text" }, []);
+        itemText.innerHTML = listItemHtml(block, item);
+        applyVariablesToNode(itemText);
+        listTexts.push({ element: itemText, item: item });
+        row.appendChild(marker);
+        row.appendChild(itemText);
+        listBox.appendChild(row);
+        listItemElements[item.id] = row;
+      });
+      languageRefreshers.push(function () {
+        listTexts.forEach(function (entry) {
+          entry.element.innerHTML = listItemHtml(block, entry.item);
+          applyVariablesToNode(entry.element);
+        });
+      });
+      wrap.appendChild(listBox);
+      wrap.weftListItems = listItemElements;
     } else if (block.kind === "language") {
       var languageSelect = el("select", { class: "weft-language-select", "aria-label": uiString("language") }, []);
       languageRefreshers.push(function () {
@@ -1919,6 +1985,7 @@
   function renderBlock(block, page) {
     var wrap = block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : renderStaticBlock(block, page);
     applyBlockEffects(wrap, block, page);
+    if (block.kind === "list" && wrap.weftListItems) applyListItemEffects(block, wrap.weftListItems);
     return wrap;
   }
 

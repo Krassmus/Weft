@@ -190,8 +190,9 @@ function EffectSection({ page, node }: { page: Page; node: TimelineNode }) {
     );
   }
   const sourceBlock = node.sourceBlockId ? page.blocks[node.sourceBlockId] : undefined;
-  if (!sourceBlock || (node.eventType !== "block-entrance" && node.eventType !== "block-exit")) return null;
-  const phase = node.eventType === "block-entrance" ? "entrance" : "exit";
+  if (!sourceBlock || (node.eventType !== "block-entrance" && node.eventType !== "block-exit" && node.eventType !== "list-item-entrance")) return null;
+  // An item of a list appears with the effect of the list's Aufbau - the same for every item.
+  const phase = node.eventType === "block-exit" ? "exit" : "entrance";
   return (
     <BlockEffectEditor
       key={node.id}

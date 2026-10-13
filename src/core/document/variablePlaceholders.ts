@@ -22,6 +22,11 @@ export function placeholderSources(block: Block): string[] {
           ...Object.values(t.options ?? {}),
         ]),
       ];
+    case "list":
+      return [
+        ...block.items.map((item) => item.html),
+        ...Object.values(block.translations ?? {}).flatMap((t) => Object.values(t.items ?? {})),
+      ];
     case "button":
       return [block.text, ...Object.values(block.translations ?? {}).flatMap((t) => (t.text !== undefined ? [t.text] : []))].map(
         (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"),

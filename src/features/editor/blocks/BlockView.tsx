@@ -16,6 +16,8 @@ import {
   buttonText,
   listItemHtml,
   listItemPatch,
+  listMergePatch,
+  listSplitPatch,
   quizOptionHtml,
   quizOptionPatch,
   quizQuestionHtml,
@@ -32,6 +34,7 @@ import { createId } from "../../../core/id";
 import { confirmDestructive } from "../../../core/io/fileIO";
 import type { ArrowPoint, Block, BlockPosition, IframeBlock, ListBlock, QuizBlock } from "../../../core/types";
 import { ListMarkerView } from "./ListMarkerView";
+import { caretAt, caretOnLine, caretX, focusItem, textLength } from "./listCaret";
 import { ContextMenu, useContextMenu } from "../ContextMenu";
 import type { ContextMenuItem } from "../ContextMenu";
 import { registerActiveEditable, saveSelection } from "./richText";
@@ -786,8 +789,103 @@ function ListBlockCanvas({
     if (await confirmDestructive("Wirklich löschen?", "Listenpunkt löschen")) removeItem(itemId);
   }
 
+  // Where the caret goes once the list has been re-rendered after Enter / Backspace / Delete changed its items.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const pendingFocus = useRef<{ itemId: string; where: "start" | { offset: number } } | null>(null);
+  useEffect(() => {
+    const pending = pendingFocus.current;
+    if (!pending) return;
+    pendingFocus.current = null;
+    const text = rootRef.current?.querySelector<HTMLElement>(`[data-list-item="${pending.itemId}"] .weft-edit-block-list-item-text`);
+    if (text) focusItem(text, pending.where);
+  }, [block.items]);
+
+  const textOf = (itemId: string) => listItemHtml(block, itemId, lang, defaultLang);
+
+  /**
+   * Keys in an item, as in any editor with lists: the arrow keys go on to the next / previous item at the edge of the text (up and
+   * down at its first / last line, keeping the horizontal place; left and right at its end / start), Enter splits the item at the
+   * caret into two, Backspace at the start joins the item to the one before it (and Delete at the end joins the next one to it) - the
+   * caret stays where the two texts meet.
+   */
+  function onItemKey(
+    event: React.KeyboardEvent<HTMLDivElement>,
+    index: number,
+    api: { el: HTMLDivElement; setHtml: (html: string) => void },
+  ) {
+    if (event.nativeEvent.isComposing || event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return;
+    const item = block.items[index];
+    const previous = block.items[index - 1];
+    const next = block.items[index + 1];
+    const textElement = (itemId: string) =>
+      rootRef.current?.querySelector<HTMLElement>(`[data-list-item="${itemId}"] .weft-edit-block-list-item-text`) ?? null;
+    const go = (itemId: string | undefined, where: Parameters<typeof focusItem>[1]) => {
+      const target = itemId ? textElement(itemId) : null;
+      if (!target) return false;
+      event.preventDefault();
+      focusItem(target, where);
+      return true;
+    };
+
+    switch (event.key) {
+      case "ArrowDown":
+        if (caretOnLine(api.el, "last")) go(next?.id, { x: caretX(api.el), line: "first" });
+        return;
+      case "ArrowUp":
+        if (caretOnLine(api.el, "first")) go(previous?.id, { x: caretX(api.el), line: "last" });
+        return;
+      case "ArrowRight":
+        if (caretAt(api.el, "end")) go(next?.id, "start");
+        return;
+      case "ArrowLeft":
+        if (caretAt(api.el, "start")) go(previous?.id, "end");
+        return;
+      case "Enter": {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+        event.preventDefault();
+        // Everything from the caret on goes into the new item.
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+        const tail = document.createRange();
+        tail.setStart(range.startContainer, range.startOffset);
+        tail.setEnd(api.el, api.el.childNodes.length);
+        const rest = document.createElement("div");
+        rest.appendChild(tail.extractContents());
+        const beforeHtml = api.el.innerHTML;
+        const afterHtml = rest.innerHTML;
+        api.setHtml(beforeHtml);
+        const newId = createId();
+        pendingFocus.current = { itemId: newId, where: "start" };
+        onUpdate?.(listSplitPatch(block, item.id, newId, lang, defaultLang, beforeHtml, afterHtml));
+        return;
+      }
+      case "Backspace": {
+        if (!previous || !caretAt(api.el, "start")) return;
+        event.preventDefault();
+        const previousElement = textElement(previous.id);
+        const offset = previousElement ? textLength(previousElement) : 0;
+        pendingFocus.current = { itemId: previous.id, where: { offset } };
+        onUpdate?.(listMergePatch(block, previous.id, item.id, lang, defaultLang, textOf(previous.id) + api.el.innerHTML));
+        return;
+      }
+      case "Delete": {
+        if (!next || !caretAt(api.el, "end")) return;
+        event.preventDefault();
+        const offset = textLength(api.el);
+        // The text typed in this item and not committed yet is part of what is kept.
+        const merged = api.el.innerHTML + textOf(next.id);
+        api.setHtml(merged);
+        pendingFocus.current = { itemId: item.id, where: { offset } };
+        onUpdate?.(listMergePatch(block, item.id, next.id, lang, defaultLang, merged));
+        return;
+      }
+    }
+  }
+
   return (
     <div
+      ref={rootRef}
       className="weft-edit-block-list"
       style={{ gap: `${block.spacing}cqw` }}
       onContextMenu={(e) => contextMenu.open(e, [{ label: "+ Listenpunkt hinzufügen", onClick: addItem }, ...deleteBlockItems])}
@@ -796,6 +894,7 @@ function ListBlockCanvas({
         <div
           key={item.id}
           className="weft-edit-block-list-item"
+          data-list-item={item.id}
           onContextMenu={(e) =>
             contextMenu.open(e, [
               { label: "+ Listenpunkt hinzufügen", onClick: addItem },
@@ -811,6 +910,7 @@ function ListBlockCanvas({
             html={listItemHtml(block, item.id, lang, defaultLang)}
             editable={selected}
             autoFocus={false}
+            onKeyDown={(event, api) => onItemKey(event, index, api)}
             onCommit={(html) => onUpdate?.(listItemPatch(block, item.id, lang, defaultLang, html))}
           />
           {selected && block.items.length > 1 && (
@@ -916,6 +1016,7 @@ function EditableRichText({
   editable,
   autoFocus = true,
   frameSelect,
+  onKeyDown,
   onCommit,
 }: {
   className: string;
@@ -929,6 +1030,9 @@ function EditableRichText({
   /** Set while the block is being selected by a click on its frame (its edge, where it is grabbed to be moved): then selecting it
    * must not put the caret into the text - the block is just selected, so that it can be copied, moved, ... as a whole. */
   frameSelect?: MutableRefObject<boolean>;
+  /** A key pressed in the text. `setHtml` puts new content into the element at once and takes it as what is committed already (for a
+   * key that changes the structure around the text, like Enter in a list item: the block's update that follows must find it so). */
+  onKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>, api: { el: HTMLDivElement; setHtml: (html: string) => void }) => void;
   onCommit: (html: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -987,6 +1091,21 @@ function EditableRichText({
         if (!goingToFormatControl) registerActiveEditable(null);
       }}
       onMouseUp={saveSelection}
+      onKeyDown={
+        onKeyDown
+          ? (event) => {
+              const el = ref.current;
+              if (!el) return;
+              onKeyDown(event, {
+                el,
+                setHtml: (next) => {
+                  el.innerHTML = next;
+                  lastKnownHtml.current = next;
+                },
+              });
+            }
+          : undefined
+      }
       onKeyUp={saveSelection}
     />
   );

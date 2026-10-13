@@ -125,6 +125,53 @@ export function listItemPatch(
   ) as Partial<ListBlock>;
 }
 
+/**
+ * The patch for pressing Enter in item `itemId` of a list: the item keeps `beforeHtml` and a new item `newItemId` right after it holds
+ * `afterHtml`. In another language than the default one the wording goes to that language's entry (and the new item's own wording -
+ * the default's - is the same text, which is what an untranslated item shows anyway).
+ */
+export function listSplitPatch(
+  block: ListBlock,
+  itemId: string,
+  newItemId: string,
+  language: string | null,
+  defaultLanguage: string | null,
+  beforeHtml: string,
+  afterHtml: string,
+): Partial<ListBlock> {
+  const own = isOwnWording(language, defaultLanguage) || !language;
+  const items: ListBlock["items"] = [];
+  for (const item of block.items) {
+    items.push(own && item.id === itemId ? { ...item, html: beforeHtml } : item);
+    if (item.id === itemId) items.push({ id: newItemId, html: afterHtml });
+  }
+  if (own) return { items };
+  const existing = block.translations?.[language] ?? {};
+  const translated = { ...existing.items, [itemId]: beforeHtml, [newItemId]: afterHtml };
+  return { items, translations: { ...block.translations, [language]: { ...existing, items: translated } } };
+}
+
+/**
+ * The patch for joining item `removeId` of a list with item `keepId` (the text of the one that goes is already in `mergedHtml`, the
+ * wording of the one that stays): `removeId` is gone, `keepId` holds `mergedHtml`.
+ */
+export function listMergePatch(
+  block: ListBlock,
+  keepId: string,
+  removeId: string,
+  language: string | null,
+  defaultLanguage: string | null,
+  mergedHtml: string,
+): Partial<ListBlock> {
+  const own = isOwnWording(language, defaultLanguage) || !language;
+  const items = block.items.filter((item) => item.id !== removeId).map((item) => (own && item.id === keepId ? { ...item, html: mergedHtml } : item));
+  if (own) return { items };
+  const existing = block.translations?.[language] ?? {};
+  const translated = { ...existing.items, [keepId]: mergedHtml };
+  delete translated[removeId];
+  return { items, translations: { ...block.translations, [language]: { ...existing, items: translated } } };
+}
+
 export function buttonTextPatch(block: ButtonBlock, language: string | null, defaultLanguage: string | null, text: string) {
   return wordingPatch(block, language, defaultLanguage, { text }, (t) => ({ ...t, text })) as Partial<ButtonBlock>;
 }

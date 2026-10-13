@@ -873,11 +873,24 @@ export function ensureListItemTriggers(page: Page, blockId: string, onlyItemIds?
   const block = page.blocks[blockId];
   if (!block || block.kind !== "list" || !isListPerItem(block)) return;
   const triggers = page.timeline.triggers;
-  for (const item of block.items) {
-    if (onlyItemIds && !onlyItemIds.includes(item.id)) continue;
+  block.items.forEach((item, index) => {
+    if (onlyItemIds && !onlyItemIds.includes(item.id)) return;
     const nodeId = listItemNodeId(blockId, item.id);
-    if (!Object.values(triggers).some((t) => t.to === nodeId)) appendToWeiterChain(page, nodeId);
-  }
+    if (Object.values(triggers).some((t) => t.to === nodeId)) return;
+    // A new item between others (Enter in a list) appears right after the one before it - what waited for Weiter after that one
+    // now waits after the new one. Otherwise (the first, or the one before has no place in a chain) it goes to the end.
+    const previousNode = index > 0 ? listItemNodeId(blockId, block.items[index - 1].id) : null;
+    const placedAfterPrevious =
+      previousNode !== null && Object.values(triggers).some((t) => t.to === previousNode) && outgoingTriggers(page.timeline, previousNode).some((t) => t.weiter);
+    if (previousNode && placedAfterPrevious) {
+      for (const out of outgoingTriggers(page.timeline, previousNode)) {
+        if (out.weiter && out.to !== nodeId) triggers[out.id].from = nodeId;
+      }
+      triggers[`t:${nodeId}`] = { from: previousNode, to: nodeId, delayMs: 0, weiter: true };
+    } else {
+      appendToWeiterChain(page, nodeId);
+    }
+  });
 }
 
 /** `nodeId` waits for Weiter at the end of the chain; "Nächste Folie" stays the last link of the chain it was the last link of. */

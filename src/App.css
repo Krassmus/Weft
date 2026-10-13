@@ -2713,6 +2713,38 @@ button.weft-timeline-node-icon:hover {
   color: var(--weft-text-muted);
 }
 
+/* Every label of the grid as wide as the widest ("Breite"), so that the four inputs are the same width and stand in a matrix. */
+.weft-field-grid label > span,
+.weft-rotation-row > span {
+  flex: 0 0 5.2em;
+  white-space: nowrap;
+}
+
+/* The rotation under the grid: its label is as wide as the grid's, the control (number, − / +, slider) takes the rest. */
+.weft-rotation-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--weft-text-muted);
+}
+
+.weft-rotation-row .weft-delay-control {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The number of the rotation looks like the inputs of the grid above it. */
+.weft-rotation-row input[type="number"] {
+  padding: 6px 4px;
+  border: 1px solid var(--weft-border);
+  background: var(--weft-input-bg);
+  border-radius: var(--weft-radius-sm);
+  color: var(--weft-text);
+  font-size: 12.5px;
+}
+
 .weft-field-grid input {
   /* Lets the input shrink to share the row with its label instead of overflowing the grid
      column at its default intrinsic width - min-width: 0 alone isn't enough for a flex item

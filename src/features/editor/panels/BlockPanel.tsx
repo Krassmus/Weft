@@ -287,6 +287,7 @@ function PositionCollapsible({ block, onUpdate }: { block: Block; onUpdate: Bloc
   return (
     <Collapsible title={`${t("panel.element")} · ${t(BLOCK_KIND_KEYS[block.kind])}`}>
       <PositionEditor block={block} onUpdate={onUpdate} />
+      <RotationEditor block={block} onUpdate={onUpdate} />
     </Collapsible>
   );
 }
@@ -301,7 +302,7 @@ function round3(value: number): number {
 }
 
 function PositionEditor({ block, onUpdate }: { block: Block; onUpdate: BlockPanelProps["onUpdate"] }) {
-  const { x, y, width, height, rotation } = block.position;
+  const { x, y, width, height } = block.position;
   // Matches the canvas: image/video blocks only ever get corner handles there (see
   // isFreelyMovableBlock in BlockView.tsx), which always resize proportionally - width and height
   // typed here should keep the same ratio for the same reason, rather than letting the sidebar
@@ -336,19 +337,25 @@ function PositionEditor({ block, onUpdate }: { block: Block; onUpdate: BlockPane
         <span>Höhe</span>
         <input type="number" value={round3(height)} onChange={(e) => updateHeight(Number(e.target.value))} />
       </label>
-      <label className="weft-field-grid-full">
-        <span>Drehung °</span>
-        <input
-          type="number"
-          min={0}
-          max={360}
-          value={round3(rotation ?? 0)}
-          onChange={(e) => {
-            const clamped = Math.min(360, Math.max(0, Number(e.target.value)));
-            onUpdate({ position: { ...block.position, rotation: clamped } });
-          }}
-        />
-      </label>
+    </div>
+  );
+}
+
+/** The rotation in degrees: the number, "−" / "+" in steps of one degree and a slider from 0 to 360 (a typed value is held to that
+ * range too). Under the x/y/width/height grid, its label as wide as theirs. */
+function RotationEditor({ block, onUpdate }: { block: Block; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const rotation = round3(block.position.rotation ?? 0);
+  return (
+    <div className="weft-rotation-row">
+      <span>Drehung °</span>
+      <StepperSlider
+        label="Drehung"
+        value={rotation}
+        min={0}
+        max={360}
+        step={1}
+        onChange={(value) => onUpdate({ position: { ...block.position, rotation: Math.min(360, Math.max(0, value)) } })}
+      />
     </div>
   );
 }

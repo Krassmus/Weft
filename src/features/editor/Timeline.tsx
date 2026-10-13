@@ -621,7 +621,14 @@ function TimelineGraph({ page }: { page: Page }) {
                   unreachable={n.unreachable}
                   title={[n, ...n.companions].map((m) => eventTitle(page, m.node)).join(" · ")}
                 />
-                <span className="weft-timeline-node-label">
+                {/* The title selects the event like its icon does. */}
+                <span
+                  className="weft-timeline-node-label is-clickable"
+                  onClick={() => {
+                    if (suppressClickRef.current) return;
+                    select({ type: "event", pageId: page.id, nodeId: n.id });
+                  }}
+                >
                   {eventTitle(page, n.node)}
                   {detail && <span className="weft-timeline-label-detail"> ({detail})</span>}
                 </span>

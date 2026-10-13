@@ -1282,6 +1282,11 @@ button.weft-timeline-node-icon:hover {
   text-align: center;
 }
 
+/* The title of an event in the graph is clickable like its icon (see TimelineGraph in Timeline.tsx). */
+.weft-timeline-node-label.is-clickable {
+  cursor: pointer;
+}
+
 .weft-timeline-label-detail {
   color: var(--weft-text-faint);
 }

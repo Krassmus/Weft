@@ -33,7 +33,7 @@ const THUMB_MAX_HEIGHT_PX = 150;
  * thumbnail would be one sandboxed document per slide, which doesn't scale once a module has
  * more than a few.
  */
-export function SlideThumbnail({ blocks }: { blocks: Block[] }) {
+export function SlideThumbnail({ blocks, exportPxPerCqw }: { blocks: Block[]; exportPxPerCqw?: number }) {
   const aspectRatio = useDocumentStore((s) => s.doc.content.aspectRatio);
   const numeric = aspectRatioNumeric(aspectRatio);
   // A portrait slide at the full width of the sidebar would be a huge tower - it is capped at the
@@ -44,14 +44,15 @@ export function SlideThumbnail({ blocks }: { blocks: Block[] }) {
     <div className="weft-thumb" style={{ aspectRatio: aspectRatioCss(aspectRatio), ...portraitCap }}>
       <div className="weft-thumb-stage">
         {blocks.map((block) => (
-          <ThumbBlock key={block.id} block={block} />
+          <ThumbBlock key={block.id} block={block} exportPxPerCqw={exportPxPerCqw} />
         ))}
       </div>
     </div>
   );
 }
 
-function ThumbBlock({ block }: { block: Block }) {
+function ThumbBlock({ block, exportPxPerCqw }: { block: Block; exportPxPerCqw?: number }) {
+  const slideAspect = useDocumentStore((s) => aspectRatioNumeric(s.doc.content.aspectRatio));
   const { lang, defaultLang } = useEditingLanguage();
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
   const style = {
@@ -123,9 +124,26 @@ function ThumbBlock({ block }: { block: Block }) {
     );
   }
   if (block.kind === "shape") {
+    if (exportPxPerCqw && block.shadow.enabled) {
+      // For the PDF: the shadow is drawn into a larger picture around the shape (see ShapeSvg's exportPxPerCqw).
+      const bleed = block.shadow.blur + Math.max(Math.abs(block.shadow.offsetX), Math.abs(block.shadow.offsetY)) + 0.5;
+      const bleedY = bleed * slideAspect;
+      const bigStyle = {
+        ...style,
+        left: `${block.position.x - bleed}%`,
+        top: `${block.position.y - bleedY}%`,
+        width: `${block.position.width + 2 * bleed}%`,
+        height: `${block.position.height + 2 * bleedY}%`,
+      };
+      return (
+        <div className="weft-thumb-block weft-thumb-block-shape" style={bigStyle}>
+          <ShapeSvg block={block} exportPxPerCqw={exportPxPerCqw} bleedCqw={bleed} />
+        </div>
+      );
+    }
     return (
       <div className="weft-thumb-block weft-thumb-block-shape" style={style}>
-        <ShapeSvg block={block} />
+        <ShapeSvg block={block} exportPxPerCqw={exportPxPerCqw} />
       </div>
     );
   }
@@ -139,7 +157,7 @@ function ThumbBlock({ block }: { block: Block }) {
   if (block.kind === "arrow") {
     return (
       <div className="weft-thumb-block weft-thumb-block-shape" style={style}>
-        <ArrowSvg block={block} />
+        <ArrowSvg block={block} exportPxPerCqw={exportPxPerCqw} />
       </div>
     );
   }
@@ -161,7 +179,8 @@ function ThumbBlock({ block }: { block: Block }) {
         <div className="weft-thumb-block-quiz-question" dangerouslySetInnerHTML={{ __html: quizQuestionHtml(block, lang, defaultLang) }} />
         <div className="weft-thumb-block-quiz-options">
           {block.options.map((opt) => {
-            const isCorrect = !block.open && block.correctOptionIds.includes(opt.id);
+            // (A PDF does not give away the answers: nothing is marked there, as when a learner starts the quiz.)
+            const isCorrect = !exportPxPerCqw && !block.open && block.correctOptionIds.includes(opt.id);
             return (
               <div key={opt.id} className={"weft-thumb-block-quiz-option" + (isCorrect ? " is-correct" : "")}>
                 <span

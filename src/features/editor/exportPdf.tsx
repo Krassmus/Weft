@@ -85,7 +85,7 @@ export async function exportModuleAsPdf(
   try {
     for (let i = 0; i < pageIds.length; i++) {
       onProgress?.(i, pageIds.length);
-      flushSync(() => root.render(<SlideThumbnail blocks={blocksOf(content, pageIds[i])} />));
+      flushSync(() => root.render(<SlideThumbnail blocks={blocksOf(content, pageIds[i])} exportPxPerCqw={RENDER_WIDTH_PX / 100} />));
       await whenSettled(holder);
       const canvas = await html2canvas(holder, {
         scale: RENDER_SCALE,

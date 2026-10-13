@@ -518,9 +518,20 @@ img.weft-thumb-block {
   border-radius: 0;
 }
 
+/* The quiz as the player shows it before anything is answered: no frame around it, no tint on the answers. */
 .weft-pdf-export .weft-thumb-block-quiz {
   box-shadow: none;
-  border: 1px solid #e4e4e7;
+  background: transparent;
+  padding: 0;
+}
+
+.weft-pdf-export .weft-thumb-block-quiz-option {
+  background: transparent;
+}
+
+/* A shape's shadow reaches past its box - in the thumbnails too (the box of the thumbnail itself clips it). */
+.weft-thumb-block-shape {
+  overflow: visible;
 }
 
 .weft-pdf-export .weft-thumb-block-video-icon {
@@ -582,6 +593,20 @@ img.weft-thumb-block {
 
 .weft-thumb-block-quiz-question {
   font-size: 1.25em;
+}
+
+/* As in the player (.weft-quiz-question, .weft-quiz-option-text): the text's own first/last paragraph has no margin - without it the
+   question takes up much more room than in the player. */
+.weft-thumb-block-quiz-question > :first-child,
+.weft-thumb-block-quiz-option-text > :first-child,
+.weft-thumb-block-list-item-text > :first-child {
+  margin-top: 0;
+}
+
+.weft-thumb-block-quiz-question > :last-child,
+.weft-thumb-block-quiz-option-text > :last-child,
+.weft-thumb-block-list-item-text > :last-child {
+  margin-bottom: 0;
 }
 
 .weft-thumb-block-quiz-options {

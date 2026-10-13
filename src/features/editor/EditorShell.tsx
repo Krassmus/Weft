@@ -112,6 +112,10 @@ export function EditorShell() {
   // there's no selection UI to keep it in sync with once PresentationView has taken over anyway.
   const [presentStartPageId, setPresentStartPageId] = useState<string | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_WIDTH_DEFAULT);
+  // The progress of "Exportieren als PDF" (see handleExportPdf). Declared up here with the other state: everything from the early
+  // return for the presentation (below) on is not run while presenting, and hooks must be the same in every render.
+  const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number } | null>(null);
+  const exportingPdfRef = useRef(false);
 
   // On a narrow window (an iPad upright) the two sidebars leave the middle a few pixels: when the work area would get less than a
   // third of the width, the right sidebar becomes a drawer over it - out of the way until something is selected or its tab is
@@ -577,8 +581,6 @@ export function EditorShell() {
 
   // "Exportieren als PDF": every page of the module as a picture on a page of a PDF (see exportPdf.tsx) - which takes a moment,
   // shown as a small note while it runs.
-  const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number } | null>(null);
-  const exportingPdfRef = useRef(false);
   async function handleExportPdf() {
     if (exportingPdfRef.current) return;
     exportingPdfRef.current = true;

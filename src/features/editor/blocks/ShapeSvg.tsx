@@ -22,9 +22,13 @@ function hexToRgba(hex: string, opacity: number): string {
  * ShapeStroke.width's doc comment) rather than a fixed length, so a thicker stroke gets
  * proportionally longer dashes/gaps instead of a fixed pattern that looks too fine or too coarse
  * next to it - exactly like a PowerPoint dash pattern scales with line weight. */
-function strokeDashStyle(style: ShapeStrokeStyle, widthCqw: number): Pick<CSSProperties, "strokeDasharray" | "strokeLinecap"> {
-  if (style === "dashed") return { strokeDasharray: `${widthCqw * 2.5}cqw ${widthCqw * 1.5}cqw`, strokeLinecap: "butt" };
-  if (style === "dotted") return { strokeDasharray: `0.01cqw ${widthCqw * 2}cqw`, strokeLinecap: "round" };
+function strokeDashStyle(
+  style: ShapeStrokeStyle,
+  widthCqw: number,
+  length: (cqw: number) => string,
+): Pick<CSSProperties, "strokeDasharray" | "strokeLinecap"> {
+  if (style === "dashed") return { strokeDasharray: `${length(widthCqw * 2.5)} ${length(widthCqw * 1.5)}`, strokeLinecap: "butt" };
+  if (style === "dotted") return { strokeDasharray: `${length(0.01)} ${length(widthCqw * 2)}`, strokeLinecap: "round" };
   return {};
 }
 
@@ -59,8 +63,30 @@ function GradientDef({ id, gradient }: { id: string; gradient: ShapeGradient }) 
  * Hand-duplicated in player.runtime.js (vanilla JS, can't import from here - see that file's own
  * header comment) - keep the two in sync by hand for any change here.
  */
-export function ShapeSvg({ block }: { block: ShapeBlock }) {
+export function ShapeSvg({
+  block,
+  exportPxPerCqw,
+  bleedCqw = 0,
+}: {
+  block: ShapeBlock;
+  /**
+   * Set when the SVG is going to be drawn on its own (as a picture, for the PDF - see features/editor/exportPdf.tsx), where a
+   * "cqw" has no container to refer to and a CSS `filter` is not honoured by the tool that draws it: lengths are then written in px
+   * (this many per cqw) and the shadow is an SVG filter - which needs room around the shape: `bleedCqw` is how far the (larger)
+   * box of the caller reaches past the block's own on each side.
+   */
+  exportPxPerCqw?: number;
+  bleedCqw?: number;
+}) {
   const { shapeKind, fill, stroke, shadow } = block;
+  const length = (cqw: number) => (exportPxPerCqw ? `${Math.round(cqw * exportPxPerCqw * 1000) / 1000}px` : `${cqw}cqw`);
+  // The block's width and height in cqw, for turning cqw offsets into the 0-100 units of the viewBox.
+  const slideAspectForBox = useDocumentStore((s) => aspectRatioNumeric(s.doc.content.aspectRatio));
+  const widthCqw = block.position.width;
+  const heightCqw = block.position.height / slideAspectForBox;
+  const unitsX = (cqw: number) => (cqw * 100) / Math.max(widthCqw, 0.01);
+  const unitsY = (cqw: number) => (cqw * 100) / Math.max(heightCqw, 0.01);
+  const svgShadow = !!exportPxPerCqw && shadow.enabled;
   const gradientId = shapeGradientId(block.id);
   // The block's own TRUE on-slide width:height ratio (not its position.width/position.height
   // alone, which are percent of the slide's own width and height respectively - different physical
@@ -74,13 +100,13 @@ export function ShapeSvg({ block }: { block: ShapeBlock }) {
 
   const strokeStyle: CSSProperties = stroke.enabled
     ? {
-        strokeWidth: `${stroke.width}cqw`,
+        strokeWidth: length(stroke.width),
         // Keeps the stroke's own visual weight tied to the slide's cqw scale instead of the
         // shape's local 0-100 viewBox, which would otherwise make it thicker/thinner - and, on a
         // non-square box, thicker on one axis than the other - purely from resizing the shape
         // itself. See ShapeStroke.width's own doc comment in core/types.ts.
         vectorEffect: "non-scaling-stroke",
-        ...strokeDashStyle(stroke.style, stroke.width),
+        ...strokeDashStyle(stroke.style, stroke.width, length),
       }
     : {};
 
@@ -89,10 +115,13 @@ export function ShapeSvg({ block }: { block: ShapeBlock }) {
     height: "100%",
     display: "block",
     overflow: "visible",
-    filter: shadow.enabled
-      ? `drop-shadow(${shadow.offsetX}cqw ${shadow.offsetY}cqw ${shadow.blur}cqw ${hexToRgba(shadow.color, shadow.opacity)})`
-      : undefined,
+    filter:
+      shadow.enabled && !svgShadow
+        ? `drop-shadow(${shadow.offsetX}cqw ${shadow.offsetY}cqw ${shadow.blur}cqw ${hexToRgba(shadow.color, shadow.opacity)})`
+        : undefined,
   };
+  const shadowFilterId = `weft-shape-shadow-${block.id}`;
+  const shapeFilter = svgShadow ? `url(#${shadowFilterId})` : undefined;
 
   const shapeProps = {
     fill: fillValue,
@@ -104,20 +133,38 @@ export function ShapeSvg({ block }: { block: ShapeBlock }) {
 
   let shape: React.ReactNode;
   if (shapeKind === "rectangle") {
-    shape = <path d={roundedRectPath(block.cornerRadii, boxAspect)} {...shapeProps} />;
+    shape = <path d={roundedRectPath(block.cornerRadii, boxAspect)} {...shapeProps} filter={shapeFilter} />;
   } else if (shapeKind === "ellipse") {
-    shape = <ellipse cx={50} cy={50} rx={50} ry={50} {...shapeProps} />;
+    shape = <ellipse cx={50} cy={50} rx={50} ry={50} {...shapeProps} filter={shapeFilter} />;
   } else if (shapeKind === "polygon") {
-    shape = <polygon points={pointsAttr(regularPolygonPoints(block.sides))} {...shapeProps} />;
+    shape = <polygon points={pointsAttr(regularPolygonPoints(block.sides))} {...shapeProps} filter={shapeFilter} />;
   } else {
-    shape = <polygon points={pointsAttr(starOutlinePoints(block.starPoints, block.starInnerRadius))} {...shapeProps} />;
+    shape = <polygon points={pointsAttr(starOutlinePoints(block.starPoints, block.starInnerRadius))} {...shapeProps} filter={shapeFilter} />;
   }
 
+  // With room around the shape (the shadow's) the viewBox reaches past 0-100 by that much on each side.
+  const bleedX = svgShadow ? unitsX(bleedCqw) : 0;
+  const bleedY = svgShadow ? unitsY(bleedCqw) : 0;
   return (
-    <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={svgStyle}>
-      {fill.type === "gradient" && (
+    <svg
+      viewBox={`${-bleedX} ${-bleedY} ${100 + 2 * bleedX} ${100 + 2 * bleedY}`}
+      preserveAspectRatio="none"
+      style={svgStyle}
+    >
+      {(fill.type === "gradient" || svgShadow) && (
         <defs>
-          <GradientDef id={gradientId} gradient={fill.gradient} />
+          {fill.type === "gradient" && <GradientDef id={gradientId} gradient={fill.gradient} />}
+          {svgShadow && (
+            <filter id={shadowFilterId} x="-50%" y="-50%" width="200%" height="200%" colorInterpolationFilters="sRGB">
+              <feDropShadow
+                dx={unitsX(shadow.offsetX)}
+                dy={unitsY(shadow.offsetY)}
+                stdDeviation={`${unitsX(shadow.blur / 2)} ${unitsY(shadow.blur / 2)}`}
+                floodColor={shadow.color}
+                floodOpacity={shadow.opacity}
+              />
+            </filter>
+          )}
         </defs>
       )}
       {shape}

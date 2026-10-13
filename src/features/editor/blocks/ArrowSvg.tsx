@@ -15,7 +15,10 @@ export function useArrowBoxAspect(block: Pick<ArrowBlock, "position">): number {
  * what is drawn here is what the learner sees. Fills 100% of its parent (the block's box); the SVG
  * overflows it (the line and its head may reach beyond the waypoints' box), so the parent must not clip.
  */
-export function ArrowSvg({ block }: { block: ArrowBlock }) {
+export function ArrowSvg({ block, exportPxPerCqw }: { block: ArrowBlock; exportPxPerCqw?: number }) {
   const boxAspect = useArrowBoxAspect(block);
-  return <div style={{ width: "100%", height: "100%" }} dangerouslySetInnerHTML={{ __html: arrowSvgMarkup(block, boxAspect) }} />;
+  let markup: string = arrowSvgMarkup(block, boxAspect);
+  // Drawn on its own (as a picture, for the PDF) a "cqw" has no container to refer to: lengths are written in px then.
+  if (exportPxPerCqw) markup = markup.replace(/(-?[\d.]+)cqw/g, (_, n: string) => `${Math.round(parseFloat(n) * exportPxPerCqw * 1000) / 1000}px`);
+  return <div style={{ width: "100%", height: "100%" }} dangerouslySetInnerHTML={{ __html: markup }} />;
 }

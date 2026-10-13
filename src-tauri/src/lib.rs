@@ -77,6 +77,7 @@ struct MenuStrings {
     save_as: &'static str,
     export: &'static str,
     export_player: &'static str,
+    export_pdf: &'static str,
     merge: &'static str,
     settings: &'static str,
     edit: &'static str,
@@ -99,6 +100,7 @@ fn menu_strings(lang: &str) -> MenuStrings {
             save_as: "Speichern unter…",
             export: "Exportieren…",
             export_player: "Player-Datei exportieren…",
+            export_pdf: "Exportieren als PDF…",
             merge: "Mit Datei zusammenführen…",
             settings: "Einstellungen…",
             edit: "Bearbeiten",
@@ -118,6 +120,7 @@ fn menu_strings(lang: &str) -> MenuStrings {
             save_as: "Save As…",
             export: "Export…",
             export_player: "Export Player File…",
+            export_pdf: "Export as PDF…",
             merge: "Merge with File…",
             settings: "Settings…",
             edit: "Edit",
@@ -210,6 +213,7 @@ fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String], player: boo
     let save_item = MenuItem::with_id(app_handle, "weft-save", strings.save, editing, Some("CmdOrCtrl+S"))?;
     let save_as_item = MenuItem::with_id(app_handle, "weft-save-as", strings.save_as, editing, Some("CmdOrCtrl+Shift+S"))?;
     let export_item = MenuItem::with_id(app_handle, "weft-export", strings.export, editing, Some("CmdOrCtrl+E"))?;
+    let export_pdf_item = MenuItem::with_id(app_handle, "weft-export-pdf", strings.export_pdf, editing, None::<&str>)?;
     let export_player_item = MenuItem::with_id(app_handle, "weft-export-player", strings.export_player, editing, None::<&str>)?;
     file_menu.prepend_items(&[
         &new_item,
@@ -220,6 +224,7 @@ fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String], player: boo
         &save_item,
         &save_as_item,
         &export_item,
+        &export_pdf_item,
         &export_player_item,
         &merge_item,
         &PredefinedMenuItem::separator(app_handle)?,
@@ -515,6 +520,9 @@ pub fn run() {
                     }
                     "weft-export" => {
                         let _ = app_handle.emit("weft://menu-export", ());
+                    }
+                    "weft-export-pdf" => {
+                        let _ = app_handle.emit("weft://menu-export-pdf", ());
                     }
                     "weft-export-player" => {
                         let _ = app_handle.emit("weft://menu-export-player", ());

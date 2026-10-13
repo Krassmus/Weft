@@ -25,6 +25,7 @@ import {
   openDocument,
   openDocumentAtPath,
   readRecoveryCopy,
+  savePdf,
   saveDocumentAs,
   saveDocumentToPath,
   saveRecoveryCopy,
@@ -346,6 +347,7 @@ export function EditorShell() {
   const handleSaveAsRef = useRef<() => void>(() => {});
   const handleExportRef = useRef<() => void>(() => {});
   const handleExportPlayerRef = useRef<() => void>(() => {});
+  const handleExportPdfRef = useRef<() => void>(() => {});
   const handleOpenRef = useRef<() => void>(() => {});
   const handleNewRef = useRef<() => void>(() => {});
   const handleDuplicateRef = useRef<() => void>(() => {});
@@ -389,6 +391,9 @@ export function EditorShell() {
     const unlistenExportPlayer = listen("weft://menu-export-player", () => {
       if (!idle()) handleExportPlayerRef.current();
     });
+    const unlistenExportPdf = listen("weft://menu-export-pdf", () => {
+      if (!idle()) handleExportPdfRef.current();
+    });
     const unlistenOpen = listen("weft://menu-open", () => {
       if (!presentingRef.current) handleOpenRef.current();
     });
@@ -412,6 +417,7 @@ export function EditorShell() {
       void unlistenSaveAs.then((fn) => fn());
       void unlistenExport.then((fn) => fn());
       void unlistenExportPlayer.then((fn) => fn());
+      void unlistenExportPdf.then((fn) => fn());
       void unlistenOpen.then((fn) => fn());
       void unlistenNew.then((fn) => fn());
       void unlistenDuplicate.then((fn) => fn());
@@ -445,6 +451,8 @@ export function EditorShell() {
         return editing ? void handleExportRef.current() : undefined;
       case "exportPlayer":
         return editing ? void handleExportPlayerRef.current() : undefined;
+      case "exportPdf":
+        return editing ? void handleExportPdfRef.current() : undefined;
       case "merge":
         return editing ? void useCollabDialog.getState().show("merge") : undefined;
     }
@@ -566,6 +574,28 @@ export function EditorShell() {
     }
   }
   handleExportPlayerRef.current = handleExportPlayer;
+
+  // "Exportieren als PDF": every page of the module as a picture on a page of a PDF (see exportPdf.tsx) - which takes a moment,
+  // shown as a small note while it runs.
+  const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number } | null>(null);
+  const exportingPdfRef = useRef(false);
+  async function handleExportPdf() {
+    if (exportingPdfRef.current) return;
+    exportingPdfRef.current = true;
+    setPdfProgress({ done: 0, total: 0 });
+    try {
+      const { exportModuleAsPdf } = await import("./exportPdf");
+      const bytes = await exportModuleAsPdf(useDocumentStore.getState().doc.content, (done, total) => setPdfProgress({ done, total }));
+      setPdfProgress(null);
+      await savePdf(useDocumentStore.getState().doc, bytes);
+    } catch (err) {
+      setPdfProgress(null);
+      alert(`${t("toolbar.exportFailed")}\n${errorMessage(err)}`);
+    } finally {
+      exportingPdfRef.current = false;
+    }
+  }
+  handleExportPdfRef.current = handleExportPdf;
 
   // Switching to another module replaces the one that is open: what is saved in its file already (the
   // pending autosave is written first), what is not asks first - a module that was never saved has only
@@ -703,6 +733,11 @@ export function EditorShell() {
           <Inspector />
         </div>
       </div>
+      {pdfProgress && (
+        <div className="weft-export-progress" role="status">
+          PDF wird erzeugt …{pdfProgress.total > 0 ? ` ${Math.min(pdfProgress.done + 1, pdfProgress.total)} / ${pdfProgress.total}` : ""}
+        </div>
+      )}
       <CollabDialogs />
       <LibraryDialogs onOpen={(path) => void handleOpenRecentRef.current(path)} currentPath={currentPath} />
     </div>

@@ -497,6 +497,36 @@ img.weft-thumb-block {
 
 /* Same watermark as the editor canvas's video block (see BlockView.tsx) - no min/max px clamp
    here unlike there, since a thumbnail's own blocks can be far smaller than an edited one. */
+/* The note while a PDF is being made (EditorShell.tsx). */
+.weft-export-progress {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 200;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--weft-panel-raised);
+  border: 1px solid var(--weft-border);
+  box-shadow: var(--weft-shadow);
+  font-size: 13px;
+}
+
+/* html2canvas draws an inset shadow as a filled area: for the picture a border does the same. */
+.weft-pdf-export .weft-thumb {
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.weft-pdf-export .weft-thumb-block-quiz {
+  box-shadow: none;
+  border: 1px solid #e4e4e7;
+}
+
+.weft-pdf-export .weft-thumb-block-video-icon {
+  display: none;
+}
+
 .weft-thumb-block-video-icon {
   position: absolute;
   top: 50%;

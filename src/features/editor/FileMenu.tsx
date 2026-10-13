@@ -11,6 +11,7 @@ export type MenuCommand =
   | "save"
   | "saveAs"
   | "export"
+  | "exportPdf"
   | "exportPlayer"
   | "join"
   | "merge"
@@ -22,6 +23,7 @@ const EDITING_COMMANDS: MenuCommand[] = [
   "save",
   "saveAs",
   "export",
+  "exportPdf",
   "exportPlayer",
   "merge",
 ];
@@ -43,6 +45,7 @@ function items(): ({ command: MenuCommand; label: string } | "separator")[] {
       label: library ? "Weft-Datei teilen…" : "Speichern unter…",
     },
     { command: "export", label: "Exportieren…" },
+    { command: "exportPdf", label: "Exportieren als PDF…" },
     { command: "exportPlayer", label: "Player-Datei exportieren…" },
     { command: "merge", label: "Mit Datei zusammenführen…" },
     "separator",

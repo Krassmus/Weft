@@ -38,7 +38,13 @@ function suggestedFileName(title: string, extension: string): string {
   return `${slugify(title)}.${extension}`;
 }
 
-async function writeBytes(bytes: Uint8Array, suggestedName: string, dialogTitle: string, filterExtension: string) {
+async function writeBytes(
+  bytes: Uint8Array,
+  suggestedName: string,
+  dialogTitle: string,
+  filterExtension: string,
+  kind: { filterName: string; mimeType: string } = { filterName: "Weft-Lernmodul", mimeType: "application/zip" },
+) {
   if (libraryMode()) {
     // No save dialog on a tablet: the file is kept in the library's folder for exports and offered for sharing.
     const path = await writeExport(suggestedName, bytes);
@@ -52,13 +58,13 @@ async function writeBytes(bytes: Uint8Array, suggestedName: string, dialogTitle:
       // The dialog filter only ever matches on the final extension - passing that same final
       // extension here both validates correctly and won't offer an unrelated choice (e.g. plain
       // ".zip") alongside it.
-      filters: [{ name: "Weft-Lernmodul", extensions: [filterExtension] }],
+      filters: [{ name: kind.filterName, extensions: [filterExtension] }],
     });
     if (!path) return null;
     await writeFile(path, bytes);
     return path;
   }
-  const blob = new Blob([bytes as BlobPart], { type: "application/zip" });
+  const blob = new Blob([bytes as BlobPart], { type: kind.mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -160,6 +166,14 @@ export async function exportAsHtmlModule(doc: WeftDocument): Promise<string | nu
   // The dialog filter matches only the final extension - "weft.zip" already ends in "zip", so the
   // filter itself is just "zip" (matching EXPORT_EXTENSION's own last segment).
   return writeBytes(bytes, suggestedFileName(doc.content.title, EXPORT_EXTENSION), "Lernmodul exportieren", "zip");
+}
+
+/** "Exportieren als PDF": the bytes of the PDF of the module (see features/editor/exportPdf.tsx), saved where the user says. */
+export async function savePdf(doc: WeftDocument, bytes: Uint8Array): Promise<string | null> {
+  return writeBytes(bytes, suggestedFileName(doc.content.title, "pdf"), "Als PDF exportieren", "pdf", {
+    filterName: "PDF",
+    mimeType: "application/pdf",
+  });
 }
 
 /** Saves `bytes` as a file the user names: the save dialog in the desktop app, a download in a browser. What the

@@ -131,13 +131,14 @@ export function EditorShell() {
     observer.observe(el);
     return () => observer.disconnect();
   }, [player !== null]);
-  // Something with properties was selected: they are what the drawer is for.
+  // An event of the graph was selected: its panel is what the drawer is for. Not for what is selected on the slide - tapping an object
+  // is for moving it and for selecting its text, and a drawer that comes out by itself is in the way of that; its tab brings it.
   useEffect(() => {
-    if (selection && selection.type !== "page") setInspectorOpen(true);
+    if (selection?.type === "event") setInspectorOpen(true);
   }, [selection]);
   // The drawer covers the right end of the work area: what is selected (or being edited) there would be under it - and on a tablet
   // the caret and the selection are drawn by the system above the page, so they would show through the drawer. The work area gets
-  // room to scroll (see .has-drawer-open in App.css) and is scrolled so that the object is left of the drawer.
+  // room to scroll (see .has-drawer-open in App.css) and, when the drawer comes out, is scrolled so that the object is left of it.
   const drawerOpen = compact && inspectorOpen;
   useEffect(() => {
     if (!drawerOpen) return;
@@ -159,7 +160,7 @@ export function EditorShell() {
       if (delta > 0) wrap.scrollBy({ left: delta, behavior: "smooth" });
     }, 80);
     return () => clearTimeout(timer);
-  }, [drawerOpen, selection]);
+  }, [drawerOpen]);
   // A tap on the empty work area (not on an object, a button, the graph...) puts the drawer away again.
   useEffect(() => {
     function onPointerDown(e: PointerEvent) {

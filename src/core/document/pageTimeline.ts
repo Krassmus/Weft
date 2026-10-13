@@ -613,6 +613,13 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
       if (currentNode.kind === "event" && (currentNode.eventType === "video-stop-point" || currentNode.eventType === "video-resume")) {
         for (const { targetNode, trigger } of kids) {
           (currentNode.children ??= []).push({ node: targetNode, delayMs: trigger.kind === "timed" ? trigger.delayMs : 0 });
+          // What goes on from there ("Text erscheint" -> "Nächste Folie") is not stacked as well: it continues in a lane of its
+          // own - without it everything behind such a child was never reached and so missing in the graph.
+          if ((attachmentsBySource.get(targetNode.id)?.length ?? 0) > 0) {
+            const onward: TimelineLane = { nodes: [{ ...targetNode }], edges: [] };
+            lanes.push(onward);
+            extendChain(onward, targetNode);
+          }
         }
         return;
       }
@@ -661,6 +668,21 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
   // trigger.
   for (const { node } of effectTargets) {
     if (attachedIds.has(node.id) || laneRoots.has(node.id)) continue;
+    lanes.push({ nodes: [node], edges: [] });
+  }
+
+  // Safety net: whatever is an event of this page but has not been put on any lane by the walks above would be missing from the
+  // graph altogether (and so could be neither seen nor given a trigger) - it gets a lane of its own.
+  const placed = new Set<string>();
+  for (const lane of lanes) {
+    for (const node of lane.nodes) {
+      placed.add(node.id);
+      for (const child of node.children ?? []) placed.add(child.node.id);
+    }
+  }
+  for (const node of [...effectTargets.map((t) => t.node), endNode]) {
+    if (placed.has(node.id)) continue;
+    placed.add(node.id);
     lanes.push({ nodes: [node], edges: [] });
   }
 

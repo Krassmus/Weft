@@ -632,10 +632,7 @@ img.weft-thumb-block {
   display: flex;
   flex-direction: column;
   gap: 0.6em;
-  background: #ffffff;
-  box-shadow: inset 0 0 0 1px #e4e4e7;
   overflow: hidden;
-  padding: 3px 4px;
 }
 
 .weft-thumb-block-quiz-question {
@@ -662,14 +659,15 @@ img.weft-thumb-block {
   gap: 0.4em;
 }
 
+/* Sizes in em only (the player's 1px border at its 21.6px type size is 0.046em, its 6px radius 0.28em): a thumbnail is a few times
+   smaller than the player, where a px border would be several times as thick and make everything taller. */
 .weft-thumb-block-quiz-option {
   display: flex;
   align-items: center;
   gap: 0.5em;
   padding: 0.4em 0.6em;
-  border: 1px solid #e4e4e7;
-  border-radius: 6px;
-  background: #fafafa;
+  border: 0.046em solid #e4e4e7;
+  border-radius: 0.28em;
 }
 
 .weft-thumb-block-quiz-option.is-correct {
@@ -713,7 +711,7 @@ img.weft-thumb-block {
   align-items: center;
   gap: 0.4em;
   padding: 0.4em 1em;
-  border-radius: 6px;
+  border-radius: 0.28em;
   background: #3b82f6;
   color: #fff;
   font-weight: 600;

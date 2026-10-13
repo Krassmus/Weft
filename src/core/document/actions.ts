@@ -564,7 +564,8 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
       return {
         ...base,
         kind,
-        position,
+        // Tall enough for the question, two answers and the button (a quiz box of the usual 20% cuts the button in half).
+        position: { x: 10, y: 28, width: 80, height: 50 },
         questionHtml: "<p>Neue Frage</p>",
         options: [
           { id: createId(), html: "Option A" },

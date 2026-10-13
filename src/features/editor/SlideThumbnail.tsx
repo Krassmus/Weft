@@ -33,7 +33,16 @@ const THUMB_MAX_HEIGHT_PX = 150;
  * thumbnail would be one sandboxed document per slide, which doesn't scale once a module has
  * more than a few.
  */
-export function SlideThumbnail({ blocks, exportPxPerCqw }: { blocks: Block[]; exportPxPerCqw?: number }) {
+export function SlideThumbnail({
+  blocks,
+  exportPxPerCqw,
+  qrSvgs,
+}: {
+  blocks: Block[];
+  exportPxPerCqw?: number;
+  /** For the PDF: the QR code (as SVG) of an iframe block's address, by block id. */
+  qrSvgs?: Record<string, string>;
+}) {
   const aspectRatio = useDocumentStore((s) => s.doc.content.aspectRatio);
   const numeric = aspectRatioNumeric(aspectRatio);
   // A portrait slide at the full width of the sidebar would be a huge tower - it is capped at the
@@ -44,14 +53,14 @@ export function SlideThumbnail({ blocks, exportPxPerCqw }: { blocks: Block[]; ex
     <div className="weft-thumb" style={{ aspectRatio: aspectRatioCss(aspectRatio), ...portraitCap }}>
       <div className="weft-thumb-stage">
         {blocks.map((block) => (
-          <ThumbBlock key={block.id} block={block} exportPxPerCqw={exportPxPerCqw} />
+          <ThumbBlock key={block.id} block={block} exportPxPerCqw={exportPxPerCqw} qrSvg={qrSvgs?.[block.id]} />
         ))}
       </div>
     </div>
   );
 }
 
-function ThumbBlock({ block, exportPxPerCqw }: { block: Block; exportPxPerCqw?: number }) {
+function ThumbBlock({ block, exportPxPerCqw, qrSvg }: { block: Block; exportPxPerCqw?: number; qrSvg?: string }) {
   const slideAspect = useDocumentStore((s) => aspectRatioNumeric(s.doc.content.aspectRatio));
   const { lang, defaultLang } = useEditingLanguage();
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
@@ -114,6 +123,19 @@ function ThumbBlock({ block, exportPxPerCqw }: { block: Block; exportPxPerCqw?: 
       </div>
     ) : (
       <div className="weft-thumb-block weft-thumb-block-placeholder" style={style} />
+    );
+  }
+  if (block.kind === "iframe" && exportPxPerCqw && block.url) {
+    // In the PDF an embedded page can't be what it is on the screen (it is live, and from another origin: no picture of it can be
+    // taken): a card with its address as text and QR code - and the address is a link there (data-pdf-link, see exportPdf.tsx).
+    return (
+      <div className="weft-thumb-block weft-thumb-block-iframe-export" style={style} data-pdf-link={block.url}>
+        {qrSvg && <div className="weft-thumb-block-iframe-export-qr" dangerouslySetInnerHTML={{ __html: qrSvg }} />}
+        <div className="weft-thumb-block-iframe-export-text">
+          <span className="weft-thumb-block-iframe-export-label">Eingebettete Seite</span>
+          <span className="weft-thumb-block-iframe-export-url">{block.url}</span>
+        </div>
+      </div>
     );
   }
   if (block.kind === "iframe") {

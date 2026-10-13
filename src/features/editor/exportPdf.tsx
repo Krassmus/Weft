@@ -1,6 +1,7 @@
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import html2canvas from "html2canvas";
+import QRCode from "qrcode";
 import { orderedValues } from "../../core/document/ordering";
 import { branchPageIds, sequenceOf } from "../../core/document/sequence";
 import { aspectRatioNumeric } from "../../core/aspectRatio";
@@ -85,7 +86,18 @@ export async function exportModuleAsPdf(
   try {
     for (let i = 0; i < pageIds.length; i++) {
       onProgress?.(i, pageIds.length);
-      flushSync(() => root.render(<SlideThumbnail blocks={blocksOf(content, pageIds[i])} exportPxPerCqw={RENDER_WIDTH_PX / 100} />));
+      const blocks = blocksOf(content, pageIds[i]);
+      // The QR codes of the embedded pages on this page.
+      const qrSvgs: Record<string, string> = {};
+      for (const block of blocks) {
+        if (block.kind !== "iframe" || !block.url) continue;
+        try {
+          qrSvgs[block.id] = await QRCode.toString(block.url, { type: "svg", margin: 0 });
+        } catch {
+          // too long for a QR code: the address as text is there anyway
+        }
+      }
+      flushSync(() => root.render(<SlideThumbnail blocks={blocks} exportPxPerCqw={RENDER_WIDTH_PX / 100} qrSvgs={qrSvgs} />));
       await whenSettled(holder);
       const canvas = await html2canvas(holder, {
         scale: RENDER_SCALE,
@@ -97,7 +109,19 @@ export async function exportModuleAsPdf(
       });
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY));
       if (!blob) throw new Error("Eine Folie ließ sich nicht in ein Bild umwandeln.");
-      pages.push({ jpeg: new Uint8Array(await blob.arrayBuffer()), pixelWidth: canvas.width, pixelHeight: canvas.height });
+      // The addresses on the page are links (where they stand in the picture).
+      const holderRect = holder.getBoundingClientRect();
+      const links = Array.from(holder.querySelectorAll<HTMLElement>("[data-pdf-link]")).map((el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          x: (r.left - holderRect.left) / holderRect.width,
+          y: (r.top - holderRect.top) / holderRect.height,
+          width: r.width / holderRect.width,
+          height: r.height / holderRect.height,
+          url: el.getAttribute("data-pdf-link") ?? "",
+        };
+      });
+      pages.push({ jpeg: new Uint8Array(await blob.arrayBuffer()), pixelWidth: canvas.width, pixelHeight: canvas.height, links });
     }
     onProgress?.(pageIds.length, pageIds.length);
   } finally {

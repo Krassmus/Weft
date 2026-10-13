@@ -1034,21 +1034,20 @@
 
   /**
    * The Abbau "Zersplittern": the block breaks into shards that fly off the slide like in an explosion - up, down, to the sides and
-   * towards the viewer. Every shard is a copy of the whole block, cut to a polygon (clip-path) of a jittered grid whose cells are
-   * split into two triangles, and moves, turns and fades on its own (Web Animations). A video is a picture of the frame it is
-   * showing; an embedded page can't be copied (its content would load again, and a picture of it is not to be had), so the
-   * caller breaks nothing there. Returns a function that takes the shards away (the block comes back).
+   * towards the viewer. Every shard is a copy of the block's content, cut to a triangle (clip-path) of a jittered grid, and moves,
+   * turns and fades on its own (Web Animations). A video is a picture of the frame it is showing; an embedded page can't be
+   * copied (its content would load again, and a picture of it is not to be had), so the caller breaks nothing there.
+   *
+   * Two steps, because making the shards (copying the content, laying it out, painting it) is what takes the time - a hitch if it
+   * happens as the effect begins: `buildShatter` makes them, hidden, while the page stands there (see prepareShatter), and
+   * `playShatter` only lets them fly.
    */
-  function shatterBlock(wrap, durationMs, done) {
+  function buildShatter(wrap) {
     var stage = wrap.parentNode;
     var boxWidth = wrap.offsetWidth;
     var boxHeight = wrap.offsetHeight;
-    if (!stage || !boxWidth || !boxHeight || typeof wrap.animate !== "function") {
-      done();
-      return function () {};
-    }
-    var stageRect = stage.getBoundingClientRect();
-    var stageWidth = stageRect.width || 960;
+    if (!stage || !boxWidth || !boxHeight || typeof wrap.animate !== "function") return null;
+    var stageWidth = stage.getBoundingClientRect().width || 960;
 
     // The block as it looks now, as the template of every shard: a video becomes a canvas marker, an iframe an empty box.
     var template = wrap.cloneNode(true);
@@ -1058,9 +1057,7 @@
     for (var v = 0; v < templateVideos.length; v++) {
       var marker = document.createElement("canvas");
       marker.className = "weft-shatter-video";
-      var videoStyle = templateVideos[v].getAttribute("style") || "";
-      marker.setAttribute("style", videoStyle + ";width:100%;height:100%;");
-      marker.weftSource = sourceVideos[v];
+      marker.setAttribute("style", (templateVideos[v].getAttribute("style") || "") + ";width:100%;height:100%;");
       templateVideos[v].parentNode.replaceChild(marker, templateVideos[v]);
     }
     var frames = template.querySelectorAll("iframe");
@@ -1072,16 +1069,17 @@
 
     var overlay = document.createElement("div");
     overlay.className = "weft-shatter";
+    // Hidden, and nearly invisible even when "armed" (see armShatter): it stands over the block, which it copies.
     overlay.setAttribute(
       "style",
-      "position:absolute;pointer-events:none;overflow:visible;perspective:900px;left:" +
+      "position:absolute;pointer-events:none;overflow:visible;perspective:900px;visibility:hidden;opacity:0.01;left:" +
         wrap.style.left + ";top:" + wrap.style.top + ";width:" + wrap.style.width + ";height:" + wrap.style.height + ";" +
         (wrap.style.transform ? "transform:" + wrap.style.transform + ";" : ""),
     );
 
-    // A jittered grid: the vertices inside the block are moved by up to a third of a cell, every cell is two triangles.
-    // Around 14 cells (28 shards) however the block is shaped: every shard is a copy of the block's content to be laid out and
-    // painted, so their number is what the effect costs.
+    // A jittered grid: the vertices inside the block are moved by up to a third of a cell, every cell is two triangles. Around 14
+    // cells (28 shards) however the block is shaped: every shard is a copy of the content to be laid out and painted, so their
+    // number is what the effect costs.
     var cols = Math.max(3, Math.min(7, Math.round(Math.sqrt((14 * boxWidth) / boxHeight))));
     var rows = Math.max(2, Math.min(6, Math.round(14 / cols)));
     var vertices = [];
@@ -1113,11 +1111,10 @@
       }
     }
 
-    var duration = Math.max(200, durationMs);
-    var animations = [];
+    var shards = [];
     triangles.forEach(function (points) {
-      // A shard is only as large as the triangle's bounding box (a picture of the block's content is moved inside it): the
-      // many layers the browser has to keep and move add up to about the area of the block, not to as many times that.
+      // A shard is only as large as the triangle's bounding box (the content is moved inside it): the many layers the browser has
+      // to keep and move add up to about the area of the block, not to as many times that.
       var minX = Math.min(points[0][0], points[1][0], points[2][0]);
       var maxX = Math.max(points[0][0], points[1][0], points[2][0]);
       var minY = Math.min(points[0][1], points[1][1], points[2][1]);
@@ -1144,20 +1141,6 @@
           "px;width:" + width.toFixed(2) + "px;height:" + height.toFixed(2) + "px;clip-path:polygon(" + polygon + ");",
       );
       shard.appendChild(content);
-      // The frame of each video, drawn into the shard's own canvas.
-      var markers = content.querySelectorAll("canvas.weft-shatter-video");
-      for (var m = 0; m < markers.length; m++) {
-        var source = templateVideos.length > m ? sourceVideos[m] : null;
-        var canvas = markers[m];
-        if (!source) continue;
-        canvas.width = source.videoWidth || source.clientWidth || 1;
-        canvas.height = source.videoHeight || source.clientHeight || 1;
-        try {
-          canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
-        } catch (err) {
-          // a frame that can't be drawn: the shard shows nothing of the video
-        }
-      }
       overlay.appendChild(shard);
 
       // The shard flies away from the middle of the block, with some luck in every direction - and some of them towards the viewer.
@@ -1172,27 +1155,71 @@
       var dz = towardsViewer ? 300 + Math.random() * 500 : -(Math.random() * 300);
       var turns = (Math.random() < 0.5 ? -1 : 1) * (180 + Math.random() * 360);
       var axis = [Math.random() - 0.5, Math.random() - 0.5, Math.random() * 0.6 + 0.4];
-      var end =
-        "translate3d(" + dx.toFixed(1) + "px," + dy.toFixed(1) + "px," + dz.toFixed(1) + "px) rotate3d(" +
-        axis[0].toFixed(2) + "," + axis[1].toFixed(2) + "," + axis[2].toFixed(2) + "," + turns.toFixed(0) + "deg)";
-      var delay = Math.random() * duration * 0.18;
-      animations.push(
-        shard.animate(
-          [
-            { transform: "translate3d(0,0,0) rotate3d(0,0,1,0deg)", opacity: 1, offset: 0 },
-            { opacity: 1, offset: 0.55 },
-            { transform: end, opacity: 0, offset: 1 },
-          ],
-          { duration: duration * 0.82, delay: delay, easing: "cubic-bezier(.3,.05,.85,.5)", fill: "forwards" },
-        ),
-      );
+      shards.push({
+        element: shard,
+        content: content,
+        end:
+          "translate3d(" + dx.toFixed(1) + "px," + dy.toFixed(1) + "px," + dz.toFixed(1) + "px) rotate3d(" +
+          axis[0].toFixed(2) + "," + axis[1].toFixed(2) + "," + axis[2].toFixed(2) + "," + turns.toFixed(0) + "deg)",
+        delay: Math.random() * 0.18,
+      });
     });
 
     stage.insertBefore(overlay, wrap.nextSibling);
+    return { overlay: overlay, shards: shards, sourceVideos: sourceVideos, html: wrap.innerHTML, width: boxWidth, height: boxHeight };
+  }
+
+  /** Whether shards made earlier still show what the block shows now (its content and size are what they were). */
+  function shatterIsCurrent(prepared, wrap) {
+    return (
+      !!prepared &&
+      prepared.overlay.parentNode === wrap.parentNode &&
+      prepared.width === wrap.offsetWidth &&
+      prepared.height === wrap.offsetHeight &&
+      prepared.html === wrap.innerHTML
+    );
+  }
+
+  /** Makes the prepared (hidden) shards paint once, at 1% - so that the browser has them drawn and ready when they are to fly. */
+  function armShatter(prepared) {
+    if (prepared && prepared.overlay.parentNode) prepared.overlay.style.visibility = "visible";
+  }
+
+  /** Lets the shards fly and calls `done` when they are gone. Returns a function that takes them away (the block comes back). */
+  function playShatter(prepared, wrap, durationMs, done) {
+    var duration = Math.max(200, durationMs);
+    // The frame each video is showing now, drawn into the canvas of every shard.
+    prepared.shards.forEach(function (shard) {
+      var markers = shard.content.querySelectorAll("canvas.weft-shatter-video");
+      for (var m = 0; m < markers.length; m++) {
+        var source = prepared.sourceVideos[m];
+        var canvas = markers[m];
+        if (!source) continue;
+        canvas.width = source.videoWidth || source.clientWidth || 1;
+        canvas.height = source.videoHeight || source.clientHeight || 1;
+        try {
+          canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
+        } catch (err) {
+          // a frame that can't be drawn: the shard shows nothing of the video
+        }
+      }
+    });
+    var animations = prepared.shards.map(function (shard) {
+      return shard.element.animate(
+        [
+          { transform: "translate3d(0,0,0) rotate3d(0,0,1,0deg)", opacity: 1, offset: 0 },
+          { opacity: 1, offset: 0.55 },
+          { transform: shard.end, opacity: 0, offset: 1 },
+        ],
+        { duration: duration * 0.82, delay: shard.delay * duration, easing: "cubic-bezier(.3,.05,.85,.5)", fill: "forwards" },
+      );
+    });
+    prepared.overlay.style.opacity = "1";
+    prepared.overlay.style.visibility = "visible";
     // The block itself is gone from this moment on; the shards stand where it was.
     wrap.style.visibility = "hidden";
     var finished = once(function () {
-      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (prepared.overlay.parentNode) prepared.overlay.parentNode.removeChild(prepared.overlay);
       done();
     });
     setTimeout(finished, duration + 150);
@@ -1200,7 +1227,7 @@
       animations.forEach(function (animation) {
         animation.cancel();
       });
-      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (prepared.overlay.parentNode) prepared.overlay.parentNode.removeChild(prepared.overlay);
     };
   }
 
@@ -1282,8 +1309,36 @@
     var gone = false;
     // The animation of an Abbau stays in force (fill forwards) until the block comes back - then it must go.
     var exitAnimation = null;
-    // Takes the shards of a "Zersplittern" away again when the block comes back.
+    // Takes the shards of a "Zersplittern" away again when the block comes back - and the shards made ahead (see prepareShatter).
     var cancelShatter = null;
+    var preparedShatter = null;
+    // Blocks whose shards can be made ahead: what shows no state of its own (a quiz or a video does; they are made as it happens).
+    var shatterAhead =
+      exit.type === "shatter" &&
+      !!graphEvents[exitId] &&
+      (block.kind === "text" || block.kind === "list" || block.kind === "image" || block.kind === "shape" || block.kind === "arrow" ||
+        block.kind === "code" || block.kind === "tex" || block.kind === "button");
+    // Makes the shards while the page stands there: once the block is laid out in the page, when the browser has nothing else to do.
+    var prepareShatter = function () {
+      if (!shatterAhead || preparedShatter) return;
+      var tries = 0;
+      (function wait() {
+        if (preparedShatter || gone) return;
+        if (!wrap.isConnected || !wrap.offsetWidth) {
+          if (++tries < 60) setTimeout(wait, 50);
+          return;
+        }
+        var make = function () {
+          if (preparedShatter || gone) return;
+          preparedShatter = buildShatter(wrap);
+          // A block that is not there yet (waiting for its Aufbau) is armed when it appears.
+          if (preparedShatter && (shown || !graphEvents[entranceId])) armShatter(preparedShatter);
+        };
+        if (typeof requestIdleCallback === "function") requestIdleCallback(make, { timeout: 600 });
+        else setTimeout(make, 0);
+      })();
+    };
+    prepareShatter();
     if (graphEvents[entranceId]) {
       wrap.style.visibility = "hidden";
       performers[entranceId] = function () {
@@ -1297,8 +1352,13 @@
         if (cancelShatter) {
           cancelShatter();
           cancelShatter = null;
+          // (The shards made ahead have flown: new ones are made once the block is back, see below.)
+          preparedShatter = null;
         }
         revealWithEffect(wrap, entrance, function () {
+          // Now it is there: its shards (made ahead while it was waiting, or after it came back) are made visible, hardly.
+          if (preparedShatter) armShatter(preparedShatter);
+          else prepareShatter();
           happened(entranceId);
         });
       };
@@ -1326,7 +1386,13 @@
         // "Zersplittern": the block breaks into pieces that fly off (see shatterBlock) - not an embedded page, which can't be
         // copied: that one just fades.
         if (exit.type === "shatter" && block.kind !== "iframe") {
-          cancelShatter = shatterBlock(wrap, duration, hideExit);
+          // The shards made ahead - or, when the block has changed since (or can't be made ahead), made now.
+          var prepared = shatterIsCurrent(preparedShatter, wrap) ? preparedShatter : null;
+          if (preparedShatter && !prepared && preparedShatter.overlay.parentNode) preparedShatter.overlay.parentNode.removeChild(preparedShatter.overlay);
+          preparedShatter = null;
+          if (!prepared) prepared = buildShatter(wrap);
+          if (!prepared) hideExit();
+          else cancelShatter = playShatter(prepared, wrap, duration, hideExit);
           return;
         }
         if (exit.type === "shatter") exit = { type: "fade", durationMs: exit.durationMs };

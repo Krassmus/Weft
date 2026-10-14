@@ -77,8 +77,6 @@ async function fileIdentity(path: string): Promise<string | null> {
 
 async function probe(path: string, moduleId: string): Promise<Probe> {
   try {
-    if (!(await exists(volumeRoot(path)))) return { kind: "unreachable" };
-    if (!(await exists(path))) return { kind: "missing" };
     const bytes = await readFile(path);
     // Only weft.json is unpacked (the media of a module can be large).
     const files = unzipSync(bytes, { filter: (file) => file.name === "weft.json" });
@@ -86,6 +84,14 @@ async function probe(path: string, moduleId: string): Promise<Probe> {
     if (!json) return { kind: "other" };
     const id = (JSON.parse(strFromU8(json)) as { content?: { id?: unknown } }).content?.id;
     return id === moduleId ? { kind: "same", identity: await fileIdentity(path) } : { kind: "other" };
+  } catch {
+    // Not readable: gone, or out of reach. (The file is read first, not looked for: the app may only look at a few places - the
+    // volume's root "/" is not one of them, so asking whether it exists would fail for every file.)
+  }
+  try {
+    const root = volumeRoot(path);
+    if (root !== "/" && !(await exists(root))) return { kind: "unreachable" };
+    return (await exists(path)) ? { kind: "unreachable" } : { kind: "missing" };
   } catch {
     return { kind: "unreachable" };
   }

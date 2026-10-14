@@ -3,6 +3,7 @@ import { unzipSync, strFromU8 } from "fflate";
 import { isFolderSyncedModule } from "../collab/folder/folderSession";
 import { createId } from "../id";
 import { libraryMode } from "../platform";
+import { readRecentFiles } from "./recentFiles";
 import type { WeftDocument } from "../types";
 
 /**
@@ -90,6 +91,61 @@ async function probe(path: string, moduleId: string): Promise<Probe> {
   }
 }
 
+/**
+ * A file that was copied before Weft had ever seen its original has no remembered place to compare with. What Weft does know are the
+ * files it opened or saved last (the recent files): the id of module `moduleId` is looked for among them, and a file found there (not
+ * the one being opened, and not the very same file) is the original. The id of every recent file read is remembered (by size and
+ * time of change), so that each is read once - the files can be large.
+ */
+const RECENT_IDS_KEY = "weft:recentFileIds";
+const MAX_RECENT_BYTES = 300 * 1024 * 1024;
+
+async function findOriginalInRecents(moduleId: string, path: string): Promise<string | null> {
+  let cache: Record<string, { key: string; id: string }> = {};
+  try {
+    cache = JSON.parse(localStorage.getItem(RECENT_IDS_KEY) ?? "{}") as typeof cache;
+  } catch {
+    cache = {};
+  }
+  const here = await fileIdentity(path);
+  let found: string | null = null;
+  let changed = false;
+  for (const candidate of readRecentFiles()) {
+    if (samePath(candidate, path)) continue;
+    try {
+      const info = await stat(candidate);
+      if (!info.isFile || info.size > MAX_RECENT_BYTES) continue;
+      const key = `${info.size}:${info.mtime ? info.mtime.getTime() : 0}`;
+      let id = cache[candidate]?.key === key ? cache[candidate].id : null;
+      if (id === null) {
+        const files = unzipSync(await readFile(candidate), { filter: (file) => file.name === "weft.json" });
+        const json = files["weft.json"];
+        const parsed = json ? (JSON.parse(strFromU8(json)) as { content?: { id?: unknown } }).content?.id : null;
+        id = typeof parsed === "string" ? parsed : "";
+        cache[candidate] = { key, id };
+        changed = true;
+      }
+      if (id === moduleId) {
+        const identity = await fileIdentity(candidate);
+        // (The very same file by another route is not an original.)
+        if (here !== null && identity !== null && here === identity) continue;
+        found = candidate;
+        break;
+      }
+    } catch {
+      // a file that is gone or cannot be read is no original
+    }
+  }
+  if (changed) {
+    try {
+      localStorage.setItem(RECENT_IDS_KEY, JSON.stringify(cache));
+    } catch {
+      // read again next time
+    }
+  }
+  return found;
+}
+
 export interface ReconciledDocument {
   doc: WeftDocument;
   /** Set when the opened file was found to be a copy and got a new id: the name of the file it is a copy of. */
@@ -109,7 +165,9 @@ export async function reconcileOpenedDocument(doc: WeftDocument, path: string | 
   if (!path || libraryMode() || typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return { doc, copyOf: null };
   const id = doc.content.id;
   const locations = readLocations();
-  const known = locations[id];
+  let known: string | undefined = locations[id];
+  // Never seen: perhaps copied before Weft knew the original - look among the files opened last.
+  if (!known && !doc.live && !isFolderSyncedModule(id)) known = (await findOriginalInRecents(id, path)) ?? undefined;
 
   if (!known || samePath(known, path)) {
     locations[id] = path;
@@ -130,6 +188,7 @@ export async function reconcileOpenedDocument(doc: WeftDocument, path: string | 
     }
     // A copy: a module of its own from now on.
     const newId = createId();
+    if (!locations[id]) locations[id] = known;
     locations[newId] = path;
     writeLocations(locations);
     const { history: _history, documentId: _documentId, live: _live, ...rest } = doc;

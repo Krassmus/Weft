@@ -1118,6 +1118,15 @@ img.weft-thumb-block {
   flex: 1;
   padding: 28px;
   overflow: auto;
+  /* The work area around the slide: a quiet blue glow around its middle and a faint dot grid (mockup of the editor). The glow is
+     fixed to the area, not to what is scrolled - the slide stands in the middle of it; the dots are tiled, so they carry on under
+     a zoomed slide. */
+  background-color: var(--weft-bg);
+  background-image:
+    radial-gradient(ellipse 70% 65% at 50% 50%, rgba(66, 104, 200, 0.34) 0%, rgba(62, 98, 190, 0.14) 48%, transparent 80%),
+    radial-gradient(circle at center, rgba(160, 180, 230, 0.16) 1px, transparent 1.4px);
+  background-size: auto, 22px 22px;
+  background-position: center, center;
   /* Same reasoning as .weft-sidebar-content above. */
   overscroll-behavior: contain;
   /* Lets .weft-canvas-stage-zoom's own margin:auto (see its own comment) center it on BOTH axes
@@ -1191,6 +1200,13 @@ img.weft-thumb-block {
      instead of matching the exported player's default - see the same rule in
      player.runtime.css. */
   font-family: "Open Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* The slide being edited glows softly (blue, like the work area behind it). */
+.weft-stage-edit {
+  box-shadow:
+    var(--weft-shadow),
+    0 0 56px 4px rgba(74, 118, 230, 0.34);
 }
 
 /* Dragging image file(s) in from the Finder over the edit stage. */

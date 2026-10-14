@@ -3,6 +3,7 @@ import { appCacheDir, join } from "@tauri-apps/api/path";
 import { mkdir, readFile, remove, rename, writeFile } from "@tauri-apps/plugin-fs";
 import type { WeftDocument } from "../types";
 import { mergeDocumentFile } from "../collab/merge";
+import { rememberSavedLocation } from "./documentLocations";
 import { useAssetStore } from "../assets/assetStore";
 import { usedAssetIds } from "../document/usedAssets";
 import { useDocumentStore } from "../document/store";
@@ -101,7 +102,10 @@ async function writeFileSafely(path: string, bytes: Uint8Array): Promise<void> {
 
 export async function saveDocumentAs(doc: WeftDocument): Promise<string | null> {
   const bytes = await packDocument(doc);
-  return writeBytes(bytes, suggestedFileName(doc.content.title, SAVE_EXTENSION), "Lernmodul speichern", SAVE_EXTENSION);
+  const path = await writeBytes(bytes, suggestedFileName(doc.content.title, SAVE_EXTENSION), "Lernmodul speichern", SAVE_EXTENSION);
+  // Where the module is now (see documentLocations.ts) - unless the file it was before is still there.
+  if (path) await rememberSavedLocation(doc.content.id, path).catch(() => undefined);
+  return path;
 }
 
 /** Overwrites a known path directly, no dialog - "Speichern" once a document already has one

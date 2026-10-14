@@ -581,6 +581,14 @@ img.weft-thumb-block {
   overflow: visible;
 }
 
+.weft-export-progress.weft-copy-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(560px, 90vw);
+  line-height: 1.4;
+}
+
 .weft-pdf-export .weft-thumb-block-video-icon {
   display: none;
 }

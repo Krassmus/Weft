@@ -37,6 +37,11 @@ function loadConfig(): Record<string, string> {
   }
 }
 
+/** Whether the module is synced with a shared folder on this computer (see the module comment: remembered per module id). */
+export function isFolderSyncedModule(moduleId: string): boolean {
+  return !!loadConfig()[moduleId];
+}
+
 function saveConfig(moduleId: string, folder: string | null): void {
   const config = loadConfig();
   if (folder) config[moduleId] = folder;

@@ -31,6 +31,7 @@ import {
   saveRecoveryCopy,
 } from "../../core/io/fileIO";
 import { forgetRecentFile, rememberRecentFile, syncRecentMenu } from "../../core/io/recentFiles";
+import { reconcileOpenedDocument } from "../../core/io/documentLocations";
 import type { WeftDocument } from "../../core/types";
 import { enterFullscreenPreview, watchFullscreenExit } from "../../core/window/fullscreen";
 import { Canvas } from "./Canvas";
@@ -116,6 +117,8 @@ export function EditorShell() {
   // return for the presentation (below) on is not run while presenting, and hooks must be the same in every render.
   const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number } | null>(null);
   const exportingPdfRef = useRef(false);
+  // Set when a file that was opened turned out to be a copy of another one and got a new id (see core/io/documentLocations.ts).
+  const [copyNotice, setCopyNotice] = useState<{ file: string; of: string } | null>(null);
 
   // On a narrow window (an iPad upright) the two sidebars leave the middle a few pixels: when the work area would get less than a
   // third of the width, the right sidebar becomes a drawer over it - out of the way until something is selected or its tab is
@@ -276,7 +279,7 @@ export function EditorShell() {
       .then((opened) => {
         if (!opened || useDocumentStore.getState().filePath !== null) return;
         if (opened.kind === "player") openPlayer(opened.player, lastPath);
-        else loadDocument(opened.doc, lastPath);
+        else return loadFromFile(opened.doc, lastPath);
       })
       .catch(() => forgetLastPath())
       .then(() => ensureLibraryDocumentRef.current());
@@ -660,6 +663,22 @@ export function EditorShell() {
   }
   handleDuplicateRef.current = handleDuplicate;
 
+  /**
+   * Loads a document read from a file - a copy of another file (same module id seen at another place, see documentLocations.ts) gets a
+   * new id first. That new id is not yet in the file: the document counts as changed, so that the autosave writes it.
+   */
+  async function loadFromFile(doc: WeftDocument, path: string | null) {
+    const { doc: reconciled, copyOf } = await reconcileOpenedDocument(doc, path);
+    loadDocument(reconciled, path);
+    if (copyOf && path) {
+      const { doc: loaded } = useDocumentStore.getState();
+      useDocumentStore.setState({ savedContent: { ...loaded.content } });
+      setCopyNotice({ file: path.split(/[\\/]/).pop() ?? path, of: copyOf });
+    } else {
+      setCopyNotice(null);
+    }
+  }
+
   async function handleOpen() {
     if (libraryMode()) {
       // The modules of the library to choose from (and the way to bring one in) - which asks before replacing what is open.
@@ -671,7 +690,7 @@ export function EditorShell() {
       const result = await openDocument();
       if (!result) return;
       if (result.kind === "player") openPlayer(result.player, result.path);
-      else loadDocument(result.doc, result.path);
+      else await loadFromFile(result.doc, result.path);
     } catch (err) {
       alert(`${t("toolbar.openFailed")}\n${errorMessage(err)}`);
     }
@@ -684,7 +703,7 @@ export function EditorShell() {
       const opened = await openDocumentAtPath(path);
       if (!opened) return;
       if (opened.kind === "player") openPlayer(opened.player, path);
-      else loadDocument(opened.doc, path);
+      else await loadFromFile(opened.doc, path);
     } catch (err) {
       syncRecentMenu(forgetRecentFile(path));
       alert(`${t("toolbar.openFailed")}\n${path}\n${errorMessage(err)}`);
@@ -735,6 +754,17 @@ export function EditorShell() {
           <Inspector />
         </div>
       </div>
+      {copyNotice && (
+        <div className="weft-export-progress weft-copy-notice" role="status">
+          <span>
+            „{copyNotice.file}“ ist eine Kopie von „{copyNotice.of}“ und hat eine neue ID bekommen - sie lässt sich nicht mehr mit dem
+            Original zusammenführen.
+          </span>
+          <button type="button" className="weft-icon-button" title="Schließen" onClick={() => setCopyNotice(null)}>
+            ×
+          </button>
+        </div>
+      )}
       {pdfProgress && (
         <div className="weft-export-progress" role="status">
           PDF wird erzeugt …{pdfProgress.total > 0 ? ` ${Math.min(pdfProgress.done + 1, pdfProgress.total)} / ${pdfProgress.total}` : ""}

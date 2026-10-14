@@ -4,6 +4,9 @@
   --weft-panel-raised: #181c2a;
   /* The foldable sections of the side panels (.weft-collapsible): lighter than the other raised surfaces, to stand out from the panel. */
   --weft-collapsible-bg: #212534;
+  /* The height of the bar over each of the three columns (the tabs of the slide list, the toolbar of the work area, the heading of the
+     properties): one value, so that the lines under them are one line. */
+  --weft-bar-height: 44px;
   --weft-input-bg: #10131e;
   --weft-border: #242938;
   --weft-border-subtle: #1b1f2c;
@@ -268,8 +271,11 @@ textarea {
 
 .weft-sidebar-tabs {
   display: flex;
+  align-items: flex-end;
+  height: var(--weft-bar-height);
+  flex: none;
   gap: 2px;
-  padding: 10px 10px 0;
+  padding: 0 10px;
   border-bottom: 1px solid var(--weft-border-subtle);
 }
 
@@ -1045,8 +1051,11 @@ img.weft-thumb-block {
 
 .weft-canvas-toolbar {
   display: flex;
+  align-items: center;
+  height: var(--weft-bar-height);
+  flex: none;
   gap: 4px;
-  padding: 8px 10px;
+  padding: 0 10px;
   border-bottom: 1px solid var(--weft-border-subtle);
   background: var(--weft-panel);
 }
@@ -2036,7 +2045,11 @@ button.weft-timeline-node-icon:hover {
 }
 
 .weft-inspector-header {
-  padding: 14px 14px 10px;
+  display: flex;
+  align-items: center;
+  height: var(--weft-bar-height);
+  flex: none;
+  padding: 0 14px;
   font-size: 13px;
   font-weight: 600;
   border-bottom: 1px solid var(--weft-border-subtle);

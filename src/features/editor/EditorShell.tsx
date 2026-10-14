@@ -119,6 +119,12 @@ export function EditorShell() {
   const exportingPdfRef = useRef(false);
   // Set when a file that was opened turned out to be a copy of another one and got a new id (see core/io/documentLocations.ts).
   const [copyNotice, setCopyNotice] = useState<{ file: string; of: string } | null>(null);
+  // The note goes away by itself.
+  useEffect(() => {
+    if (!copyNotice) return;
+    const timer = setTimeout(() => setCopyNotice(null), 3000);
+    return () => clearTimeout(timer);
+  }, [copyNotice]);
 
   // On a narrow window (an iPad upright) the two sidebars leave the middle a few pixels: when the work area would get less than a
   // third of the width, the right sidebar becomes a drawer over it - out of the way until something is selected or its tab is
@@ -757,8 +763,8 @@ export function EditorShell() {
       {copyNotice && (
         <div className="weft-export-progress weft-copy-notice" role="status">
           <span>
-            „{copyNotice.file}“ ist eine Kopie von „{copyNotice.of}“ und hat eine neue ID bekommen - sie lässt sich nicht mehr mit dem
-            Original zusammenführen.
+            Weft hat diese Datei als Kopie eines anderen Dokumentes erkannt. Beide Dateien werden jetzt separat geschrieben und nicht
+            mehr zusammengeführt.
           </span>
           <button type="button" className="weft-icon-button" title="Schließen" onClick={() => setCopyNotice(null)}>
             ×

@@ -194,6 +194,12 @@ export function EditorShell() {
   // drag even though sidebarWidth itself changes (and re-renders this component) on every move.
   function handleResizerPointerDown(e: ReactPointerEvent) {
     e.preventDefault();
+    // The finger stays with the line even where it leaves it (and over the iframes and the like on the way).
+    try {
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    } catch {
+      // not every pointer can be captured; the window listeners below do the work anyway
+    }
     const startX = e.clientX;
     const startWidth = sidebarWidth;
 
@@ -204,6 +210,7 @@ export function EditorShell() {
     function onUp() {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
       document.body.classList.remove("weft-dragging");
       document.body.style.cursor = "";
     }
@@ -212,6 +219,7 @@ export function EditorShell() {
     document.body.classList.add("weft-dragging");
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   }
 
   // If fullscreen is exited from outside our own controls (Escape, the native macOS toggle, a

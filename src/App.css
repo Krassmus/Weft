@@ -249,9 +249,29 @@ textarea {
 }
 
 .weft-resizer {
+  position: relative;
+  z-index: 5;
   cursor: col-resize;
   background: var(--weft-border-subtle);
   touch-action: none;
+}
+
+/* The line itself is a few pixels wide; the area that takes the drag is wider - a mouse hits it easily, a finger needs more room (see
+   the touch rule below). */
+.weft-resizer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -5px;
+  right: -5px;
+}
+
+@media (pointer: coarse) {
+  .weft-resizer::before {
+    left: -20px;
+    right: -20px;
+  }
 }
 
 .weft-resizer:hover,

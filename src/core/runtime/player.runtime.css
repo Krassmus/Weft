@@ -145,6 +145,69 @@ body {
   margin-bottom: 0;
 }
 
+/* A gap text (ClozeBlock): the text with its blanks as input fields, the button and the feedback of a quiz under it. Kept in step with
+   .weft-edit-block-cloze* in App.css. */
+.weft-cloze {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  height: 100%;
+  overflow: auto;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.weft-cloze-text > :first-child {
+  margin-top: 0;
+}
+
+.weft-cloze-text > :last-child {
+  margin-bottom: 0;
+}
+
+.weft-cloze-input {
+  font: inherit;
+  color: inherit;
+  min-width: 3ch;
+  max-width: 100%;
+  padding: 0.05em 0.35em;
+  border: 1px solid #a1a1aa;
+  border-radius: 0.25em;
+  background: #fff;
+  text-align: center;
+  vertical-align: baseline;
+}
+
+.weft-cloze-input:focus {
+  outline: 2px solid #93c5fd;
+  outline-offset: 1px;
+}
+
+.weft-cloze-input.is-correct {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.weft-cloze-input.is-incorrect {
+  border-color: #dc2626;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.weft-cloze-mark {
+  margin-left: 0.25em;
+  font-weight: 700;
+}
+
+.weft-cloze-mark.is-correct {
+  color: #16a34a;
+}
+
+.weft-cloze-mark.is-incorrect {
+  color: #dc2626;
+}
+
 /* A list (ListBlock): kept in step by hand with .weft-edit-block-list* / .weft-thumb-block-list* in App.css. */
 .weft-list {
   display: flex;

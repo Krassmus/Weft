@@ -32,7 +32,7 @@ import { useAssetStore } from "../../../core/assets/assetStore";
 import { useDocumentStore } from "../../../core/document/store";
 import { createId } from "../../../core/id";
 import { confirmDestructive } from "../../../core/io/fileIO";
-import type { ArrowPoint, Block, BlockPosition, IframeBlock, ListBlock, QuizBlock } from "../../../core/types";
+import type { ArrowPoint, Block, BlockPosition, ClozeBlock, IframeBlock, ListBlock, QuizBlock } from "../../../core/types";
 import { ListMarkerView } from "./ListMarkerView";
 import { caretAt, caretOnLine, caretX, fitListMarkers, focusItem, textLength } from "./listCaret";
 import { ContextMenu, useContextMenu } from "../ContextMenu";
@@ -457,7 +457,7 @@ export function BlockView({
           contextMenu.open(event, items);
         }}
         onPointerDown={(e) => {
-          if (e.button === 0 && block.kind === "text") {
+          if (e.button === 0 && (block.kind === "text" || block.kind === "cloze")) {
             const stage = stageRect();
             const onFrame = !!stage && edgeDistancePx(e.clientX, e.clientY, position, stage) <= edgeThreshold(position, stage);
             frameSelectRef.current = onFrame;
@@ -619,6 +619,8 @@ function BlockContent({
           onSendToBack={onSendToBack}
         />
       );
+    case "cloze":
+      return <ClozeBlockCanvas block={block} selected={selected} frameSelect={frameSelect} onUpdate={onUpdate} />;
     case "list":
       return <ListBlockCanvas block={block} selected={selected} onUpdate={onUpdate} onDelete={onDelete} onBringToFront={onBringToFront} onSendToBack={onSendToBack} />;
     case "shape":
@@ -751,6 +753,39 @@ function QuizBlockCanvas({
         {playerStringsFor(lang).submit}
       </div>
       <ContextMenu menu={contextMenu.menu} onClose={contextMenu.close} />
+    </div>
+  );
+}
+
+/**
+ * A gap text on the canvas: the text is edited in place, the blanks written as [[answer]] (the panel lists what was recognised);
+ * under it a picture of the button the learner gets, as with a quiz.
+ */
+function ClozeBlockCanvas({
+  block,
+  selected,
+  frameSelect,
+  onUpdate,
+}: {
+  block: ClozeBlock;
+  selected: boolean;
+  frameSelect: MutableRefObject<boolean>;
+  onUpdate?: (patch: Partial<Block>) => void;
+}) {
+  const { lang, defaultLang } = useEditingLanguage();
+  return (
+    <div className="weft-edit-block-cloze">
+      <EditableRichText
+        className="weft-edit-block-cloze-text"
+        html={textHtml(block, lang, defaultLang)}
+        editable={selected}
+        frameSelect={frameSelect}
+        onCommit={(html) => onUpdate?.(textHtmlPatch(block, lang, defaultLang, html))}
+      />
+      <div className="weft-edit-block-quiz-submit">
+        <span className="weft-edit-block-quiz-submit-icon" dangerouslySetInnerHTML={{ __html: acceptSvg }} />
+        {playerStringsFor(lang).submit}
+      </div>
     </div>
   );
 }

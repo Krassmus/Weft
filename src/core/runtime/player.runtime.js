@@ -2269,8 +2269,182 @@
     return wrap;
   }
 
+  // ---- ClozeBlock ("Lückentext"): kept in sync by hand with core/document/cloze.ts, which this file can't import. ----
+
+  var CLOZE_MARKER = /\[\[([^\[\]]+)\]\]/g;
+
+  function clozeLevenshtein(a, b) {
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+    var previous = [];
+    for (var j = 0; j <= b.length; j++) previous.push(j);
+    for (var i = 1; i <= a.length; i++) {
+      var current = [i];
+      for (var k = 1; k <= b.length; k++) {
+        var cost = a.charAt(i - 1) === b.charAt(k - 1) ? 0 : 1;
+        current[k] = Math.min(previous[k] + 1, current[k - 1] + 1, previous[k - 1] + cost);
+      }
+      previous = current;
+    }
+    return previous[b.length];
+  }
+
+  function clozeNormalise(text, caseSensitive) {
+    var trimmed = String(text).trim().replace(/\s+/g, " ");
+    return caseSensitive ? trimmed : trimmed.toLocaleLowerCase();
+  }
+
+  // How many wrong characters are put up with: the tolerance, and none for a very short answer.
+  function clozeAllowedSlips(answerLength, tolerance) {
+    if (!(tolerance > 0)) return 0;
+    return answerLength > tolerance * 2 ? tolerance : 0;
+  }
+
+  function clozeIsRight(given, answers, caseSensitive, tolerance) {
+    var typed = clozeNormalise(given, caseSensitive);
+    if (!typed.length) return false;
+    return answers.some(function (answer) {
+      var wanted = clozeNormalise(answer, caseSensitive);
+      return clozeLevenshtein(typed, wanted) <= clozeAllowedSlips(wanted.length, tolerance);
+    });
+  }
+
+  function renderClozeBlock(block) {
+    var wrap = el("div", { class: "weft-block weft-block-cloze", style: positionStyle(block.position) });
+    var box = el("div", { class: "weft-cloze" }, []);
+    var text = el("div", { class: "weft-cloze-text" }, []);
+    box.appendChild(text);
+    var blanks = []; // { input, mark, key, answers }
+    var answered = null; // null until submitted, then whether everything was right
+    var hasFiredFill = false;
+
+    // The text with its markers turned into input fields (a marker is recognised within one text node, like a {{variable}}).
+    var fillText = function () {
+      var kept = blanks.map(function (blank) {
+        return blank.input.value;
+      });
+      text.innerHTML = blockHtml(block);
+      applyVariablesToNode(text);
+      blanks = [];
+      var walker = document.createTreeWalker(text, NodeFilter.SHOW_TEXT);
+      var nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach(function (node) {
+        var value = node.nodeValue;
+        CLOZE_MARKER.lastIndex = 0;
+        if (!CLOZE_MARKER.test(value)) return;
+        var fragment = document.createDocumentFragment();
+        var last = 0;
+        var match;
+        CLOZE_MARKER.lastIndex = 0;
+        while ((match = CLOZE_MARKER.exec(value))) {
+          var key = match[1].trim();
+          var answers = key
+            .split("|")
+            .map(function (answer) {
+              return answer.trim();
+            })
+            .filter(function (answer) {
+              return answer.length > 0;
+            });
+          if (!answers.length) continue;
+          if (match.index > last) fragment.appendChild(document.createTextNode(value.slice(last, match.index)));
+          var longest = answers.reduce(function (most, answer) {
+            return Math.max(most, answer.length);
+          }, 4);
+          var input = el(
+            "input",
+            {
+              type: "text",
+              class: "weft-cloze-input",
+              autocomplete: "off",
+              autocapitalize: "off",
+              spellcheck: "false",
+              "aria-label": String(blanks.length + 1),
+              style: "width:" + Math.min(longest + 2, 30) + "ch;",
+            },
+            [],
+          );
+          var index = blanks.length;
+          if (kept[index] !== undefined) input.value = kept[index];
+          if (answered !== null) input.disabled = true;
+          input.addEventListener("input", function () {
+            if (hasFiredFill) return;
+            hasFiredFill = true;
+            happened(quizFillEventId(block.id));
+          });
+          var mark = el("span", { class: "weft-cloze-mark", "aria-hidden": "true" }, []);
+          fragment.appendChild(input);
+          fragment.appendChild(mark);
+          blanks.push({ input: input, mark: mark, key: key, answers: answers });
+          last = match.index + match[0].length;
+        }
+        if (last === 0) return;
+        if (last < value.length) fragment.appendChild(document.createTextNode(value.slice(last)));
+        node.parentNode.replaceChild(fragment, node);
+      });
+    };
+    fillText();
+
+    var submit = el("button", { type: "button", class: "weft-quiz-submit" }, []);
+    var submitIcon = el("span", { class: "weft-quiz-submit-icon" }, []);
+    submitIcon.innerHTML = QUIZ_SUBMIT_ICON_SVG;
+    submit.appendChild(submitIcon);
+    var submitLabel = document.createTextNode(uiString("submit"));
+    submit.appendChild(submitLabel);
+    box.appendChild(submit);
+
+    var feedback = el("div", { class: "weft-quiz-feedback", hidden: "" }, []);
+    var feedbackIcon = el("span", { class: "weft-quiz-feedback-icon" }, []);
+    var feedbackTitle = el("strong", { class: "weft-quiz-feedback-title" }, []);
+    feedback.appendChild(feedbackIcon);
+    feedback.appendChild(feedbackTitle);
+    box.appendChild(feedback);
+    var showFeedbackTitle = function () {
+      feedbackTitle.textContent = uiString(answered ? "correct" : "incorrect");
+    };
+    languageRefreshers.push(function () {
+      submitLabel.nodeValue = uiString("submit");
+      // (What was marked after the submit stays as it is: the text is not made again.)
+      if (answered !== null) showFeedbackTitle();
+      else fillText();
+    });
+
+    submit.addEventListener("click", function () {
+      var caseSensitive = block.caseSensitive === true;
+      var tolerance = block.tolerance || 0;
+      var allRight = blanks.length > 0;
+      blanks.forEach(function (blank) {
+        var right = clozeIsRight(blank.input.value, blank.answers, caseSensitive, tolerance);
+        if (!right) allRight = false;
+        blank.input.disabled = true;
+        blank.input.className = "weft-cloze-input " + (right ? "is-correct" : "is-incorrect");
+        blank.mark.textContent = right ? "\u2713" : "\u2717";
+        blank.mark.className = "weft-cloze-mark " + (right ? "is-correct" : "is-incorrect");
+        if (right) {
+          (block.onEachCorrect || []).forEach(applyEffect);
+          ((block.answerEffects || {})[blank.key] || []).forEach(applyEffect);
+        }
+      });
+      ((allRight ? block.onCorrect : block.onIncorrect) || []).forEach(applyEffect);
+      // The same events as a quiz (see quizSubmitNodeId in pageTimeline.ts): the plain one and the one of this outcome.
+      happened(quizSubmitEventId(block.id));
+      happened(quizSubmitEventId(block.id, allRight ? "richtig" : "falsch"));
+      submit.hidden = true;
+      feedbackIcon.innerHTML = allRight ? QUIZ_CORRECT_ICON_SVG : QUIZ_INCORRECT_ICON_SVG;
+      answered = allRight;
+      showFeedbackTitle();
+      feedback.className = "weft-quiz-feedback " + (allRight ? "is-correct" : "is-incorrect");
+      feedback.hidden = false;
+    });
+
+    wrap.appendChild(box);
+    return wrap;
+  }
+
   function renderBlock(block, page) {
-    var wrap = block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : renderStaticBlock(block, page);
+    var wrap = block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : renderStaticBlock(block, page);
     applyBlockEffects(wrap, block, page);
     if (block.kind === "list" && wrap.weftListItems) applyListItemEffects(block, wrap.weftListItems);
     return wrap;

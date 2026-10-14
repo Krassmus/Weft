@@ -12,6 +12,7 @@ export function placeholderSources(block: Block): string[] {
   switch (block.kind) {
     // Every language's wording, not just the default's - a placeholder is just as wrong in French.
     case "text":
+    case "cloze":
       return [block.html, ...Object.values(block.translations ?? {}).flatMap((t) => (t.html !== undefined ? [t.html] : []))];
     case "quiz":
       return [

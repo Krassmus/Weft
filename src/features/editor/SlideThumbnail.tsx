@@ -7,6 +7,7 @@ import { FilesView } from "./blocks/FilesView";
 import { ShapeSvg } from "./blocks/ShapeSvg";
 import { buttonText, listItemHtml, quizOptionHtml, quizQuestionHtml, textHtml } from "../../core/document/translations";
 import { ListMarkerView } from "./blocks/ListMarkerView";
+import { clozeBlanksAsBoxes } from "../../core/document/cloze";
 import { fitListMarkers } from "./blocks/listCaret";
 import { playerStringsFor } from "../../core/i18n/playerStrings";
 import { useEditingLanguage } from "./useEditingLanguage";
@@ -75,6 +76,17 @@ function ThumbBlock({ block, exportPxPerCqw, qrSvg }: { block: Block; exportPxPe
 
   if (block.kind === "text") {
     return <div className="weft-thumb-block weft-thumb-block-text" style={style} dangerouslySetInnerHTML={{ __html: textHtml(block, lang, defaultLang) }} />;
+  }
+  if (block.kind === "cloze") {
+    return (
+      <div className="weft-thumb-block weft-thumb-block-cloze" style={style}>
+        <div className="weft-thumb-block-cloze-text" dangerouslySetInnerHTML={{ __html: clozeBlanksAsBoxes(textHtml(block, lang, defaultLang)) }} />
+        <div className="weft-thumb-block-quiz-submit">
+          <span className="weft-thumb-block-quiz-submit-icon" dangerouslySetInnerHTML={{ __html: acceptSvg }} />
+          {playerStringsFor(lang).submit}
+        </div>
+      </div>
+    );
   }
   if (block.kind === "list") {
     return (

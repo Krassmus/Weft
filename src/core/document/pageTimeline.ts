@@ -1,7 +1,7 @@
 import { isSnapshot } from "../collab/mutationScope";
 import { formatTimeMMSS } from "../formatTime";
 import { orderedValues } from "./ordering";
-import type { Block, BlockGroup, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode, VideoBlock } from "../types";
+import type { Block, BlockGroup, ClozeBlock, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode, VideoBlock } from "../types";
 
 /**
  * What every page's timeline starts out as (and what a page missing it is given on load, see io/unpack.ts): one trigger from the
@@ -55,7 +55,7 @@ export function quizEndNodeId(quizId: string, outcome: "richtig" | "falsch"): st
  * node, not two different-looking nodes that happen to share one id and so always select together).
  */
 function buildQuizLane(
-  quiz: QuizBlock,
+  quiz: QuizBlock | ClozeBlock,
   final?: { endId: string; kind: TimelineEdgeKind; delayMs?: number },
   outcome?: "richtig" | "falsch",
 ): TimelineLane {
@@ -68,7 +68,12 @@ function buildQuizLane(
       kind: "event",
       sourceBlockId: quiz.id,
       eventType: outcome ? QUIZ_OUTCOME_EVENT_TYPES[outcome] : "quiz-submit",
-      ...(outcome ? { label: `Quiz abgeschickt (${outcome})` } : {}),
+      // (A gap text has the events of a quiz, under its own name.)
+      ...(outcome
+        ? { label: `${quiz.kind === "cloze" ? "Lückentext" : "Quiz"} abgeschickt (${outcome})` }
+        : quiz.kind === "cloze"
+          ? { label: "Lückentext abgeschickt" }
+          : {}),
     },
   ];
   const edges: TimelineLane["edges"] = [{ from: fillId, to: submitId, kind: "unknown" }];
@@ -166,6 +171,7 @@ const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
   iframe: "Iframe",
   button: "Button",
   quiz: "Quiz",
+  cloze: "Lückentext",
   shape: "Form",
   arrow: "Pfeil",
   files: "Dateien",
@@ -494,7 +500,8 @@ export function setTriggerEdge(
  */
 function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<string, TimelineNode> } {
   const blocks = orderedValues(page.blocks);
-  const quizzes = blocks.filter((b): b is QuizBlock => b.kind === "quiz");
+  // A gap text has the events of a quiz (the first answer, submitted, right / wrong): the same lanes.
+  const quizzes = blocks.filter((b): b is QuizBlock | ClozeBlock => b.kind === "quiz" || b.kind === "cloze");
   const videos = blocks.filter((b): b is VideoBlock => b.kind === "video");
 
   const startNode: TimelineNode = { id: "start", kind: "start" };
@@ -511,7 +518,7 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
     // counts as "richtig" (see QuizBlock.open).
     let outcomeLanes = 0;
     for (const outcome of ["richtig", "falsch"] as const) {
-      if (outcome === "falsch" && quiz.open) continue;
+      if (outcome === "falsch" && quiz.kind === "quiz" && quiz.open) continue;
       const submitId = quizSubmitNodeId(quiz.id, outcome);
       const trigger = Object.values(page.timeline.triggers).find((t) => t.from === submitId && page.timeline.ends[t.to]);
       if (!trigger) continue;
@@ -741,7 +748,7 @@ function blockEventIds(page: Page): Set<string> {
       ids.add(videoEndNodeId(block.id));
     }
     if (block.kind === "button") ids.add(buttonClickNodeId(block.id));
-    if (block.kind === "quiz") {
+    if (block.kind === "quiz" || block.kind === "cloze") {
       ids.add(quizFillNodeId(block.id));
       ids.add(quizSubmitNodeId(block.id));
       ids.add(quizSubmitNodeId(block.id, "richtig"));
@@ -789,7 +796,7 @@ export function syncPageTimelineEvents(page: Page): void {
   const events = blockEventIds(page);
 
   // 1.
-  const quizIds = new Set(orderedValues(page.blocks).filter((b) => b.kind === "quiz").map((b) => b.id));
+  const quizIds = new Set(orderedValues(page.blocks).filter((b) => b.kind === "quiz" || b.kind === "cloze").map((b) => b.id));
   for (const endId of Object.keys(timeline.ends)) {
     const quizEnd = /^end:quiz:(.+):(richtig|falsch)$/.exec(endId);
     if (!quizEnd) continue;

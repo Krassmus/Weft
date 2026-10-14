@@ -493,6 +493,16 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
   switch (kind) {
     case "text":
       return { ...base, kind, position, html: "<p>Neuer Text</p>" };
+    case "cloze":
+      return {
+        ...base,
+        kind,
+        position: { x: 10, y: 28, width: 80, height: 45 },
+        html: "<p>Die Hauptstadt von Deutschland ist [[Berlin]].</p>",
+        onEachCorrect: [],
+        onCorrect: [],
+        onIncorrect: [],
+      };
     case "list":
       return {
         ...base,
@@ -653,7 +663,9 @@ export function updateBlock(pageId: string, blockId: string, patch: Partial<Bloc
     // page.timeline.triggers, not on the block itself - see setEventTrigger below.
     const touchesEffect = "entranceEffect" in patch || "exitEffect" in patch;
     const touchesList = block.kind === "list" && ("items" in patch || "itemEntrance" in patch);
-    if (page && (block.kind === "quiz" || block.kind === "video" || touchesEffect || touchesList)) syncPageTimelineEvents(page);
+    if (page && (block.kind === "quiz" || block.kind === "cloze" || block.kind === "video" || touchesEffect || touchesList)) {
+      syncPageTimelineEvents(page);
+    }
     // A list whose items have an Aufbau of their own: a new item (or all of them, when the switch has just been turned on) takes its
     // place in the chain of Weiter - after the sync, which has dropped what the other mode had.
     if (page && block.kind === "list" && isListPerItem(block) && (touchesList || touchesEffect)) {
@@ -1528,7 +1540,7 @@ export function pasteBlockInto(
   target: { kind: "page"; pageId: string } | { kind: "layout"; layoutId: string },
   sourceBlock: Block,
 ): string | null {
-  if (target.kind === "layout" && sourceBlock.kind === "quiz") return null;
+  if (target.kind === "layout" && (sourceBlock.kind === "quiz" || sourceBlock.kind === "cloze")) return null;
   const newBlock = cloneBlockWithNewId(sourceBlock);
   newBlock.position = offsetPosition(newBlock.position);
 

@@ -277,6 +277,31 @@ export interface QuizBlock extends BaseBlock {
   onIncorrect: VariableEffect[];
 }
 
+/**
+ * A gap text: a rich text in which `[[Berlin]]` is a blank (an input field in the player) whose right answer is "Berlin" (see
+ * core/document/cloze.ts), with a "Abschicken" button under it that marks which answers were right. Like a quiz it is graded, so it
+ * lives on pages only (not in a layout), and it has the same events in the page's graph (the first answer typed, submitted - plain, and
+ * right/wrong).
+ */
+export interface ClozeBlock extends BaseBlock {
+  kind: "cloze";
+  /** Rich HTML, as TextBlock.html, with the blanks written as [[answer]]. */
+  html: string;
+  /** Other languages' wording (`html`), by locale - see BlockTranslation. */
+  translations?: Record<string, BlockTranslation>;
+  /** Whether capital and small letters have to be as written (default: they don't). */
+  caseSensitive?: boolean;
+  /** How many characters of an answer may be wrong (Levenshtein distance, 0-2; default 0). Very short answers are always exact. */
+  tolerance?: number;
+  /** What happens for every blank that was answered right. */
+  onEachCorrect: VariableEffect[];
+  /** What happens, in addition, for a blank whose answer is this one (keyed by what stands in the brackets). */
+  answerEffects?: Record<string, VariableEffect[]>;
+  /** What happens once all blanks were answered right / not all were. */
+  onCorrect: VariableEffect[];
+  onIncorrect: VariableEffect[];
+}
+
 export interface ButtonBlock extends BaseBlock {
   kind: "button";
   text: string;
@@ -452,7 +477,7 @@ export interface FilesBlock extends BaseBlock {
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
 export type StaticBlock = TextBlock | ListBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock | ArrowBlock | FilesBlock;
-export type Block = StaticBlock | QuizBlock;
+export type Block = StaticBlock | QuizBlock | ClozeBlock;
 
 /** A block as it's first made, before it has been put somewhere (and so given its `order`). */
 export type NewBlock = Block extends infer B ? (B extends Block ? Omit<B, "order"> : never) : never;

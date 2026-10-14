@@ -20,7 +20,7 @@ function allTextHtml(module: WeftModule): string {
   const html: string[] = [];
   for (const page of Object.values(module.pages)) {
     for (const block of Object.values(page.blocks)) {
-      if (block.kind === "text") html.push(block.html);
+      if (block.kind === "text" || block.kind === "cloze") html.push(block.html);
       else if (block.kind === "quiz") {
         html.push(block.questionHtml);
         for (const option of block.options) html.push(option.html);

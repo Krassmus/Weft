@@ -47,6 +47,7 @@ const en = {
   "block.arrow": "Arrow",
   "block.files": "Files",
   "block.list": "List",
+  "block.cloze": "Gap text",
 
   "settings.window.title": "Settings",
   "settings.language.legend": "Language",
@@ -107,6 +108,7 @@ const de: Record<keyof typeof en, string> = {
   "block.arrow": "Pfeil",
   "block.files": "Dateien",
   "block.list": "Liste",
+  "block.cloze": "Lückentext",
 
   "settings.window.title": "Einstellungen",
   "settings.language.legend": "Sprache",
@@ -157,4 +159,5 @@ export const BLOCK_KIND_KEYS: Record<Block["kind"], Extract<TranslationKey, `blo
   arrow: "block.arrow",
   files: "block.files",
   list: "block.list",
+  cloze: "block.cloze",
 };

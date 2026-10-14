@@ -1636,6 +1636,58 @@ button.weft-timeline-node-icon:hover {
   margin-bottom: 0;
 }
 
+/* A gap text (ClozeBlock): the text, and under it the button of the quiz. The blanks of a thumbnail are empty boxes. Kept in step with
+   .weft-cloze* in player.runtime.css. */
+.weft-edit-block-cloze,
+.weft-thumb-block-cloze {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.weft-edit-block-cloze-text {
+  outline: none;
+}
+
+.weft-edit-block-cloze-text > :first-child,
+.weft-thumb-block-cloze-text > :first-child {
+  margin-top: 0;
+}
+
+.weft-edit-block-cloze-text > :last-child,
+.weft-thumb-block-cloze-text > :last-child {
+  margin-bottom: 0;
+}
+
+.weft-cloze-blank {
+  display: inline-block;
+  height: 1em;
+  vertical-align: text-bottom;
+  border-bottom: 0.08em solid currentColor;
+  opacity: 0.55;
+}
+
+/* The recognised blanks in the panel of a gap text (ClozeEditor in BlockPanel.tsx). */
+.weft-cloze-answers {
+  margin: 0 0 6px;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+}
+
+.weft-cloze-answer {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--weft-accent-soft);
+  color: var(--weft-text);
+}
+
 /* A list (ListBlock): its items, each with its mark in front. The marks and the spacing are the same in the player (.weft-list* in
    player.runtime.css) and in the thumbnails (.weft-thumb-block-list*) - all three share the 1.7cqw base size of a block. */
 .weft-edit-block-list,

@@ -7,7 +7,7 @@ import { Collapsible } from "../Collapsible";
 import { useDragReorder } from "../useDragReorder";
 import { orderedValues } from "../../../core/document/ordering";
 
-const STATIC_BLOCK_KINDS = Object.keys(BLOCK_KIND_KEYS).filter((kind) => kind !== "quiz") as StaticBlock["kind"][];
+const STATIC_BLOCK_KINDS = Object.keys(BLOCK_KIND_KEYS).filter((kind) => kind !== "quiz" && kind !== "cloze") as StaticBlock["kind"][];
 
 export function LayoutPanel({ layout }: { layout: Layout }) {
   const { t } = useTranslation();

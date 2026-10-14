@@ -641,7 +641,7 @@ function TimelineGraph({ page }: { page: Page }) {
   );
 }
 
-const BLOCK_FRAME_LABELS: Record<string, string> = { quiz: "Quiz", video: "Video" };
+const BLOCK_FRAME_LABELS: Record<string, string> = { quiz: "Quiz", cloze: "Lückentext", video: "Video" };
 
 function TimelineNodeIcon({
   node,

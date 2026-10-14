@@ -32,6 +32,7 @@ import type {
   BlockEffectType,
   TransitionDirection,
   ButtonBlock,
+  ClozeBlock,
   CodeBlock,
   IframeBlock,
   ImageBlock,
@@ -65,7 +66,8 @@ import { listPageTriggerEvents } from "../Timeline";
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { buttonText, buttonTextPatch, listItemHtml, quizOptionHtml } from "../../../core/document/translations";
+import { buttonText, buttonTextPatch, listItemHtml, quizOptionHtml, textHtml } from "../../../core/document/translations";
+import { clozeBlanks } from "../../../core/document/cloze";
 import { useEditingLanguage } from "../useEditingLanguage";
 import { LanguageSelect } from "./LanguageSelect";
 import { TexEditor } from "./TexEditor";
@@ -115,10 +117,11 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
       {/* Same formatting toolbar for both - a quiz's question and options are rich text edited
           directly on the canvas exactly like a text block's own content, just several regions
           sharing one block instead of one filling it (see EditableRichText in BlockView.tsx). */}
-      {(block.kind === "text" || block.kind === "quiz" || block.kind === "list") && (
+      {(block.kind === "text" || block.kind === "quiz" || block.kind === "list" || block.kind === "cloze") && (
         <TextEditor block={block.kind === "text" ? block : undefined} onUpdate={onUpdate} />
       )}
       {block.kind === "list" && <ListEditor block={block} page={page} onUpdate={onUpdate} onSetImage={onSetImage} />}
+      {block.kind === "cloze" && <ClozeEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "code" && <CodeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "tex" && <TexEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "image" && <ImageEditor block={block} onUpdate={onUpdate} onSetImage={onSetImage} />}
@@ -983,6 +986,110 @@ function IframeEditor({ block, onUpdate }: { block: IframeBlock; onUpdate: Block
         </label>
       )}
     </Collapsible>
+  );
+}
+
+/**
+ * The settings of a gap text (see ClozeBlock): the blanks that were recognised in its text - so that an author sees at once whether
+ * a [[marker]] is one - how an answer is judged (capital letters, typing slips) and what a right answer does: for every blank, for
+ * one particular answer, for everything being right, for something being wrong.
+ */
+function ClozeEditor({ block, page, onUpdate }: { block: ClozeBlock; page?: Page; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const variables = useDocumentStore((s) => s.doc.content.variables);
+  const { lang, defaultLang } = useEditingLanguage();
+  const blanks = clozeBlanks(textHtml(block, lang, defaultLang));
+  const goesOn = (outcome: "richtig" | "falsch") => !!page?.timeline.ends[quizEndNodeId(block.id, outcome)];
+  const keys = Array.from(new Set(blanks.map((blank) => blank.key)));
+
+  return (
+    <>
+      <Collapsible title="Lücken">
+        <LanguageSelect block={block} />
+        <p className="weft-hint">
+          Den Text direkt auf der Folie eingeben. Eine Lücke schreibst du als [[Antwort]]; mehrere richtige Antworten trennst du mit | (zum
+          Beispiel [[Berlin|Hauptstadt]]). Eine Lücke muss ohne Formatierung in der Mitte geschrieben sein.
+        </p>
+        {blanks.length === 0 ? (
+          <p className="weft-hint">Noch keine Lücke erkannt.</p>
+        ) : (
+          <ol className="weft-cloze-answers">
+            {blanks.map((blank, index) => (
+              <li key={index}>
+                {blank.answers.map((answer, n) => (
+                  <span key={n} className="weft-cloze-answer">
+                    {answer}
+                  </span>
+                ))}
+              </li>
+            ))}
+          </ol>
+        )}
+      </Collapsible>
+
+      <Collapsible title="Bewertung" defaultOpen={false}>
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={!!block.caseSensitive} onChange={(e) => onUpdate({ caseSensitive: e.target.checked })} />
+          <span>Groß- und Kleinschreibung beachten</span>
+        </label>
+        <label className="weft-field">
+          <span>Toleranz bei Tippfehlern</span>
+          <select value={block.tolerance ?? 0} onChange={(e) => onUpdate({ tolerance: Number(e.target.value) })}>
+            <option value={0}>Keine - genau so geschrieben</option>
+            <option value={1}>1 falsches Zeichen</option>
+            <option value={2}>2 falsche Zeichen</option>
+          </select>
+        </label>
+        <p className="weft-hint">Bei sehr kurzen Antworten gilt immer die genaue Schreibweise.</p>
+      </Collapsible>
+
+      <Collapsible title="Bei jeder richtigen Antwort" defaultOpen={false}>
+        <EffectListEditor effects={block.onEachCorrect ?? []} variables={variables} onChange={(onEachCorrect) => onUpdate({ onEachCorrect })} />
+      </Collapsible>
+
+      {keys.length > 0 && (
+        <Collapsible title="Je nach Antwort" defaultOpen={false}>
+          <p className="weft-hint">Zusätzlich zu dem, was bei jeder richtigen Antwort geschieht.</p>
+          {keys.map((key) => (
+            <Collapsible key={key} title={key} defaultOpen={false}>
+              <EffectListEditor
+                effects={block.answerEffects?.[key] ?? []}
+                variables={variables}
+                onChange={(effects) => {
+                  const answerEffects = { ...block.answerEffects, [key]: effects };
+                  if (effects.length === 0) delete answerEffects[key];
+                  onUpdate({ answerEffects });
+                }}
+              />
+            </Collapsible>
+          ))}
+        </Collapsible>
+      )}
+
+      <Collapsible title="Wenn alles richtig ist" defaultOpen={false}>
+        <EffectListEditor effects={block.onCorrect} variables={variables} onChange={(onCorrect) => onUpdate({ onCorrect })} />
+        <label className="weft-field weft-field-inline">
+          <input
+            type="checkbox"
+            checked={goesOn("richtig")}
+            disabled={!page}
+            onChange={(e) => page && setQuizAdvance(page.id, block.id, "richtig", e.target.checked)}
+          />
+          <span>Weiter zur nächsten Folie</span>
+        </label>
+      </Collapsible>
+      <Collapsible title="Wenn nicht alles richtig ist" defaultOpen={false}>
+        <EffectListEditor effects={block.onIncorrect} variables={variables} onChange={(onIncorrect) => onUpdate({ onIncorrect })} />
+        <label className="weft-field weft-field-inline">
+          <input
+            type="checkbox"
+            checked={goesOn("falsch")}
+            disabled={!page}
+            onChange={(e) => page && setQuizAdvance(page.id, block.id, "falsch", e.target.checked)}
+          />
+          <span>Weiter zur nächsten Folie</span>
+        </label>
+      </Collapsible>
+    </>
   );
 }
 

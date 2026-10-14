@@ -58,7 +58,7 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
       events.push({ id: videoEndNodeId(block.id), kind: "video-end" });
     }
 
-    if (block.kind === "quiz") {
+    if (block.kind === "quiz" || block.kind === "cloze") {
       events.push({ id: quizFillNodeId(block.id), kind: "quiz-fill" });
       // The player lets the plain "submitted" event happen, and the one of the outcome as well.
       events.push({ id: quizSubmitNodeId(block.id), kind: "quiz-submit" });

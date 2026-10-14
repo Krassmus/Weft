@@ -1123,7 +1123,7 @@ img.weft-thumb-block {
      a zoomed slide. */
   background-color: var(--weft-bg);
   background-image:
-    radial-gradient(ellipse 72% 66% at 50% 50%, rgba(104, 142, 205, 0.26) 0%, rgba(100, 138, 200, 0.12) 50%, transparent 82%),
+    radial-gradient(ellipse 75% 70% at 50% 50%, rgba(112, 150, 212, 0.36) 0%, rgba(104, 142, 205, 0.19) 52%, transparent 85%),
     radial-gradient(circle at center, rgba(160, 180, 230, 0.16) 1px, transparent 1.4px);
   background-size: auto, 22px 22px;
   background-position: center, center;
@@ -1207,8 +1207,8 @@ img.weft-thumb-block {
   /* Measured on the mockup: close to the slide the light is a pale, hardly blue grey; further out it turns into the slate blue of
      the work area. */
   box-shadow:
-    0 0 26px 3px rgba(190, 202, 226, 0.46),
-    0 0 90px 8px rgba(120, 150, 205, 0.30),
+    0 0 22px 2px rgba(190, 202, 226, 0.30),
+    0 0 80px 6px rgba(120, 150, 205, 0.20),
     var(--weft-shadow);
 }
 

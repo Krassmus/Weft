@@ -22,7 +22,7 @@ import { StepperSlider } from "./StepperSlider";
 
 type Align = "left" | "center" | "right";
 
-const SAMPLE = "Beispieltext - So sieht die Schrift aus";
+const SAMPLE = ["Beispieltext - So sieht die Schrift aus", "Ein zweiter Absatz zeigt den Abstand dazwischen"];
 
 /**
  * The dialog "Schrift": everything the formatting panel has (font, size, colour, bold, italic, underlined, alignment) and what only
@@ -47,6 +47,7 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
       underline: snapshot.underline === "on",
       align: (snapshot.align === "mixed" ? "left" : snapshot.align) as Align,
       lineHeight: typeof extended?.lineHeight === "number" ? extended.lineHeight : null,
+      paragraphSpacing: typeof extended?.paragraphSpacing === "number" ? extended.paragraphSpacing : null,
       smallCaps: extended?.smallCaps === "on",
       background: (extended && extended.background !== "mixed" ? extended.background : { kind: "none" }) as TextBackground,
     }),
@@ -60,6 +61,7 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
   const [underline, setUnderline] = useState(initial.underline);
   const [align, setAlign] = useState<Align>(initial.align);
   const [lineHeight, setLineHeight] = useState<number | null>(initial.lineHeight);
+  const [paragraphSpacing, setParagraphSpacing] = useState<number | null>(initial.paragraphSpacing);
   const [smallCaps, setSmallCaps] = useState(initial.smallCaps);
   const start: TextBackground = initial.background;
   const [backgroundKind, setBackgroundKind] = useState<TextBackground["kind"]>(start.kind);
@@ -105,6 +107,7 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
     textDecoration: underline ? "underline" : "none",
     textAlign: align,
     lineHeight: lineHeight ?? "normal",
+    margin: `0 0 ${paragraphSpacing ?? 1}em`,
     fontVariant: smallCaps ? "small-caps" : "normal",
     ...(backgroundKind !== "none" && (backgroundKind === "gradient" || imageUrl)
       ? {
@@ -132,6 +135,7 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
 
     const input: Parameters<typeof applyExtendedFormat>[0] = {};
     if (lineHeight !== initial.lineHeight) input.lineHeight = lineHeight;
+    if (paragraphSpacing !== initial.paragraphSpacing) input.paragraphSpacing = paragraphSpacing;
     if (smallCaps !== initial.smallCaps) input.smallCaps = smallCaps;
     const background: TextBackground & { url?: string } =
       backgroundKind === "gradient"
@@ -155,7 +159,11 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="weft-text-format-preview" aria-label="Vorschau">
-          <span style={previewStyle}>{SAMPLE}</span>
+          {SAMPLE.map((text) => (
+            <p key={text} style={previewStyle}>
+              {text}
+            </p>
+          ))}
         </div>
 
         <div className="weft-text-format-grid">
@@ -223,6 +231,24 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
                 max={3}
                 step={0.05}
                 onChange={(value) => setLineHeight(Math.round(value * 100) / 100)}
+              />
+            )}
+          </div>
+
+          <div className="weft-field weft-text-format-wide">
+            <span>Abstand zwischen Absätzen</span>
+            <label className="weft-field weft-field-inline">
+              <input type="checkbox" checked={paragraphSpacing === null} onChange={(e) => setParagraphSpacing(e.target.checked ? null : 1)} />
+              <span>Standard</span>
+            </label>
+            {paragraphSpacing !== null && (
+              <StepperSlider
+                label="Abstand zwischen Absätzen"
+                value={paragraphSpacing}
+                min={0}
+                max={3}
+                step={0.1}
+                onChange={(value) => setParagraphSpacing(Math.round(value * 10) / 10)}
               />
             )}
           </div>

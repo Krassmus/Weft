@@ -142,7 +142,7 @@ body {
 }
 
 .weft-block-text > :last-child {
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
 }
 
 /* A gap text (ClozeBlock): the text with its blanks as input fields, the button and the feedback of a quiz under it. Kept in step with
@@ -162,7 +162,7 @@ body {
 }
 
 .weft-cloze-text > :last-child {
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
 }
 
 .weft-cloze-input {
@@ -282,7 +282,7 @@ body {
 }
 
 .weft-list-item-text > :last-child {
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
 }
 
 /* Every size/spacing value below is kept in sync by hand, em-for-em, with BlockView.tsx's static
@@ -312,7 +312,7 @@ body {
 }
 
 .weft-quiz-question > :last-child {
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
 }
 
 .weft-quiz-options {
@@ -402,7 +402,7 @@ body {
 }
 
 .weft-quiz-option-text > :last-child {
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
 }
 
 .weft-quiz-submit {

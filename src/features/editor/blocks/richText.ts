@@ -321,6 +321,8 @@ export type TextBackground =
 export interface ExtendedFormat {
   /** The factor of the line height of the block(s) of the selection; null: no value of its own (the normal one). */
   lineHeight: number | null | "mixed";
+  /** The space below a paragraph, in em (the space between two paragraphs); null: no value of its own (the normal one). */
+  paragraphSpacing: number | null | "mixed";
   smallCaps: TriState;
   background: TextBackground | "mixed";
 }
@@ -349,8 +351,15 @@ export function readExtendedFormat(): ExtendedFormat | null {
     const value = parseFloat(blockAncestor(el, root).style.lineHeight);
     return Number.isFinite(value) ? value : null;
   });
+  const paragraphSpacing = triValue(els, (el) => {
+    const block = blockAncestor(el, root);
+    if (!block.style.marginBottom.endsWith("em")) return null;
+    const value = parseFloat(block.style.marginBottom);
+    return Number.isFinite(value) ? value : null;
+  });
   return {
     lineHeight,
+    paragraphSpacing,
     smallCaps: triState(els, (el) => getComputedStyle(el).fontVariantCaps === "small-caps"),
     background: background === "mixed" ? "mixed" : (JSON.parse(background) as TextBackground),
   };
@@ -414,6 +423,8 @@ function wrapSelection(styles: Record<string, string>, attributes: Record<string
 export interface ExtendedFormatInput {
   /** undefined: leave as it is; null: back to the normal line height. */
   lineHeight?: number | null;
+  /** The space between paragraphs, in em; null: back to the normal one. */
+  paragraphSpacing?: number | null;
   smallCaps?: boolean;
   /** `url` of an image: what the asset can be shown by right now (the document only stores the asset's id). */
   background?: TextBackground & { url?: string };
@@ -430,11 +441,16 @@ export function applyExtendedFormat(input: ExtendedFormatInput) {
   const range = currentRange();
   if (!range) return;
 
-  if (input.lineHeight !== undefined) {
+  if (input.lineHeight !== undefined || input.paragraphSpacing !== undefined) {
     const blocks = new Set<HTMLElement>();
     for (const el of referenceElements(range, root)) blocks.add(blockAncestor(el, root));
     blocks.forEach((block) => {
-      block.style.lineHeight = input.lineHeight === null ? "" : String(input.lineHeight);
+      if (input.lineHeight !== undefined) block.style.lineHeight = input.lineHeight === null ? "" : String(input.lineHeight);
+      if (input.paragraphSpacing !== undefined) {
+        // The space is the paragraph's own bottom margin (its top margin goes, or the browser's normal 1em would be the larger one).
+        block.style.marginTop = input.paragraphSpacing === null ? "" : "0";
+        block.style.marginBottom = input.paragraphSpacing === null ? "" : `${input.paragraphSpacing}em`;
+      }
     });
   }
 

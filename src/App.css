@@ -672,7 +672,7 @@ img.weft-thumb-block {
 .weft-thumb-block-quiz-question > :last-child,
 .weft-thumb-block-quiz-option-text > :last-child,
 .weft-thumb-block-list-item-text > :last-child {
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
 }
 
 .weft-thumb-block-quiz-options {
@@ -1639,7 +1639,7 @@ button.weft-timeline-node-icon:hover {
 }
 
 .weft-edit-block-text > :last-child {
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
 }
 
 /* A gap text (ClozeBlock): the text, and under it the button of the quiz. The blanks of a thumbnail are empty boxes. Kept in step with
@@ -1664,7 +1664,7 @@ button.weft-timeline-node-icon:hover {
 
 .weft-edit-block-cloze-text > :last-child,
 .weft-thumb-block-cloze-text > :last-child {
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
 }
 
 .weft-cloze-blank {
@@ -1711,9 +1711,19 @@ button.weft-timeline-node-icon:hover {
   overflow: hidden;
 }
 
-.weft-text-format-preview > span {
+.weft-text-format-preview {
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.weft-text-format-preview > p {
   display: block;
   width: 100%;
+}
+
+.weft-text-format-preview > p:last-child {
+  margin-bottom: 0 !important;
 }
 
 .weft-text-format-grid {
@@ -1892,7 +1902,7 @@ button.weft-timeline-node-icon:hover {
 }
 
 .weft-edit-block-list-item-text > :last-child {
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
 }
 
 .weft-edit-block-list-item-delete {
@@ -2061,7 +2071,7 @@ button.weft-timeline-node-icon:hover {
 
 .weft-edit-block-quiz-question > :last-child,
 .weft-edit-block-quiz-option-text > :last-child {
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
 }
 
 .weft-edit-block-quiz-options {

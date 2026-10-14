@@ -195,7 +195,15 @@ function refreshSnapshot() {
   useFormatSnapshot.setState(computeSnapshot());
 }
 
+let pinned = false;
+
+/** While a dialog for the text is open (the dialog "Schrift"), the editor stays the active one however the focus moves about in it. */
+export function pinActiveEditor(on: boolean) {
+  pinned = on;
+}
+
 export function registerActiveEditable(entry: ActiveEditor | null) {
+  if (entry === null && pinned) return;
   // restoreSelection() below calls active.el.focus(), which re-fires this same editable's own
   // onFocus - re-registering itself, not a real switch to a different block. Wiping savedRange
   // on that redundant re-entry would erase the very range restoreSelection is about to apply.
@@ -300,4 +308,198 @@ export function applyFontSize(px: number) {
   }
   saveSelection();
   active.commit(active.el.innerHTML);
+}
+
+// ---- the options of the dialog "Schrift": line height, small capitals, a gradient or picture behind the letters --------------------
+
+/** What shows behind (through) the letters of a text, see applyExtendedFormat. A picture is an asset of the document. */
+export type TextBackground =
+  | { kind: "none" }
+  | { kind: "gradient"; from: string; to: string; angle: number }
+  | { kind: "image"; assetId: string };
+
+export interface ExtendedFormat {
+  /** The factor of the line height of the block(s) of the selection; null: no value of its own (the normal one). */
+  lineHeight: number | null | "mixed";
+  smallCaps: TriState;
+  background: TextBackground | "mixed";
+}
+
+function backgroundOf(el: HTMLElement, root: HTMLElement): TextBackground {
+  const marked = el.closest<HTMLElement>("[data-weft-bg]");
+  if (!marked || !root.contains(marked)) return { kind: "none" };
+  if (marked.getAttribute("data-weft-bg") === "image") return { kind: "image", assetId: marked.getAttribute("data-weft-bg-asset") ?? "" };
+  return {
+    kind: "gradient",
+    from: marked.getAttribute("data-weft-bg-from") ?? "#3b82f6",
+    to: marked.getAttribute("data-weft-bg-to") ?? "#ec4899",
+    angle: Number(marked.getAttribute("data-weft-bg-angle") ?? 90),
+  };
+}
+
+/** What the selection has of the options of the dialog "Schrift" (null: no text is being edited). */
+export function readExtendedFormat(): ExtendedFormat | null {
+  if (!active) return null;
+  const range = currentRange();
+  if (!range) return null;
+  const root = active.el;
+  const els = referenceElements(range, root);
+  const background = triValue(els, (el) => JSON.stringify(backgroundOf(el, root)));
+  const lineHeight = triValue(els, (el) => {
+    const value = parseFloat(blockAncestor(el, root).style.lineHeight);
+    return Number.isFinite(value) ? value : null;
+  });
+  return {
+    lineHeight,
+    smallCaps: triState(els, (el) => getComputedStyle(el).fontVariantCaps === "small-caps"),
+    background: background === "mixed" ? "mixed" : (JSON.parse(background) as TextBackground),
+  };
+}
+
+/** Puts the whole text of the edited block into the selection when there is none (just a caret): what the dialog's options are then for. */
+export function selectAllIfCollapsed() {
+  if (!active) return;
+  const range = currentRange();
+  if (range && !range.collapsed) return;
+  const all = document.createRange();
+  all.selectNodeContents(active.el);
+  savedRange = all;
+  active.el.focus();
+  const sel = window.getSelection();
+  sel?.removeAllRanges();
+  sel?.addRange(all);
+}
+
+const BACKGROUND_STYLES = ["backgroundImage", "backgroundClip", "webkitBackgroundClip", "webkitTextFillColor", "backgroundSize", "backgroundPosition", "webkitBoxDecorationBreak", "boxDecorationBreak"];
+
+/** Takes `what` (the gradient/picture, or the small capitals) off every element the range touches; a span that has nothing left is
+ * taken out. */
+function clearInlineStyles(range: Range, root: HTMLElement, what: "background" | "smallCaps") {
+  root.querySelectorAll<HTMLElement>("span").forEach((span) => {
+    if (!range.intersectsNode(span)) return;
+    if (what === "background" && span.hasAttribute("data-weft-bg")) {
+      for (const name of [...span.getAttributeNames()]) if (name.startsWith("data-weft-bg")) span.removeAttribute(name);
+      const style = span.style as unknown as Record<string, string>;
+      for (const property of BACKGROUND_STYLES) style[property] = "";
+    }
+    if (what === "smallCaps" && span.style.fontVariant) span.style.fontVariant = "";
+    if (span.getAttributeNames().length === 0 || (span.getAttributeNames().length === 1 && !span.getAttribute("style")?.trim())) {
+      span.replaceWith(...Array.from(span.childNodes));
+    }
+  });
+}
+
+/** Wraps the selection in a <span> with `styles` and `attributes` - the same way applyFontSize finds the elements execCommand makes. */
+function wrapSelection(styles: Record<string, string>, attributes: Record<string, string>): HTMLElement[] {
+  if (!active) return [];
+  document.execCommand("fontSize", false, "6");
+  const spans: HTMLElement[] = [];
+  active.el.querySelectorAll('font[size="6"]').forEach((fontEl) => {
+    const span = document.createElement("span");
+    for (const [property, value] of Object.entries(styles)) span.style.setProperty(property, value);
+    for (const [name, value] of Object.entries(attributes)) span.setAttribute(name, value);
+    span.innerHTML = fontEl.innerHTML;
+    spans.push(span);
+    if (fontEl.hasAttribute("face") || fontEl.hasAttribute("color")) {
+      fontEl.removeAttribute("size");
+      fontEl.innerHTML = "";
+      fontEl.appendChild(span);
+    } else {
+      fontEl.replaceWith(span);
+    }
+  });
+  return spans;
+}
+
+export interface ExtendedFormatInput {
+  /** undefined: leave as it is; null: back to the normal line height. */
+  lineHeight?: number | null;
+  smallCaps?: boolean;
+  /** `url` of an image: what the asset can be shown by right now (the document only stores the asset's id). */
+  background?: TextBackground & { url?: string };
+}
+
+/**
+ * Applies the options of the dialog "Schrift" to the selection (the saved one, if the focus is in the dialog): the line height goes to
+ * the paragraphs the selection touches (it is a property of a block, not of a few words), the rest to a <span> around the selection.
+ */
+export function applyExtendedFormat(input: ExtendedFormatInput) {
+  if (!active) return;
+  if (document.activeElement !== active.el) restoreSelection();
+  const root = active.el;
+  const range = currentRange();
+  if (!range) return;
+
+  if (input.lineHeight !== undefined) {
+    const blocks = new Set<HTMLElement>();
+    for (const el of referenceElements(range, root)) blocks.add(blockAncestor(el, root));
+    blocks.forEach((block) => {
+      block.style.lineHeight = input.lineHeight === null ? "" : String(input.lineHeight);
+    });
+  }
+
+  const styles: Record<string, string> = {};
+  const attributes: Record<string, string> = {};
+  if (input.smallCaps !== undefined) {
+    clearInlineStyles(range, root, "smallCaps");
+    if (input.smallCaps) styles["font-variant"] = "small-caps";
+  }
+  const background = input.background;
+  if (background) {
+    clearInlineStyles(range, root, "background");
+    if (background.kind === "gradient") {
+      styles["background-image"] = `linear-gradient(${background.angle}deg, ${background.from}, ${background.to})`;
+      attributes["data-weft-bg"] = "gradient";
+      attributes["data-weft-bg-from"] = background.from;
+      attributes["data-weft-bg-to"] = background.to;
+      attributes["data-weft-bg-angle"] = String(background.angle);
+    } else if (background.kind === "image") {
+      if (background.url) styles["background-image"] = `url("${background.url}")`;
+      attributes["data-weft-bg"] = "image";
+      attributes["data-weft-bg-asset"] = background.assetId;
+      styles["background-size"] = "cover";
+      styles["background-position"] = "center";
+    }
+    if (background.kind !== "none") {
+      styles["background-clip"] = "text";
+      styles["-webkit-background-clip"] = "text";
+      styles["-webkit-text-fill-color"] = "transparent";
+      // Each line of a text that wraps has the picture/gradient of its own.
+      styles["-webkit-box-decoration-break"] = "clone";
+      styles["box-decoration-break"] = "clone";
+    }
+  }
+  if (Object.keys(styles).length > 0 && !range.collapsed) {
+    const spans = wrapSelection(styles, attributes);
+    if (spans.length > 0) {
+      const wrapped = document.createRange();
+      wrapped.setStartBefore(spans[0]);
+      wrapped.setEndAfter(spans[spans.length - 1]);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(wrapped);
+    }
+  }
+  saveSelection();
+  active.commit(root.innerHTML);
+}
+
+/** Gives the elements of `root` that carry a picture of the document (data-weft-bg-asset) the address it can be shown by - the stored
+ * html has only the id (see EditableRichText), the address of an asset is different per session. */
+export function resolveInlineAssets(root: HTMLElement, urlFor: (assetId: string) => string | undefined) {
+  root.querySelectorAll<HTMLElement>("[data-weft-bg-asset]").forEach((el) => {
+    const url = urlFor(el.getAttribute("data-weft-bg-asset") ?? "");
+    if (url) el.style.backgroundImage = `url("${url}")`;
+  });
+}
+
+/** The html as it is stored: the address a picture is shown by in this session is not part of it. */
+export function storeableHtml(html: string): string {
+  if (!html.includes("data-weft-bg-asset")) return html;
+  const body = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html").body;
+  body.querySelectorAll<HTMLElement>("[data-weft-bg-asset]").forEach((el) => {
+    el.style.backgroundImage = "";
+    if (el.getAttribute("style")?.trim() === "") el.removeAttribute("style");
+  });
+  return body.innerHTML;
 }

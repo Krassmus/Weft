@@ -1,6 +1,23 @@
 import type { Block, StaticBlock, WeftModule } from "../types";
+import { placeholderSources } from "./variablePlaceholders";
+
+/** The pictures behind the letters of the texts of a block (see data-weft-bg-asset in richText.ts). */
+function textAssetIds(block: Block | StaticBlock): string[] {
+  const ids: string[] = [];
+  for (const html of placeholderSources(block as Block)) {
+    if (!html.includes("data-weft-bg-asset")) continue;
+    for (const match of html.matchAll(/data-weft-bg-asset="([^"]+)"/g)) ids.push(match[1]);
+  }
+  return ids;
+}
 
 function assetIdsOf(block: Block | StaticBlock): string[] {
+  const inText = textAssetIds(block);
+  if (inText.length > 0) return [...inText, ...assetIdsOfPlain(block)];
+  return assetIdsOfPlain(block);
+}
+
+function assetIdsOfPlain(block: Block | StaticBlock): string[] {
   if (block.kind === "files") return block.files.map((file) => file.id);
   if (block.kind === "list") return block.marker === "image" && block.markerAssetId ? [block.markerAssetId] : [];
   return (block.kind === "image" || block.kind === "video") && block.assetId ? [block.assetId] : [];

@@ -597,6 +597,12 @@ img.weft-thumb-block {
   line-height: 1.4;
 }
 
+/* html2canvas can't clip a gradient/picture to the letters (it would be a box behind them): the letters are drawn plain in the PDF. */
+.weft-pdf-export [data-weft-bg] {
+  background: none !important;
+  -webkit-text-fill-color: currentcolor !important;
+}
+
 .weft-pdf-export .weft-thumb-block-video-icon {
   display: none;
 }
@@ -1667,6 +1673,82 @@ button.weft-timeline-node-icon:hover {
   vertical-align: text-bottom;
   border-bottom: 0.08em solid currentColor;
   opacity: 0.55;
+}
+
+/* The button next to the colour that opens the dialog "Schrift" (TextFormatDialog.tsx). */
+.weft-format-more {
+  align-self: flex-end;
+  flex: none;
+}
+
+.weft-format-more svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.weft-format-more svg [fill] {
+  fill: currentColor;
+}
+
+/* The dialog "Schrift" (TextFormatDialog.tsx). */
+.weft-text-format-dialog {
+  width: min(560px, 94vw);
+  max-height: 92vh;
+  overflow-y: auto;
+}
+
+.weft-text-format-preview {
+  margin: 4px 0 12px;
+  padding: 14px 16px;
+  min-height: 84px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.weft-text-format-preview > span {
+  display: block;
+  width: 100%;
+}
+
+.weft-text-format-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 14px;
+}
+
+.weft-text-format-wide {
+  grid-column: 1 / -1;
+}
+
+.weft-text-format-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 0 4px;
+  background: var(--weft-border);
+}
+
+.weft-text-format-gradient {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.weft-text-format-gradient .weft-delay-control {
+  flex: 1;
+  min-width: 0;
+}
+
+.weft-text-format-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
 }
 
 /* The recognised blanks in the panel of a gap text (ClozeEditor in BlockPanel.tsx). */

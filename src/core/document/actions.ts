@@ -1242,6 +1242,17 @@ function fitToAspect(position: BlockPosition, percentRatio: number): BlockPositi
   };
 }
 
+/** Adds `file` (an image) to the document's assets without putting it on a slide - what a text can have behind its letters (see
+ * richText.ts). Returns its id. */
+export function addAssetFromFile(file: File): string {
+  const assetId = createId();
+  useAssetStore.getState().setAsset(assetId, file);
+  edit("Bild hinzufügen", (m) => {
+    m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
+  });
+  return assetId;
+}
+
 export async function setBlockImage(pageId: string, blockId: string, file: File) {
   const assetId = createId();
   useAssetStore.getState().setAsset(assetId, file);

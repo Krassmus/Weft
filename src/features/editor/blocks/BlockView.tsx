@@ -37,7 +37,7 @@ import { ListMarkerView } from "./ListMarkerView";
 import { caretAt, caretOnLine, caretX, fitListMarkers, focusItem, textLength } from "./listCaret";
 import { ContextMenu, useContextMenu } from "../ContextMenu";
 import type { ContextMenuItem } from "../ContextMenu";
-import { registerActiveEditable, saveSelection } from "./richText";
+import { registerActiveEditable, resolveInlineAssets, saveSelection, storeableHtml } from "./richText";
 import { ArrowHandles } from "./ArrowHandles";
 import { ArrowSvg } from "./ArrowSvg";
 import { FilesView } from "./FilesView";
@@ -1091,6 +1091,8 @@ function EditableRichText({
     if (document.activeElement === el && el.innerHTML !== lastKnownHtml.current) return;
     el.innerHTML = html;
     lastKnownHtml.current = html;
+    // A picture behind letters (see richText.ts): the html stores only its id.
+    resolveInlineAssets(el, (assetId) => useAssetStore.getState().getObjectUrl(assetId));
   }, [html]);
 
   useEffect(() => {
@@ -1107,9 +1109,11 @@ function EditableRichText({
     // without this an unrelated formatting action, or even just clicking into the text and back
     // out without typing, would commit identical content as a spurious extra undo step - which
     // then falls in front of the real edit being undone, making Undo look like it did nothing.
-    if (nextHtml === lastKnownHtml.current) return;
-    lastKnownHtml.current = nextHtml;
-    onCommit(nextHtml);
+    // (What a picture behind letters is shown by in this session is not stored with the text.)
+    const stored = storeableHtml(nextHtml);
+    if (stored === lastKnownHtml.current) return;
+    lastKnownHtml.current = stored;
+    onCommit(stored);
   }
 
   return (

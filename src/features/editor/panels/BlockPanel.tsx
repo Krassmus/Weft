@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { stopPointIconSvg } from "../stopPointIcon";
+import moreOptionsIconSvg from "../../../../mockups/icons/admin.svg?raw";
+import { TextFormatDialog } from "./TextFormatDialog";
 import { CODE_THEMES } from "../../../core/code/codeThemes";
 import { AUTO_LANGUAGE, CODE_LANGUAGES } from "../../../core/code/highlight";
 import { createId } from "../../../core/id";
@@ -381,6 +383,7 @@ function formatButtonClass(state: TriState): string {
  */
 function TextEditor({ block, onUpdate }: { block?: TextBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
   const snapshot = useFormatSnapshot();
+  const [formatDialogOpen, setFormatDialogOpen] = useState(false);
   const customFonts = useDocumentStore((s) => s.doc.content.customFonts);
   const sortedOtherFonts = CURATED_FONT_FAMILIES.filter((family) => family !== DEFAULT_FONT_FAMILY).sort((a, b) =>
     a.localeCompare(b, "de"),
@@ -547,8 +550,20 @@ function TextEditor({ block, onUpdate }: { block?: TextBlock; onUpdate: BlockPan
               onChange={(e) => applyFormat("foreColor", e.target.value)}
             />
           </label>
+          {/* More options in a dialog: line height, small capitals, a gradient or picture behind the letters (see TextFormatDialog). */}
+          <button
+            type="button"
+            className="weft-format-button weft-format-more"
+            title="Weitere Schriftoptionen"
+            aria-label="Weitere Schriftoptionen"
+            disabled={!snapshot.active}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setFormatDialogOpen(true)}
+            dangerouslySetInnerHTML={{ __html: moreOptionsIconSvg }}
+          />
         </div>
       </div>
+      {formatDialogOpen && <TextFormatDialog onClose={() => setFormatDialogOpen(false)} />}
       {block && (
         <>
           <label className="weft-field weft-field-inline">

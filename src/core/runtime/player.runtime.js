@@ -366,6 +366,11 @@
   }
 
   function applyVariablesToNode(root) {
+    // A picture behind letters (the dialog "Schrift" of the editor): the text stores its asset's id.
+    var behindLetters = root.querySelectorAll ? root.querySelectorAll("[data-weft-bg-asset]") : [];
+    for (var b = 0; b < behindLetters.length; b++) {
+      behindLetters[b].style.backgroundImage = 'url("' + assetSrc(behindLetters[b].getAttribute("data-weft-bg-asset")) + '")';
+    }
     var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     var textNodes = [];
     while (walker.nextNode()) textNodes.push(walker.currentNode);

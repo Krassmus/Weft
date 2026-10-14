@@ -1,4 +1,6 @@
+import { useLayoutEffect, useRef } from "react";
 import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
+import { resolveInlineAssets } from "./blocks/richText";
 import { useAssetStore } from "../../core/assets/assetStore";
 import { useDocumentStore } from "../../core/document/store";
 import type { Block } from "../../core/types";
@@ -51,9 +53,16 @@ export function SlideThumbnail({
   // height a landscape one has anyway and sits narrower instead.
   const portraitCap = numeric < 1 ? { flex: "0 1 auto", width: `min(100%, ${THUMB_MAX_HEIGHT_PX * numeric}px)`, marginInline: "auto" } : undefined;
 
+  // A picture behind letters (see richText.ts) is stored as its asset's id: given its address here.
+  const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
+  const stageRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (stageRef.current) resolveInlineAssets(stageRef.current, getObjectUrl);
+  });
+
   return (
     <div className="weft-thumb" style={{ aspectRatio: aspectRatioCss(aspectRatio), ...portraitCap }}>
-      <div className="weft-thumb-stage">
+      <div className="weft-thumb-stage" ref={stageRef}>
         {blocks.map((block) => (
           <ThumbBlock key={block.id} block={block} exportPxPerCqw={exportPxPerCqw} qrSvg={qrSvgs?.[block.id]} />
         ))}

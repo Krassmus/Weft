@@ -17,6 +17,9 @@ import { create } from "zustand";
 interface ActiveEditor {
   el: HTMLElement;
   commit: (html: string) => void;
+  /** The text block is selected but not being edited (no caret): the sidebar shows and changes the formatting of the whole text, as
+   * if all of it were marked. See withWholeSelection. */
+  whole?: boolean;
 }
 
 let active: ActiveEditor | null = null;
@@ -64,6 +67,11 @@ export const useFormatSnapshot = create<FormatSnapshot>(() => INACTIVE_SNAPSHOT)
 
 function currentRange(): Range | null {
   if (!active) return null;
+  if (active.whole) {
+    const all = document.createRange();
+    all.selectNodeContents(active.el);
+    return all;
+  }
   const sel = window.getSelection();
   if (document.activeElement === active.el && sel && sel.rangeCount > 0 && active.el.contains(sel.anchorNode)) {
     return sel.getRangeAt(0);
@@ -202,7 +210,14 @@ export function pinActiveEditor(on: boolean) {
   pinned = on;
 }
 
-export function registerActiveEditable(entry: ActiveEditor | null) {
+/** Set while a change is made to the whole text of a block that is not being edited (see withWholeSelection): the element is made
+ * editable and focused for a moment, which must not look like the person having started to edit (or stopped). */
+let wholeOperation = false;
+
+export function registerActiveEditable(entry: ActiveEditor | null, onlyIfActive?: HTMLElement) {
+  if (wholeOperation) return;
+  // Taking an editor away that is not the active one any more (another block was selected meanwhile) leaves the active one alone.
+  if (entry === null && onlyIfActive && active?.el !== onlyIfActive) return;
   if (entry === null && pinned) return;
   // restoreSelection() below calls active.el.focus(), which re-fires this same editable's own
   // onFocus - re-registering itself, not a real switch to a different block. Wiping savedRange
@@ -215,6 +230,36 @@ export function registerActiveEditable(entry: ActiveEditor | null) {
   active = entry;
   savedRange = null;
   refreshSnapshot();
+}
+
+/**
+ * Runs `change` - one of the functions below, which act on "the selection" - on the whole text when the block is selected but not
+ * being edited: the element is made editable for a moment, focused with all of its text marked (execCommand wants exactly that), and
+ * set back afterwards. When the text is being edited it just runs.
+ */
+function withWholeSelection(change: () => void) {
+  if (!active || !active.whole) {
+    change();
+    return;
+  }
+  const el = active.el;
+  wholeOperation = true;
+  const wasEditable = el.contentEditable;
+  try {
+    el.contentEditable = "true";
+    el.focus({ preventScroll: true });
+    const all = document.createRange();
+    all.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(all);
+    change();
+  } finally {
+    el.contentEditable = wasEditable;
+    window.getSelection()?.removeAllRanges();
+    el.blur();
+    wholeOperation = false;
+  }
 }
 
 export function hasActiveEditable(): boolean {
@@ -244,6 +289,10 @@ function restoreSelection() {
 }
 
 export function applyFormat(command: string, value?: string) {
+  withWholeSelection(() => applyFormatInner(command, value));
+}
+
+function applyFormatInner(command: string, value?: string) {
   if (!active) return;
   if (document.activeElement !== active.el) restoreSelection();
   document.execCommand(command, false, value);
@@ -268,6 +317,10 @@ export function applyFormat(command: string, value?: string) {
  * text then scales with the slide like everything else, without needing to say so.
  */
 export function applyFontSize(px: number) {
+  withWholeSelection(() => applyFontSizeInner(px));
+}
+
+function applyFontSizeInner(px: number) {
   if (!active) return;
   if (document.activeElement !== active.el) restoreSelection();
   const widthPx = stageWidthPx(active.el);
@@ -367,7 +420,7 @@ export function readExtendedFormat(): ExtendedFormat | null {
 
 /** Puts the whole text of the edited block into the selection when there is none (just a caret): what the dialog's options are then for. */
 export function selectAllIfCollapsed() {
-  if (!active) return;
+  if (!active || active.whole) return;
   const range = currentRange();
   if (range && !range.collapsed) return;
   const all = document.createRange();
@@ -435,6 +488,10 @@ export interface ExtendedFormatInput {
  * the paragraphs the selection touches (it is a property of a block, not of a few words), the rest to a <span> around the selection.
  */
 export function applyExtendedFormat(input: ExtendedFormatInput) {
+  withWholeSelection(() => applyExtendedFormatInner(input));
+}
+
+function applyExtendedFormatInner(input: ExtendedFormatInput) {
   if (!active) return;
   if (document.activeElement !== active.el) restoreSelection();
   const root = active.el;

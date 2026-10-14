@@ -1,5 +1,6 @@
 import { presenceColor, useBlockViewers } from "../../../core/collab/presence";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { createPortal } from "react-dom";
 import type { CSSProperties, MutableRefObject, PointerEvent as ReactPointerEvent } from "react";
 import QRCode from "qrcode";
@@ -201,6 +202,23 @@ export function BlockView({
   // The mask of an image while one of its points is being dragged (see MaskHandles), and whether it is being edited at all.
   const [liveMask, setLiveMask] = useState<ImageMask | null>(null);
   const maskEditing = useImageEdit((s) => s.blockId === block.id);
+  // A text (or a button) is selected with a click and can be moved from anywhere, like an image; the next click puts the caret in
+  // it. `editing` is that second state: the text is being edited, and only its edge moves the block (as before).
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    if (!selected || locked || groupSelected) setEditing(false);
+  }, [selected, locked, groupSelected]);
+  // Escape ends the editing: the block stays selected.
+  useEffect(() => {
+    if (!editing) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      setEditing(false);
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editing]);
   const slideAspect = useDocumentStore((s) => aspectRatioNumeric(s.doc.content.aspectRatio));
   const [nearEdge, setNearEdge] = useState(false);
   const [snapGuides, setSnapGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
@@ -215,7 +233,8 @@ export function BlockView({
   // .weft-edit-block-iframe-wrap iframe's pointer-events:none in App.css), so it can be grabbed
   // and moved from anywhere - including on the very first click, before it's even selected, see
   // handlePointerDownMove/handlePointerMoveHover below.
-  const isFreelyMovableBlock = block.kind === "language" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files";
+  const isTextLike = block.kind === "text" || block.kind === "button";
+  const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "language" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files";
   // Only an image or video has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
   // given, so unlike image/video it keeps the full edge+corner handle set below instead of being
@@ -290,6 +309,8 @@ export function BlockView({
     const startClientY = e.clientY;
     let started = false;
     let committed = startPosition;
+    // A click (no drag) on a text that was already selected puts the caret in it - see `editing`.
+    const putsCaret = isTextLike && !editing && selected;
 
     function handleMove(ev: PointerEvent) {
       if (!started) {
@@ -313,12 +334,18 @@ export function BlockView({
       setLiveOverride(committed);
     }
 
-    function finish() {
+    function finish(ev: PointerEvent) {
       window.removeEventListener("pointermove", handleMove);
       window.removeEventListener("pointerup", finish);
       window.removeEventListener("pointercancel", finish);
       document.body.classList.remove("weft-dragging");
-      if (started) onUpdate?.({ position: committed });
+      if (started) {
+        onUpdate?.({ position: committed });
+        // Moved by its edge while being edited: the block is selected, not edited, from now on.
+        if (isTextLike) setEditing(false);
+      } else if (putsCaret && ev.type === "pointerup") {
+        startEditing(ev.clientX, ev.clientY);
+      }
       setLiveOverride(null);
       setSnapGuides({ x: null, y: null });
     }
@@ -326,6 +353,33 @@ export function BlockView({
     window.addEventListener("pointermove", handleMove);
     window.addEventListener("pointerup", finish);
     window.addEventListener("pointercancel", finish);
+  }
+
+  /** Puts the caret into the text of this block where it was clicked (clientX/clientY). */
+  function startEditing(clientX: number, clientY: number) {
+    flushSync(() => setEditing(true));
+    const editable = wrapRef.current?.querySelector<HTMLElement>('[contenteditable="true"]');
+    if (!editable) return;
+    editable.focus({ preventScroll: true });
+    const doc = document as Document & {
+      caretRangeFromPoint?: (x: number, y: number) => Range | null;
+      caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+    };
+    let range: Range | null = null;
+    if (doc.caretRangeFromPoint) range = doc.caretRangeFromPoint(clientX, clientY);
+    else if (doc.caretPositionFromPoint) {
+      const position = doc.caretPositionFromPoint(clientX, clientY);
+      if (position) {
+        range = document.createRange();
+        range.setStart(position.offsetNode, position.offset);
+        range.collapse(true);
+      }
+    }
+    if (range && editable.contains(range.startContainer)) {
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }
   }
 
   function handlePointerMoveHover(e: ReactPointerEvent) {
@@ -493,6 +547,7 @@ export function BlockView({
                   : block
             }
             selected={selected}
+            editing={editing}
             maskEditing={maskEditing && selected && !locked}
             videoPreviewTime={videoPreviewTime}
             frameSelect={frameSelectRef}
@@ -555,6 +610,7 @@ export function BlockView({
 function BlockContent({
   block,
   selected,
+  editing,
   maskEditing,
   videoPreviewTime,
   frameSelect,
@@ -565,6 +621,8 @@ function BlockContent({
 }: {
   block: Block;
   selected: boolean;
+  /** A text or button: the caret is in it (else a selected one is just selected - see BlockView's `editing`). */
+  editing: boolean;
   /** An image: its mask is being edited (its cut-off part shows faintly). */
   maskEditing?: boolean;
   videoPreviewTime: number | "end" | null;
@@ -584,7 +642,8 @@ function BlockContent({
         <EditableRichText
           className={"weft-edit-block-text" + (block.scrollable ? " is-scrollable" : "")}
           html={textHtml(block, lang, defaultLang)}
-          editable={selected}
+          editable={selected && editing}
+          wholeMode={selected && !editing}
           frameSelect={frameSelect}
           onCommit={(html) => onUpdate?.(textHtmlPatch(block, lang, defaultLang, html))}
         />
@@ -647,7 +706,8 @@ function BlockContent({
           <EditableRichText
             className={"weft-edit-block-button-text" + (!hasWords && !selected ? " is-hidden" : "")}
             html={buttonHtml(block, lang, defaultLang)}
-            editable={selected}
+            editable={selected && editing}
+            wholeMode={selected && !editing}
             frameSelect={frameSelect}
             onCommit={(html) => onUpdate?.(buttonHtmlPatch(block, lang, defaultLang, html))}
           />
@@ -1100,6 +1160,7 @@ function EditableRichText({
   className,
   html,
   editable,
+  wholeMode = false,
   autoFocus = true,
   frameSelect,
   onKeyDown,
@@ -1108,6 +1169,8 @@ function EditableRichText({
   className: string;
   html: string;
   editable: boolean;
+  /** The block is selected but not edited: the sidebar shows and changes the formatting of the whole text (see richText.ts). */
+  wholeMode?: boolean;
   /** Focus this region the moment it becomes editable - right for a TextBlock (its one region
    * IS the whole block, so selecting the block should drop you straight into typing) but wrong
    * once several regions share a block (QuizBlock) - autofocusing all of them at once would just
@@ -1148,6 +1211,25 @@ function EditableRichText({
     }
     if (autoFocus && !frameSelect?.current) ref.current?.focus();
   }, [editable, autoFocus, frameSelect]);
+
+  // What the sidebar changes in the whole text of a block that is only selected is committed through this - always the latest.
+  const onCommitRef = useRef(onCommit);
+  onCommitRef.current = onCommit;
+  useEffect(() => {
+    const el = ref.current;
+    if (!wholeMode || !el) return;
+    registerActiveEditable({
+      el,
+      whole: true,
+      commit: (next) => {
+        const stored = storeableHtml(next);
+        if (stored === lastKnownHtml.current) return;
+        lastKnownHtml.current = stored;
+        onCommitRef.current(stored);
+      },
+    });
+    return () => registerActiveEditable(null, el);
+  }, [wholeMode]);
 
   function commit(nextHtml: string) {
     // Guard explicitly rather than relying on edit()'s own no-op detection upstream - blur fires

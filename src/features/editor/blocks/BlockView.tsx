@@ -41,7 +41,7 @@ import { ListMarkerView } from "./ListMarkerView";
 import { caretAt, caretOnLine, caretX, fitListMarkers, focusItem, textLength } from "./listCaret";
 import { ContextMenu, useContextMenu } from "../ContextMenu";
 import type { ContextMenuItem } from "../ContextMenu";
-import { registerActiveEditable, resolveInlineAssets, saveSelection, storeableHtml } from "./richText";
+import { registerActiveEditable, registerWholeRegion, resolveInlineAssets, saveSelection, storeableHtml } from "./richText";
 import { ArrowHandles } from "./ArrowHandles";
 import { ArrowSvg } from "./ArrowSvg";
 import { useImageEdit } from "./imageEditStore";
@@ -233,7 +233,8 @@ export function BlockView({
   // .weft-edit-block-iframe-wrap iframe's pointer-events:none in App.css), so it can be grabbed
   // and moved from anywhere - including on the very first click, before it's even selected, see
   // handlePointerDownMove/handlePointerMoveHover below.
-  const isTextLike = block.kind === "text" || block.kind === "button";
+  const isTextLike =
+    block.kind === "text" || block.kind === "button" || block.kind === "cloze" || block.kind === "quiz" || block.kind === "list";
   const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "language" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files";
   // Only an image or video has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
@@ -310,7 +311,8 @@ export function BlockView({
     let started = false;
     let committed = startPosition;
     // A click (no drag) on a text that was already selected puts the caret in it - see `editing`.
-    const putsCaret = isTextLike && !editing && selected;
+    // (Not from one of the block's own buttons - the checkbox of an option, the trash can of an item.)
+    const putsCaret = isTextLike && !editing && selected && !(e.target instanceof Element && e.target.closest("button"));
 
     function handleMove(ev: PointerEvent) {
       if (!started) {
@@ -355,10 +357,27 @@ export function BlockView({
     window.addEventListener("pointercancel", finish);
   }
 
-  /** Puts the caret into the text of this block where it was clicked (clientX/clientY). */
+  /** Puts the caret into the text of this block where it was clicked (clientX/clientY): into the region under the pointer - the
+   * question or an option of a quiz, an item of a list - or, when the click was beside the regions, the nearest one. */
   function startEditing(clientX: number, clientY: number) {
     flushSync(() => setEditing(true));
-    const editable = wrapRef.current?.querySelector<HTMLElement>('[contenteditable="true"]');
+    const regions = Array.from(wrapRef.current?.querySelectorAll<HTMLElement>('[contenteditable="true"]') ?? []);
+    if (regions.length === 0) return;
+    let editable = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>('[contenteditable="true"]') ?? null;
+    let inside = !!editable;
+    if (!editable) {
+      let best = Infinity;
+      for (const region of regions) {
+        const rect = region.getBoundingClientRect();
+        const dx = Math.max(rect.left - clientX, 0, clientX - rect.right);
+        const dy = Math.max(rect.top - clientY, 0, clientY - rect.bottom);
+        const distance = Math.hypot(dx, dy);
+        if (distance < best) {
+          best = distance;
+          editable = region;
+        }
+      }
+    }
     if (!editable) return;
     editable.focus({ preventScroll: true });
     const doc = document as Document & {
@@ -366,8 +385,8 @@ export function BlockView({
       caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
     };
     let range: Range | null = null;
-    if (doc.caretRangeFromPoint) range = doc.caretRangeFromPoint(clientX, clientY);
-    else if (doc.caretPositionFromPoint) {
+    if (inside && doc.caretRangeFromPoint) range = doc.caretRangeFromPoint(clientX, clientY);
+    else if (inside && doc.caretPositionFromPoint) {
       const position = doc.caretPositionFromPoint(clientX, clientY);
       if (position) {
         range = document.createRange();
@@ -375,11 +394,15 @@ export function BlockView({
         range.collapse(true);
       }
     }
-    if (range && editable.contains(range.startContainer)) {
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
+    if (!range || !editable.contains(range.startContainer)) {
+      // Beside the text: the caret goes to the end of the nearest region.
+      range = document.createRange();
+      range.selectNodeContents(editable);
+      range.collapse(false);
     }
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
   }
 
   function handlePointerMoveHover(e: ReactPointerEvent) {
@@ -719,6 +742,7 @@ function BlockContent({
         <QuizBlockCanvas
           block={block}
           selected={selected}
+          editing={editing}
           onUpdate={onUpdate}
           onDelete={onDelete}
           onBringToFront={onBringToFront}
@@ -726,9 +750,9 @@ function BlockContent({
         />
       );
     case "cloze":
-      return <ClozeBlockCanvas block={block} selected={selected} frameSelect={frameSelect} onUpdate={onUpdate} />;
+      return <ClozeBlockCanvas block={block} selected={selected} editing={editing} frameSelect={frameSelect} onUpdate={onUpdate} />;
     case "list":
-      return <ListBlockCanvas block={block} selected={selected} onUpdate={onUpdate} onDelete={onDelete} onBringToFront={onBringToFront} onSendToBack={onSendToBack} />;
+      return <ListBlockCanvas block={block} selected={selected} editing={editing} onUpdate={onUpdate} onDelete={onDelete} onBringToFront={onBringToFront} onSendToBack={onSendToBack} />;
     case "shape":
       return <ShapeSvg block={block} />;
     case "arrow":
@@ -754,6 +778,7 @@ function BlockContent({
 function QuizBlockCanvas({
   block,
   selected,
+  editing,
   onUpdate,
   onDelete,
   onBringToFront,
@@ -761,6 +786,8 @@ function QuizBlockCanvas({
 }: {
   block: QuizBlock;
   selected: boolean;
+  /** The caret is in one of its texts (else a selected quiz is only selected - see BlockView's `editing`). */
+  editing: boolean;
   onUpdate?: (patch: Partial<Block>) => void;
   onDelete?: () => void;
   onBringToFront?: () => void;
@@ -798,7 +825,8 @@ function QuizBlockCanvas({
       <EditableRichText
         className="weft-edit-block-quiz-question"
         html={quizQuestionHtml(block, lang, defaultLang)}
-        editable={selected}
+        editable={selected && editing}
+        wholeMode={selected && !editing}
         autoFocus={false}
         onCommit={(html) => onUpdate?.(quizQuestionPatch(block, lang, defaultLang, html))}
       />
@@ -838,7 +866,8 @@ function QuizBlockCanvas({
               <EditableRichText
                 className="weft-edit-block-quiz-option-text"
                 html={quizOptionHtml(block, opt.id, lang, defaultLang)}
-                editable={selected}
+                editable={selected && editing}
+                wholeMode={selected && !editing}
                 autoFocus={false}
                 onCommit={(html) => onUpdate?.(quizOptionPatch(block, opt.id, lang, defaultLang, html))}
               />
@@ -870,11 +899,13 @@ function QuizBlockCanvas({
 function ClozeBlockCanvas({
   block,
   selected,
+  editing,
   frameSelect,
   onUpdate,
 }: {
   block: ClozeBlock;
   selected: boolean;
+  editing: boolean;
   frameSelect: MutableRefObject<boolean>;
   onUpdate?: (patch: Partial<Block>) => void;
 }) {
@@ -884,7 +915,8 @@ function ClozeBlockCanvas({
       <EditableRichText
         className="weft-edit-block-cloze-text"
         html={textHtml(block, lang, defaultLang)}
-        editable={selected}
+        editable={selected && editing}
+        wholeMode={selected && !editing}
         frameSelect={frameSelect}
         onCommit={(html) => onUpdate?.(textHtmlPatch(block, lang, defaultLang, html))}
       />
@@ -903,6 +935,7 @@ function ClozeBlockCanvas({
 function ListBlockCanvas({
   block,
   selected,
+  editing,
   onUpdate,
   onDelete,
   onBringToFront,
@@ -910,6 +943,7 @@ function ListBlockCanvas({
 }: {
   block: ListBlock;
   selected: boolean;
+  editing: boolean;
   onUpdate?: (patch: Partial<Block>) => void;
   onDelete?: () => void;
   onBringToFront?: () => void;
@@ -1054,7 +1088,8 @@ function ListBlockCanvas({
           <EditableRichText
             className="weft-edit-block-list-item-text"
             html={listItemHtml(block, item.id, lang, defaultLang)}
-            editable={selected}
+            editable={selected && editing}
+            wholeMode={selected && !editing}
             autoFocus={false}
             onKeyDown={(event, api) => onItemKey(event, index, api)}
             onCommit={(html) => onUpdate?.(listItemPatch(block, item.id, lang, defaultLang, html))}
@@ -1218,9 +1253,8 @@ function EditableRichText({
   useEffect(() => {
     const el = ref.current;
     if (!wholeMode || !el) return;
-    registerActiveEditable({
+    return registerWholeRegion({
       el,
-      whole: true,
       commit: (next) => {
         const stored = storeableHtml(next);
         if (stored === lastKnownHtml.current) return;
@@ -1228,7 +1262,6 @@ function EditableRichText({
         onCommitRef.current(stored);
       },
     });
-    return () => registerActiveEditable(null, el);
   }, [wholeMode]);
 
   function commit(nextHtml: string) {

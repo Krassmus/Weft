@@ -164,7 +164,36 @@ function stageWidthPx(el: HTMLElement): number | null {
   return stage ? stage.getBoundingClientRect().width : null;
 }
 
+function mergeSnapshots(list: FormatSnapshot[]): FormatSnapshot {
+  const first = list[0];
+  const merged: Record<string, unknown> = { ...first };
+  for (const key of Object.keys(first) as (keyof FormatSnapshot)[]) {
+    if (key === "active") continue;
+    if (list.some((s) => s[key] !== first[key])) merged[key] = "mixed";
+  }
+  return merged as unknown as FormatSnapshot;
+}
+
 function computeSnapshot(): FormatSnapshot {
+  if (!active) return INACTIVE_SNAPSHOT;
+  // Several regions that are all "marked" (see registerWholeRegion): what they have in common.
+  if (active.whole && wholeRegions.length > 1) {
+    const outer = active;
+    try {
+      return mergeSnapshots(
+        wholeRegions.map((region) => {
+          active = { ...region, whole: true };
+          return computeSingleSnapshot();
+        }),
+      );
+    } finally {
+      active = outer;
+    }
+  }
+  return computeSingleSnapshot();
+}
+
+function computeSingleSnapshot(): FormatSnapshot {
   if (!active) return INACTIVE_SNAPSHOT;
   const range = currentRange();
   if (!range) return { ...INACTIVE_SNAPSHOT, active: true };
@@ -210,6 +239,42 @@ export function pinActiveEditor(on: boolean) {
   pinned = on;
 }
 
+/** The editable regions of the block that is selected but not edited (a text has one, a quiz its question and every option, a list
+ * every item): what "the whole text" is when there is no caret. */
+const wholeRegions: ActiveEditor[] = [];
+
+function syncWhole() {
+  if (wholeOperation) return;
+  if (wholeRegions.length === 0) {
+    if (active?.whole) {
+      active = null;
+      savedRange = null;
+      refreshSnapshot();
+    }
+    return;
+  }
+  // Somebody is editing for real (a caret): that is what the sidebar shows.
+  if (active && !active.whole) return;
+  const same = active?.whole && active.el === wholeRegions[0].el;
+  active = { ...wholeRegions[0], whole: true };
+  if (!same) savedRange = null;
+  refreshSnapshot();
+}
+
+/** A block that is selected but not being edited makes its text regions known: the formatting of the sidebar then acts on all of
+ * them as if the whole text were marked. Returns what takes the region away again. */
+export function registerWholeRegion(entry: { el: HTMLElement; commit: (html: string) => void }): () => void {
+  const region: ActiveEditor = { ...entry, whole: true };
+  wholeRegions.push(region);
+  wholeRegions.sort((a, b) => (a.el.compareDocumentPosition(b.el) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+  syncWhole();
+  return () => {
+    const index = wholeRegions.indexOf(region);
+    if (index >= 0) wholeRegions.splice(index, 1);
+    syncWhole();
+  };
+}
+
 /** Set while a change is made to the whole text of a block that is not being edited (see withWholeSelection): the element is made
  * editable and focused for a moment, which must not look like the person having started to edit (or stopped). */
 let wholeOperation = false;
@@ -242,23 +307,33 @@ function withWholeSelection(change: () => void) {
     change();
     return;
   }
-  const el = active.el;
+  const outer = active;
+  const regions = wholeRegions.length > 0 ? [...wholeRegions] : [outer];
   wholeOperation = true;
-  const wasEditable = el.contentEditable;
   try {
-    el.contentEditable = "true";
-    el.focus({ preventScroll: true });
-    const all = document.createRange();
-    all.selectNodeContents(el);
-    const sel = window.getSelection();
-    sel?.removeAllRanges();
-    sel?.addRange(all);
-    change();
+    for (const region of regions) {
+      const el = region.el;
+      active = { ...region, whole: true };
+      const wasEditable = el.contentEditable;
+      try {
+        el.contentEditable = "true";
+        el.focus({ preventScroll: true });
+        const all = document.createRange();
+        all.selectNodeContents(el);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(all);
+        change();
+      } finally {
+        el.contentEditable = wasEditable;
+        window.getSelection()?.removeAllRanges();
+        el.blur();
+      }
+    }
   } finally {
-    el.contentEditable = wasEditable;
-    window.getSelection()?.removeAllRanges();
-    el.blur();
+    active = outer;
     wholeOperation = false;
+    refreshSnapshot();
   }
 }
 
@@ -394,6 +469,31 @@ function backgroundOf(el: HTMLElement, root: HTMLElement): TextBackground {
 
 /** What the selection has of the options of the dialog "Schrift" (null: no text is being edited). */
 export function readExtendedFormat(): ExtendedFormat | null {
+  if (active?.whole && wholeRegions.length > 1) {
+    const outer = active;
+    try {
+      const all = wholeRegions.map((region) => {
+        active = { ...region, whole: true };
+        return readSingleExtendedFormat();
+      });
+      if (all.some((f) => f === null)) return null;
+      const list = all as ExtendedFormat[];
+      const first = list[0];
+      const same = (pick: (f: ExtendedFormat) => unknown) => list.every((f) => JSON.stringify(pick(f)) === JSON.stringify(pick(first)));
+      return {
+        lineHeight: same((f) => f.lineHeight) ? first.lineHeight : "mixed",
+        paragraphSpacing: same((f) => f.paragraphSpacing) ? first.paragraphSpacing : "mixed",
+        smallCaps: same((f) => f.smallCaps) ? first.smallCaps : "mixed",
+        background: same((f) => f.background) ? first.background : "mixed",
+      };
+    } finally {
+      active = outer;
+    }
+  }
+  return readSingleExtendedFormat();
+}
+
+function readSingleExtendedFormat(): ExtendedFormat | null {
   if (!active) return null;
   const range = currentRange();
   if (!range) return null;

@@ -499,7 +499,8 @@ body {
 /* A shape's own drop-shadow (or a thick stroke's outer half) can extend past its bounding box -
    see the matching .weft-block override for .weft-edit-block-inner-shape in App.css. */
 .weft-block-shape,
-.weft-block-arrow {
+.weft-block-arrow,
+.weft-block-image-masked {
   overflow: visible;
 }
 

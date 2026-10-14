@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 // player, which talks to it (see syncLms in player.runtime.js).
 import vanillaLmSource from "../../../mockups/VanillaLM.js?raw";
 import arrowGeometrySource from "./arrowGeometry.js?raw";
+import imageGeometrySource from "./imageGeometry.js?raw";
 import filesCryptoSource from "./filesCrypto.js?raw";
 import playerRuntimeSource from "./player.runtime.js?raw";
 import playerRuntimeCss from "./player.runtime.css?raw";
@@ -98,6 +99,7 @@ ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` 
 <script id="weft-save-via-host" type="application/json">${savesViaHost ? "true" : "false"}</script>
 <script>${vanillaLmSource.replace(/<\/script/gi, "<\\/script")}</script>
 <script>${arrowGeometrySource.replace(/^export /gm, "")}</script>
+<script>${imageGeometrySource.replace(/^export /gm, "")}</script>
 <script>${filesCryptoSource.replace(/^export /gm, "")}</script>
 <script>${playerRuntimeSource}</script>
 </body>

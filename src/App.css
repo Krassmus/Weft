@@ -1573,6 +1573,74 @@ button.weft-timeline-node-icon:hover {
   object-fit: contain;
 }
 
+/* While a mask is edited, what it cuts off shows faintly behind it (ImageSvg.tsx). */
+.weft-edit-block-image-ghost {
+  position: absolute;
+  inset: 0;
+  opacity: 0.3;
+}
+
+/* ---- The mask of an image on the canvas (MaskHandles.tsx) - the points look like an arrow's waypoints ---- */
+.weft-mask-handles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.weft-mask-outline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.weft-mask-outline-body {
+  fill: rgba(255, 255, 255, 0.001);
+  stroke: var(--weft-accent);
+  stroke-width: 2px;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+  pointer-events: all;
+  cursor: move;
+}
+
+.weft-mask-scale {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  transform: translate(-50%, -50%);
+  background: var(--weft-accent);
+  border: 1px solid #ffffff;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.weft-mask-scale-tl,
+.weft-mask-scale-br {
+  cursor: nwse-resize;
+}
+
+.weft-mask-scale-tr,
+.weft-mask-scale-bl {
+  cursor: nesw-resize;
+}
+
+/* A corner is a square, a smooth point round; the one the sidebar's buttons act on is filled. */
+.weft-mask-point {
+  border-radius: 2px;
+}
+
+.weft-mask-point.is-smooth {
+  border-radius: 50%;
+}
+
+.weft-mask-point.is-selected {
+  background: var(--weft-accent);
+}
+
 .weft-edit-block-video-wrap {
   position: relative;
   width: 100%;
@@ -1690,6 +1758,97 @@ button.weft-timeline-node-icon:hover {
 
 .weft-format-more svg [fill] {
   fill: currentColor;
+}
+
+/* The two tiles "Maske" and "Effekt" of an image in the sidebar (ImageEditTiles in BlockPanel.tsx), the mask's own section and the
+   preview of the dialog "Effekt" (ImageEffectDialog.tsx). */
+.weft-image-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.weft-image-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-panel-raised);
+  color: var(--weft-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.weft-image-tile:hover {
+  border-color: var(--weft-accent-hover);
+}
+
+.weft-image-tile.is-set {
+  border-color: var(--weft-accent);
+}
+
+.weft-image-tile.is-open {
+  background: var(--weft-accent);
+  border-color: var(--weft-accent);
+  color: #ffffff;
+}
+
+.weft-image-mask-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.weft-image-mask-title {
+  font-size: 12px;
+  color: var(--weft-text-muted);
+}
+
+.weft-image-shapes {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.weft-image-shape {
+  padding: 6px 4px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-panel-raised);
+  color: var(--weft-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.weft-image-shape.is-active {
+  border-color: var(--weft-accent);
+  background: var(--weft-accent);
+  color: #ffffff;
+}
+
+.weft-image-point-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.weft-image-effect-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4px 0 12px;
+  padding: 36px 24px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background:
+    repeating-conic-gradient(#d8dbe2 0% 25%, #eceef3 0% 50%) 50% / 16px 16px;
+  overflow: hidden;
 }
 
 /* The dialog "Schrift" (TextFormatDialog.tsx). */

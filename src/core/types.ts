@@ -192,10 +192,46 @@ export interface TexBlock extends BaseBlock {
   color: string;
 }
 
+/** One point of an image's mask (a closed curve), in percent of the image block's box (0,0 = its top left corner). */
+export interface ImageMaskPoint {
+  x: number;
+  y: number;
+  /** The curve runs smoothly through the point (else it has a corner there). */
+  smooth?: boolean;
+  /** A corner is rounded by this much: the radius of the arc, in percent of the box's width. Only for a corner. */
+  radius?: number;
+}
+
+export type ImageMaskShape = "rectangle" | "rounded" | "circle" | "ellipse" | "triangle" | "star";
+
+/** What of an image is shown: only what is inside this closed curve (see core/runtime/imageGeometry.js). The shape it began as is
+ * only a starting point - the points can be moved, added and removed. */
+export interface ImageMask {
+  shape: ImageMaskShape;
+  /** Three or more. */
+  points: ImageMaskPoint[];
+}
+
+/** An effect of an image (one at a time). Lengths are in cqw (percent of the slide's width). */
+export type ImageEffect =
+  | { kind: "border"; color: string; width: number; opacity: number }
+  | { kind: "shadow"; color: string; opacity: number; offsetX: number; offsetY: number; blur: number }
+  /** `height`: how much of the mirror image shows before it has faded away (percent); `squash`: how high it is compared to the
+   * picture (percent); `skew`: degrees. */
+  | { kind: "reflection"; opacity: number; height: number; squash: number; skew: number; gap: number }
+  | { kind: "paper"; color: string; width: number; roughness: number }
+  | { kind: "glow"; color: string; size: number; strength: number };
+
+export type ImageEffectKind = ImageEffect["kind"];
+
 export interface ImageBlock extends BaseBlock {
   kind: "image";
   assetId: UUID | null;
   alt: string;
+  /** Step one of editing: only the part inside the mask is shown. null/absent: the whole picture. */
+  mask?: ImageMask | null;
+  /** Step two: border, shadow, reflection, paper edge or glow. null/absent: none. */
+  effect?: ImageEffect | null;
 }
 
 /** A point on a video's own timeline - an event and a trigger at once (see VideoStopPointDialog

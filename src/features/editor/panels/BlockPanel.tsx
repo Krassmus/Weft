@@ -4,6 +4,10 @@ import { createPortal } from "react-dom";
 import { stopPointIconSvg } from "../stopPointIcon";
 import moreOptionsIconSvg from "../../../../mockups/icons/admin.svg?raw";
 import { TextFormatDialog } from "./TextFormatDialog";
+import { ImageEffectDialog } from "./ImageEffectDialog";
+import { IMAGE_MASK_SHAPES, defaultMask, removePoint, setRadius, toggleSmooth } from "../../../core/document/imageMask";
+import { useImageEdit } from "../blocks/imageEditStore";
+import { useImageBoxAspect } from "../blocks/ImageSvg";
 import { CODE_THEMES } from "../../../core/code/codeThemes";
 import { AUTO_LANGUAGE, CODE_LANGUAGES } from "../../../core/code/highlight";
 import { createId } from "../../../core/id";
@@ -610,7 +614,147 @@ function ImageEditor({
         <span>Alt-Text</span>
         <input value={block.alt} onChange={(e) => onUpdate({ alt: e.target.value })} />
       </label>
+      {block.assetId && <ImageEditTiles block={block} onUpdate={onUpdate} />}
     </Collapsible>
+  );
+}
+
+/**
+ * The two steps of editing a picture: "Maske" (what is shown: a shape that can be moved, scaled and edited as a curve on the
+ * canvas, see MaskHandles) and "Effekt" (a dialog: border, shadow, reflection, paper edge, glow).
+ */
+function ImageEditTiles({ block, onUpdate }: { block: ImageBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const boxAspect = useImageBoxAspect(block);
+  const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
+  const editing = useImageEdit((s) => s.blockId === block.id);
+  const selected = useImageEdit((s) => s.selectedPoint);
+  const edit = useImageEdit((s) => s.edit);
+  const select = useImageEdit((s) => s.select);
+  const [effectOpen, setEffectOpen] = useState(false);
+  const mask = block.mask ?? null;
+
+  // The canvas shows the points only while this block is the selected one.
+  useEffect(
+    () => () => {
+      if (useImageEdit.getState().blockId === block.id) useImageEdit.getState().edit(null);
+    },
+    [block.id],
+  );
+
+  const selectedPoint = mask && selected !== null ? mask.points[selected] : undefined;
+  const corners = mask ? mask.points.filter((p) => !p.smooth) : [];
+  const radius = selectedPoint ? (selectedPoint.smooth ? 0 : (selectedPoint.radius ?? 0)) : (corners[0]?.radius ?? 0);
+  const canRound = selectedPoint ? !selectedPoint.smooth : corners.length > 0;
+
+  return (
+    <>
+      <div className="weft-image-tiles">
+        <button
+          type="button"
+          className={"weft-image-tile" + (editing ? " is-open" : "") + (mask ? " is-set" : "")}
+          aria-pressed={editing}
+          onClick={() => edit(editing ? null : block.id)}
+        >
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeDasharray="3 2.4" />
+            <rect x="9" y="9" width="6" height="6" fill="currentColor" opacity="0.5" />
+          </svg>
+          <span>Maske</span>
+        </button>
+        <button type="button" className={"weft-image-tile" + (block.effect ? " is-set" : "")} onClick={() => setEffectOpen(true)}>
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <rect x="5" y="5" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+            <rect x="9" y="9" width="11" height="11" rx="1.5" fill="currentColor" opacity="0.4" />
+          </svg>
+          <span>Effekt</span>
+        </button>
+      </div>
+
+      {editing && (
+        <div className="weft-image-mask-panel">
+          <span className="weft-image-mask-title">Grundform</span>
+          <div className="weft-image-shapes">
+            {IMAGE_MASK_SHAPES.map((shape) => (
+              <button
+                key={shape.id}
+                type="button"
+                className={"weft-image-shape" + (mask?.shape === shape.id ? " is-active" : "")}
+                onClick={() => {
+                  select(null);
+                  onUpdate({ mask: defaultMask(shape.id, boxAspect) });
+                }}
+              >
+                {shape.label}
+              </button>
+            ))}
+          </div>
+          {mask ? (
+            <>
+              <p className="weft-hint">
+                Auf der Folie: Punkte ziehen, auf der Kurve ein „+“ ziehen für einen neuen Punkt, die Linie ziehen verschiebt die Form,
+                die Quadrate an den Ecken verändern ihre Größe. Doppelklick auf einen Punkt: Ecke oder weicher Übergang.
+              </p>
+              {canRound && (
+                <div className="weft-field">
+                  <span>{selectedPoint ? "Rundung dieser Ecke" : "Rundung der Ecken"}</span>
+                  <StepperSlider
+                    label="Rundung"
+                    value={Math.round(radius)}
+                    min={0}
+                    max={40}
+                    step={1}
+                    onChange={(value) => onUpdate({ mask: { ...mask, points: setRadius(mask.points, selected, value) } })}
+                  />
+                </div>
+              )}
+              {selectedPoint && (
+                <div className="weft-image-point-actions">
+                  <button
+                    type="button"
+                    className="weft-ghost-button"
+                    onClick={() => onUpdate({ mask: { ...mask, points: toggleSmooth(mask.points, selected!) } })}
+                  >
+                    {selectedPoint.smooth ? "Zur Ecke machen" : "Weich machen"}
+                  </button>
+                  <button
+                    type="button"
+                    className="weft-ghost-button"
+                    disabled={mask.points.length <= 3}
+                    onClick={() => {
+                      onUpdate({ mask: { ...mask, points: removePoint(mask.points, selected!) } });
+                      select(null);
+                    }}
+                  >
+                    Punkt entfernen
+                  </button>
+                </div>
+              )}
+              <button
+                type="button"
+                className="weft-ghost-button"
+                onClick={() => {
+                  select(null);
+                  onUpdate({ mask: null });
+                }}
+              >
+                Maske zurücksetzen
+              </button>
+            </>
+          ) : (
+            <p className="weft-hint">Eine Form wählen: Alles außerhalb davon wird abgeschnitten.</p>
+          )}
+        </div>
+      )}
+
+      {effectOpen && (
+        <ImageEffectDialog
+          block={block}
+          src={getObjectUrl(block.assetId ?? "") ?? ""}
+          onApply={(effect) => onUpdate({ effect })}
+          onClose={() => setEffectOpen(false)}
+        />
+      )}
+    </>
   );
 }
 

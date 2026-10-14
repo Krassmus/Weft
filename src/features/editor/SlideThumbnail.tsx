@@ -7,6 +7,7 @@ import type { Block } from "../../core/types";
 import { ArrowSvg } from "./blocks/ArrowSvg";
 import { FilesView } from "./blocks/FilesView";
 import { ShapeSvg } from "./blocks/ShapeSvg";
+import { ImageSvg } from "./blocks/ImageSvg";
 import { buttonText, listItemHtml, quizOptionHtml, quizQuestionHtml, textHtml } from "../../core/document/translations";
 import { ListMarkerView } from "./blocks/ListMarkerView";
 import { clozeBlanksAsBoxes } from "../../core/document/cloze";
@@ -41,11 +42,15 @@ export function SlideThumbnail({
   blocks,
   exportPxPerCqw,
   qrSvgs,
+  imageUrls,
 }: {
   blocks: Block[];
   exportPxPerCqw?: number;
   /** For the PDF: the QR code (as SVG) of an iframe block's address, by block id. */
   qrSvgs?: Record<string, string>;
+  /** For the PDF: the picture of an image block that has a mask or an effect as a data: address (an SVG that is drawn as a
+   * picture of its own cannot reach a blob: address), by block id. */
+  imageUrls?: Record<string, string>;
 }) {
   const aspectRatio = useDocumentStore((s) => s.doc.content.aspectRatio);
   const numeric = aspectRatioNumeric(aspectRatio);
@@ -64,14 +69,14 @@ export function SlideThumbnail({
     <div className="weft-thumb" style={{ aspectRatio: aspectRatioCss(aspectRatio), ...portraitCap }}>
       <div className="weft-thumb-stage" ref={stageRef}>
         {blocks.map((block) => (
-          <ThumbBlock key={block.id} block={block} exportPxPerCqw={exportPxPerCqw} qrSvg={qrSvgs?.[block.id]} />
+          <ThumbBlock key={block.id} block={block} exportPxPerCqw={exportPxPerCqw} qrSvg={qrSvgs?.[block.id]} imageUrl={imageUrls?.[block.id]} />
         ))}
       </div>
     </div>
   );
 }
 
-function ThumbBlock({ block, exportPxPerCqw, qrSvg }: { block: Block; exportPxPerCqw?: number; qrSvg?: string }) {
+function ThumbBlock({ block, exportPxPerCqw, qrSvg, imageUrl }: { block: Block; exportPxPerCqw?: number; qrSvg?: string; imageUrl?: string }) {
   const slideAspect = useDocumentStore((s) => aspectRatioNumeric(s.doc.content.aspectRatio));
   const { lang, defaultLang } = useEditingLanguage();
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
@@ -133,6 +138,13 @@ function ThumbBlock({ block, exportPxPerCqw, qrSvg }: { block: Block; exportPxPe
     return (
       <div className="weft-thumb-block weft-thumb-block-tex" style={style}>
         <TexView tex={block.tex} color={block.color} />
+      </div>
+    );
+  }
+  if (block.kind === "image" && block.assetId && (block.mask || block.effect)) {
+    return (
+      <div className="weft-thumb-block weft-thumb-block-shape" style={style}>
+        <ImageSvg block={block} src={imageUrl ?? getObjectUrl(block.assetId) ?? ""} />
       </div>
     );
   }

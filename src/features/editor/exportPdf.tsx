@@ -2,6 +2,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import html2canvas from "html2canvas";
 import QRCode from "qrcode";
+import { useAssetStore } from "../../core/assets/assetStore";
 import { orderedValues } from "../../core/document/ordering";
 import { branchPageIds, sequenceOf } from "../../core/document/sequence";
 import { aspectRatioNumeric } from "../../core/aspectRatio";
@@ -15,6 +16,15 @@ const RENDER_WIDTH_PX = 1280;
 /** How much sharper than that the picture is. */
 const RENDER_SCALE = 1.5;
 const JPEG_QUALITY = 0.9;
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
 
 /** The pages of the module in the order they are played: the main sequence, with the pages of each branch where the branch is. A
  * jump page has no content of its own and is left out. */
@@ -97,7 +107,14 @@ export async function exportModuleAsPdf(
           // too long for a QR code: the address as text is there anyway
         }
       }
-      flushSync(() => root.render(<SlideThumbnail blocks={blocks} exportPxPerCqw={RENDER_WIDTH_PX / 100} qrSvgs={qrSvgs} />));
+      // The pictures that have a mask or an effect, as data: addresses (see SlideThumbnail's imageUrls).
+      const imageUrls: Record<string, string> = {};
+      for (const block of blocks) {
+        if (block.kind !== "image" || !block.assetId || (!block.mask && !block.effect)) continue;
+        const blob = useAssetStore.getState().blobs.get(block.assetId);
+        if (blob) imageUrls[block.id] = await blobToDataUrl(blob);
+      }
+      flushSync(() => root.render(<SlideThumbnail blocks={blocks} exportPxPerCqw={RENDER_WIDTH_PX / 100} qrSvgs={qrSvgs} imageUrls={imageUrls} />));
       await whenSettled(holder);
       const canvas = await html2canvas(holder, {
         scale: RENDER_SCALE,

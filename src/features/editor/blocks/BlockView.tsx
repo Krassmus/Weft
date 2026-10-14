@@ -32,7 +32,7 @@ import { useAssetStore } from "../../../core/assets/assetStore";
 import { useDocumentStore } from "../../../core/document/store";
 import { createId } from "../../../core/id";
 import { confirmDestructive } from "../../../core/io/fileIO";
-import type { ArrowPoint, Block, BlockPosition, ClozeBlock, IframeBlock, ListBlock, QuizBlock } from "../../../core/types";
+import type { ArrowPoint, Block, BlockPosition, ClozeBlock, IframeBlock, ImageMask, ListBlock, QuizBlock } from "../../../core/types";
 import { ListMarkerView } from "./ListMarkerView";
 import { caretAt, caretOnLine, caretX, fitListMarkers, focusItem, textLength } from "./listCaret";
 import { ContextMenu, useContextMenu } from "../ContextMenu";
@@ -40,6 +40,9 @@ import type { ContextMenuItem } from "../ContextMenu";
 import { registerActiveEditable, resolveInlineAssets, saveSelection, storeableHtml } from "./richText";
 import { ArrowHandles } from "./ArrowHandles";
 import { ArrowSvg } from "./ArrowSvg";
+import { useImageEdit } from "./imageEditStore";
+import { ImageSvg } from "./ImageSvg";
+import { MaskHandles } from "./MaskHandles";
 import { FilesView } from "./FilesView";
 import { ShapeSvg } from "./ShapeSvg";
 import { CodeView } from "./CodeView";
@@ -192,6 +195,9 @@ export function BlockView({
   const [liveOverride, setLiveOverride] = useState<BlockPosition | null>(null);
   // The waypoints of an arrow while one is being dragged (see ArrowHandles).
   const [livePoints, setLivePoints] = useState<ArrowPoint[] | null>(null);
+  // The mask of an image while one of its points is being dragged (see MaskHandles), and whether it is being edited at all.
+  const [liveMask, setLiveMask] = useState<ImageMask | null>(null);
+  const maskEditing = useImageEdit((s) => s.blockId === block.id);
   const slideAspect = useDocumentStore((s) => aspectRatioNumeric(s.doc.content.aspectRatio));
   const [nearEdge, setNearEdge] = useState(false);
   const [snapGuides, setSnapGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
@@ -469,10 +475,22 @@ export function BlockView({
         onPointerMove={handlePointerMoveHover}
         onPointerLeave={() => setNearEdge(false)}
       >
-        <div className={"weft-edit-block-inner" + (block.kind === "shape" || block.kind === "arrow" ? " weft-edit-block-inner-shape" : "")}>
+        <div
+          className={
+            "weft-edit-block-inner" +
+            (block.kind === "shape" || block.kind === "arrow" || (block.kind === "image" && block.effect) ? " weft-edit-block-inner-shape" : "")
+          }
+        >
           <BlockContent
-            block={block.kind === "arrow" && livePoints ? { ...block, points: livePoints } : block}
+            block={
+              block.kind === "arrow" && livePoints
+                ? { ...block, points: livePoints }
+                : block.kind === "image" && liveMask
+                  ? { ...block, mask: liveMask }
+                  : block
+            }
             selected={selected}
+            maskEditing={maskEditing && selected && !locked}
             videoPreviewTime={videoPreviewTime}
             frameSelect={frameSelectRef}
             onUpdate={onUpdate}
@@ -506,6 +524,14 @@ export function BlockView({
             onCommit={(patch) => onUpdate?.(patch)}
           />
         )}
+        {selected && !locked && !groupSelected && block.kind === "image" && maskEditing && block.mask && (
+          <MaskHandles
+            block={{ ...block, mask: liveMask ?? block.mask }}
+            stageRect={stageRect}
+            onLive={setLiveMask}
+            onCommit={(mask) => onUpdate?.({ mask })}
+          />
+        )}
         {selected &&
           !locked &&
           !groupSelected &&
@@ -526,6 +552,7 @@ export function BlockView({
 function BlockContent({
   block,
   selected,
+  maskEditing,
   videoPreviewTime,
   frameSelect,
   onUpdate,
@@ -535,6 +562,8 @@ function BlockContent({
 }: {
   block: Block;
   selected: boolean;
+  /** An image: its mask is being edited (its cut-off part shows faintly). */
+  maskEditing?: boolean;
   videoPreviewTime: number | "end" | null;
   frameSelect: MutableRefObject<boolean>;
   onUpdate?: (patch: Partial<Block>) => void;
@@ -571,6 +600,9 @@ function BlockContent({
     case "tex":
       return <TexView tex={block.tex} color={block.color} />;
     case "image":
+      if (block.assetId && (block.mask || block.effect)) {
+        return <ImageSvg block={block} src={getObjectUrl(block.assetId) ?? ""} ghost={maskEditing} />;
+      }
       return block.assetId ? (
         <img src={getObjectUrl(block.assetId)} alt={block.alt} className="weft-edit-block-image" draggable={false} />
       ) : (

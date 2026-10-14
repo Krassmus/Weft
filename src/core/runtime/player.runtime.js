@@ -10,6 +10,8 @@
 
   var assetUrlOverridesEl = document.getElementById("weft-asset-urls");
   var assetUrlOverrides = assetUrlOverridesEl ? JSON.parse(assetUrlOverridesEl.textContent || "{}") : {};
+  // Keeps the ids inside the SVG of a masked picture apart when the same block is drawn again (see imageSvgMarkup).
+  var imageInstanceCounter = 0;
 
   var qrCodeSvgsEl = document.getElementById("weft-qr-codes");
   var qrCodeSvgs = qrCodeSvgsEl ? JSON.parse(qrCodeSvgsEl.textContent || "{}") : {};
@@ -1810,7 +1812,16 @@
       if (block.color) wrap.style.color = block.color;
       fitTexBlock(texBox, texInner);
     } else if (block.kind === "image") {
-      wrap.appendChild(el("img", { src: assetSrc(block.assetId), alt: block.alt, style: "display:block;width:100%;height:100%;object-fit:contain;" }, []));
+      if (block.mask || block.effect) {
+        // imageSvgMarkup is core/runtime/imageGeometry.js, embedded ahead of this script (buildRuntimeHtml.ts) - the very code
+        // the editor draws the picture with. boxAspect: the block's real width : height on the slide.
+        var imageBoxAspect = block.position.height > 0 ? (block.position.width / block.position.height) * slideAspectNumeric() : 1;
+        imageInstanceCounter += 1;
+        wrap.classList.add("weft-block-image-masked");
+        wrap.innerHTML = imageSvgMarkup(block, imageBoxAspect, assetSrc(block.assetId), block.id + "-" + imageInstanceCounter);
+      } else {
+        wrap.appendChild(el("img", { src: assetSrc(block.assetId), alt: block.alt, style: "display:block;width:100%;height:100%;object-fit:contain;" }, []));
+      }
     } else if (block.kind === "video") {
       var videoWrap = el("div", { class: "weft-video-wrap" }, []);
       var videoEl = el("video", {

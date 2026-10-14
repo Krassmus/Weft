@@ -152,8 +152,13 @@ export function imageEffectBleed(block, boxAspect) {
     var around = (effect.size || 0) * unit * 1.5;
     return { l: around, r: around, t: around, b: around };
   }
+  if (effect.kind === "border") {
+    // The border lies around the picture, outside of it.
+    var edge = Math.max(0, effect.width || 0) * unit;
+    return { l: edge, r: edge, t: edge, b: edge };
+  }
   if (effect.kind === "paper") {
-    var rough = ((effect.roughness || 0) / 100) * 1.5 * unit + 2 * unit;
+    var rough = Math.max(0, effect.width || 0) * unit + ((effect.roughness || 0) / 100) * 1.5 * unit + 2 * unit;
     return { l: rough, r: rough, t: rough, b: rough };
   }
   if (effect.kind === "reflection") {
@@ -184,20 +189,32 @@ export function imageSvgMarkup(block, boxAspect, src, uid) {
       : "M0 0H100V" + imgNum(height) + "H0Z";
   var defs = '<clipPath id="' + id + '-clip"><path d="' + clipD + '"/></clipPath>';
 
-  var inner =
-    '<image href="' + imgEscape(src || "") + '" x="0" y="0" width="100" height="' + imgNum(height) + '" preserveAspectRatio="xMidYMid meet"/>';
+  var picture =
+    '<g clip-path="url(#' + id + '-clip)"><image href="' + imgEscape(src || "") + '" x="0" y="0" width="100" height="' + imgNum(height) +
+    '" preserveAspectRatio="xMidYMid meet"/></g>';
+  // A border and a paper edge lie around the picture: a stroke twice as wide as asked for is drawn first, the picture on top of it
+  // covers its inner half - the picture itself keeps its size and is not touched.
+  var behind = "";
   if (effect && effect.kind === "border" && effect.width > 0) {
-    // The border lies inside the shape: a stroke twice as wide as asked for, of which the outer half is cut off by the clip.
-    inner +=
+    behind =
       '<path d="' + clipD + '" fill="none" stroke="' + imgColor(effect.color, "#ffffff") + '" stroke-width="' + imgNum(effect.width * unit * 2) +
       '" stroke-opacity="' + imgNum(imgClamp(effect.opacity === undefined ? 1 : effect.opacity, 0, 1)) + '" stroke-linejoin="round"/>';
   }
   if (effect && effect.kind === "paper") {
-    inner +=
-      '<path d="' + clipD + '" fill="none" stroke="' + imgColor(effect.color, "#fbf8f1") + '" stroke-width="' +
-      imgNum(Math.max(0.1, effect.width) * unit * 2) + '" stroke-linejoin="round"/>';
+    // Filled as well, so that the rough edge has paper under the picture whichever way it moves.
+    var paperColor = imgColor(effect.color, "#fbf8f1");
+    var displacement = ((effect.roughness || 0) / 100) * 1.5 * unit;
+    defs +=
+      '<filter id="' + id + '-paper" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">' +
+      '<feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="3" seed="7" result="noise"/>' +
+      '<feDisplacementMap in="SourceGraphic" in2="noise" scale="' + imgNum(displacement) + '" xChannelSelector="R" yChannelSelector="G" result="rough"/>' +
+      '<feDropShadow in="rough" dx="0" dy="' + imgNum(0.35 * unit) + '" stdDeviation="' + imgNum(0.5 * unit) +
+      '" flood-color="#000000" flood-opacity="0.35"/></filter>';
+    behind =
+      '<g filter="url(#' + id + '-paper)"><path d="' + clipD + '" fill="' + paperColor + '" stroke="' + paperColor + '" stroke-width="' +
+      imgNum(Math.max(0.1, effect.width) * unit * 2) + '" stroke-linejoin="round"/></g>';
   }
-  var art = '<g clip-path="url(#' + id + '-clip)">' + inner + "</g>";
+  var art = behind + picture;
 
   var shown = art;
   if (effect && effect.kind === "shadow") {
@@ -216,15 +233,6 @@ export function imageSvgMarkup(block, boxAspect, src, uid) {
       '<feComposite in="flood" in2="blur" operator="in" result="glow"/>' +
       '<feComponentTransfer in="glow" result="glow2"><feFuncA type="linear" slope="' + imgNum(0.6 + strength * 3.4) + '"/></feComponentTransfer>' +
       '<feMerge><feMergeNode in="glow2"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
-    shown = '<g filter="url(#' + id + '-fx)">' + art + "</g>";
-  } else if (effect && effect.kind === "paper") {
-    var displacement = ((effect.roughness || 0) / 100) * 1.5 * unit;
-    defs +=
-      '<filter id="' + id + '-fx" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">' +
-      '<feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="3" seed="7" result="noise"/>' +
-      '<feDisplacementMap in="SourceGraphic" in2="noise" scale="' + imgNum(displacement) + '" xChannelSelector="R" yChannelSelector="G" result="rough"/>' +
-      '<feDropShadow in="rough" dx="0" dy="' + imgNum(0.35 * unit) + '" stdDeviation="' + imgNum(0.5 * unit) +
-      '" flood-color="#000000" flood-opacity="0.35"/></filter>';
     shown = '<g filter="url(#' + id + '-fx)">' + art + "</g>";
   } else if (effect && effect.kind === "reflection") {
     var scale = imgClamp((effect.squash === undefined ? 100 : effect.squash) / 100, 0.2, 1);

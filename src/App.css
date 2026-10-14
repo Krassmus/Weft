@@ -1123,7 +1123,7 @@ img.weft-thumb-block {
      a zoomed slide. */
   background-color: var(--weft-bg);
   background-image:
-    radial-gradient(ellipse 70% 65% at 50% 50%, rgba(66, 104, 200, 0.34) 0%, rgba(62, 98, 190, 0.14) 48%, transparent 80%),
+    radial-gradient(ellipse 72% 66% at 50% 50%, rgba(104, 142, 205, 0.26) 0%, rgba(100, 138, 200, 0.12) 50%, transparent 82%),
     radial-gradient(circle at center, rgba(160, 180, 230, 0.16) 1px, transparent 1.4px);
   background-size: auto, 22px 22px;
   background-position: center, center;
@@ -1204,9 +1204,12 @@ img.weft-thumb-block {
 
 /* The slide being edited glows softly (blue, like the work area behind it). */
 .weft-stage-edit {
+  /* Measured on the mockup: close to the slide the light is a pale, hardly blue grey; further out it turns into the slate blue of
+     the work area. */
   box-shadow:
-    var(--weft-shadow),
-    0 0 56px 4px rgba(74, 118, 230, 0.34);
+    0 0 26px 3px rgba(190, 202, 226, 0.46),
+    0 0 90px 8px rgba(120, 150, 205, 0.30),
+    var(--weft-shadow);
 }
 
 /* Dragging image file(s) in from the Finder over the edit stage. */

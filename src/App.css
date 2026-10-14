@@ -1123,7 +1123,7 @@ img.weft-thumb-block {
      a zoomed slide. */
   background-color: var(--weft-bg);
   background-image:
-    radial-gradient(ellipse 75% 70% at 50% 50%, rgba(112, 150, 212, 0.36) 0%, rgba(104, 142, 205, 0.19) 52%, transparent 85%),
+    radial-gradient(ellipse 75% 70% at 50% 50%, rgba(112, 150, 212, 0.36) 40%, rgba(104, 142, 205, 0.19) 60%, transparent 90%),
     radial-gradient(circle at center, rgba(160, 180, 230, 0.16) 1px, transparent 1.4px);
   background-size: auto, 22px 22px;
   background-position: center, center;
@@ -1171,6 +1171,8 @@ img.weft-thumb-block {
      the wrap by Canvas.tsx) turns the wrap's own content height (cqh - see its container-type) into
      the widest slide that still fits it, which only matters for a portrait slide like 9:16. */
   width: calc(min(100%, 920px, 100cqh * var(--ar, 1.78)) * var(--zoom, 1));
+  /* A small edge between the slide and the work area behind it. */
+  border: 2px solid black;
   margin: auto;
   /* .weft-canvas-stage-wrap is a flex container now (see its own comment - needed so this
      margin:auto centers on both axes, not just horizontally), and a flex item's default

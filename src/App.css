@@ -1744,7 +1744,7 @@ button.weft-timeline-node-icon:hover {
   display: flex;
   flex-direction: column;
   gap: 0.6em;
-  padding: 4px;
+  padding: 0.25em;
   box-sizing: border-box;
 }
 
@@ -1973,7 +1973,7 @@ button.weft-timeline-node-icon:hover {
 .weft-thumb-block-list {
   display: flex;
   flex-direction: column;
-  padding: 4px;
+  padding: 0.25em;
   box-sizing: border-box;
 }
 
@@ -2093,11 +2093,12 @@ button.weft-timeline-node-icon:hover {
 
 .weft-edit-block-list-item-delete {
   flex: none;
+  font: inherit;
   width: 1.4em;
   height: 1.4em;
   padding: 0.2em;
   border: none;
-  border-radius: 4px;
+  border-radius: 0.25em;
   background: transparent;
   color: #a1a1aa;
   cursor: pointer;
@@ -2258,7 +2259,9 @@ button.weft-timeline-node-icon:hover {
   display: flex;
   flex-direction: column;
   gap: 0.6em;
-  padding: 4px;
+  /* Everything here is in em of the block's own type size (1.7cqw): the block is the same picture at every zoom, in the editor, in
+     the thumbnail and in the player - a px value would not scale along (and make the rows taller than the box when zoomed out). */
+  padding: 0.25em;
   /* Deliberately no own font-size override (there used to be one, smaller than the block default)
      - it needs to match .weft-block's base size in player.runtime.css exactly, em-for-em, or the
      same question/options/submit content ends up taking up a visibly different amount of the
@@ -2305,8 +2308,8 @@ button.weft-timeline-node-icon:hover {
   align-items: center;
   gap: 0.5em;
   padding: 0.4em 0.6em;
-  border: 1px solid #e4e4e7;
-  border-radius: 6px;
+  border: 0.06em solid #e4e4e7;
+  border-radius: 0.35em;
   background: #fafafa;
 }
 
@@ -2320,6 +2323,8 @@ button.weft-timeline-node-icon:hover {
 .weft-edit-block-quiz-option-checkbox,
 .weft-edit-block-quiz-option-delete {
   flex: 0 0 auto;
+  /* A <button> does not inherit the type size: its 1em would be the browser's fixed 13px - and not follow the zoom. */
+  font: inherit;
   width: 1em;
   height: 1em;
   border: none;
@@ -2370,7 +2375,7 @@ button.weft-timeline-node-icon:hover {
   align-items: center;
   gap: 0.4em;
   padding: 0.4em 1em;
-  border-radius: 6px;
+  border-radius: 0.35em;
   background: #3b82f6;
   color: #fff;
   font-weight: 600;

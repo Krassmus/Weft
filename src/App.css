@@ -1703,6 +1703,12 @@ button.weft-timeline-node-icon:hover {
   cursor: move;
 }
 
+/* The same for the label of a button: the button's own cursor (default) and the label's (text) would otherwise hide it. */
+.weft-edit-block.is-near-edge .weft-edit-block-button,
+.weft-edit-block.is-near-edge .weft-edit-block-button-text {
+  cursor: move;
+}
+
 .weft-edit-block-text > :first-child {
   margin-top: 0;
 }

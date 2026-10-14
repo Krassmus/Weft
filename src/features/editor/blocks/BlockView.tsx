@@ -12,7 +12,10 @@ import checkboxUncheckedSvg from "../../../../mockups/icons/checkbox-unchecked.s
 import acceptSvg from "../../../../mockups/icons/accept.svg?raw";
 import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
 import { aspectRatioNumeric } from "../../../core/aspectRatio";
+import { buttonAppearanceCss } from "../../../core/document/buttonAppearance";
 import {
+  buttonHtml,
+  buttonHtmlPatch,
   buttonText,
   listItemHtml,
   listItemPatch,
@@ -463,7 +466,7 @@ export function BlockView({
           contextMenu.open(event, items);
         }}
         onPointerDown={(e) => {
-          if (e.button === 0 && (block.kind === "text" || block.kind === "cloze")) {
+          if (e.button === 0 && (block.kind === "text" || block.kind === "cloze" || block.kind === "button")) {
             const stage = stageRect();
             const onFrame = !!stage && edgeDistancePx(e.clientX, e.clientY, position, stage) <= edgeThreshold(position, stage);
             frameSelectRef.current = onFrame;
@@ -634,12 +637,23 @@ function BlockContent({
           <div className="weft-edit-block-iframe-overlay" />
         </div>
       );
-    case "button":
+    case "button": {
+      // The label is edited right here, formatted like a text (the sidebar's toolbar is the same one). A label with no words in
+      // it stands for the player's own "Weiter" - shown as long as the button is not being edited.
+      const hasWords = buttonText(block, lang, defaultLang).trim() !== "";
       return (
-        <button type="button" className="weft-edit-block-button" tabIndex={-1}>
-          {buttonText(block, lang, defaultLang) || playerStringsFor(lang).next}
-        </button>
+        <div className="weft-edit-block-button" style={buttonAppearanceCss(block)}>
+          {!hasWords && !selected && <span className="weft-edit-block-button-default">{playerStringsFor(lang).next}</span>}
+          <EditableRichText
+            className={"weft-edit-block-button-text" + (!hasWords && !selected ? " is-hidden" : "")}
+            html={buttonHtml(block, lang, defaultLang)}
+            editable={selected}
+            frameSelect={frameSelect}
+            onCommit={(html) => onUpdate?.(buttonHtmlPatch(block, lang, defaultLang, html))}
+          />
+        </div>
       );
+    }
     case "quiz":
       return (
         <QuizBlockCanvas

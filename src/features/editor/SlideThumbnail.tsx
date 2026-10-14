@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
+import { buttonAppearanceCss } from "../../core/document/buttonAppearance";
 import { resolveInlineAssets } from "./blocks/richText";
 import { useAssetStore } from "../../core/assets/assetStore";
 import { useDocumentStore } from "../../core/document/store";
@@ -8,7 +9,7 @@ import { ArrowSvg } from "./blocks/ArrowSvg";
 import { FilesView } from "./blocks/FilesView";
 import { ShapeSvg } from "./blocks/ShapeSvg";
 import { ImageSvg } from "./blocks/ImageSvg";
-import { buttonText, listItemHtml, quizOptionHtml, quizQuestionHtml, textHtml } from "../../core/document/translations";
+import { buttonHtml, buttonText, listItemHtml, quizOptionHtml, quizQuestionHtml, textHtml } from "../../core/document/translations";
 import { ListMarkerView } from "./blocks/ListMarkerView";
 import { clozeBlanksAsBoxes } from "../../core/document/cloze";
 import { fitListMarkers } from "./blocks/listCaret";
@@ -225,8 +226,12 @@ function ThumbBlock({ block, exportPxPerCqw, qrSvg, imageUrl }: { block: Block; 
   }
   if (block.kind === "button") {
     return (
-      <div className="weft-thumb-block weft-thumb-block-button" style={style}>
-        {buttonText(block, lang, defaultLang) || playerStringsFor(lang).next}
+      <div className="weft-thumb-block weft-thumb-block-button" style={{ ...style, ...buttonAppearanceCss(block) }}>
+        {buttonText(block, lang, defaultLang).trim() ? (
+          <span className="weft-thumb-block-button-text" dangerouslySetInnerHTML={{ __html: buttonHtml(block, lang, defaultLang) }} />
+        ) : (
+          playerStringsFor(lang).next
+        )}
       </div>
     );
   }

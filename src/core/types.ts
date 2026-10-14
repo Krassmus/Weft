@@ -102,13 +102,13 @@ interface BaseBlock {
  * language's wording, so a module that never uses languages has none of this at all.
  */
 export interface BlockTranslation {
-  /** TextBlock. */
+  /** TextBlock, ButtonBlock (its formatted label). */
   html?: string;
   /** QuizBlock. */
   questionHtml?: string;
   /** QuizBlock: each option's html by option id. */
   options?: Record<UUID, string>;
-  /** ButtonBlock. */
+  /** ButtonBlock: the label as plain text (what `html` says, without the formatting). */
   text?: string;
   /** ListBlock: each item's html by item id. */
   items?: Record<UUID, string>;
@@ -338,9 +338,27 @@ export interface ClozeBlock extends BaseBlock {
   onIncorrect: VariableEffect[];
 }
 
+/** How a button looks (ButtonBlock.appearance). Lengths are cqw (percent of the slide's width); a button without it has the
+ * defaults of DEFAULT_BUTTON_APPEARANCE (core/document/buttonAppearance.ts). The colour of the letters is part of the label. */
+export interface ButtonAppearance {
+  /** null: no background. */
+  background: string | null;
+  borderColor: string;
+  /** 0: no border. */
+  borderWidth: number;
+  /** How round the corners are. */
+  radius: number;
+}
+
 export interface ButtonBlock extends BaseBlock {
   kind: "button";
+  /** The label as plain text - always what `html` says without its formatting, so that everything that only needs the words (the
+   * graph, a search) has them. */
   text: string;
+  /** The label with its formatting (edited on the canvas like a text). Absent on a button that has never been formatted: `text`
+   * is its label then. */
+  html?: string;
+  appearance?: ButtonAppearance;
   translations?: Record<string, BlockTranslation>;
   /** What a click does besides being an event of the page's graph ("Button geklickt", see TimelineEventType): "advance" presses
    * Weiter, exactly like Space/→ - everything that waits for Weiter arrives. "prev" goes back one slide (disabled on the first one).

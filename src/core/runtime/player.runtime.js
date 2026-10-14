@@ -277,6 +277,34 @@
     return (t && t.text !== undefined ? t.text : block.text) || uiString("next");
   }
 
+  // The label of a button with its formatting (core/document/translations.ts's buttonHtml): a label that was never formatted is
+  // its plain text.
+  function buttonLabelHtml(block) {
+    var t = currentTranslation(block);
+    if (t && t.html !== undefined) return t.html;
+    if (t && t.text !== undefined) return escapeText(t.text);
+    if (block.html !== undefined) return block.html;
+    return escapeText(block.text || "");
+  }
+
+  function escapeText(text) {
+    return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // The look of a button (core/document/buttonAppearance.ts): only what the author set is written, the stylesheet has the rest.
+  function buttonLookStyle(block) {
+    var look = block.appearance;
+    if (!look) return "";
+    var css = "";
+    if (look.background !== undefined) css += "background:" + (look.background || "transparent") + ";";
+    var width = look.borderWidth !== undefined ? look.borderWidth : 0.1;
+    if (look.borderWidth !== undefined || look.borderColor !== undefined) {
+      css += width > 0 ? "border:" + width + "cqw solid " + (look.borderColor || "#18181b") + ";" : "border:none;";
+    }
+    if (look.radius !== undefined) css += "border-radius:" + look.radius + "cqw;";
+    return css;
+  }
+
   // One of the player's own fixed texts in the current language.
   function uiString(key) {
     var strings = uiStrings[currentLanguage || ""] || uiStrings[""] || {};
@@ -2096,9 +2124,13 @@
 
   function renderButtonBlock(block) {
     var wrap = el("div", { class: "weft-block weft-block-button", style: positionStyle(block.position) });
-    var button = el("button", { type: "button", class: "weft-block-button-el" }, []);
+    var button = el("button", { type: "button", class: "weft-block-button-el", style: buttonLookStyle(block) }, []);
     var fillButton = function () {
-      button.textContent = buttonLabel(block);
+      // A label with no words in it is the player's own "Weiter".
+      var ownText = currentTranslation(block);
+      var words = ownText && ownText.text !== undefined ? ownText.text : block.text;
+      if (!String(words || "").trim()) button.textContent = uiString("next");
+      else button.innerHTML = buttonLabelHtml(block);
       applyVariablesToNode(button);
     };
     fillButton();

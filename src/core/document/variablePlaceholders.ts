@@ -5,6 +5,10 @@ import type { Block } from "../types";
 const IN_NODE = /\{\{([^{}<>]*)\}\}/g;
 const IN_TEXT = /\{\{([^{}]*)\}\}/g;
 
+function escapeText(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 /** The rich-text/plain-text strings of `block` that can contain {{variable}} placeholders (the
  * same ones the player substitutes in: text, a quiz's question and options, a button's label),
  * all as HTML - a button's plain label is escaped first, so it parses as the text it is. */
@@ -29,9 +33,13 @@ export function placeholderSources(block: Block): string[] {
         ...Object.values(block.translations ?? {}).flatMap((t) => Object.values(t.items ?? {})),
       ];
     case "button":
-      return [block.text, ...Object.values(block.translations ?? {}).flatMap((t) => (t.text !== undefined ? [t.text] : []))].map(
-        (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"),
-      );
+      // The formatted label, where there is one; else the plain one, escaped first.
+      return [
+        block.html ?? escapeText(block.text),
+        ...Object.values(block.translations ?? {}).flatMap((t) =>
+          t.html !== undefined ? [t.html] : t.text !== undefined ? [escapeText(t.text)] : [],
+        ),
+      ];
     default:
       return [];
   }

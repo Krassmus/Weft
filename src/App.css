@@ -474,6 +474,7 @@ body.weft-dragging .weft-block-list button {
 }
 
 .weft-thumb-block-button {
+  box-sizing: border-box;
   background: #18181b;
   color: #fff;
   border-radius: 2px;
@@ -2187,15 +2188,44 @@ button.weft-timeline-node-icon:hover {
 }
 
 .weft-edit-block-button {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: 100%;
+  padding: 0 12px;
+  overflow: hidden;
+  /* The look (background, border, corners) is the block's own, written inline (see buttonAppearanceCss); these are the defaults. */
   border: 1px solid #18181b;
   border-radius: 6px;
   background: #18181b;
   color: #fff;
   font-size: 14px;
-  font-size: 1.45cqw;
+  font-size: 1.5cqw;
+  text-align: center;
   cursor: default;
+}
+
+/* The label is a text edited in place: a paragraph or more, centred in the button, like the player's. */
+.weft-edit-block-button-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  outline: none;
+  cursor: text;
+}
+
+.weft-edit-block-button-text > p,
+.weft-edit-block-button-text > div {
+  margin: 0;
+}
+
+.weft-edit-block-button-text.is-hidden {
+  display: none;
+}
+
+.weft-thumb-block-button-text p {
+  margin: 0;
 }
 
 .weft-edit-block-quiz {

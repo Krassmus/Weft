@@ -11,9 +11,19 @@ import { useImageBoxAspect } from "../blocks/ImageSvg";
 import { CODE_THEMES } from "../../../core/code/codeThemes";
 import { AUTO_LANGUAGE, CODE_LANGUAGES } from "../../../core/code/highlight";
 import { createId } from "../../../core/id";
-import { addCustomFont, setEventTrigger, setQuizAdvance } from "../../../core/document/actions";
+import { addCustomFont, addTrigger, removeTrigger, setEventTrigger, setQuizAdvance, updateTrigger } from "../../../core/document/actions";
 import type { VideoUploadResult } from "../../../core/document/actions";
-import { blockEffectNodeId, getBlockEntranceTrigger, getBlockExitTrigger, isListPerItem, quizEndNodeId } from "../../../core/document/pageTimeline";
+import {
+  blockEffectNodeId,
+  buttonClickNodeId,
+  endNodeIds,
+  findNode,
+  getBlockEntranceTrigger,
+  getBlockExitTrigger,
+  isListPerItem,
+  outgoingTriggers,
+  quizEndNodeId,
+} from "../../../core/document/pageTimeline";
 import type { ResolvedTrigger } from "../../../core/document/pageTimeline";
 import { DIRECTION_LABELS } from "../../../core/document/transitions";
 import { useAssetStore } from "../../../core/assets/assetStore";
@@ -37,6 +47,7 @@ import type {
   BlockEffect,
   BlockEffectType,
   TransitionDirection,
+  ButtonAppearance,
   ButtonBlock,
   ClozeBlock,
   CodeBlock,
@@ -68,11 +79,13 @@ import type {
 import { Collapsible } from "../Collapsible";
 import { applyFontSize, applyFormat, useFormatSnapshot } from "../blocks/richText";
 import type { TriState } from "../blocks/richText";
-import { listPageTriggerEvents } from "../Timeline";
+import { listPageTriggerEvents, listTriggerableNodes, nodeLabel } from "../Timeline";
+import { OutgoingTriggersSection } from "./TriggerSections";
+import { buttonAppearanceOf } from "../../../core/document/buttonAppearance";
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { buttonText, buttonTextPatch, listItemHtml, quizOptionHtml, textHtml } from "../../../core/document/translations";
+import { listItemHtml, quizOptionHtml, textHtml } from "../../../core/document/translations";
 import { clozeBlanks } from "../../../core/document/cloze";
 import { useEditingLanguage } from "../useEditingLanguage";
 import { LanguageSelect } from "./LanguageSelect";
@@ -123,8 +136,8 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
       {/* Same formatting toolbar for both - a quiz's question and options are rich text edited
           directly on the canvas exactly like a text block's own content, just several regions
           sharing one block instead of one filling it (see EditableRichText in BlockView.tsx). */}
-      {(block.kind === "text" || block.kind === "quiz" || block.kind === "list" || block.kind === "cloze") && (
-        <TextEditor block={block.kind === "text" ? block : undefined} onUpdate={onUpdate} />
+      {(block.kind === "text" || block.kind === "quiz" || block.kind === "list" || block.kind === "cloze" || block.kind === "button") && (
+        <TextEditor block={block.kind === "text" || block.kind === "button" ? block : undefined} onUpdate={onUpdate} />
       )}
       {block.kind === "list" && <ListEditor block={block} page={page} onUpdate={onUpdate} onSetImage={onSetImage} />}
       {block.kind === "cloze" && <ClozeEditor block={block} page={page} onUpdate={onUpdate} />}
@@ -133,7 +146,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
       {block.kind === "image" && <ImageEditor block={block} onUpdate={onUpdate} onSetImage={onSetImage} />}
       {block.kind === "video" && <VideoEditor block={block} onUpdate={onUpdate} onSetVideo={onSetVideo} />}
       {block.kind === "iframe" && <IframeEditor block={block} onUpdate={onUpdate} />}
-      {block.kind === "button" && <ButtonEditor block={block} onUpdate={onUpdate} />}
+      {block.kind === "button" && <ButtonEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "quiz" && <QuizEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "shape" && <ShapeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "arrow" && <ArrowEditor block={block} onUpdate={onUpdate} />}
@@ -385,7 +398,7 @@ function formatButtonClass(state: TriState): string {
  * handler checks to keep richText.ts's notion of "the active editor" alive across that focus hop
  * instead of tearing it down.
  */
-function TextEditor({ block, onUpdate }: { block?: TextBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
+function TextEditor({ block, onUpdate }: { block?: TextBlock | ButtonBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
   const snapshot = useFormatSnapshot();
   const [formatDialogOpen, setFormatDialogOpen] = useState(false);
   const customFonts = useDocumentStore((s) => s.doc.content.customFonts);
@@ -568,7 +581,7 @@ function TextEditor({ block, onUpdate }: { block?: TextBlock; onUpdate: BlockPan
         </div>
       </div>
       {formatDialogOpen && <TextFormatDialog onClose={() => setFormatDialogOpen(false)} />}
-      {block && (
+      {block && block.kind === "text" && (
         <>
           <label className="weft-field weft-field-inline">
             <input
@@ -1386,44 +1399,133 @@ function ListEditor({
   );
 }
 
-function ButtonEditor({ block, onUpdate }: { block: ButtonBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
-  const { lang, defaultLang } = useEditingLanguage();
+/** What the "Aktion" menu of a button says for the click's first target in the graph (see ButtonEditor). */
+const NO_TARGET = "event:";
+
+function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Page; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const clickId = buttonClickNodeId(block.id);
+  const clickNode = page ? findNode(page, clickId) : undefined;
+  const outgoing = page ? outgoingTriggers(page.timeline, clickId) : [];
+  // What the click can make happen: the events of the page that can be triggered, and every "Nächste Folie".
+  const targets = page
+    ? [
+        ...listTriggerableNodes(page),
+        ...endNodeIds(page).map((id) => ({ id, label: page.timeline.titles?.[id]?.trim() || nodeLabel({ id, kind: "end" }) })),
+      ].filter((target) => target.id !== clickId)
+    : [];
+  const value = block.action === "event" ? (outgoing[0] ? `event:${outgoing[0].to}` : NO_TARGET) : block.action;
+  const look = buttonAppearanceOf(block);
+  const setLook = (patch: Partial<ButtonAppearance>) => onUpdate({ appearance: { ...look, ...patch } });
+
+  function chooseAction(chosen: string) {
+    if (chosen === "advance" || chosen === "prev") {
+      onUpdate({ action: chosen });
+      return;
+    }
+    if (!page) {
+      onUpdate({ action: "event" });
+      return;
+    }
+    // Turning a button into one that triggers an event gives it its default trigger (to "Nächste Folie", see updateBlock); the
+    // chosen event then takes that one's place.
+    if (block.action !== "event") onUpdate({ action: "event" });
+    const target = chosen.slice("event:".length);
+    const current = outgoingTriggers(useDocumentStore.getState().doc.content.pages[page.id].timeline, clickId);
+    if (!target) {
+      for (const trigger of current) removeTrigger(page.id, trigger.id);
+    } else if (current.length > 0) {
+      updateTrigger(page.id, current[0].id, { to: target });
+    } else {
+      addTrigger(page.id, clickId, target, 0, false);
+    }
+  }
+
   return (
-    <Collapsible title="Inhalt">
-      <LanguageSelect block={block} />
-      <label className="weft-field">
-        <span>Text</span>
-        <input
-          value={buttonText(block, lang, defaultLang)}
-          onChange={(e) => onUpdate(buttonTextPatch(block, lang, defaultLang, e.target.value))}
-        />
-      </label>
-      <label className="weft-field">
-        <span>Aktion</span>
-        <select value={block.action} onChange={(e) => onUpdate({ action: e.target.value as ButtonBlock["action"] })}>
-          <option value="advance">Weiter</option>
-          <option value="event">Ereignis auslösen (im Graphen)</option>
-          <option value="prev">Vorherige Folie</option>
-        </select>
-      </label>
-      {block.action === "advance" && (
-        <p className="weft-hint">
-          Zeigt zuerst noch wartende, auf „Weiter" wartende Aufbauten dieser Folie - erst wenn keine mehr warten,
-          geht es zur nächsten Folie. Genau wie Leertaste/Pfeil rechts.
-        </p>
-      )}
-      {block.action === "event" && (
-        <p className="weft-hint">
-          Der Klick ist ein Ereignis im Graphen („Button geklickt“). Was er auslöst, stellst du dort ein - zunächst geht es zur
-          nächsten Folie, unabhängig von noch wartenden Aufbauten.
-        </p>
-      )}
-      {block.action === "prev" && (
-        <p className="weft-hint">
-          Auf der ersten Folie automatisch deaktiviert – der Player merkt sich dazu den bisherigen Lernpfad.
-        </p>
-      )}
-    </Collapsible>
+    <>
+      <Collapsible title="Aktion">
+        <label className="weft-field">
+          <span>Beim Klick</span>
+          <select value={value} onChange={(e) => chooseAction(e.target.value)}>
+            <option value="advance">Weiter</option>
+            <option value="prev">Vorherige Folie</option>
+            {page ? (
+              <optgroup label="Ereignis auslösen">
+                <option value={NO_TARGET}>Nichts (nur „Button geklickt“)</option>
+                {targets.map((target) => (
+                  <option key={target.id} value={`event:${target.id}`}>
+                    {target.label}
+                  </option>
+                ))}
+              </optgroup>
+            ) : (
+              <option value="event">Ereignis auslösen (im Graphen)</option>
+            )}
+          </select>
+        </label>
+        {block.action === "advance" && (
+          <p className="weft-hint">
+            Zeigt zuerst noch wartende, auf „Weiter" wartende Aufbauten dieser Folie - erst wenn keine mehr warten,
+            geht es zur nächsten Folie. Genau wie Leertaste/Pfeil rechts.
+          </p>
+        )}
+        {block.action === "prev" && (
+          <p className="weft-hint">
+            Auf der ersten Folie automatisch deaktiviert – der Player merkt sich dazu den bisherigen Lernpfad.
+          </p>
+        )}
+        {block.action === "event" && !page && (
+          <p className="weft-hint">
+            Der Klick ist ein Ereignis im Graphen („Button geklickt“). Was er auslöst, stellst du auf der Folie ein.
+          </p>
+        )}
+      </Collapsible>
+      {block.action === "event" && page && clickNode && <OutgoingTriggersSection page={page} node={clickNode} />}
+      <Collapsible title="Aussehen">
+        <div className="weft-field">
+          <span>Hintergrund</span>
+          <div className="weft-button-look-row">
+            <label className="weft-field weft-field-inline">
+              <input type="checkbox" checked={look.background === null} onChange={(e) => setLook({ background: e.target.checked ? null : "#18181b" })} />
+              <span>Kein Hintergrund</span>
+            </label>
+            {look.background !== null && (
+              <input type="color" value={look.background} aria-label="Hintergrundfarbe" onChange={(e) => setLook({ background: e.target.value })} />
+            )}
+          </div>
+        </div>
+        <div className="weft-field">
+          <span>Rand: Dicke (% der Folienbreite)</span>
+          <StepperSlider
+            label="Dicke des Rands"
+            value={Math.round(look.borderWidth * 100) / 100}
+            min={0}
+            max={2}
+            step={0.05}
+            onChange={(value) => setLook({ borderWidth: Math.round(value * 100) / 100 })}
+          />
+        </div>
+        {look.borderWidth > 0 && (
+          <label className="weft-field">
+            <span>Rand: Farbe</span>
+            <input type="color" value={look.borderColor} onChange={(e) => setLook({ borderColor: e.target.value })} />
+          </label>
+        )}
+        <div className="weft-field">
+          <span>Rundung der Ecken (% der Folienbreite)</span>
+          <StepperSlider
+            label="Rundung der Ecken"
+            value={Math.round(look.radius * 100) / 100}
+            min={0}
+            max={5}
+            step={0.1}
+            onChange={(value) => setLook({ radius: Math.round(value * 100) / 100 })}
+          />
+        </div>
+        <button type="button" className="weft-ghost-button" onClick={() => onUpdate({ appearance: undefined })}>
+          Aussehen zurücksetzen
+        </button>
+      </Collapsible>
+    </>
   );
 }
 

@@ -57,6 +57,37 @@ export function buttonText(block: ButtonBlock, language: string | null, defaultL
   return translationOf(block.translations, language, defaultLanguage)?.text ?? block.text;
 }
 
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** The words of some html, without its formatting (paragraphs and line breaks become a space). */
+export function plainTextOfHtml(html: string): string {
+  return html
+    .replace(/<br\s*\/?>|<\/(p|div|li|h[1-6])>/gi, " ")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** A button's label with its formatting - a label that was never formatted is its plain text. */
+export function buttonHtml(block: ButtonBlock, language: string | null, defaultLanguage: string | null): string {
+  const translation = translationOf(block.translations, language, defaultLanguage);
+  if (translation?.html !== undefined) return translation.html;
+  if (translation?.text !== undefined) return escapeHtml(translation.text);
+  return block.html ?? escapeHtml(block.text);
+}
+
+export function buttonHtmlPatch(block: ButtonBlock, language: string | null, defaultLanguage: string | null, html: string) {
+  const text = plainTextOfHtml(html);
+  return wordingPatch(block, language, defaultLanguage, { html, text }, (t) => ({ ...t, html, text })) as Partial<ButtonBlock>;
+}
+
 /** Whether the block's main text has its own wording in `language` - always true for the default
  * language (it IS the block's own wording). Drives the "not translated yet" hint. */
 export function isTranslated(block: Translatable, language: string | null, defaultLanguage: string | null): boolean {
@@ -65,7 +96,7 @@ export function isTranslated(block: Translatable, language: string | null, defau
   if (block.kind === "text" || block.kind === "cloze") return translation?.html !== undefined;
   if (block.kind === "quiz") return translation?.questionHtml !== undefined;
   if (block.kind === "list") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
-  return translation?.text !== undefined;
+  return translation?.text !== undefined || translation?.html !== undefined;
 }
 
 /** The patch that stores `fields` as the wording in `language`: into the block's own fields for the
@@ -200,7 +231,14 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       if (incoming?.html !== undefined) block.html = incoming.html;
     } else if (block.kind === "button") {
       outgoing.text = block.text;
-      if (incoming?.text !== undefined) block.text = incoming.text;
+      if (block.html !== undefined) outgoing.html = block.html;
+      if (incoming?.html !== undefined) {
+        block.html = incoming.html;
+        block.text = incoming.text ?? plainTextOfHtml(incoming.html);
+      } else if (incoming?.text !== undefined) {
+        block.text = incoming.text;
+        delete block.html;
+      }
     } else if (block.kind === "list") {
       outgoing.items = Object.fromEntries(block.items.map((item) => [item.id, item.html]));
       for (const item of block.items) {

@@ -2,6 +2,8 @@
   --weft-bg: #0a0d16;
   --weft-panel: #12151f;
   --weft-panel-raised: #181c2a;
+  /* The foldable sections of the side panels (.weft-collapsible): lighter than the other raised surfaces, to stand out from the panel. */
+  --weft-collapsible-bg: #212534;
   --weft-input-bg: #10131e;
   --weft-border: #242938;
   --weft-border-subtle: #1b1f2c;
@@ -2205,7 +2207,7 @@ button.weft-timeline-node-icon:hover {
   border-radius: var(--weft-radius);
   margin-bottom: 10px;
   overflow: hidden;
-  background: var(--weft-panel-raised);
+  background: var(--weft-collapsible-bg);
 }
 
 .weft-collapsible-header {

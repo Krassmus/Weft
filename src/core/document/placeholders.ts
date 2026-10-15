@@ -115,6 +115,16 @@ export function placeholderOfText(content: WeftModule, page: Page | undefined, b
   return candidate && candidate.kind === "placeholder" ? candidate : null;
 }
 
+/** The texts of the pages that use `layoutId` whose formatting is not the sample's (the author formatted them differently, or the
+ * sample was changed after they were made) - what "apply to all pages" would change. */
+export function textsWithOtherFormatting(content: WeftModule, layoutId: string, placeholder: PlaceholderBlock): TextBlock[] {
+  const differs = (html: string) => html !== applyPlaceholderStyle(placeholder.html, plainParagraphs(html));
+  return Object.values(content.pages)
+    .filter((page) => page.layoutId === layoutId)
+    .flatMap((page) => textsForPlaceholder(page, placeholder.id))
+    .filter((text) => differs(text.html) || Object.values(text.translations ?? {}).some((t) => t.html !== undefined && differs(t.html)));
+}
+
 /** The text blocks of `page` that are the page's text for placeholder `placeholderId`. */
 export function textsForPlaceholder(page: Page, placeholderId: string): TextBlock[] {
   return Object.values(page.blocks).filter((b): b is TextBlock => b.kind === "text" && b.placeholderOf === placeholderId);

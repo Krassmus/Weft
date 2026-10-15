@@ -261,6 +261,21 @@ export function createPlaceholderText(pageId: string, placeholderId: string): st
   return result;
 }
 
+/** The formatting of placeholder `placeholderId` of a layout on the texts of every page that uses the layout (the words stay). */
+export function applyPlaceholderFormattingToPages(layoutId: string, placeholderId: string) {
+  edit("Formatierung auf alle Folien anwenden", (m) => {
+    const placeholder = m.layouts[layoutId]?.blocks[placeholderId];
+    if (!placeholder || placeholder.kind !== "placeholder") return;
+    for (const text of textsOfPlaceholder(m, layoutId, placeholderId)) {
+      if (text.kind !== "text") continue;
+      text.html = applyPlaceholderStyle(placeholder.html, plainParagraphs(text.html));
+      for (const translation of Object.values(text.translations ?? {})) {
+        if (translation.html !== undefined) translation.html = applyPlaceholderStyle(placeholder.html, plainParagraphs(translation.html));
+      }
+    }
+  });
+}
+
 /** Brings back the formatting of the placeholder on the text a page has for it: the words stay, everything else is the sample's. */
 export function resetPlaceholderFormatting(pageId: string, blockId: string) {
   edit("Formatierung zurücksetzen", (m) => {

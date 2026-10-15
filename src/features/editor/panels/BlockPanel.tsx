@@ -84,8 +84,8 @@ import { OutgoingTriggersSection } from "./TriggerSections";
 import { pageChoices } from "./pageChoices";
 import { PageMiniature } from "../PageMiniature";
 import { buttonAppearanceOf } from "../../../core/document/buttonAppearance";
-import { placeholderOfText } from "../../../core/document/placeholders";
-import { resetPlaceholderFormatting } from "../../../core/document/actions";
+import { placeholderOfText, textsWithOtherFormatting } from "../../../core/document/placeholders";
+import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from "../../../core/document/actions";
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
@@ -130,6 +130,8 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
   const placeholderProblems = usePlaceholderProblems(block);
   const content = useDocumentStore((s) => s.doc.content);
   const fromPlaceholder = placeholderOfText(content, page, block) !== null;
+  const deviating =
+    block.kind === "placeholder" && container.kind === "layout" ? textsWithOtherFormatting(content, container.layoutId, block).length : 0;
   return (
     <>
       {placeholderProblems.length > 0 && (
@@ -153,6 +155,14 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
           onUpdate={onUpdate}
           // A text a page has for a placeholder of its layout: its formatting can be brought back to the placeholder's.
           onResetStyle={fromPlaceholder && page ? () => resetPlaceholderFormatting(page.id, block.id) : undefined}
+          // On the template: the formatting of this placeholder can be put on the texts of all pages - offered when some of them have
+          // another one.
+          onApplyToPages={
+            block.kind === "placeholder" && container.kind === "layout" && deviating > 0
+              ? () => applyPlaceholderFormattingToPages(container.layoutId, block.id)
+              : undefined
+          }
+          appliesToCount={deviating}
         />
       )}
       {block.kind === "placeholder" && (
@@ -443,10 +453,15 @@ function TextEditor({
   block,
   onUpdate,
   onResetStyle,
+  onApplyToPages,
+  appliesToCount = 0,
 }: {
   block?: TextBlock | ButtonBlock;
   onUpdate: BlockPanelProps["onUpdate"];
   onResetStyle?: () => void;
+  onApplyToPages?: () => void;
+  /** How many texts of the pages have a formatting other than the placeholder's (for the button of onApplyToPages). */
+  appliesToCount?: number;
 }) {
   const snapshot = useFormatSnapshot();
   const [formatDialogOpen, setFormatDialogOpen] = useState(false);
@@ -630,6 +645,19 @@ function TextEditor({
         </div>
       </div>
       {formatDialogOpen && <TextFormatDialog onClose={() => setFormatDialogOpen(false)} />}
+      {onApplyToPages && (
+        <>
+          <button type="button" className="weft-ghost-button weft-full-width" onClick={onApplyToPages}>
+            Formatierung auf alle Folien anwenden
+          </button>
+          <p className="weft-hint">
+            {appliesToCount === 1
+              ? "Ein Text auf den Folien hat eine andere Formatierung als hier."
+              : `${appliesToCount} Texte auf den Folien haben eine andere Formatierung als hier.`}{" "}
+            Die Wörter bleiben, die Formatierung wird von hier übernommen.
+          </p>
+        </>
+      )}
       {onResetStyle && (
         <button type="button" className="weft-ghost-button weft-full-width" onClick={onResetStyle}>
           Formatierung der Vorlage wiederherstellen

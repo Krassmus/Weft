@@ -1,6 +1,7 @@
 import { documentDir } from "@tauri-apps/api/path";
 import { exists, mkdir, readDir, readFile, remove, rename, stat, writeFile } from "@tauri-apps/plugin-fs";
 import { libraryDemo, libraryMode } from "../platform";
+import { tr } from "../i18n/tr";
 
 /**
  * The library: where Weft keeps the modules on a tablet (see libraryMode). An app there can't write back to a file it was
@@ -133,7 +134,7 @@ export async function initLibrary(): Promise<void> {
 }
 
 function documentsFolder(): string {
-  if (documents === null) throw new Error("Die Bibliothek ist nicht bereit.");
+  if (documents === null) throw new Error(tr("ui.the_library_is_not_ready"));
   return documents;
 }
 

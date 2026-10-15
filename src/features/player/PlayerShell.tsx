@@ -5,6 +5,7 @@ import { enterFullscreenPreview, exitFullscreenPreview, watchFullscreenExit } fr
 import { withPlayerChrome } from "../../core/io/playerFile";
 import type { PlayerFile } from "../../core/io/playerFile";
 import { ModuleFrame } from "../editor/ModuleFrame";
+import { tr } from "../../core/i18n/tr";
 
 /**
  * What Weft shows for a player file (see exportPlayerFile in core/io/fileIO.ts): none of the editor, just the
@@ -51,13 +52,13 @@ export function PlayerShell({ file, menu }: { file: PlayerFile; menu?: ReactNode
         {/* Where there is no menu bar (a tablet) the File menu sits in the black border. */}
         <div className="weft-player-menu">{menu}</div>
         {!isTouchDevice() && (
-        <button type="button" className="weft-player-fullscreen" onClick={() => void toggleFullscreen()} title={fullscreen ? "Vollbild beenden (Esc)" : "Vollbild"}>
+        <button type="button" className="weft-player-fullscreen" onClick={() => void toggleFullscreen()} title={fullscreen ? tr("ui.exit_full_screen_esc") : tr("ui.full_screen")}>
           {fullscreen ? "⤡" : "⤢"}
         </button>
         )}
       </div>
       <div className="weft-player-stage">
-        <ModuleFrame srcDoc={srcDoc} title={file.title || "Lernmodul"} frameRef={frameRef} />
+        <ModuleFrame srcDoc={srcDoc} title={file.title || tr("ui.learning_module")} frameRef={frameRef} />
       </div>
     </div>
   );

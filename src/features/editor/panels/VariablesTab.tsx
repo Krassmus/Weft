@@ -4,12 +4,13 @@ import { useDocumentStore } from "../../../core/document/store";
 import { computedVariableProblems, isComputedVariable } from "../../../core/document/variables";
 import { virtualVariableNamesFor, virtualVariablesFor } from "../../../core/document/virtualVariables";
 import type { VariableDef, VariableType } from "../../../core/types";
+import { tr } from "../../../core/i18n/tr";
 
 const TYPE_LABELS: Record<VariableType, string> = {
-  number: "Zahl",
-  string: "Text",
-  boolean: "Ja/Nein",
-  computed: "Berechnet",
+  get number() { return tr("ui.number_2"); },
+  get string() { return tr("ui.text"); },
+  get boolean() { return tr("ui.yes_no"); },
+  get computed() { return tr("ui.calculated_2"); },
 };
 
 export function VariablesTab() {
@@ -27,8 +28,7 @@ export function VariablesTab() {
   return (
     <div className="weft-tab-panel">
       <p className="weft-hint">
-        Globale Variablen für das ganze Modul. Quiz- und andere interaktive Blöcke können sie ändern
-        (meist per "addieren"); Logikblöcke können anhand ihres Werts verzweigen.
+        {tr("ui.global_variables_for_the_whole_module")}
       </p>
       <div className="weft-variable-list">
         {builtin.map((v) => (
@@ -42,23 +42,20 @@ export function VariablesTab() {
         ))}
       </div>
       <button type="button" className="weft-ghost-button weft-full-width" onClick={() => addVariable("neueVariable", "number")}>
-        + Variable
+        {tr("ui.variable")}
       </button>
 
       {variables.some(isComputedVariable) && (
         <>
-          <h4 className="weft-variable-virtual-title">Berechnete Variablen</h4>
+          <h4 className="weft-variable-virtual-title">{tr("ui.calculated_variables")}</h4>
           <p className="weft-hint">
-            Eine berechnete Variable hat keinen eigenen Wert, sondern rechnet ihn aus anderen Variablen aus - z. B.
-            mit <code>score &gt; 10 &amp;&amp; progress === 100</code>. Das Ergebnis lässt sich wie jede Variable in
-            Texten und Logikblöcken verwenden, nicht aber per Quiz-Effekt ändern.
+            {tr("ui.calc_explainer_1")} <code>score &gt; 10 &amp;&amp; progress === 100</code>
+            {tr("ui.calc_explainer_2")}
           </p>
           <p className="weft-hint">
-            Die Berechnung ist ein JavaScript-Ausdruck (wird aber nie als JavaScript ausgeführt): Zahlen, "Text",
-            true/false, Variablennamen, + - * / % **, Vergleiche (== != === !== &lt; &lt;= &gt; &gt;=), ! && ||,
-            <code> Bedingung ? dann : sonst</code>, Klammern und Math.round / floor / ceil / abs / min / max. Statt
-            && || ! gehen auch und / oder / nicht (and / or / not), statt true / false auch wahr / falsch. Namen mit
-            Leerzeichen schreibst du in `Backticks`.
+            {tr("ui.calc_syntax_1")}
+            <code> {tr("ui.condition_then_else")}</code>
+            {tr("ui.calc_syntax_2")}
           </p>
         </>
       )}
@@ -95,7 +92,7 @@ function VariableRow({ variable, problem }: { variable: VariableDef; problem: st
         <input
           value={variable.name}
           disabled={variable.fixed}
-          title={variable.fixed ? "Eingebaute Variable - der Name ist fest" : undefined}
+          title={variable.fixed ? tr("ui.built_in_variable_the_name_is") : undefined}
           onChange={(e) => updateVariable(variable.id, { name: e.target.value })}
         />
         <select value={variable.type} onChange={(e) => updateVariable(variable.id, { type: e.target.value as VariableType })}>
@@ -109,7 +106,7 @@ function VariableRow({ variable, problem }: { variable: VariableDef; problem: st
           // Keeps the columns of every row lined up where the remove button would be.
           <span className="weft-variable-row-spacer" />
         ) : (
-          <button type="button" className="weft-icon-button" onClick={() => removeVariable(variable.id)} title="Entfernen">
+          <button type="button" className="weft-icon-button" onClick={() => removeVariable(variable.id)} title={tr("ui.remove")}>
             ×
           </button>
         )}

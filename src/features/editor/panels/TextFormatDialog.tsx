@@ -19,10 +19,11 @@ import type { TextBackground } from "../blocks/richText";
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { StepperSlider } from "./StepperSlider";
+import { tr } from "../../../core/i18n/tr";
 
 type Align = "left" | "center" | "right";
 
-const SAMPLE = ["Beispieltext - So sieht die Schrift aus", "Ein zweiter Absatz zeigt den Abstand dazwischen"];
+const sampleText = () => [tr("ui.sample_text_1"), tr("ui.sample_text_2")];
 
 /**
  * The dialog "Schrift": everything the formatting panel has (font, size, colour, bold, italic, underlined, alignment) and what only
@@ -86,10 +87,10 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
   const fontGroups: FontSelectGroup[] = [
     { options: [{ value: DEFAULT_FONT_FAMILY, label: DEFAULT_FONT_FAMILY, previewFamily: DEFAULT_FONT_FAMILY }] },
     ...(customFonts.length > 0
-      ? [{ label: "Eigene Schriften", options: customFonts.map((font) => ({ value: font.family, label: font.family, previewFamily: font.family })) }]
+      ? [{ label: tr("ui.own_fonts"), options: customFonts.map((font) => ({ value: font.family, label: font.family, previewFamily: font.family })) }]
       : []),
     {
-      label: "Schriften (im Export enthalten)",
+      label: tr("ui.fonts_included_in_the_export"),
       options: CURATED_FONT_FAMILIES.filter((f) => f !== DEFAULT_FONT_FAMILY)
         .sort((a, b) => a.localeCompare(b, "de"))
         .map((f) => ({ value: f, label: f, previewFamily: f })),
@@ -152,14 +153,14 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
     <div className="weft-modal-backdrop" onClick={onClose}>
       <div className="weft-modal weft-text-format-dialog" data-weft-format-control onClick={(e) => e.stopPropagation()}>
         <div className="weft-modal-header">
-          <h3>Schrift</h3>
-          <button type="button" className="weft-icon-button" title="Schließen" onClick={onClose}>
+          <h3>{tr("ui.font_2")}</h3>
+          <button type="button" className="weft-icon-button" title={tr("ui.close")} onClick={onClose}>
             ×
           </button>
         </div>
 
-        <div className="weft-text-format-preview" aria-label="Vorschau">
-          {SAMPLE.map((text) => (
+        <div className="weft-text-format-preview" aria-label={tr("ui.preview")}>
+          {sampleText().map((text) => (
             <p key={text} style={previewStyle}>
               {text}
             </p>
@@ -168,31 +169,31 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
 
         <div className="weft-text-format-grid">
           <label className="weft-field weft-text-format-wide">
-            <span>Schriftart</span>
+            <span>{tr("ui.font")}</span>
             <FontSelect value={family} isMixed={false} groups={fontGroups} onPick={setFamily} />
           </label>
           <div className="weft-field">
-            <span>Schriftgröße (px)</span>
-            <StepperSlider label="Schriftgröße" value={sizePx} min={4} max={120} step={1} onChange={setSizePx} />
+            <span>{tr("ui.font_size_px")}</span>
+            <StepperSlider label={tr("ui.font_size")} value={sizePx} min={4} max={120} step={1} onChange={setSizePx} />
           </div>
           <label className="weft-field">
-            <span>Farbe</span>
+            <span>{tr("ui.colour")}</span>
             <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
           </label>
 
           <div className="weft-field weft-text-format-wide">
-            <span>Stil</span>
+            <span>{tr("ui.style")}</span>
             <div className="weft-format-row">
-              <button type="button" className={"weft-format-button" + (bold ? " is-active" : "")} title="Fett" onClick={() => setBold(!bold)}>
+              <button type="button" className={"weft-format-button" + (bold ? " is-active" : "")} title={tr("ui.bold")} onClick={() => setBold(!bold)}>
                 <b>F</b>
               </button>
-              <button type="button" className={"weft-format-button" + (italic ? " is-active" : "")} title="Kursiv" onClick={() => setItalic(!italic)}>
+              <button type="button" className={"weft-format-button" + (italic ? " is-active" : "")} title={tr("ui.italic")} onClick={() => setItalic(!italic)}>
                 <i>K</i>
               </button>
               <button
                 type="button"
                 className={"weft-format-button" + (underline ? " is-active" : "")}
-                title="Unterstrichen"
+                title={tr("ui.underline")}
                 onClick={() => setUnderline(!underline)}
               >
                 <u>U</u>
@@ -203,7 +204,7 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
                   key={value}
                   type="button"
                   className={"weft-format-button" + (align === value ? " is-active" : "")}
-                  title={value === "left" ? "Linksbündig" : value === "center" ? "Zentriert" : "Rechtsbündig"}
+                  title={value === "left" ? tr("ui.align_left") : value === "center" ? tr("ui.centre") : tr("ui.align_right")}
                   onClick={() => setAlign(value)}
                 >
                   {value === "left" ? "⇤" : value === "center" ? "↔" : "⇥"}
@@ -212,20 +213,20 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
               <span className="weft-text-format-sep" />
               <label className="weft-field weft-field-inline">
                 <input type="checkbox" checked={smallCaps} onChange={(e) => setSmallCaps(e.target.checked)} />
-                <span>Kapitälchen</span>
+                <span>{tr("ui.small_capitals")}</span>
               </label>
             </div>
           </div>
 
           <div className="weft-field weft-text-format-wide">
-            <span>Zeilenhöhe</span>
+            <span>{tr("ui.line_height")}</span>
             <label className="weft-field weft-field-inline">
               <input type="checkbox" checked={lineHeight === null} onChange={(e) => setLineHeight(e.target.checked ? null : 1.35)} />
-              <span>Standard</span>
+              <span>{tr("ui.default")}</span>
             </label>
             {lineHeight !== null && (
               <StepperSlider
-                label="Zeilenhöhe"
+                label={tr("ui.line_height")}
                 value={lineHeight}
                 min={0.8}
                 max={3}
@@ -236,14 +237,14 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="weft-field weft-text-format-wide">
-            <span>Abstand zwischen Absätzen</span>
+            <span>{tr("ui.space_between_paragraphs")}</span>
             <label className="weft-field weft-field-inline">
               <input type="checkbox" checked={paragraphSpacing === null} onChange={(e) => setParagraphSpacing(e.target.checked ? null : 1)} />
-              <span>Standard</span>
+              <span>{tr("ui.default")}</span>
             </label>
             {paragraphSpacing !== null && (
               <StepperSlider
-                label="Abstand zwischen Absätzen"
+                label={tr("ui.space_between_paragraphs")}
                 value={paragraphSpacing}
                 min={0}
                 max={3}
@@ -254,22 +255,22 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="weft-field weft-text-format-wide">
-            <span>Hintergrund der Buchstaben</span>
+            <span>{tr("ui.background_of_the_letters")}</span>
             <select value={backgroundKind} onChange={(e) => setBackgroundKind(e.target.value as TextBackground["kind"])}>
-              <option value="none">Keiner</option>
-              <option value="gradient">Farbverlauf</option>
-              <option value="image">Bild</option>
+              <option value="none">{tr("ui.none")}</option>
+              <option value="gradient">{tr("ui.gradient")}</option>
+              <option value="image">{tr("ui.image")}</option>
             </select>
             {backgroundKind === "gradient" && (
               <div className="weft-text-format-gradient">
-                <input type="color" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Farbe am Anfang" />
-                <input type="color" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Farbe am Ende" />
-                <StepperSlider label="Winkel" value={angle} min={0} max={360} step={15} onChange={setAngle} />
+                <input type="color" value={from} onChange={(e) => setFrom(e.target.value)} aria-label={tr("ui.colour_at_the_start")} />
+                <input type="color" value={to} onChange={(e) => setTo(e.target.value)} aria-label={tr("ui.colour_at_the_end")} />
+                <StepperSlider label={tr("ui.angle")} value={angle} min={0} max={360} step={15} onChange={setAngle} />
               </div>
             )}
             {backgroundKind === "image" && (
               <label className="weft-field">
-                <span>Bilddatei</span>
+                <span>{tr("ui.image_file")}</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -281,17 +282,17 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
               </label>
             )}
             <p className="weft-hint">
-              Der Verlauf oder das Bild scheint durch die Buchstaben (CSS „background-clip: text“). Im PDF-Export sind die Buchstaben einfarbig.
+              {tr("ui.the_gradient_or_image_shines_through")}
             </p>
           </div>
         </div>
 
         <div className="weft-text-format-actions">
           <button type="button" className="weft-ghost-button" onClick={onClose}>
-            Abbrechen
+            {tr("ui.cancel")}
           </button>
           <button type="button" className="weft-primary-button" onClick={apply}>
-            Übernehmen
+            {tr("ui.apply")}
           </button>
         </div>
       </div>

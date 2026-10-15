@@ -10,6 +10,7 @@ import { forgetRecentFile, syncRecentMenu } from "../../core/io/recentFiles";
 import { canShareFile, shareFile } from "../../core/io/share";
 import { DialogFrame } from "./CollabDialogs";
 import { useCollabDialog } from "./collabDialogStore";
+import { tr } from "../../core/i18n/tr";
 
 function formatSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`;
@@ -91,7 +92,7 @@ function LibraryDialog({ onClose, onOpen, currentPath }: { onClose: () => void; 
 
   const remove = (entry: LibraryEntry) =>
     run(async () => {
-      if (!(await confirmDestructive(`„${entry.name}“ wird endgültig gelöscht.`, "Lernmodul löschen"))) return;
+      if (!(await confirmDestructive(tr("ui.will_be_deleted_permanently", { name: entry.name }), tr("ui.delete_learning_module")))) return;
       await deleteLibraryFile(entry.path);
       syncRecentMenu(forgetRecentFile(entry.path));
       setActionsFor(null);
@@ -99,12 +100,12 @@ function LibraryDialog({ onClose, onOpen, currentPath }: { onClose: () => void; 
     });
 
   return (
-    <DialogFrame title="Lernmodule" onClose={onClose}>
+    <DialogFrame title={tr("ui.learning_modules")} onClose={onClose}>
       <div className="weft-library">
         {entries === null ? (
-          <p className="weft-hint">Lade …</p>
+          <p className="weft-hint">{tr("ui.loading")}</p>
         ) : entries.length === 0 ? (
-          <p className="weft-hint">Noch keine Lernmodule.</p>
+          <p className="weft-hint">{tr("ui.no_learning_modules_yet")}</p>
         ) : (
           <ul className="weft-library-list">
             {entries.map((entry) => (
@@ -116,7 +117,7 @@ function LibraryDialog({ onClose, onOpen, currentPath }: { onClose: () => void; 
                       OK
                     </button>
                     <button type="button" className="weft-ghost-button" onClick={() => setRenaming(null)}>
-                      Abbrechen
+                      {tr("ui.cancel")}
                     </button>
                   </div>
                 ) : (
@@ -124,13 +125,13 @@ function LibraryDialog({ onClose, onOpen, currentPath }: { onClose: () => void; 
                     <button type="button" className="weft-library-open" onClick={() => open(entry.path)}>
                       <span className="weft-library-name">
                         {entry.name}
-                        {entry.path === currentPath && <em> (geöffnet)</em>}
+                        {entry.path === currentPath && <em> {tr("ui.open")}</em>}
                       </span>
                       <span className="weft-library-meta">
                         {formatDate(entry.modified)} · {formatSize(entry.size)}
                       </span>
                     </button>
-                    <button type="button" className="weft-icon-button weft-library-more" title="Mehr" aria-label="Mehr" onClick={() => setActionsFor(actionsFor === entry.path ? null : entry.path)}>
+                    <button type="button" className="weft-icon-button weft-library-more" title={tr("ui.more")} aria-label={tr("ui.more")} onClick={() => setActionsFor(actionsFor === entry.path ? null : entry.path)}>
                       ⋯
                     </button>
                   </>
@@ -138,13 +139,13 @@ function LibraryDialog({ onClose, onOpen, currentPath }: { onClose: () => void; 
                 {actionsFor === entry.path && !renaming && (
                   <div className="weft-library-actions">
                     <button type="button" className="weft-ghost-button" disabled={busy} onClick={() => setRenaming({ path: entry.path, name: entry.name })}>
-                      Umbenennen
+                      {tr("ui.rename")}
                     </button>
                     <button type="button" className="weft-ghost-button" disabled={busy} onClick={() => void share(entry)}>
-                      Teilen …
+                      {tr("ui.share")}
                     </button>
-                    <button type="button" className="weft-ghost-button" disabled={busy || entry.path === currentPath} title={entry.path === currentPath ? "Das geöffnete Lernmodul lässt sich nicht löschen" : undefined} onClick={() => void remove(entry)}>
-                      Löschen
+                    <button type="button" className="weft-ghost-button" disabled={busy || entry.path === currentPath} title={entry.path === currentPath ? tr("ui.the_open_learning_module_cannot_be") : undefined} onClick={() => void remove(entry)}>
+                      {tr("ui.delete")}
                     </button>
                   </div>
                 )}
@@ -155,10 +156,10 @@ function LibraryDialog({ onClose, onOpen, currentPath }: { onClose: () => void; 
         {error && <p className="weft-placeholder-warning">{error}</p>}
         <div className="weft-modal-actions">
           <button type="button" className="weft-ghost-button" disabled={busy} onClick={() => void importFromFiles()}>
-            Aus Dateien importieren …
+            {tr("ui.import_from_files")}
           </button>
         </div>
-        <p className="weft-hint">Die Lernmodule liegen auch in der Dateien-App unter „Auf meinem iPad“ › Weft - dort lassen sich Dateien hinein- und herauskopieren.</p>
+        <p className="weft-hint">{tr("ui.the_learning_modules_are_also_in")}</p>
       </div>
     </DialogFrame>
   );
@@ -182,19 +183,19 @@ function ExportReadyDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <DialogFrame title="Datei bereit" onClose={onClose}>
+    <DialogFrame title={tr("ui.file_ready")} onClose={onClose}>
       <p>
-        „{file.name}“ ist fertig und liegt in der Dateien-App unter „Auf meinem iPad“ › Weft › Exporte.
+        „{file.name}{tr("ui.is_ready_and_is_in_the")}
       </p>
       {error && <p className="weft-placeholder-warning">{error}</p>}
       <div className="weft-modal-actions">
         {canShare && (
           <button type="button" className="weft-primary-button" onClick={() => void share()}>
-            Teilen …
+            {tr("ui.share")}
           </button>
         )}
         <button type="button" className="weft-ghost-button" onClick={onClose}>
-          Fertig
+          {tr("ui.done")}
         </button>
       </div>
     </DialogFrame>

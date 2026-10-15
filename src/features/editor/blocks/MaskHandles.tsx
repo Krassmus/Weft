@@ -6,6 +6,7 @@ import type { ImageBlock, ImageMask, ImageMaskPoint } from "../../../core/types"
 import { useImageEdit } from "./imageEditStore";
 import { useImageBoxAspect } from "./ImageSvg";
 import { unrotateDelta } from "./resizeMath";
+import { tr } from "../../../core/i18n/tr";
 
 interface MaskHandlesProps {
   /** The image as it is shown (with the points of a drag in progress). */
@@ -162,7 +163,7 @@ export function MaskHandles({ block, stageRect, onLive, onCommit }: MaskHandlesP
           key={corner}
           className={`weft-mask-scale weft-mask-scale-${corner}`}
           style={{ left: `${corners[corner].x}%`, top: `${corners[corner].y}%` }}
-          title="Ziehen: Größe der Form ändern (Umschalt: Proportionen behalten)"
+          title={tr("ui.drag_resize_the_shape_shift_keep")}
           onPointerDown={(e) => dragCorner(corner, e)}
           onClick={(e) => e.stopPropagation()}
         />
@@ -172,7 +173,7 @@ export function MaskHandles({ block, stageRect, onLive, onCommit }: MaskHandlesP
           key={`add-${i}`}
           className="weft-arrow-add weft-mask-add"
           style={{ left: `${middle.x}%`, top: `${middle.y}%` }}
-          title="Ziehen: neuer Punkt"
+          title={tr("ui.drag_new_point")}
           onPointerDown={(e) => {
             const inserted = insertPointAfter(points, i, boxAspect);
             dragPoint(i + 1, inserted, true, e);
@@ -187,7 +188,7 @@ export function MaskHandles({ block, stageRect, onLive, onCommit }: MaskHandlesP
             "weft-arrow-point weft-mask-point" + (point.smooth ? " is-smooth" : "") + (selected === i ? " is-selected" : "")
           }
           style={{ left: `${point.x}%`, top: `${point.y}%` }}
-          title="Ziehen: verschieben - Doppelklick: Ecke oder weicher Übergang"
+          title={tr("ui.drag_move_double_click_corner_or")}
           onPointerDown={(e) => dragPoint(i, points, false, e)}
           onClick={(e) => e.stopPropagation()}
           onDoubleClick={(e) => {

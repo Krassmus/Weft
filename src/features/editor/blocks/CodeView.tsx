@@ -4,6 +4,7 @@ import { buildCodeThemeCss, codeThemeClass } from "../../../core/code/codeThemes
 import { highlightCodeToHtml } from "../../../core/code/highlight";
 import { applyTab } from "../../../core/code/indent";
 import type { CodeBlock } from "../../../core/types";
+import { tr } from "../../../core/i18n/tr";
 
 const THEME_STYLE_ID = "weft-code-themes";
 // How long after the last keystroke the typed code is committed to the document. Short enough that
@@ -129,7 +130,7 @@ export function CodeView({
         {/* The trailing newline keeps the last line's height identical to the textarea's, which always
             reserves a line after a final line break. */}
         <pre className="weft-code-pre" aria-hidden dangerouslySetInnerHTML={{ __html: html + "\n" }} />
-        {!draft && <div className="weft-code-placeholder">Code eingeben …</div>}
+        {!draft && <div className="weft-code-placeholder">{tr("ui.enter_code")}</div>}
         {editable && (
           <textarea
             ref={textareaRef}

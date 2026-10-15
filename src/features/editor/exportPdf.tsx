@@ -10,6 +10,7 @@ import { buildImagePdf } from "../../core/io/pdfWriter";
 import type { PdfImagePage } from "../../core/io/pdfWriter";
 import type { Block, WeftModule } from "../../core/types";
 import { SlideThumbnail } from "./SlideThumbnail";
+import { tr } from "../../core/i18n/tr";
 
 /** The width a slide is drawn at before it becomes a picture (the height follows from the module's shape). */
 const RENDER_WIDTH_PX = 1280;
@@ -125,7 +126,7 @@ export async function exportModuleAsPdf(
         height: Math.round(RENDER_WIDTH_PX / aspect),
       });
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY));
-      if (!blob) throw new Error("Eine Folie ließ sich nicht in ein Bild umwandeln.");
+      if (!blob) throw new Error(tr("ui.a_slide_could_not_be_turned"));
       // The addresses on the page are links (where they stand in the picture).
       const holderRect = holder.getBoundingClientRect();
       const links = Array.from(holder.querySelectorAll<HTMLElement>("[data-pdf-link]")).map((el) => {
@@ -145,6 +146,6 @@ export async function exportModuleAsPdf(
     root.unmount();
     holder.remove();
   }
-  if (pages.length === 0) throw new Error("Das Lernmodul hat keine Folien.");
+  if (pages.length === 0) throw new Error(tr("ui.the_learning_module_has_no_slides"));
   return buildImagePdf(pages, content.title);
 }

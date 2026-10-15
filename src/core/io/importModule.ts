@@ -5,6 +5,7 @@ import { runsInTauri } from "../platform";
 import { pickDocumentFile } from "./fileIO";
 import { importIntoLibrary } from "./library";
 import { isPlayerArchive } from "./playerFile";
+import { tr } from "../i18n/tr";
 
 /** Whether this is a Weft file at all: a module (weft.json) or a player file. */
 function isModuleArchive(bytes: Uint8Array): boolean {
@@ -21,10 +22,10 @@ function isModuleArchive(bytes: Uint8Array): boolean {
  * with (which is removed again afterwards) - the original is never touched.
  */
 export async function importModuleFromFiles(): Promise<string | null> {
-  const picked = await pickDocumentFile("Lernmodul importieren");
+  const picked = await pickDocumentFile(tr("ui.import_learning_module"));
   if (!picked) return null;
   try {
-    if (!isModuleArchive(picked.bytes)) throw new Error("Das ist keine Weft-Datei.");
+    if (!isModuleArchive(picked.bytes)) throw new Error(tr("ui.this_is_not_a_weft_file"));
     return await importIntoLibrary(picked.bytes, picked.name);
   } finally {
     // Only ever the copy: what is in the app's own temporary folder - never a path that might be the person's original.

@@ -1,5 +1,6 @@
 import type { Block } from "../types";
 
+import { tr } from "../i18n/tr";
 // Must match VARIABLE_PLACEHOLDER in player.runtime.js: a placeholder is recognised only when it
 // sits inside ONE text node, i.e. has no formatting in the middle of it.
 const IN_NODE = /\{\{([^{}<>]*)\}\}/g;
@@ -67,7 +68,7 @@ export function findPlaceholderProblems(html: string, variableNames: ReadonlySet
   const problems: string[] = [];
   for (const raw of recognised) {
     const name = raw.slice(2, -2).trim();
-    if (!variableNames.has(name)) problems.push(`Die Variable „${name}" gibt es nicht.`);
+    if (!variableNames.has(name)) problems.push(tr("ui.variable_does_not_exist", { name }));
   }
 
   // Everything that looks like a placeholder once formatting is ignored - whatever of that wasn't
@@ -76,7 +77,7 @@ export function findPlaceholderProblems(html: string, variableNames: ReadonlySet
   for (const match of (body.textContent ?? "").matchAll(IN_TEXT)) {
     const index = remaining.indexOf(match[0]);
     if (index >= 0) remaining.splice(index, 1);
-    else problems.push(`${match[0]} enthält Formatierung mitten im Namen und kann nicht ausgewertet werden. Eine Variable lässt sich nur als Ganzes formatieren.`);
+    else problems.push(tr("ui.placeholder_formatting_inside", { placeholder: match[0] }));
   }
   return problems;
 }

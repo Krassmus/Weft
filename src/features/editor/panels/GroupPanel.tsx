@@ -10,6 +10,7 @@ import type { BlockEffect, BlockGroup, Page } from "../../../core/types";
 import { listPageTriggerEvents } from "../Timeline";
 import { BlockEffectEditor } from "./BlockPanel";
 import { orderedValues } from "../../../core/document/ordering";
+import { tr } from "../../../core/i18n/tr";
 
 /**
  * A formed BlockGroup, selected as a whole (SelectionRef's "group" variant). Its Aufbau/Abbau is an event of its own in the page's graph
@@ -47,7 +48,7 @@ export function GroupPanel({ page, group }: { page: Page; group: BlockGroup }) {
     return (
       <BlockEffectEditor
         key={group.id + "-" + phase}
-        title={phase === "entrance" ? "Aufbau" : "Abbau"}
+        title={phase === "entrance" ? tr("ui.entrance") : tr("ui.exit")}
         page={page}
         targetNodeId={groupEffectNodeId(group.id, phase)}
         effect={effect}
@@ -67,7 +68,7 @@ export function GroupPanel({ page, group }: { page: Page; group: BlockGroup }) {
     <div className="weft-group-panel">
       <p className="weft-hint">Gruppe ({group.blockIds.length} Objekte)</p>
       <button type="button" className="weft-ghost-button weft-full-width" onClick={ungroup}>
-        Gruppe auflösen
+        {tr("ui.ungroup")}
       </button>
       {section("entrance")}
       {section("exit")}

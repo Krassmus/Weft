@@ -9,6 +9,7 @@ import {
 import type { Page, TransitionDirection, TransitionType } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
 import { SecondsControl } from "./SecondsControl";
+import { tr } from "../../../core/i18n/tr";
 
 const DIRECTIONS: TransitionDirection[] = ["left", "right", "up", "down"];
 
@@ -29,13 +30,12 @@ export function TransitionPanel({ page, endId }: { page: Page; endId: string }) 
   const irisCentered = irisCenter.x === DEFAULT_IRIS_CENTER.x && irisCenter.y === DEFAULT_IRIS_CENTER.y;
 
   return (
-    <Collapsible title="Übergang zur nächsten Folie">
+    <Collapsible title={tr("ui.transition_to_the_next_slide")}>
       <p className="weft-hint">
-        Legt fest, wie diese Folie beim Weiterblättern verschwindet - zur nächsten Folie, in einen Logikblock oder zum
-        Ende des Lernmoduls.
+        {tr("ui.defines_how_this_slide_disappears_when")}
       </p>
       <label className="weft-field">
-        <span>Art</span>
+        <span>{tr("ui.type")}</span>
         <select value={type} onChange={(e) => setEndTransitionType(page.id, endId, e.target.value as TransitionType)}>
           {TRANSITION_TYPES.map((t) => (
             <option key={t} value={t}>
@@ -47,9 +47,9 @@ export function TransitionPanel({ page, endId }: { page: Page; endId: string }) 
 
       {type !== "none" && (
         <div className="weft-field">
-          <span>Dauer (in Sekunden)</span>
+          <span>{tr("ui.duration_in_seconds")}</span>
           <SecondsControl
-            label="Dauer (Sekunden)"
+            label={tr("ui.duration_seconds")}
             minMs={100}
             valueMs={durationMs}
             onChange={(ms) => setEndTransitionDuration(page.id, endId, ms)}
@@ -59,7 +59,7 @@ export function TransitionPanel({ page, endId }: { page: Page; endId: string }) 
 
       {(type === "move" || type === "cube") && (
         <label className="weft-field">
-          <span>Richtung</span>
+          <span>{tr("ui.direction")}</span>
           <select
             value={transitionDirection(transition)}
             onChange={(e) => updateEndTransition(page.id, endId, { direction: e.target.value as TransitionDirection })}
@@ -81,11 +81,10 @@ export function TransitionPanel({ page, endId }: { page: Page; endId: string }) 
               checked={!!transition.contentOnly}
               onChange={(e) => updateEndTransition(page.id, endId, { contentOnly: e.target.checked })}
             />
-            <span>Nur der Inhalt rutscht</span>
+            <span>{tr("ui.only_the_content_slides")}</span>
           </label>
           <p className="weft-hint">
-            Die Folie selbst bleibt stehen, nur ihr Inhalt rutscht. Das geht nur, wenn beide Folien dasselbe Layout
-            haben - sonst rutscht die ganze Folie, und der Inhalt folgt ihr ein kleines bisschen später.
+            {tr("ui.the_slide_itself_stays_in_place")}
           </p>
         </>
       )}
@@ -98,10 +97,10 @@ export function TransitionPanel({ page, endId }: { page: Page; endId: string }) 
               checked={!!transition.hardEdge}
               onChange={(e) => updateEndTransition(page.id, endId, { hardEdge: e.target.checked })}
             />
-            <span>Harter Rand</span>
+            <span>{tr("ui.hard_edge")}</span>
           </label>
           <p className="weft-hint">
-            Mittelpunkt: Der rote Kreis auf der Folie lässt sich verschieben - dort öffnet sich die Blende.
+            {tr("ui.centre_the_red_circle_on_the")}
           </p>
           <button
             type="button"
@@ -109,7 +108,7 @@ export function TransitionPanel({ page, endId }: { page: Page; endId: string }) 
             disabled={irisCentered}
             onClick={() => updateEndTransition(page.id, endId, { irisCenter: undefined })}
           >
-            Mittelpunkt zurücksetzen
+            {tr("ui.reset_centre")}
           </button>
         </>
       )}

@@ -1,4 +1,5 @@
 import type { Block } from "../types";
+import { uiDe, uiEn } from "./uiStrings";
 
 /**
  * App-UI strings, in English and German - not document content (a module's own title, slide
@@ -7,13 +8,14 @@ import type { Block } from "../types";
  * missing or misspelled key in either language is a build error rather than a silently-blank
  * label at runtime.
  *
- * This first pass covers the sidebar, the elements/layout panel, error alerts, and the new
- * settings window - the chrome you can't avoid seeing - rather than the full app: every panel's
- * field labels, hints, and dialog text is still German-only. Extending coverage just means adding
- * more keys here and swapping the hardcoded strings at their call sites for t("...").
+ * The first set of keys is here; the rest of the interface (every panel's field labels, hints, dialog texts, messages) is in
+ * uiStrings.ts, merged in below. In a component a string is `t("ui.some_key")` (useTranslation); anywhere else - an action's alert, a
+ * menu built in a function, the default text of a new block - `tr("ui.some_key", { name })` from tr.ts. A text that is a constant at
+ * module level must not call tr() when the module loads: it would stay in the language it was made in (use a getter, as the label
+ * maps do, or build it in a function).
  */
 
-const en = {
+const baseEn = {
   "toolbar.openFailed": "Opening failed:",
   "toolbar.saveFailed": "Saving failed:",
   "toolbar.quitSaveFailedTitle": "Quit without saving?",
@@ -75,7 +77,7 @@ const en = {
   "settings.network.turnHint": "A TURN server relays the traffic when two computers can't reach each other directly. It belongs to you alone and is not part of the link. Without it, the connection may fail on such networks.",
 } as const;
 
-const de: Record<keyof typeof en, string> = {
+const baseDe: Record<keyof typeof baseEn, string> = {
   "toolbar.openFailed": "Öffnen fehlgeschlagen:",
   "toolbar.saveFailed": "Speichern fehlgeschlagen:",
   "toolbar.quitSaveFailedTitle": "Ohne Speichern beenden?",
@@ -136,6 +138,10 @@ const de: Record<keyof typeof en, string> = {
   "settings.network.turnPassword": "TURN Passwort",
   "settings.network.turnHint": "Ein TURN-Server leitet den Datenverkehr weiter, wenn zwei Rechner sich nicht direkt erreichen. Er gehört nur dir und steht nicht im Link. Ohne ihn klappt die Verbindung in solchen Netzen womöglich nicht.",
 };
+
+// The strings added when the rest of the interface was translated (see uiStrings.ts).
+const en = { ...baseEn, ...uiEn };
+const de: Record<keyof typeof en, string> = { ...baseDe, ...uiDe };
 
 export type TranslationKey = keyof typeof en;
 export type Language = "de" | "en";

@@ -6,6 +6,7 @@ import { usedAssetIds } from "../../document/usedAssets";
 import type { WeftModule } from "../../types";
 import { TEMP_SUFFIX } from "./syncFs";
 import type { SyncFs } from "./syncFs";
+import { tr } from "../../i18n/tr";
 
 /**
  * Working on a module together through a shared folder - one that a file-sync service (Nextcloud,
@@ -202,8 +203,8 @@ export class FolderSync {
         this.problemFiles.set(
           file.name,
           result.reason === "other-module"
-            ? `${file.name} gehört zu einem anderen Lernmodul.`
-            : `${file.name} geht nicht auf dieselbe Ausgangsdatei zurück und lässt sich nicht zusammenführen.`,
+            ? tr("ui.file_belongs_to_another_module", { name: file.name })
+            : tr("ui.file_not_same_origin", { name: file.name }),
         );
       }
       // "unreadable": probably incomplete - tried again next round.
@@ -304,7 +305,7 @@ export async function readFolderModule(fs: SyncFs, module: FolderModule): Promis
     }
   }
   const [first, ...rest] = docs;
-  if (!first) throw new Error("In diesem Ordner liegt noch kein Stand des Lernmoduls (oder er wird gerade erst synchronisiert).");
+  if (!first) throw new Error(tr("ui.this_folder_does_not_hold_a"));
   let merged = first;
   for (const other of rest) {
     if (other.id === merged.id && sharesOrigin(other, merged)) merged = Automerge.merge(Automerge.clone(merged), other);

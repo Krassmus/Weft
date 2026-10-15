@@ -1,4 +1,5 @@
 import hljs from "highlight.js/lib/common";
+import { tr } from "../i18n/tr";
 
 /** Languages offered in the sidebar - all of them part of highlight.js's "common" bundle. */
 export const CODE_LANGUAGES: { id: string; label: string }[] = [
@@ -24,7 +25,7 @@ export const CODE_LANGUAGES: { id: string; label: string }[] = [
   { id: "bash", label: "Bash" },
   { id: "markdown", label: "Markdown" },
   { id: "diff", label: "Diff" },
-  { id: "plaintext", label: "Kein Highlighting" },
+  { id: "plaintext", get label() { return tr("ui.no_highlighting"); } },
 ];
 
 export const AUTO_LANGUAGE = "auto";

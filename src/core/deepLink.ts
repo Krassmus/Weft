@@ -2,6 +2,7 @@ import { getCurrent, onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import { joinSharedDocument, parseInvitation } from "./collab/session";
 import { loadCollabOptions } from "./collab/settings";
 import { confirmDestructive, showWarning } from "./io/fileIO";
+import { tr } from "./i18n/tr";
 
 /**
  * A click on an invitation link ("weft:...") anywhere - a mail, a chat, a web page - hands the link to
@@ -25,18 +26,18 @@ export async function handleInvitationLink(link: string): Promise<void> {
   recentlyHandled.set(link, now);
 
   if (!parseInvitation(link).url.replace(/^automerge:/, "")) {
-    await showWarning("Das ist kein gültiger Einladungslink.", "Einladung");
+    await showWarning(tr("ui.this_is_not_a_valid_invitation"), tr("ui.invitation"));
     return;
   }
   const accepted = await confirmDestructive(
-    "Du wurdest zu einem Lernmodul eingeladen. Beitreten? Das gerade geöffnete Lernmodul wird dafür geschlossen (seine Änderungen werden vorher automatisch gespeichert), und du arbeitest dann live mit den anderen am eingeladenen Lernmodul.",
-    "Einladung",
+    tr("ui.you_have_been_invited_to_a"),
+    tr("ui.invitation"),
   );
   if (!accepted) return;
   try {
     await joinSharedDocument(link, loadCollabOptions());
   } catch (error) {
-    await showWarning(error instanceof Error ? error.message : String(error), "Einladung");
+    await showWarning(error instanceof Error ? error.message : String(error), tr("ui.invitation"));
   }
 }
 

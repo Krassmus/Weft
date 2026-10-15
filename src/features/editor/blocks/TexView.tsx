@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { renderTexToHtml } from "../../../core/tex/renderTex";
+import { tr } from "../../../core/i18n/tr";
 
 /**
  * A rendered TeX formula, scaled to fit (contain, centered) whatever box it's put in - same idea
@@ -37,7 +38,7 @@ export function TexView({ tex, color }: { tex: string; color?: string }) {
     return () => observer.disconnect();
   }, [html]);
 
-  if (!html) return <div className="weft-edit-block-placeholder">Formel eingeben …</div>;
+  if (!html) return <div className="weft-edit-block-placeholder">{tr("ui.enter_formula")}</div>;
   return (
     <div ref={boxRef} className="weft-tex" style={color ? { color } : undefined}>
       <div ref={innerRef} className="weft-tex-inner" dangerouslySetInnerHTML={{ __html: html }} />

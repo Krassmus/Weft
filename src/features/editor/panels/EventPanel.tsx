@@ -17,21 +17,22 @@ import { listPageTriggerEvents, nodeLabel } from "../Timeline";
 import { BlockEffectEditor } from "./BlockPanel";
 import { OutgoingTriggersSection, TriggerCard, resumableBlock } from "./TriggerSections";
 import { TransitionPanel } from "./TransitionPanel";
+import { tr } from "../../../core/i18n/tr";
 
 // Purely descriptive, for every event that ISN'T in TRIGGERABLE_EVENT_TYPES (document/
 // pageTimeline.ts) and so gets no editable "Wird ausgelöst durch" of its own (see
 // IncomingTriggersSection below) - each only ever happens through genuine learner interaction or
 // real playback time that nothing could fake, so there's nothing here to edit, just to explain.
 const EVENT_HINTS: Partial<Record<TimelineEventType, string>> = {
-  "button-click": "Passiert, sobald die Lernperson den Button anklickt.",
-  "quiz-fill-start": "Passiert, sobald die Lernperson eine erste Antwortoption auswählt.",
-  "quiz-submit": "Passiert, sobald das Quiz abgeschickt wird.",
-  "quiz-submit-correct": "Passiert, sobald das Quiz mit einer richtigen Antwort abgeschickt wird.",
-  "quiz-submit-incorrect": "Passiert, sobald das Quiz mit einer falschen Antwort abgeschickt wird.",
-  "video-stop-point": "Passiert, sobald die Wiedergabe diesen Zeitpunkt im Video erreicht.",
-  "video-resume": "Passiert, sobald die Lernperson das Video nach der Zeitmarke weiterspielt.",
-  "video-end-loop": "Passiert nie - das Video läuft in einer Endlosschleife und endet nicht.",
-  "video-end-stop": "Passiert, sobald das Video zu Ende ist.",
+  get "button-click"() { return tr("ui.happens_as_soon_as_the_learner"); },
+  get "quiz-fill-start"() { return tr("ui.happens_as_soon_as_the_learner_2"); },
+  get "quiz-submit"() { return tr("ui.happens_as_soon_as_the_quiz"); },
+  get "quiz-submit-correct"() { return tr("ui.happens_as_soon_as_the_quiz_2"); },
+  get "quiz-submit-incorrect"() { return tr("ui.happens_as_soon_as_the_quiz_3"); },
+  get "video-stop-point"() { return tr("ui.happens_as_soon_as_playback_reaches"); },
+  get "video-resume"() { return tr("ui.happens_as_soon_as_the_learner_3"); },
+  get "video-end-loop"() { return tr("ui.never_happens_the_video_runs_in"); },
+  get "video-end-stop"() { return tr("ui.happens_as_soon_as_the_video"); },
 };
 
 /**
@@ -77,7 +78,7 @@ function SingleEventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
   if (!rawNode) {
     return (
       <div className="weft-inspector-empty">
-        <p>Dieses Ereignis gibt es nicht mehr.</p>
+        <p>{tr("ui.this_event_no_longer_exists")}</p>
       </div>
     );
   }
@@ -97,23 +98,23 @@ function SingleEventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
   return (
     <>
       <div className="weft-event-heading">
-        <span className="weft-event-heading-kind">Ereignis</span>
+        <span className="weft-event-heading-kind">{tr("ui.event")}</span>
         <EventTitleInput page={page} node={node} />
-        {node.kind === "start" && <p className="weft-hint">Passiert automatisch, sobald diese Folie angezeigt wird.</p>}
+        {node.kind === "start" && <p className="weft-hint">{tr("ui.happens_automatically_as_soon_as_this")}</p>}
       </div>
 
       {unreachable && (
         <div className="weft-placeholder-warning">
           <p>
-            ⚠ Nichts löst dieses Ereignis aus - es passiert nie.
-            {node.kind === "end" ? " Die Folie lässt sich nur noch auf anderem Wege verlassen, zum Beispiel mit einem Button." : ""}
+            {tr("ui.nothing_triggers_this_event_it_never")}
+            {node.kind === "end" ? tr("ui.slide_only_left_another_way") : ""}
           </p>
         </div>
       )}
 
       {sourceBlock && (
         <div className="weft-event-source">
-          <span className="weft-hint">Gehört zu</span>
+          <span className="weft-hint">{tr("ui.belongs_to")}</span>
           <button
             type="button"
             className="weft-event-trigger-row"
@@ -126,7 +127,7 @@ function SingleEventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
 
       {sourceGroup && (
         <div className="weft-event-source">
-          <span className="weft-hint">Gehört zu</span>
+          <span className="weft-hint">{tr("ui.belongs_to")}</span>
           <button
             type="button"
             className="weft-event-trigger-row"
@@ -152,7 +153,7 @@ function EventTitleInput({ page, node }: { page: Page; node: TimelineNode }) {
   return (
     <input
       className="weft-event-heading-title"
-      aria-label="Titel des Ereignisses"
+      aria-label={tr("ui.title_of_the_event")}
       value={page.timeline.titles?.[node.id] ?? ""}
       placeholder={nodeLabel(node)}
       onChange={(e) => setEventTitle(page.id, node.id, e.target.value)}
@@ -174,7 +175,7 @@ function EffectSection({ page, node }: { page: Page; node: TimelineNode }) {
     return (
       <BlockEffectEditor
         key={node.id}
-        title={phase === "entrance" ? "Aufbau" : "Abbau"}
+        title={phase === "entrance" ? tr("ui.entrance") : tr("ui.exit")}
         page={page}
         targetNodeId={node.id}
         effect={effect}
@@ -193,7 +194,7 @@ function EffectSection({ page, node }: { page: Page; node: TimelineNode }) {
   return (
     <BlockEffectEditor
       key={node.id}
-      title={phase === "entrance" ? "Aufbau" : "Abbau"}
+      title={phase === "entrance" ? tr("ui.entrance") : tr("ui.exit")}
       page={page}
       targetNodeId={node.id}
       effect={phase === "entrance" ? sourceBlock.entranceEffect : sourceBlock.exitEffect}
@@ -214,8 +215,8 @@ function IncomingTriggersSection({ page, node }: { page: Page; node: TimelineNod
   if (node.kind === "event" && node.eventType && !isTriggerableNode(node)) {
     return (
       <div className="weft-event-section">
-        <span className="weft-hint-label">Wird ausgelöst durch</span>
-        <p className="weft-hint">{EVENT_HINTS[node.eventType] ?? "Passiert durch Interaktion der Lernperson."}</p>
+        <span className="weft-hint-label">{tr("ui.is_triggered_by")}</span>
+        <p className="weft-hint">{EVENT_HINTS[node.eventType] ?? tr("ui.happens_through_the_learner_s_interaction")}</p>
       </div>
     );
   }
@@ -226,9 +227,9 @@ function IncomingTriggersSection({ page, node }: { page: Page; node: TimelineNod
   const labelOf = (id: string) => options.find((o) => o.id === id)?.label ?? id;
 
   return (
-    <Collapsible title="Wird ausgelöst durch" defaultOpen>
+    <Collapsible title={tr("ui.is_triggered_by")} defaultOpen>
       {incoming.length === 0 ? (
-        <p className="weft-hint">Nichts - dieses Ereignis passiert nie.</p>
+        <p className="weft-hint">{tr("ui.nothing_this_event_never_happens")}</p>
       ) : (
         <ul className="weft-trigger-list">
           {incoming.map((trigger) => (
@@ -250,7 +251,7 @@ function IncomingTriggersSection({ page, node }: { page: Page; node: TimelineNod
         </ul>
       )}
       <button type="button" className="weft-ghost-button weft-full-width" onClick={() => addTrigger(page.id, "start", node.id, 0, true)}>
-        + Auslöser
+        {tr("ui.trigger")}
       </button>
     </Collapsible>
   );

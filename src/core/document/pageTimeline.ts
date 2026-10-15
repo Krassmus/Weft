@@ -2,6 +2,7 @@ import { isSnapshot } from "../collab/mutationScope";
 import { formatTimeMMSS } from "../formatTime";
 import { orderedValues } from "./ordering";
 import type { Block, BlockGroup, ClozeBlock, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode, VideoBlock } from "../types";
+import { tr } from "../i18n/tr";
 
 /**
  * What every page's timeline starts out as (and what a page missing it is given on load, see io/unpack.ts): one trigger from the
@@ -70,9 +71,9 @@ function buildQuizLane(
       eventType: outcome ? QUIZ_OUTCOME_EVENT_TYPES[outcome] : "quiz-submit",
       // (A gap text has the events of a quiz, under its own name.)
       ...(outcome
-        ? { label: `${quiz.kind === "cloze" ? "Lückentext" : "Quiz"} abgeschickt (${outcome})` }
+        ? { label: tr("ui.submitted", { n0: quiz.kind === "cloze" ? tr("ui.gap_text") : tr("ui.quiz"), outcome: tr(outcome === "richtig" ? "ui.outcome_correct" : "ui.outcome_incorrect") }) }
         : quiz.kind === "cloze"
-          ? { label: "Lückentext abgeschickt" }
+          ? { label: tr("ui.gap_text_submitted") }
           : {}),
     },
   ];
@@ -134,7 +135,7 @@ function buildVideoLane(video: VideoBlock): TimelineLane {
       sourceBlockId: video.id,
       eventType: "video-stop-point",
       stopsVideo: stopPoint.stopsVideo,
-      label: `Zeitmarke (${formatTimeMMSS(stopPoint.timeSeconds)})`,
+      label: tr("ui.time_mark", { n0: formatTimeMMSS(stopPoint.timeSeconds) }),
     });
     edges.push({ from: previousId, to: stopId, kind: "timed", delayMs: Math.max(0, (stopPoint.timeSeconds - previousTimeSeconds) * 1000) });
     previousId = stopId;
@@ -148,7 +149,7 @@ function buildVideoLane(video: VideoBlock): TimelineLane {
         kind: "event",
         sourceBlockId: video.id,
         eventType: "video-resume",
-        label: `Video läuft weiter (${formatTimeMMSS(stopPoint.timeSeconds)})`,
+        label: tr("ui.video_continues", { n0: formatTimeMMSS(stopPoint.timeSeconds) }),
       });
       edges.push({ from: stopId, to: resumeId, kind: "unknown" });
       previousId = resumeId;
@@ -162,21 +163,21 @@ function buildVideoLane(video: VideoBlock): TimelineLane {
 }
 
 const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
-  text: "Text",
-  language: "Sprachschalter",
-  code: "Code",
-  tex: "Formel",
-  image: "Bild",
-  video: "Video",
+  get text() { return tr("ui.text"); },
+  get language() { return tr("ui.language_switcher"); },
+  get code() { return tr("ui.code"); },
+  get tex() { return tr("ui.formula"); },
+  get image() { return tr("ui.image"); },
+  get video() { return tr("ui.video"); },
   iframe: "Iframe",
   button: "Button",
-  quiz: "Quiz",
-  cloze: "Lückentext",
-  shape: "Form",
-  arrow: "Pfeil",
-  files: "Dateien",
-  list: "Liste",
-  placeholder: "Platzhalter-Text",
+  get quiz() { return tr("ui.quiz"); },
+  get cloze() { return tr("ui.gap_text"); },
+  get shape() { return tr("ui.shape"); },
+  get arrow() { return tr("ui.arrow"); },
+  get files() { return tr("ui.files"); },
+  get list() { return tr("ui.list"); },
+  get placeholder() { return tr("ui.text_placeholder"); },
 };
 
 /** Kept in sync by hand with player.runtime.js's own blockEffectEventId - see that file's header
@@ -212,7 +213,7 @@ function makeListItemNode(block: ListBlock, index: number, itemId: string): Time
     kind: "event",
     sourceBlockId: block.id,
     eventType: "list-item-entrance",
-    label: `Listenpunkt ${index + 1}`,
+    label: tr("ui.list_item", { n0: index + 1 }),
   };
 }
 

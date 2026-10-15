@@ -4,6 +4,7 @@ import { arrowSegmentMiddles } from "../../../core/runtime/arrowGeometry.js";
 import type { ArrowBlock, ArrowPoint } from "../../../core/types";
 import { useArrowBoxAspect } from "./ArrowSvg";
 import { unrotateDelta } from "./resizeMath";
+import { tr } from "../../../core/i18n/tr";
 
 interface ArrowHandlesProps {
   /** The arrow as it is shown (with the waypoints of a drag in progress). */
@@ -78,7 +79,7 @@ export function ArrowHandles({ block, slideAspect, stageRect, onLive, onCommit }
           key={`add-${i}`}
           className="weft-arrow-add"
           style={{ left: `${middle.x}%`, top: `${middle.y}%` }}
-          title="Ziehen: neuer Wegpunkt"
+          title={tr("ui.drag_new_waypoint")}
           onPointerDown={(e) => beginDrag(i + 1, [...block.points.slice(0, i + 1), middle, ...block.points.slice(i + 1)], true, e)}
           onClick={(e) => e.stopPropagation()}
         />
@@ -88,7 +89,7 @@ export function ArrowHandles({ block, slideAspect, stageRect, onLive, onCommit }
           key={`point-${i}`}
           className="weft-arrow-point"
           style={{ left: `${point.x}%`, top: `${point.y}%` }}
-          title={block.points.length > 2 ? "Ziehen: verschieben - Doppelklick: entfernen" : "Ziehen: verschieben"}
+          title={block.points.length > 2 ? tr("ui.drag_move_double_click_remove") : tr("ui.drag_move")}
           onPointerDown={(e) => beginDrag(i, block.points, false, e)}
           onClick={(e) => e.stopPropagation()}
           onDoubleClick={(e) => {

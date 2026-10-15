@@ -7,6 +7,7 @@ import type { Page, TimelineNode } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
 import { listTriggerableNodes, nodeLabel } from "../Timeline";
 import { SecondsControl } from "./SecondsControl";
+import { tr } from "../../../core/i18n/tr";
 
 // The cards of a trigger and the section "Löst aus" - shared by the panel of an event (EventPanel.tsx) and by the panel of a button
 // (BlockPanel.tsx), which shows what its click triggers the same way.
@@ -58,22 +59,22 @@ export function TriggerCard({
     <li className="weft-trigger-card">
       <div className="weft-trigger-card-row weft-trigger-card-head">
         <label className="weft-field">
-          <span>Auslösertyp</span>
+          <span>{tr("ui.trigger_type")}</span>
           <select value={weiter ? "weiter" : "auto"} onChange={(e) => updateTrigger(page.id, triggerId, { weiter: e.target.value === "weiter" })}>
-            <option value="auto">Automatisch</option>
-            <option value="weiter">Mit Weiter (Nutzerinteraktion)</option>
+            <option value="auto">{tr("ui.automatic")}</option>
+            <option value="weiter">{tr("ui.with_next_user_interaction")}</option>
           </select>
         </label>
-        <button type="button" className="weft-event-trigger-remove" aria-label="Auslöser entfernen" onClick={() => removeTrigger(page.id, triggerId)}>
+        <button type="button" className="weft-event-trigger-remove" aria-label={tr("ui.remove_trigger")} onClick={() => removeTrigger(page.id, triggerId)}>
           ×
         </button>
       </div>
       <div className="weft-field">
-        <span>Verzögerung (in Sekunden)</span>
-        <SecondsControl label="Verzögerung (Sekunden)" valueMs={delayMs} onChange={(ms) => updateTrigger(page.id, triggerId, { delayMs: ms })} />
+        <span>{tr("ui.delay_in_seconds")}</span>
+        <SecondsControl label={tr("ui.delay_seconds")} valueMs={delayMs} onChange={(ms) => updateTrigger(page.id, triggerId, { delayMs: ms })} />
       </div>
       <label className="weft-field">
-        <span>{direction === "incoming" ? "Nach Event" : "Event"}</span>
+        <span>{direction === "incoming" ? tr("ui.after_event") : tr("ui.event_2")}</span>
         <select value={endpoint} onChange={(e) => onEndpoint(e.target.value)} title={endpointLabel}>
           {!listed && <option value={endpoint}>{endpointLabel}</option>}
           {options.map((o) => (
@@ -90,10 +91,10 @@ export function TriggerCard({
             checked={disappearsOnResume(page, resumable.blockId, resumable.resumeId)}
             onChange={(e) => setDisappearsOnResumeOf(page.id, resumable.blockId, resumable.resumeId, e.target.checked)}
           />
-          <span>verschwindet wieder, wenn das Video weiterläuft</span>
+          <span>{tr("ui.disappears_again_when_the_video_goes")}</span>
         </label>
       )}
-      {loop && <p className="weft-hint">⟲ Das schließt einen Kreis: Die Ereignisse lösen sich gegenseitig aus.</p>}
+      {loop && <p className="weft-hint">{tr("ui.this_closes_a_circle_the_events")}</p>}
     </li>
   );
 }
@@ -114,9 +115,9 @@ export function OutgoingTriggersSection({ page, node }: { page: Page; node: Time
   const addable = options.filter((target) => !outgoing.some((o) => o.to === target.id));
 
   return (
-    <Collapsible title="Löst aus" defaultOpen={outgoing.length > 0}>
+    <Collapsible title={tr("ui.triggers")} defaultOpen={outgoing.length > 0}>
       {outgoing.length === 0 ? (
-        <p className="weft-hint">Löst noch nichts aus.</p>
+        <p className="weft-hint">{tr("ui.does_not_trigger_anything_yet")}</p>
       ) : (
         <ul className="weft-trigger-list">
           {outgoing.map((trigger) => {
@@ -141,7 +142,7 @@ export function OutgoingTriggersSection({ page, node }: { page: Page; node: Time
       )}
       {outgoing.some((o) => page.blocks[findNode(page, o.to)?.sourceBlockId ?? ""]) && (
         <div className="weft-event-source">
-          <span className="weft-hint">Ziele öffnen</span>
+          <span className="weft-hint">{tr("ui.open_targets")}</span>
           {outgoing.map((trigger) => {
             const targetBlock = page.blocks[findNode(page, trigger.to)?.sourceBlockId ?? ""];
             return (
@@ -162,10 +163,10 @@ export function OutgoingTriggersSection({ page, node }: { page: Page; node: Time
       )}
       {addable.length > 0 && (
         <label className="weft-field">
-          <span>Weiteres Ziel hinzufügen</span>
+          <span>{tr("ui.add_another_target")}</span>
           <select value="" onChange={(e) => e.target.value && addTrigger(page.id, node.id, e.target.value, 0, false)}>
             <option value="" disabled>
-              Ereignis wählen…
+              {tr("ui.choose_event")}
             </option>
             {addable.map((target) => (
               <option key={target.id} value={target.id}>

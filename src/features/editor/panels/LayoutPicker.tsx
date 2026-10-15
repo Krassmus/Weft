@@ -4,6 +4,7 @@ import { useDocumentStore } from "../../../core/document/store";
 import type { Page } from "../../../core/types";
 import { SlideThumbnail } from "../SlideThumbnail";
 import { orderedValues } from "../../../core/document/ordering";
+import { tr } from "../../../core/i18n/tr";
 
 /**
  * The current layout shown as a clickable thumbnail (not a text title - a page's layout is a
@@ -27,15 +28,15 @@ export function LayoutPicker({ page }: { page: Page }) {
         {currentLayout ? (
           <SlideThumbnail blocks={orderedValues(currentLayout.blocks)} />
         ) : (
-          <div className="weft-layout-thumb-empty">Kein Layout</div>
+          <div className="weft-layout-thumb-empty">{tr("ui.no_layout")}</div>
         )}
       </button>
 
       {open && (
         <div className="weft-layout-grid">
           <button type="button" className="weft-layout-grid-item" onClick={() => choose(null)}>
-            <div className="weft-layout-thumb-empty">Kein Layout</div>
-            <span>Kein Layout</span>
+            <div className="weft-layout-thumb-empty">{tr("ui.no_layout")}</div>
+            <span>{tr("ui.no_layout")}</span>
           </button>
           {Object.values(layouts).map((layout) => (
             <button key={layout.id} type="button" className="weft-layout-grid-item" onClick={() => choose(layout.id)}>
@@ -47,11 +48,11 @@ export function LayoutPicker({ page }: { page: Page }) {
             type="button"
             className="weft-layout-grid-item weft-layout-grid-add"
             onClick={() => {
-              const id = addLayout("Neues Layout");
+              const id = addLayout(tr("ui.new_layout_2"));
               choose(id);
             }}
           >
-            + Neues Layout
+            {tr("ui.new_layout")}
           </button>
         </div>
       )}
@@ -62,7 +63,7 @@ export function LayoutPicker({ page }: { page: Page }) {
           className="weft-ghost-button weft-full-width"
           onClick={() => select({ type: "layout", layoutId: currentLayout.id })}
         >
-          Layout bearbeiten
+          {tr("ui.edit_layout")}
         </button>
       )}
     </div>

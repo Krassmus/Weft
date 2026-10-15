@@ -10,6 +10,7 @@ import { presenceColor, usePresence } from "../../core/collab/presence";
 import { SettingsWindow } from "../settings/SettingsWindow";
 import { PersonAvatar } from "./PersonAvatar";
 import { useCollabDialog } from "./collabDialogStore";
+import { tr } from "../../core/i18n/tr";
 
 /** The frame of both dialogs: a small window over the editor that closes with Esc or a click beside it. */
 export function DialogFrame({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
@@ -26,7 +27,7 @@ export function DialogFrame({ title, onClose, children }: { title: string; onClo
       <div className="weft-modal weft-collab-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="weft-modal-header">
           <h3>{title}</h3>
-          <button type="button" className="weft-icon-button" title="Schließen" onClick={onClose}>
+          <button type="button" className="weft-icon-button" title={tr("ui.close")} onClick={onClose}>
             ×
           </button>
         </div>
@@ -61,17 +62,15 @@ function JoinDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <DialogFrame title="Einladung beitreten" onClose={onClose}>
+    <DialogFrame title={tr("ui.join_an_invitation")} onClose={onClose}>
       <p className="weft-hint">
-        Hat dich jemand zu einem Lernmodul eingeladen, bekommst du dafür einen Link, der mit „weft://“ beginnt. Füge
-        ihn hier ein: Weft verbindet sich dann direkt mit den anderen, und ihr arbeitet live am selben Lernmodul.
+        {tr("ui.if_somebody_has_invited_you_to")}
       </p>
       <p className="weft-hint">
-        Das gerade geöffnete Lernmodul wird dafür geschlossen. Ist es eine Kopie desselben Lernmoduls, bleiben deine
-        Änderungen daran erhalten und werden mit denen der anderen verbunden.
+        {tr("ui.the_learning_module_that_is_open")}
       </p>
       <label className="weft-field">
-        <span>Einladungslink</span>
+        <span>{tr("ui.invitation_link")}</span>
         <input
           ref={inputRef}
           value={link}
@@ -84,10 +83,10 @@ function JoinDialog({ onClose }: { onClose: () => void }) {
       {error && <p className="weft-placeholder-warning">{error}</p>}
       <div className="weft-modal-actions">
         <button type="button" className="weft-ghost-button" onClick={onClose}>
-          Abbrechen
+          {tr("ui.cancel")}
         </button>
         <button type="button" className="weft-ghost-button" disabled={!link.trim() || busy} onClick={() => void join()}>
-          {busy ? "Verbinde …" : "Beitreten"}
+          {busy ? tr("ui.connecting") : tr("ui.join")}
         </button>
       </div>
     </DialogFrame>
@@ -100,19 +99,19 @@ function describeMerge(result: MergeResult | { ok: false; reason: "no-history" }
       ok: true,
       text:
         result.newChanges > 0
-          ? `Zusammengeführt: ${result.newChanges} ${result.newChanges === 1 ? "Änderung" : "Änderungen"} aus der Datei übernommen.`
-          : "Diese Datei enthält nichts Neues - alle ihre Änderungen sind schon da.",
+          ? tr("ui.merged_n_changes", { count: result.newChanges, unit: tr(result.newChanges === 1 ? "ui.change_one" : "ui.change_many") })
+          : tr("ui.this_file_contains_nothing_new_all"),
     };
   }
   return {
     ok: false,
     text: {
-      unreadable: "Die Datei lässt sich nicht lesen.",
+      unreadable: tr("ui.the_file_cannot_be_read"),
       "no-history":
-        "Diese Datei hat keinen Änderungsverlauf (sie stammt aus einer älteren Weft-Version oder ist ein Export). Sie lässt sich nur öffnen, nicht zusammenführen.",
-      "other-module": "Das ist ein anderes Lernmodul.",
+        tr("ui.this_file_has_no_change_history"),
+      "other-module": tr("ui.this_is_a_different_learning_module"),
       "no-common-origin":
-        "Die Datei geht nicht auf dieselbe Ausgangsdatei zurück. Zusammenführen geht nur mit Kopien einer Datei, die mit dieser Weft-Version gespeichert wurde - und nicht, wenn eine der beiden danach mit „Verlauf verkleinern“ bearbeitet wurde.",
+        tr("ui.the_file_does_not_go_back"),
     }[result.reason],
   };
 }
@@ -123,37 +122,33 @@ function MergeDialog({ onClose }: { onClose: () => void }) {
 
   async function choose() {
     setMessage(null);
-    const picked = await pickDocumentFile("Datei zum Zusammenführen auswählen");
+    const picked = await pickDocumentFile(tr("ui.choose_the_file_to_merge"));
     if (!picked) return;
     setMessage(describeMerge(mergeDocumentFile(picked.bytes)));
   }
 
   return (
-    <DialogFrame title="Mit Datei zusammenführen" onClose={onClose}>
+    <DialogFrame title={tr("ui.merge_with_file")} onClose={onClose}>
       <p className="weft-hint">
-        Hat jemand eine Kopie dieser .weft-Datei weiterbearbeitet und dir geschickt, kannst du ihre Änderungen hier
-        in das geöffnete Lernmodul übernehmen:
+        {tr("ui.merge_intro")}
       </p>
       <ol className="weft-collab-steps">
-        <li>Du wählst die andere Datei aus.</li>
+        <li>{tr("ui.you_choose_the_other_file")}</li>
         <li>
-          Weft fügt zu deinem Stand hinzu, was dort geändert wurde. Deine eigenen Änderungen bleiben erhalten. Haben
-          beide dasselbe geändert (zum Beispiel denselben Text), bleibt eine der beiden Fassungen - bei allen, die
-          zusammenführen, dieselbe.
+          {tr("ui.weft_adds_to_your_version_what")}
         </li>
-        <li>Neue Bilder, Videos und Schriften aus der Datei kommen mit.</li>
+        <li>{tr("ui.new_images_videos_and_fonts_from")}</li>
       </ol>
       <p className="weft-hint">
-        Dafür braucht es weder Internet noch Server, und ihr müsst nicht gleichzeitig arbeiten. Voraussetzung: Beide
-        Dateien gehen auf dieselbe, mit dieser Weft-Version gespeicherte Ausgangsdatei zurück.
+        {tr("ui.this_needs_neither_internet_nor_a")}
       </p>
       {message && <p className={message.ok ? "weft-hint" : "weft-placeholder-warning"}>{message.text}</p>}
       <div className="weft-modal-actions">
         <button type="button" className="weft-ghost-button" onClick={onClose}>
-          Schließen
+          {tr("ui.close")}
         </button>
         <button type="button" className="weft-ghost-button" onClick={() => void choose()}>
-          {message ? "Weitere Datei auswählen …" : "Datei auswählen …"}
+          {message ? tr("ui.choose_another_file") : tr("ui.choose_file")}
         </button>
       </div>
     </DialogFrame>
@@ -164,7 +159,7 @@ function MergeDialog({ onClose }: { onClose: () => void }) {
 /** The app's settings (language, profile, network) as a dialog - the desktop app has them in a window of their own. */
 function SettingsDialog({ onClose }: { onClose: () => void }) {
   return (
-    <DialogFrame title="Einstellungen" onClose={onClose}>
+    <DialogFrame title={tr("ui.settings")} onClose={onClose}>
       <div className="weft-settings-dialog">
         <SettingsWindow />
       </div>
@@ -177,9 +172,9 @@ function PeopleDialog({ onClose }: { onClose: () => void }) {
   const peers = usePresence((s) => s.peers);
   const people = Object.values(peers).sort((a, b) => a.name.localeCompare(b.name, "de"));
   return (
-    <DialogFrame title="Wer arbeitet mit?" onClose={onClose}>
+    <DialogFrame title={tr("ui.who_is_working_on_it")} onClose={onClose}>
       {people.length === 0 ? (
-        <p className="weft-hint">Gerade ist niemand sonst verbunden.</p>
+        <p className="weft-hint">{tr("ui.nobody_else_is_connected_right_now")}</p>
       ) : (
         <ul className="weft-people-list">
           {people.map((person) => (

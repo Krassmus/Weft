@@ -49,6 +49,7 @@ import { PlayerShell } from "../player/PlayerShell";
 import { Sidebar } from "./Sidebar";
 import { useCopyPaste } from "./useCopyPaste";
 import { useDeleteSelection } from "./useDeleteSelection";
+import { tr } from "../../core/i18n/tr";
 
 const SIDEBAR_WIDTH_MIN = 220;
 const SIDEBAR_WIDTH_MAX = 560;
@@ -624,15 +625,15 @@ export function EditorShell() {
     if (path === null) {
       if (current.content.modifiedAt === current.content.createdAt) return true;
       return confirmDestructive(
-        "Das jetzige Lernmodul wurde noch nicht gespeichert und ist danach weg. Vorher mit „Speichern unter…“ in eine Datei sichern?\n\nTrotzdem fortfahren?",
-        "Nicht gespeichert",
+        tr("ui.the_current_learning_module_has_not"),
+        tr("ui.not_saved"),
       );
     }
     try {
       await flushAutosave();
       return true;
     } catch (err) {
-      return confirmDestructive(`Das jetzige Lernmodul ließ sich nicht speichern:\n${errorMessage(err)}\n\nTrotzdem fortfahren?`, "Nicht gespeichert");
+      return confirmDestructive(tr("ui.the_current_learning_module_could_not", { n0: errorMessage(err) }), tr("ui.not_saved"));
     }
   }
 
@@ -672,7 +673,7 @@ export function EditorShell() {
       }
     }
     const now = new Date().toISOString();
-    const content = { ...plain(current.content), id: createId(), title: `${current.content.title} (Kopie)`, createdAt: now, modifiedAt: now };
+    const content = { ...plain(current.content), id: createId(), title: tr("ui.copy", { title: current.content.title }), createdAt: now, modifiedAt: now };
     await startUnsavedDocument({ formatVersion: current.formatVersion, content });
   }
   handleDuplicateRef.current = handleDuplicate;
@@ -755,8 +756,8 @@ export function EditorShell() {
               type="button"
               className="weft-inspector-tab"
               aria-expanded={inspectorOpen}
-              aria-label="Eigenschaften"
-              title="Eigenschaften"
+              aria-label={tr("ui.properties")}
+              title={tr("ui.properties")}
               // Like the format buttons of the panel: a tap on it must not take the focus - and with it the marked text - away
               // from the slide (see TextEditor in panels/BlockPanel.tsx).
               onMouseDown={(e) => e.preventDefault()}
@@ -771,17 +772,16 @@ export function EditorShell() {
       {copyNotice && (
         <div className="weft-export-progress weft-copy-notice" role="status">
           <span>
-            Weft hat diese Datei als Kopie eines anderen Dokumentes erkannt. Beide Dateien werden jetzt separat geschrieben und nicht
-            mehr zusammengeführt.
+            {tr("ui.weft_has_recognised_this_file_as")}
           </span>
-          <button type="button" className="weft-icon-button" title="Schließen" onClick={() => setCopyNotice(null)}>
+          <button type="button" className="weft-icon-button" title={tr("ui.close")} onClick={() => setCopyNotice(null)}>
             ×
           </button>
         </div>
       )}
       {pdfProgress && (
         <div className="weft-export-progress" role="status">
-          PDF wird erzeugt …{pdfProgress.total > 0 ? ` ${Math.min(pdfProgress.done + 1, pdfProgress.total)} / ${pdfProgress.total}` : ""}
+          {tr("ui.creating_pdf")}{pdfProgress.total > 0 ? ` ${Math.min(pdfProgress.done + 1, pdfProgress.total)} / ${pdfProgress.total}` : ""}
         </div>
       )}
       <CollabDialogs />

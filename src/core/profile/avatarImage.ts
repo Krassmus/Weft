@@ -1,3 +1,4 @@
+import { tr } from "../i18n/tr";
 /** The edge length of an avatar picture, in pixels - small enough to send to every peer as it is
  * (a few kilobytes), big enough to stay sharp at the 26-32px it is shown at on a high-resolution screen. */
 export const AVATAR_SIZE = 96;
@@ -8,18 +9,18 @@ export const AVATAR_SIZE = 96;
  * transparent picture is flattened onto white). Rejects if the file isn't a picture.
  */
 export async function avatarFromFile(file: File): Promise<string> {
-  if (!file.type.startsWith("image/")) throw new Error("Das ist keine Bilddatei.");
+  if (!file.type.startsWith("image/")) throw new Error(tr("ui.this_is_not_an_image_file"));
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file);
   } catch {
-    throw new Error("Das Bild lässt sich nicht lesen.");
+    throw new Error(tr("ui.the_image_cannot_be_read"));
   }
   const side = Math.min(bitmap.width, bitmap.height);
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = AVATAR_SIZE;
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Das Bild lässt sich nicht verarbeiten.");
+  if (!ctx) throw new Error(tr("ui.the_image_cannot_be_processed"));
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, AVATAR_SIZE, AVATAR_SIZE);
   ctx.imageSmoothingQuality = "high";

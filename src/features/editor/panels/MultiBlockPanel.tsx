@@ -1,6 +1,7 @@
 import { groupBlocks } from "../../../core/document/actions";
 import type { BlockContainerRef } from "../../../core/document/store";
 import { useDocumentStore } from "../../../core/document/store";
+import { tr } from "../../../core/i18n/tr";
 
 /**
  * Shown while several blocks are selected but not yet grouped (SelectionRef's "blocks" variant -
@@ -20,10 +21,10 @@ export function MultiBlockPanel({ container, blockIds }: { container: BlockConta
 
   return (
     <div className="weft-multi-block-panel">
-      <p className="weft-hint">{blockIds.length} Objekte ausgewählt</p>
+      <p className="weft-hint">{blockIds.length} {tr("ui.objects_selected")}</p>
       {container.kind === "page" && (
         <button type="button" className="weft-primary-button weft-full-width" onClick={group}>
-          Objekte gruppieren
+          {tr("ui.group_objects")}
         </button>
       )}
     </div>

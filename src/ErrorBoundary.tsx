@@ -1,5 +1,6 @@
 import { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
+import { tr } from "./core/i18n/tr";
 
 interface Props {
   children: ReactNode;
@@ -28,7 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("Weft ist abgestürzt:", error, info.componentStack);
+    console.error(tr("ui.weft_crashed_2"), error, info.componentStack);
   }
 
   render() {
@@ -45,14 +46,14 @@ export class ErrorBoundary extends Component<Props, State> {
             overflow: "auto",
           }}
         >
-          <h1 style={{ fontSize: 18, marginBottom: 8 }}>Weft ist abgestürzt</h1>
-          <p style={{ marginBottom: 16 }}>Etwas ist beim Anzeigen schiefgelaufen. Neu laden hilft meistens.</p>
+          <h1 style={{ fontSize: 18, marginBottom: 8 }}>{tr("ui.weft_crashed")}</h1>
+          <p style={{ marginBottom: 16 }}>{tr("ui.something_went_wrong_while_displaying_reloading")}</p>
           <button
             type="button"
             style={{ padding: "8px 16px", marginBottom: 16, cursor: "pointer" }}
             onClick={() => window.location.reload()}
           >
-            Neu laden
+            {tr("ui.reload")}
           </button>
           <pre style={{ whiteSpace: "pre-wrap", fontSize: 12, opacity: 0.7 }}>
             {this.state.error.stack ?? String(this.state.error)}

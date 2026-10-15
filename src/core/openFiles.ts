@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { showWarning } from "./io/fileIO";
 
+import { tr } from "./i18n/tr";
 /** A .weft file that was opened with Weft - already in the library, or the reason it isn't (see src-tauri/src/open_files.rs). */
 interface OpenedFile {
   name: string;
@@ -23,7 +24,7 @@ export function startOpenFiles(ready: Promise<unknown>, open: (path: string) => 
     const files = await invoke<OpenedFile[]>("take_pending_open_files").catch(() => []);
     for (const file of files) {
       if (file.path) open(file.path);
-      else await showWarning(`„${file.name}“ ließ sich nicht öffnen: ${file.error ?? "unbekannter Fehler"}`, "In Weft öffnen");
+      else await showWarning(tr("ui.could_not_be_opened", { name: file.name, error: file.error ?? tr("ui.unknown_error") }), tr("ui.open_in_weft"));
     }
   }
 

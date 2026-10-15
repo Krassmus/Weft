@@ -1,5 +1,6 @@
 import { playerStringsFor } from "../../../core/i18n/playerStrings";
 import type { FilesBlock } from "../../../core/types";
+import { tr } from "../../../core/i18n/tr";
 
 export function formatFileSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`;
@@ -20,7 +21,7 @@ export function FilesView({ block }: { block: FilesBlock }) {
         {block.title || strings.filesTitle}
       </div>
       {block.files.length === 0 ? (
-        <div className="weft-edit-files-empty">Noch keine Dateien - rechts hinzufügen.</div>
+        <div className="weft-edit-files-empty">{tr("ui.no_files_yet_add_them_on")}</div>
       ) : (
         <ul className="weft-edit-files-list">
           {block.files.map((file) => (

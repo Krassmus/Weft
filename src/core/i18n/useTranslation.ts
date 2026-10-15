@@ -1,12 +1,14 @@
 import { useResolvedLanguage } from "./languageStore";
+import { fillParams } from "./tr";
 import { translations } from "./translations";
 import type { TranslationKey } from "./translations";
 
-/** `t(key)` for whichever language is currently resolved (see useResolvedLanguage) - a plain
- * function, not a template-interpolating one, since every string here is static app chrome with
- * no variables to fill in; a key that needs one can grow that capability when it actually shows
- * up rather than speculatively now. */
-export function useTranslation(): { t: (key: TranslationKey) => string; lang: ReturnType<typeof useResolvedLanguage> } {
+/** `t(key, params?)` for whichever language is currently resolved (see useResolvedLanguage); `{name}` in a string is replaced
+ * by params.name. */
+export function useTranslation(): {
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string;
+  lang: ReturnType<typeof useResolvedLanguage>;
+} {
   const lang = useResolvedLanguage();
-  return { t: (key) => translations[lang][key], lang };
+  return { t: (key, params) => fillParams(translations[lang][key], params), lang };
 }

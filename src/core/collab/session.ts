@@ -7,6 +7,7 @@ import { loadCollabOptions } from "./settings";
 import { AssetSync } from "./assetSync";
 import { PresenceSync } from "./presence";
 import { useDirectConnection, WebRtcNetworkAdapter } from "./webrtcAdapter";
+import { tr } from "../i18n/tr";
 
 /**
  * Collaboration on one document: the Automerge repo (see document/store.ts) is connected to other
@@ -170,7 +171,7 @@ export async function joinSharedDocument(invitation: string, options: CollabOpti
   try {
     documentId = parseAutomergeUrl(url as never).documentId;
   } catch {
-    throw new Error("Das ist kein gültiger Einladungslink.");
+    throw new Error(tr("ui.this_is_not_a_valid_invitation"));
   }
   if (secret) secrets.set(documentId, secret);
   allowSharing(documentId);
@@ -270,8 +271,8 @@ export async function connectLiveCollaboration(askAgain = false): Promise<boolea
   if (!trustedDocuments().includes(handle.documentId)) {
     if (declined.has(handle.documentId) && !askAgain) return false;
     const accepted = await confirmDestructive(
-      "Diese Datei ist zur Live-Zusammenarbeit eingerichtet: Beim Öffnen verbindet sich Weft direkt mit den anderen, die sie gerade geöffnet haben, und tauscht Änderungen mit ihnen aus - auch was du hier tippst. Verbinden?",
-      "Live-Zusammenarbeit",
+      tr("ui.this_file_is_set_up_for"),
+      tr("ui.live_collaboration"),
     );
     // Opening another document in the meantime makes the answer moot.
     if (currentHandle() !== handle) return false;

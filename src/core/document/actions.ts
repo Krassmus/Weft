@@ -58,6 +58,7 @@ import { defaultArrowColor } from "./arrow";
 import { defaultShapeCornerRadii, defaultShapeFill, defaultShapeShadow, defaultShapeStroke } from "./shapeDefaults";
 import type { BlockContainerRef } from "./store";
 import { useDocumentStore } from "./store";
+import { tr } from "../i18n/tr";
 
 function edit(label: string, recipe: (draft: WeftModule) => void) {
   useDocumentStore.getState().edit(label, recipe);
@@ -171,11 +172,11 @@ export function addJumpToSequence(afterIndex: number) {
 
 export function addLogicBlockToSequence(afterIndex: number, layoutId: string | null) {
   const branchPage = emptyPage(layoutId);
-  const branch: Branch = { id: createId(), label: "Zweig 1", condition: null, pages: orderedIdRecord([branchPage.id]) };
+  const branch: Branch = { id: createId(), label: tr("ui.branch_1"), condition: null, pages: orderedIdRecord([branchPage.id]) };
   const logicBlockId = createId();
   edit("Logikblock hinzufügen", (m) => {
     m.pages[branchPage.id] = branchPage;
-    m.logicBlocks[logicBlockId] = { id: logicBlockId, name: "Verzweigung", branches: [branch] };
+    m.logicBlocks[logicBlockId] = { id: logicBlockId, name: tr("ui.branching"), branches: [branch] };
     insertOrdered(m.sequence, logicBlockId, { kind: "logic", logicBlockId }, afterIndex + 1);
   });
   return logicBlockId;
@@ -374,7 +375,7 @@ export function addBranch(logicBlockId: string, layoutId: string | null) {
     if (!logicBlock) return;
     const branch: Branch = {
       id: branchId,
-      label: "Neuer Zweig",
+      label: tr("ui.new_branch"),
       condition: defaultCondition(m.variables[0]),
       pages: orderedIdRecord([page.id]),
     };
@@ -558,28 +559,28 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
   const base = { id: createId(), entranceEffect: defaultEntranceEffect(), exitEffect: defaultExitEffect() };
   switch (kind) {
     case "text":
-      return { ...base, kind, position, html: "<p>Neuer Text</p>" };
+      return { ...base, kind, position, html: tr("ui.new_text") };
     case "cloze":
       return {
         ...base,
         kind,
         position: { x: 10, y: 28, width: 80, height: 45 },
-        html: "<p>Die Hauptstadt von Deutschland ist [[Berlin]].</p>",
+        html: tr("ui.the_capital_of_germany_is_berlin"),
         onEachCorrect: [],
         onCorrect: [],
         onIncorrect: [],
       };
     case "placeholder":
-      return { ...base, kind, position, label: "Platzhalter", html: "<p>Platzhaltertext</p>" };
+      return { ...base, kind, position, label: tr("ui.placeholder"), html: tr("ui.placeholder_text") };
     case "list":
       return {
         ...base,
         kind,
         position: { x: 10, y: 35, width: 80, height: 40 },
         items: [
-          { id: createId(), html: "<p>Erster Punkt</p>" },
-          { id: createId(), html: "<p>Zweiter Punkt</p>" },
-          { id: createId(), html: "<p>Dritter Punkt</p>" },
+          { id: createId(), html: tr("ui.first_item") },
+          { id: createId(), html: tr("ui.second_item") },
+          { id: createId(), html: tr("ui.third_item") },
         ],
         marker: "dot",
         spacing: 1.2,
@@ -605,7 +606,7 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
     case "iframe":
       return { ...base, kind, position, url: "https://www.youtube.com/embed/", sandbox: ["allow-scripts"], qrCode: false };
     case "button":
-      return { ...base, kind, position: { x: 35, y: 82, width: 30, height: 10 }, text: "Weiter", action: "advance" };
+      return { ...base, kind, position: { x: 35, y: 82, width: 30, height: 10 }, text: tr("ui.next"), action: "advance" };
     case "shape":
       return {
         ...base,
@@ -644,10 +645,10 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
         kind,
         // Tall enough for the question, two answers and the button (a quiz box of the usual 20% cuts the button in half).
         position: { x: 10, y: 28, width: 80, height: 50 },
-        questionHtml: "<p>Neue Frage</p>",
+        questionHtml: tr("ui.new_question"),
         options: [
-          { id: createId(), html: "Option A" },
-          { id: createId(), html: "Option B" },
+          { id: createId(), html: tr("ui.option_a") },
+          { id: createId(), html: tr("ui.option_b") },
         ],
         correctOptionIds: [],
         onCorrect: [],

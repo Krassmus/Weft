@@ -1,6 +1,7 @@
 import type { VariableDef } from "../types";
 import { parseExpression, referencedNames } from "./expressions";
 
+import { tr } from "../i18n/tr";
 export const SUCCESS_VARIABLE_NAME = "success";
 
 /** A variable whose value comes from a formula rather than being stored - the "Berechnet" type
@@ -78,12 +79,12 @@ export function computedVariableProblems(variables: VariableDef[], virtualNames:
     }
     const names = referencedNames(parsed.expr);
     if (names.has(variable.name)) {
-      problems.set(variable.id, `Die Berechnung bezieht sich auf „${variable.name}" selbst.`);
+      problems.set(variable.id, tr("ui.calc_refers_to_itself", { name: variable.name }));
       continue;
     }
     const unknown = [...names].find((name) => !byName.has(name) && !virtualNames.includes(name));
     if (unknown) {
-      problems.set(variable.id, `Die Variable „${unknown}" gibt es nicht.`);
+      problems.set(variable.id, tr("ui.variable_does_not_exist", { name: unknown }));
       continue;
     }
     references.set(variable.name, names);
@@ -97,7 +98,7 @@ export function computedVariableProblems(variables: VariableDef[], virtualNames:
       const name = stack.pop()!;
       if (name === start) {
         const variable = byName.get(start)!;
-        problems.set(variable.id, `Zirkelbezug: „${start}" hängt über andere berechnete Variablen von sich selbst ab.`);
+        problems.set(variable.id, tr("ui.circular_reference", { name: start }));
         break;
       }
       if (seen.has(name)) continue;

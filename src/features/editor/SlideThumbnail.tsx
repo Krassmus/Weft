@@ -26,6 +26,7 @@ import qrIconSvg from "../../../mockups/icons/code-qr.svg?raw";
 import checkboxCheckedSvg from "../../../mockups/icons/checkbox-checked.svg?raw";
 import checkboxUncheckedSvg from "../../../mockups/icons/checkbox-unchecked.svg?raw";
 import acceptSvg from "../../../mockups/icons/accept.svg?raw";
+import { tr } from "../../core/i18n/tr";
 
 const THUMB_MAX_HEIGHT_PX = 150;
 
@@ -198,7 +199,7 @@ function ThumbBlock({
       <div className="weft-thumb-block weft-thumb-block-iframe-export" style={style} data-pdf-link={block.url}>
         {qrSvg && <div className="weft-thumb-block-iframe-export-qr" dangerouslySetInnerHTML={{ __html: qrSvg }} />}
         <div className="weft-thumb-block-iframe-export-text">
-          <span className="weft-thumb-block-iframe-export-label">Eingebettete Seite</span>
+          <span className="weft-thumb-block-iframe-export-label">{tr("ui.embedded_page")}</span>
           <span className="weft-thumb-block-iframe-export-url">{block.url}</span>
         </div>
       </div>

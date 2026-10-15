@@ -7,6 +7,7 @@ import { Collapsible } from "../Collapsible";
 import { useDragReorder } from "../useDragReorder";
 import { LayoutPicker } from "./LayoutPicker";
 import { orderedValues } from "../../../core/document/ordering";
+import { tr } from "../../../core/i18n/tr";
 
 // A placeholder text only exists in a layout.
 const BLOCK_KINDS = (Object.keys(BLOCK_KIND_KEYS) as Block["kind"][]).filter((kind) => kind !== "placeholder");
@@ -32,7 +33,7 @@ export function PagePanel({ page }: { page: Page }) {
       </Collapsible>
 
       <Collapsible title={`${t("panel.elements")} (${Object.keys(page.blocks).length})`}>
-        {Object.keys(page.blocks).length > 1 && <p className="weft-hint">Ziehen zum Sortieren - weiter unten liegt weiter vorne.</p>}
+        {Object.keys(page.blocks).length > 1 && <p className="weft-hint">{tr("ui.drag_to_sort_further_down_is")}</p>}
         <ul className="weft-block-list">
           {orderedValues(page.blocks).map((block, index) => {
             const group = page.groups.find((g) => g.blockIds.includes(block.id));

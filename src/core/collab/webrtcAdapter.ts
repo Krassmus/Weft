@@ -3,6 +3,7 @@ import type { Message, PeerId, PeerMetadata } from "@automerge/automerge-repo/sl
 import { decode, encode } from "cbor-x";
 import { joinRoom } from "trystero";
 import { create } from "zustand";
+import { tr } from "../i18n/tr";
 
 /** The state of the direct (WebRTC) connection, for the UI. */
 export const useDirectConnection = create<{
@@ -99,8 +100,8 @@ export class WebRtcNetworkAdapter extends NetworkAdapter {
           useDirectConnection.setState({
             state: "failed",
             error: /password/i.test(details.error)
-              ? "Falsches Passwort im Einladungslink."
-              : "Die Direktverbindung ließ sich nicht aufbauen (vielleicht blockiert das Netzwerk sie).",
+              ? tr("ui.wrong_password_in_the_invitation_link")
+              : tr("ui.the_direct_connection_could_not_be"),
           }),
       },
     );

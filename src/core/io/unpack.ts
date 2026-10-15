@@ -10,6 +10,7 @@ import type { LegacyPage } from "./legacyEventGraph";
 import { orderedIdRecord, orderedRecord, orderedRecordBy } from "../document/ordering";
 import { ensureBuiltinVariables } from "../document/variables";
 import { assetZipPath, COLLAB_FILE, customFontZipPath, encryptedScriptPath, HISTORY_FILE } from "./pack";
+import { tr } from "../i18n/tr";
 
 function escapeHtml(value: string): string {
   return value
@@ -384,12 +385,12 @@ export function unpackDocument(zipBytes: Uint8Array, options: { importAssets?: b
   const files = unzipSync(zipBytes);
 
   const jsonBytes = files["weft.json"];
-  if (!jsonBytes) throw new Error("weft.json fehlt im Archiv – das ist keine gültige Weft-Datei.");
+  if (!jsonBytes) throw new Error(tr("ui.weft_json_is_missing_in_the"));
   const doc = JSON.parse(strFromU8(jsonBytes)) as WeftDocument;
   const fileVersion = doc.formatVersion ?? 1;
   if (fileVersion > CURRENT_FORMAT_VERSION) {
     throw new Error(
-      "Diese Datei wurde mit einer neueren Version von Weft gespeichert und lässt sich hier nicht öffnen. Bitte Weft aktualisieren.",
+      tr("ui.this_file_was_saved_with_a"),
     );
   }
   // What the history, if there is one, has to agree with to be trusted (see readHistory).

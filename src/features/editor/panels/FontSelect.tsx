@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import { tr } from "../../../core/i18n/tr";
 
 export interface FontSelectOption {
   value: string;
@@ -69,7 +70,7 @@ export function FontSelect({ value, isMixed, groups, onPick }: FontSelectProps) 
   }, [open]);
 
   const current = groups.flatMap((g) => g.options).find((o) => o.value === value);
-  const currentLabel = isMixed ? "Verschiedene …" : (current?.label ?? value);
+  const currentLabel = isMixed ? tr("ui.mixed_2") : (current?.label ?? value);
 
   return (
     <div className="weft-font-select">

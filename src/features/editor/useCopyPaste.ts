@@ -19,6 +19,7 @@ import { useDocumentStore } from "../../core/document/store";
 import type { BlockContainerRef, SelectionRef } from "../../core/document/store";
 import { isTauri } from "../../core/io/fileIO";
 import type { Block, WeftModule } from "../../core/types";
+import { tr } from "../../core/i18n/tr";
 
 function isEditableTarget(el: Element | null): boolean {
   if (!el) return false;
@@ -134,7 +135,7 @@ function pasteEntry(entry: ClipboardEntry, selection: SelectionRef | null): void
 async function pasteImageBlob(
   blob: Blob,
   selection: SelectionRef | null,
-  fileName = "eingefügtes-bild.png",
+  fileName = tr("ui.pasted_image_png"),
   cascadeIndex = 0,
 ): Promise<void> {
   const target = resolveBlockTarget(selection);

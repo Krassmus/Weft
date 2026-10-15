@@ -3,13 +3,14 @@ import { createPortal } from "react-dom";
 import type { ImageBlock, ImageEffect, ImageEffectKind } from "../../../core/types";
 import { ImageSvg, useImageBoxAspect } from "../blocks/ImageSvg";
 import { StepperSlider } from "./StepperSlider";
+import { tr } from "../../../core/i18n/tr";
 
 export const IMAGE_EFFECT_KINDS: { id: ImageEffectKind; label: string }[] = [
-  { id: "border", label: "Rand" },
-  { id: "shadow", label: "Schatten" },
-  { id: "reflection", label: "Spiegelung" },
-  { id: "paper", label: "Papierrand" },
-  { id: "glow", label: "Leuchten" },
+  { id: "border", get label() { return tr("ui.border"); } },
+  { id: "shadow", get label() { return tr("ui.shadow"); } },
+  { id: "reflection", get label() { return tr("ui.reflection"); } },
+  { id: "paper", get label() { return tr("ui.paper_edge"); } },
+  { id: "glow", get label() { return tr("ui.glow"); } },
 ];
 
 /** What an effect starts with when it is chosen. Lengths are cqw. */
@@ -94,15 +95,15 @@ export function ImageEffectDialog({
     <div className="weft-modal-backdrop" onClick={onClose}>
       <div className="weft-modal weft-text-format-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="weft-modal-header">
-          <h3>Effekt</h3>
-          <button type="button" className="weft-icon-button" title="Schließen" onClick={onClose}>
+          <h3>{tr("ui.effect")}</h3>
+          <button type="button" className="weft-icon-button" title={tr("ui.close")} onClick={onClose}>
             ×
           </button>
         </div>
 
         <div
           className="weft-image-effect-preview"
-          aria-label="Vorschau"
+          aria-label={tr("ui.preview")}
           // A reflection reaches below the picture: room for it.
           style={effect?.kind === "reflection" ? { paddingBottom: 36 + previewHeight * 0.9 } : undefined}
         >
@@ -113,12 +114,12 @@ export function ImageEffectDialog({
 
         <div className="weft-text-format-grid">
           <label className="weft-field weft-text-format-wide">
-            <span>Effekt</span>
+            <span>{tr("ui.effect")}</span>
             <select
               value={effect?.kind ?? "none"}
               onChange={(e) => setEffect(e.target.value === "none" ? null : defaultEffect(e.target.value as ImageEffectKind))}
             >
-              <option value="none">Keiner</option>
+              <option value="none">{tr("ui.none")}</option>
               {IMAGE_EFFECT_KINDS.map((kind) => (
                 <option key={kind.id} value={kind.id}>
                   {kind.label}
@@ -128,39 +129,39 @@ export function ImageEffectDialog({
           </label>
 
           {effect?.kind === "border" && [
-            colour("Farbe", "color", effect.color),
+            colour(tr("ui.colour"), "color", effect.color),
             length("Dicke (% der Folienbreite)", "width", effect.width, 0.1, 8),
-            percent("Deckkraft (%)", "opacity", effect.opacity),
+            percent(tr("ui.opacity_2"), "opacity", effect.opacity),
           ]}
           {effect?.kind === "shadow" && [
-            colour("Farbe", "color", effect.color),
-            percent("Deckkraft (%)", "opacity", effect.opacity),
-            length("Versatz nach rechts", "offsetX", effect.offsetX, -10, 10),
-            length("Versatz nach unten", "offsetY", effect.offsetY, -10, 10),
-            length("Unschärfe", "blur", effect.blur, 0, 12),
+            colour(tr("ui.colour"), "color", effect.color),
+            percent(tr("ui.opacity_2"), "opacity", effect.opacity),
+            length(tr("ui.offset_to_the_right"), "offsetX", effect.offsetX, -10, 10),
+            length(tr("ui.offset_downwards"), "offsetY", effect.offsetY, -10, 10),
+            length(tr("ui.blur"), "blur", effect.blur, 0, 12),
           ]}
           {effect?.kind === "reflection" && [
-            percent("Deckkraft (%)", "opacity", effect.opacity),
-            number("Länge der Spiegelung (%)", "height", effect.height, 5, 100),
-            number("Verzerrung: Höhe (%)", "squash", effect.squash, 20, 100),
-            number("Verzerrung: Neigung (°)", "skew", effect.skew, -60, 60),
-            length("Abstand zum Bild", "gap", effect.gap, 0, 10),
+            percent(tr("ui.opacity_2"), "opacity", effect.opacity),
+            number(tr("ui.length_of_the_reflection"), "height", effect.height, 5, 100),
+            number(tr("ui.distortion_height"), "squash", effect.squash, 20, 100),
+            number(tr("ui.distortion_tilt"), "skew", effect.skew, -60, 60),
+            length(tr("ui.distance_to_the_image"), "gap", effect.gap, 0, 10),
           ]}
           {effect?.kind === "paper" && [
-            colour("Farbe des Papiers", "color", effect.color),
-            length("Breite des Randes", "width", effect.width, 0.1, 8),
-            number("Rauheit der Kante", "roughness", effect.roughness, 0, 100),
+            colour(tr("ui.colour_of_the_paper"), "color", effect.color),
+            length(tr("ui.width_of_the_border"), "width", effect.width, 0.1, 8),
+            number(tr("ui.roughness_of_the_edge"), "roughness", effect.roughness, 0, 100),
           ]}
           {effect?.kind === "glow" && [
-            colour("Farbe", "color", effect.color),
-            length("Größe", "size", effect.size, 0.2, 10),
-            number("Stärke", "strength", effect.strength, 0, 100),
+            colour(tr("ui.colour"), "color", effect.color),
+            length(tr("ui.size"), "size", effect.size, 0.2, 10),
+            number(tr("ui.strength"), "strength", effect.strength, 0, 100),
           ]}
         </div>
 
         <div className="weft-text-format-actions">
           <button type="button" className="weft-ghost-button" onClick={onClose}>
-            Abbrechen
+            {tr("ui.cancel")}
           </button>
           <button
             type="button"
@@ -170,7 +171,7 @@ export function ImageEffectDialog({
               onClose();
             }}
           >
-            Übernehmen
+            {tr("ui.apply")}
           </button>
         </div>
       </div>

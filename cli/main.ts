@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { pageLabels } from "../src/core/document/pageLabels";
+import { setFixedLanguage } from "../src/core/i18n/tr";
 import { loadWeft, CliError } from "./load";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -97,6 +98,10 @@ function printFindings(findings: Finding[], file: string): void {
     if (f.hint) console.log(`           → ${f.hint}`);
   }
 }
+
+// The default content a command makes (a new text, the names of a branch ...) is in this language: German, as the tool's own messages
+// are - WEFT_LANG=en for English.
+setFixedLanguage(process.env.WEFT_LANG === "en" ? "en" : "de");
 
 async function main(argv: string[]): Promise<number> {
   const { positional, flags } = parseArgs(argv);

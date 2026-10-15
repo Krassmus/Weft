@@ -1,3 +1,4 @@
+import { tr } from "../../../core/i18n/tr";
 /** The longest value the slider of a SecondsControl reaches (seconds); longer ones can be typed. */
 const SLIDER_MAX_SECONDS = 2;
 
@@ -24,7 +25,7 @@ export function SecondsControl({
   const setSeconds = (value: number) => onChange(Math.max(minMs, Math.round(value * 10) * 100));
   return (
     <span className="weft-delay-control">
-      <button type="button" className="weft-delay-step" aria-label="0,1 Sekunden weniger" disabled={valueMs <= minMs} onClick={() => setSeconds(seconds - 0.1)}>
+      <button type="button" className="weft-delay-step" aria-label={tr("ui.0_1_seconds_less")} disabled={valueMs <= minMs} onClick={() => setSeconds(seconds - 0.1)}>
         −
       </button>
       <input
@@ -38,7 +39,7 @@ export function SecondsControl({
           if (Number.isFinite(value) && (minMs === 0 ? value >= 0 : value > 0)) onChange(Math.round(value * 1000));
         }}
       />
-      <button type="button" className="weft-delay-step" aria-label="0,1 Sekunden mehr" onClick={() => setSeconds(seconds + 0.1)}>
+      <button type="button" className="weft-delay-step" aria-label={tr("ui.0_1_seconds_more")} onClick={() => setSeconds(seconds + 0.1)}>
         +
       </button>
       <input
@@ -48,7 +49,7 @@ export function SecondsControl({
         max={SLIDER_MAX_SECONDS}
         step={0.1}
         value={Math.min(Math.max(seconds, minMs / 1000), SLIDER_MAX_SECONDS)}
-        aria-label={`${label} einstellen`}
+        aria-label={tr("ui.set", { label: label })}
         onChange={(e) => setSeconds(Number(e.target.value))}
       />
     </span>

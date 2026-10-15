@@ -1,15 +1,16 @@
 import type { Transition, TransitionDirection, TransitionType } from "../types";
+import { tr } from "../i18n/tr";
 
 /** The order the transition <select> lists them in (TransitionPanel.tsx). */
 export const TRANSITION_TYPES: TransitionType[] = ["none", "fade", "move", "iris", "cube", "blur", "horror"];
 
 export const TRANSITION_LABELS: Record<TransitionType, string> = {
-  none: "Keine Animation",
-  fade: "Fade",
-  move: "Move",
+  get none() { return tr("ui.no_animation"); },
+  get fade() { return tr("ui.fade"); },
+  get move() { return tr("ui.move"); },
   iris: "Iris-Blende",
-  cube: "Würfel",
-  blur: "Blur / Dissolve",
+  get cube() { return tr("ui.cube"); },
+  get blur() { return tr("ui.blur_dissolve"); },
   horror: "Horror",
 };
 
@@ -27,10 +28,10 @@ export const DEFAULT_TRANSITION_DURATION_MS: Record<TransitionType, number> = {
 };
 
 export const DIRECTION_LABELS: Record<TransitionDirection, string> = {
-  left: "Nach links",
-  right: "Nach rechts",
-  up: "Nach oben",
-  down: "Nach unten",
+  get left() { return tr("ui.to_the_left"); },
+  get right() { return tr("ui.to_the_right"); },
+  get up() { return tr("ui.up"); },
+  get down() { return tr("ui.down"); },
 };
 
 /** Where a Move or Cube goes when no direction was picked: a Move slides the old slide off to the

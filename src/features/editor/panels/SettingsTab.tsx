@@ -44,6 +44,7 @@ import {
   invitationLink,
 } from "../../../core/collab/session";
 import { useDragReorder } from "../useDragReorder";
+import { tr } from "../../../core/i18n/tr";
 
 const CUSTOM_VALUE = "custom";
 
@@ -82,10 +83,9 @@ function LanguagesField() {
 
   return (
     <div className="weft-field">
-      <span>Sprachen</span>
+      <span>{tr("ui.languages")}</span>
       <p className="weft-hint">
-        Ohne Auswahl ist das Lernmodul einsprachig. Die oberste Sprache ist die Standardsprache - zum Ändern die
-        Zeilen ziehen.
+        {tr("ui.without_a_selection_the_learning_module")}
       </p>
       {languages.length > 0 && (
         <ul className="weft-language-list">
@@ -95,11 +95,11 @@ function LanguagesField() {
               <li key={locale} className={"weft-language-row" + dragClassName} {...dragAttrs}>
                 <span className="weft-language-row-flag">{flagForLocale(locale)}</span>
                 <span className="weft-language-row-name">{languageName(locale, uiLanguage)}</span>
-                {index === 0 && <span className="weft-language-row-default">Standard</span>}
+                {index === 0 && <span className="weft-language-row-default">{tr("ui.default")}</span>}
                 <button
                   type="button"
                   className="weft-icon-button"
-                  title="Sprache entfernen"
+                  title={tr("ui.remove_language")}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={() => setLanguages(languages.filter((l) => l !== locale))}
                 >
@@ -114,7 +114,7 @@ function LanguagesField() {
         <div className="weft-language-picker">
           <input
             autoFocus
-            placeholder="Sprache suchen …"
+            placeholder={tr("ui.search_language")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
@@ -141,15 +141,15 @@ function LanguagesField() {
                 </button>
               </li>
             ))}
-            {candidates.length === 0 && <li className="weft-hint">Keine passende Sprache.</li>}
+            {candidates.length === 0 && <li className="weft-hint">{tr("ui.no_matching_language")}</li>}
           </ul>
           <button type="button" className="weft-ghost-button weft-full-width" onClick={() => setAdding(false)}>
-            Fertig
+            {tr("ui.done")}
           </button>
         </div>
       ) : (
         <button type="button" className="weft-ghost-button weft-full-width" onClick={() => setAdding(true)}>
-          + Sprache hinzufügen
+          {tr("ui.add_language")}
         </button>
       )}
     </div>
@@ -180,7 +180,7 @@ function AspectRatioField() {
   return (
     <>
       <label className="weft-field">
-        <span>Seitenverhältnis</span>
+        <span>{tr("ui.aspect_ratio")}</span>
         <select
           value={customMode ? CUSTOM_VALUE : aspectRatio}
           onChange={(e) => {
@@ -198,7 +198,7 @@ function AspectRatioField() {
               {preset.label}
             </option>
           ))}
-          <option value={CUSTOM_VALUE}>Anderes Verhältnis</option>
+          <option value={CUSTOM_VALUE}>{tr("ui.other_ratio")}</option>
         </select>
       </label>
       {customMode && (
@@ -208,7 +208,7 @@ function AspectRatioField() {
               type="number"
               min={0}
               step="any"
-              aria-label="Breite"
+              aria-label={tr("ui.width")}
               value={draft.width}
               onChange={(e) => change({ ...draft, width: e.target.value })}
             />
@@ -217,7 +217,7 @@ function AspectRatioField() {
               type="number"
               min={0}
               step="any"
-              aria-label="Höhe"
+              aria-label={tr("ui.height")}
               value={draft.height}
               onChange={(e) => change({ ...draft, height: e.target.value })}
             />
@@ -225,7 +225,7 @@ function AspectRatioField() {
           </div>
           {!valid && (
             <p className="weft-variable-problem">
-              Zwei Zahlen größer als 0 - das Verhältnis darf höchstens 1:{MAX_ASPECT} bis {MAX_ASPECT}:1 betragen.
+              {tr("ui.aspect_ratio_invalid", { max: MAX_ASPECT })}
             </p>
           )}
         </>
@@ -239,7 +239,7 @@ function AspectRatioField() {
 function AspectRatioSketch({ aspect }: { aspect: number }) {
   const wide = aspect >= 1;
   return (
-    <div className="weft-aspect-sketch" title="So sieht das Seitenverhältnis aus">
+    <div className="weft-aspect-sketch" title={tr("ui.this_is_what_the_aspect_ratio")}>
       <div
         className="weft-aspect-sketch-slide"
         style={{ width: wide ? "100%" : `${aspect * 100}%`, height: wide ? `${100 / aspect}%` : "100%" }}
@@ -262,8 +262,8 @@ function FolderSyncField() {
   if (!folderSyncAvailable()) {
     return (
       <div className="weft-field">
-        <span>Ordner-Abgleich</span>
-        <p className="weft-hint">Den Abgleich über einen gemeinsamen Ordner gibt es in der Desktop-App.</p>
+        <span>{tr("ui.folder_sync")}</span>
+        <p className="weft-hint">{tr("ui.syncing_through_a_shared_folder_is")}</p>
       </div>
     );
   }
@@ -283,7 +283,7 @@ function FolderSyncField() {
       setModules(await listModulesInFolder(folder));
       setPickedFolder(folder);
     } catch (err) {
-      setError(`Der Ordner lässt sich nicht lesen: ${err instanceof Error ? err.message : String(err)}`);
+      setError(tr("ui.the_folder_cannot_be_read", { n0: err instanceof Error ? err.message : String(err) }));
     }
   }
 
@@ -301,43 +301,41 @@ function FolderSyncField() {
   const { status } = sync;
   return (
     <div className="weft-field">
-      <span>Ordner-Abgleich</span>
+      <span>{tr("ui.folder_sync")}</span>
       <p className="weft-hint">
-        Mit einem Ordner abgleichen, den ein Dienst wie Nextcloud oder Sciebo für alle gleich hält: Weft legt dort die
-        Änderungen ab und übernimmt, was die anderen hineinlegen. Niemand muss gleichzeitig online sein, ein Server ist
-        nicht nötig.
+        {tr("ui.sync_with_a_folder_that_a")}
       </p>
       {sync.active ? (
         <>
           <p className="weft-hint">
-            Ordner: {sync.folder}
+            {tr("ui.folder")} {sync.folder}
             <br />
             {status.lastSyncAt
-              ? `Zuletzt abgeglichen: ${new Date(status.lastSyncAt).toLocaleTimeString()} - ${status.peerFiles} ${status.peerFiles === 1 ? "weitere Kopie" : "weitere Kopien"} im Ordner`
-              : "Gleiche ab …"}
-            {status.missingMedia > 0 && ` - ${status.missingMedia} ${status.missingMedia === 1 ? "Bild/Video fehlt" : "Bilder/Videos fehlen"} noch (kommen mit dem Ordner)`}
+              ? tr("ui.last_synced", { time: new Date(status.lastSyncAt).toLocaleTimeString(), count: status.peerFiles, copies: tr(status.peerFiles === 1 ? "ui.other_copy" : "ui.other_copies") })
+              : tr("ui.syncing")}
+            {status.missingMedia > 0 && ` - ${tr("ui.media_missing_still", { count: status.missingMedia, what: tr(status.missingMedia === 1 ? "ui.image_video_missing_one" : "ui.image_video_missing_many") })}`}
           </p>
           <button type="button" className="weft-ghost-button weft-full-width" onClick={() => stopFolderSync(true)}>
-            Abgleich beenden
+            {tr("ui.stop_syncing")}
           </button>
         </>
       ) : (
         <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void chooseAndStart()}>
-          Ordner wählen und abgleichen …
+          {tr("ui.choose_folder_and_sync")}
         </button>
       )}
       {status.error && <p className="weft-placeholder-warning">{status.error}</p>}
       <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void browse()}>
-        Lernmodul aus einem Ordner öffnen …
+        {tr("ui.open_learning_module_from_a_folder")}
       </button>
       {modules && (
         <div className="weft-folder-modules">
           {modules.length === 0 ? (
-            <p className="weft-hint">In diesem Ordner liegt noch kein abgeglichenes Lernmodul.</p>
+            <p className="weft-hint">{tr("ui.there_is_no_synchronised_learning_module")}</p>
           ) : (
             modules.map((module) => (
               <button key={module.dir} type="button" className="weft-ghost-button weft-full-width" onClick={() => void openModule(module)}>
-                {module.title} ({module.peerFiles} {module.peerFiles === 1 ? "Kopie" : "Kopien"})
+                {module.title} ({module.peerFiles} {module.peerFiles === 1 ? tr("ui.copy_2") : tr("ui.copies")})
               </button>
             ))
           )}
@@ -375,18 +373,16 @@ function HistoryField() {
   async function compact() {
     const together = live !== null || folderActive;
     const ok = await confirmDestructive(
-      `Der Änderungsverlauf wird verkleinert: Es bleiben nur die letzten Änderungen (rund ${formatBytes(COMPACT_KEEP_BYTES)} Verlauf). Frühere Fassungen von Texten und Gelöschtes aus der Zeit davor sind endgültig weg, und Rückgängig-Schritte gibt es erst wieder für neue Änderungen.` +
-        "\n\nKopien dieses Lernmoduls, die vorher entstanden sind, lassen sich danach nicht mehr einmischen." +
-        (together
-          ? "\n\nDie Verbindung zu den anderen (An Datei zusammen arbeiten, Ordner-Abgleich) wird beendet. Zum gemeinsamen Arbeiten schaltest du sie danach wieder ein und gibst die neue Datei weiter."
-          : ""),
-      "Verlauf verkleinern",
+      tr("ui.compact_confirm", { size: formatBytes(COMPACT_KEEP_BYTES) }) +
+        `\n\n${tr("ui.compact_copies")}` +
+        (together ? `\n\n${tr("ui.compact_connection")}` : ""),
+      tr("ui.reduce_history"),
     );
     if (!ok) return;
     setBusy(true);
     try {
       if (await compactHistory()) setStats(null);
-      else window.alert("Das Lernmodul wurde währenddessen geändert. Bitte noch einmal versuchen.");
+      else window.alert(tr("ui.the_learning_module_was_changed_in"));
     } finally {
       setBusy(false);
     }
@@ -398,14 +394,12 @@ function HistoryField() {
     <>
       <div className="weft-divider" />
       <div className="weft-field">
-        <span>Änderungsverlauf</span>
+        <span>{tr("ui.change_history")}</span>
         <p className="weft-hint">
-          Das Lernmodul merkt sich jede Änderung (dadurch lassen sich Kopien zusammenführen), auch frühere Fassungen
-          von Texten und Gelöschtes. Das ist inzwischen {formatBytes(stats.historyBytes)} der Datei ({stats.changes.toLocaleString("de-DE")}{" "}
-          Änderungen).
+          {tr("ui.history_explainer", { size: formatBytes(stats.historyBytes), changes: stats.changes.toLocaleString() })}
         </p>
         <button type="button" className="weft-ghost-button weft-full-width" disabled={busy} onClick={() => void compact()}>
-          {busy ? "Verkleinere …" : "Verlauf verkleinern …"}
+          {busy ? tr("ui.reducing") : tr("ui.reduce_history_2")}
         </button>
       </div>
     </>
@@ -415,8 +409,8 @@ function HistoryField() {
 const DIRECT_STATUS_TEXT = {
   off: "",
   searching: "Direktverbindung: suche die anderen …",
-  connected: "Direktverbindung steht",
-  failed: "Direktverbindung gescheitert",
+  get connected() { return tr("ui.direct_connection_established"); },
+  get failed() { return tr("ui.direct_connection_failed"); },
 } as const;
 
 /**
@@ -442,17 +436,17 @@ function CollaborationField() {
       await navigator.clipboard.writeText(invitationLink() ?? "");
       setCopied(true);
     } catch {
-      setError("Kopieren nicht möglich - den Link bitte markieren und von Hand kopieren.");
+      setError(tr("ui.copying_is_not_possible_please_select"));
     }
   }
 
   return (
     <div className="weft-field">
-      <span>Zusammenarbeit</span>
+      <span>{tr("ui.collaboration")}</span>
       <p className="weft-hint">
-        Einer Einladung beitreten und die Änderungen einer Dateikopie übernehmen: Menü „Datei“.
+        {tr("ui.join_an_invitation_and_take_over")}
       </p>
-      <p className="weft-hint">Live: Zusammen im selben Lernmodul arbeiten.</p>
+      <p className="weft-hint">{tr("ui.live_work_together_on_the_same")}</p>
       <label className="weft-field weft-field-inline">
         <input
           type="checkbox"
@@ -460,41 +454,39 @@ function CollaborationField() {
           disabled={!webRtcAvailable && !serverUrl}
           onChange={(e) => (e.target.checked ? enableLiveCollaboration() : disableLiveCollaboration())}
         />
-        <span>An Datei zusammen arbeiten</span>
+        <span>{tr("ui.work_on_the_file_together")}</span>
       </label>
       <p className="weft-hint">
-        Jeder mit der Datei oder folgendem Link kann an deiner Datei mitarbeiten, solange du online bist. Passwort steht
-        in der Datei selbst drin.
+        {tr("ui.everybody_with_the_file_or_the")}
       </p>
       {live && (
         <>
-          <input readOnly value={invitationLink() ?? ""} onFocus={(e) => e.currentTarget.select()} title="Diesen Link an andere weitergeben" />
+          <input readOnly value={invitationLink() ?? ""} onFocus={(e) => e.currentTarget.select()} title={tr("ui.pass_this_link_on_to_others")} />
           <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void copyLink()}>
-            {copied ? "Kopiert" : "Link kopieren"}
+            {copied ? tr("ui.copied") : tr("ui.copy_link")}
           </button>
           <p className="weft-hint">
-            Für Leute, die die Datei nicht haben: Wer den Link hat, kann beitreten und alles ändern. Er bleibt gültig,
-            auch wenn du die gespeicherte Datei später wieder öffnest.
+            {tr("ui.for_people_who_do_not_have")}
           </p>
         </>
       )}
       {live && connection.state === "off" && (
         <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void connectLiveCollaboration(true)}>
-          Jetzt verbinden
+          {tr("ui.connect_now")}
         </button>
       )}
-      {!webRtcAvailable && <p className="weft-placeholder-warning">Dieses System unterstützt keine Direktverbindung (WebRTC).</p>}
+      {!webRtcAvailable && <p className="weft-placeholder-warning">{tr("ui.this_system_does_not_support_direct")}</p>}
       {error && <p className="weft-placeholder-warning">{error}</p>}
       {connection.state !== "off" && (
         <p className={connection.state === "failed" ? "weft-placeholder-warning" : "weft-hint"}>
           {DIRECT_STATUS_TEXT[connection.state]}
-          {connection.state === "connected" && ` (${connection.peers} ${connection.peers === 1 ? "Person" : "Personen"})`}
+          {connection.state === "connected" && ` (${connection.peers} ${connection.peers === 1 ? tr("ui.person") : tr("ui.people")})`}
           {connection.error && ` - ${connection.error}`}
         </p>
       )}
       {people.length > 0 && (
         <div className="weft-presence-list">
-          <span className="weft-hint">Gerade dabei:</span>
+          <span className="weft-hint">{tr("ui.currently_working")}</span>
           {people.map((person) => (
             <span key={person.peerId} className="weft-presence-list-item">
               <PersonAvatar name={person.name} color={presenceColor(person.peerId)} avatar={person.avatar} size={20} />
@@ -505,10 +497,13 @@ function CollaborationField() {
       )}
       {missing > 0 && (
         <p className="weft-hint">
-          Medien: {missing} {missing === 1 ? "Datei fehlt" : "Dateien fehlen"} noch
+          {tr("ui.media")} {missing} {missing === 1 ? tr("ui.file_missing_2") : tr("ui.files_missing")}
           {receiving.length > 0 &&
-            ` - ${megabytes(receiving.reduce((sum, t) => sum + Math.min(t.size, t.received * 48 * 1024), 0))} von ${megabytes(receiving.reduce((sum, t) => sum + t.size, 0))} MB werden übertragen`}
-          . Sie kommen von den anderen, sobald jemand online ist, der sie hat.
+            ` - ${tr("ui.transferring", {
+              done: megabytes(receiving.reduce((sum, t) => sum + Math.min(t.size, t.received * 48 * 1024), 0)),
+              total: megabytes(receiving.reduce((sum, t) => sum + t.size, 0)),
+            })}`}
+          . {tr("ui.media_come_from_others")}
         </p>
       )}
     </div>
@@ -521,7 +516,7 @@ export function SettingsTab() {
   return (
     <div className="weft-tab-panel">
       <label className="weft-field">
-        <span>Titel</span>
+        <span>{tr("ui.title")}</span>
         <input value={content.title} onChange={(e) => setModuleTitle(e.target.value)} />
       </label>
 
@@ -549,22 +544,18 @@ export function SettingsTab() {
           checked={content.keyboardNavigationEnabled}
           onChange={(e) => setKeyboardNavigationEnabled(e.target.checked)}
         />
-        <span>Navigation per Tastatur und Tippen (Leertaste, Pfeiltasten, Klick auf die Folie)</span>
+        <span>{tr("ui.navigation_with_keyboard_and_tapping_space")}</span>
       </label>
       <p className="weft-hint">
-        Mit Leertaste und Pfeiltasten geht es vor und zurück; ein Klick oder Tipp auf die Folie (nicht auf einen Button,
-        ein Quiz oder ein anderes bedienbares Element) geht weiter, am linken Rand (das linke Fünftel) zurück. Ausgeschaltet können Lernende nur noch über Buttons
-        oder eine Quiz-Auswertung weiterblättern - vor allem nicht mehr zurück, um ein bereits beantwortetes Quiz
-        erneut zu versuchen.
+        {tr("ui.space_and_the_arrow_keys_go")}
       </p>
 
       <div className="weft-divider" />
 
       <div className="weft-field">
-        <span>Eigene Schriften</span>
+        <span>{tr("ui.own_fonts")}</span>
         <p className="weft-hint">
-          Hochgeladene Schriften stehen im ganzen Lernmodul zur Verfügung, tauchen bei jedem Textelement in der
-          Schriftarten-Auswahl auf und werden beim Export automatisch mit eingebettet.
+          {tr("ui.uploaded_fonts_are_available_in_the")}
         </p>
         {content.customFonts.length > 0 && (
           <div className="weft-custom-font-list">
@@ -576,9 +567,9 @@ export function SettingsTab() {
                 </span>
                 <button
                   type="button"
-                  title="Entfernen"
+                  title={tr("ui.remove")}
                   onClick={() => {
-                    void confirmDestructive(`Schriftart „${font.family}“ wirklich entfernen?`, "Schriftart entfernen").then(
+                    void confirmDestructive(tr("ui.really_remove_the_font", { family: font.family }), tr("ui.remove_font")).then(
                       (ok) => {
                         if (ok) removeCustomFont(font.id);
                       },
@@ -600,7 +591,7 @@ export function SettingsTab() {
             });
           }}
         >
-          + Eigene Schriftart hochladen
+          {tr("ui.upload_your_own_font_2")}
         </button>
       </div>
     </div>

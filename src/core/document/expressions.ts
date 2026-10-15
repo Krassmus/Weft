@@ -1,3 +1,4 @@
+import { tr } from "../i18n/tr";
 /**
  * The formula language behind "Berechnet" variables (and the built-in `success`'s optional formula),
  * e.g. `score > 10 && progress === 100`. It is JavaScript expression syntax - what you would write
@@ -93,12 +94,12 @@ function tokenize(source: string): Token[] {
           text += source[j++];
         }
       }
-      if (j >= source.length) throw new ExpressionError(`Der Text ab Position ${i + 1} ist nicht geschlossen (${ch} fehlt).`);
+      if (j >= source.length) throw new ExpressionError(tr("ui.expr_string_not_closed", { pos: i + 1, quote: ch }));
       tokens.push({ kind: "str", text, pos: i });
       i = j + 1;
     } else if (ch === "`") {
       const end = source.indexOf("`", i + 1);
-      if (end === -1) throw new ExpressionError(`Der Variablenname ab Position ${i + 1} ist nicht geschlossen (\` fehlt).`);
+      if (end === -1) throw new ExpressionError(tr("ui.expr_name_not_closed", { pos: i + 1 }));
       tokens.push({ kind: "quoted-name", text: source.slice(i + 1, end).trim(), pos: i });
       i = end + 1;
     } else if (/[\p{L}_$]/u.test(ch)) {
@@ -166,7 +167,7 @@ class Parser {
     if (!this.isOp("?")) return condition;
     this.take();
     const then = this.parseTernary();
-    if (!this.isOp(":")) throw new ExpressionError("Bei ? fehlt der Doppelpunkt (: für den Sonst-Fall).");
+    if (!this.isOp(":")) throw new ExpressionError(tr("ui.the_colon_is_missing_after_for"));
     this.take();
     return { t: "cond", c: condition, a: then, b: this.parseTernary() };
   }
@@ -262,13 +263,13 @@ class Parser {
       case "name": {
         const lower = token.text.toLowerCase();
         if (lower in WORD_LITERALS) return { t: "bool", v: WORD_LITERALS[lower] };
-        if (lower in WORD_OPERATORS) throw new ExpressionError(`„${token.text}" steht an Position ${token.pos + 1} an der falschen Stelle.`);
+        if (lower in WORD_OPERATORS) throw new ExpressionError(tr("ui.expr_misplaced", { word: token.text, pos: token.pos + 1 }));
         // `Math.round(...)` is the same function as `round(...)`.
         if (token.text === "Math" && this.isOp(".")) {
           this.take();
           const member = this.take();
           if (member.kind !== "name" || !this.isOp("(")) {
-            throw new ExpressionError(`Nach „Math." muss eine Funktion mit Klammern folgen (z. B. Math.round(x)).`);
+            throw new ExpressionError(tr("ui.a_function_with_parentheses_must_follow"));
           }
           return this.parseCall(member);
         }
@@ -278,20 +279,20 @@ class Parser {
       case "op":
         if (token.text === "(") {
           const inner = this.parseTernary();
-          if (!this.isOp(")")) throw new ExpressionError("Eine schließende Klammer fehlt.");
+          if (!this.isOp(")")) throw new ExpressionError(tr("ui.a_closing_parenthesis_is_missing"));
           this.take();
           return inner;
         }
         throw new ExpressionError(`Unerwartet „${token.text}" an Position ${token.pos + 1}.`);
       default:
-        throw new ExpressionError("Der Ausdruck ist unvollständig.");
+        throw new ExpressionError(tr("ui.the_expression_is_incomplete"));
     }
   }
 
   private parseCall(nameToken: Token): Expr {
     const name = nameToken.text.toLowerCase();
     const arity = FUNCTIONS[name];
-    if (!arity) throw new ExpressionError(`Die Funktion „${nameToken.text}" gibt es nicht (erlaubt: ${Object.keys(FUNCTIONS).join(", ")}).`);
+    if (!arity) throw new ExpressionError(tr("ui.expr_unknown_function", { name: nameToken.text, allowed: Object.keys(FUNCTIONS).join(", ") }));
     this.take(); // (
     const args: Expr[] = [];
     if (!this.isOp(")")) {
@@ -301,11 +302,11 @@ class Parser {
         args.push(this.parseTernary());
       }
     }
-    if (!this.isOp(")")) throw new ExpressionError(`Bei ${nameToken.text}( fehlt die schließende Klammer.`);
+    if (!this.isOp(")")) throw new ExpressionError(tr("ui.expr_missing_closing", { name: nameToken.text }));
     this.take();
     if (args.length < arity[0] || args.length > arity[1]) {
-      const wanted = arity[0] === arity[1] ? `${arity[0]}` : `${arity[0]} bis ${arity[1]}`;
-      throw new ExpressionError(`${nameToken.text}() braucht ${wanted} Angabe${wanted === "1" ? "" : "n"}, hier sind es ${args.length}.`);
+      const wanted = arity[0] === arity[1] ? `${arity[0]}` : tr("ui.expr_arity_range", { from: arity[0], to: arity[1] });
+      throw new ExpressionError(tr("ui.expr_arity", { name: nameToken.text, wanted, count: args.length }));
     }
     return { t: "call", f: name, args };
   }
@@ -315,7 +316,7 @@ export type ParseResult = { ok: true; expr: Expr } | { ok: false; error: string 
 
 /** Parses `source` - the syntax only; names aren't checked (see referencedNames). */
 export function parseExpression(source: string): ParseResult {
-  if (!source.trim()) return { ok: false, error: "Noch keine Berechnung eingegeben." };
+  if (!source.trim()) return { ok: false, error: tr("ui.no_calculation_entered_yet") };
   try {
     return { ok: true, expr: new Parser(tokenize(source)).parse() };
   } catch (error) {

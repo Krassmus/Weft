@@ -3,6 +3,7 @@ import { blobToDataUrl } from "../runtime/buildPreviewAssetUrls";
 import { localAssetUrl } from "./localAssetUrl";
 import { PLAYER_MARKER_FILE } from "./pack";
 import { bytesOfEncryptedScript } from "./unpack";
+import { tr } from "../i18n/tr";
 
 /**
  * A player file (see exportPlayerFile in fileIO.ts): a .weft archive that holds only the page that plays the
@@ -49,7 +50,7 @@ export function withPlayerChrome(html: string): string {
 export async function loadPlayerFile(zipBytes: Uint8Array): Promise<PlayerFile> {
   const files = unzipSync(zipBytes);
   const page = files["index.html"];
-  if (!page) throw new Error("index.html fehlt im Archiv – das ist keine gültige Player-Datei.");
+  if (!page) throw new Error(tr("ui.index_html_is_missing_in_the"));
   let html = strFromU8(page);
 
   const data = DATA_TAG.exec(html);

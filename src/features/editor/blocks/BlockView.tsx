@@ -67,6 +67,7 @@ import {
   snapResize,
   unrotateDelta,
 } from "./resizeMath";
+import { tr } from "../../../core/i18n/tr";
 
 const EDGE_GRAB_PX = 10;
 const DRAG_THRESHOLD_PX = 3;
@@ -91,11 +92,11 @@ function layerMenuItems(
   onBringToFront: (() => void) | undefined,
   onSendToBack: (() => void) | undefined,
   onDelete: (() => void) | undefined,
-  deleteLabel = "Löschen",
+  deleteLabel = tr("ui.delete"),
 ): ContextMenuItem[] {
   const items: ContextMenuItem[] = [];
-  if (onBringToFront) items.push({ label: "Ganz nach vorne", onClick: onBringToFront });
-  if (onSendToBack) items.push({ label: "Ganz nach hinten", onClick: onSendToBack });
+  if (onBringToFront) items.push({ label: tr("ui.bring_to_front"), onClick: onBringToFront });
+  if (onSendToBack) items.push({ label: tr("ui.send_to_back"), onClick: onSendToBack });
   if (onDelete) {
     if (items.length > 0) items.push({ separator: true });
     items.push({ label: deleteLabel, danger: true, onClick: onDelete });
@@ -702,7 +703,7 @@ function BlockContent({
       // In the layout: the sample text carries the formatting of the texts the pages have for this placeholder.
       return (
         <div className="weft-edit-block-placeholder-box">
-          <span className="weft-edit-block-placeholder-label">{block.label || "Platzhalter"}</span>
+          <span className="weft-edit-block-placeholder-label">{block.label || tr("ui.placeholder")}</span>
           <EditableRichText
             className="weft-edit-block-text"
             html={block.html}
@@ -733,7 +734,7 @@ function BlockContent({
       return block.assetId ? (
         <img src={getObjectUrl(block.assetId)} alt={block.alt} className="weft-edit-block-image" draggable={false} />
       ) : (
-        <div className="weft-edit-block-placeholder">Bild wählen …</div>
+        <div className="weft-edit-block-placeholder">{tr("ui.choose_image")}</div>
       );
     case "video":
       // No native controls here, regardless of the block's own setting: pointer-events: none
@@ -750,7 +751,7 @@ function BlockContent({
           <div className="weft-edit-block-video-icon" dangerouslySetInnerHTML={{ __html: video2IconSvg }} />
         </div>
       ) : (
-        <div className="weft-edit-block-placeholder">Video wählen …</div>
+        <div className="weft-edit-block-placeholder">{tr("ui.choose_video")}</div>
       );
     case "iframe":
       return block.qrCode ? (
@@ -841,11 +842,11 @@ function QuizBlockCanvas({
   // remove) instead of letting the click bubble up to BlockView's generic "Löschen"/layer-order
   // one - so those have to be offered here too, tacked onto both of this component's own menus, or
   // a quiz block would have no on-canvas way to remove or reorder itself at all.
-  const layerItems = layerMenuItems(onBringToFront, onSendToBack, onDelete, "Objekt löschen");
+  const layerItems = layerMenuItems(onBringToFront, onSendToBack, onDelete, tr("ui.delete_object"));
   const deleteBlockItems: ContextMenuItem[] = layerItems.length > 0 ? [{ separator: true }, ...layerItems] : [];
 
   function addOption() {
-    onUpdate?.({ options: [...block.options, { id: createId(), html: "Neue Option" }] });
+    onUpdate?.({ options: [...block.options, { id: createId(), html: tr("ui.new_option") }] });
   }
 
   function removeOption(optionId: string) {
@@ -856,13 +857,13 @@ function QuizBlockCanvas({
   }
 
   async function removeOptionWithConfirm(optionId: string) {
-    if (await confirmDestructive("Wirklich löschen?", "Antwortoption löschen")) removeOption(optionId);
+    if (await confirmDestructive(tr("ui.really_delete"), tr("ui.delete_answer_option"))) removeOption(optionId);
   }
 
   return (
     <div
       className="weft-edit-block-quiz"
-      onContextMenu={(e) => contextMenu.open(e, [{ label: "+ Antwortoption hinzufügen", onClick: addOption }, ...deleteBlockItems])}
+      onContextMenu={(e) => contextMenu.open(e, [{ label: tr("ui.add_answer_option"), onClick: addOption }, ...deleteBlockItems])}
     >
       <EditableRichText
         className="weft-edit-block-quiz-question"
@@ -884,9 +885,9 @@ function QuizBlockCanvas({
               className={"weft-edit-block-quiz-option" + (isCorrect ? " is-correct" : "")}
               onContextMenu={(e) =>
                 contextMenu.open(e, [
-                  { label: "+ Antwortoption hinzufügen", onClick: addOption },
+                  { label: tr("ui.add_answer_option"), onClick: addOption },
                   { separator: true },
-                  { label: "Antwortoption löschen", danger: true, onClick: () => removeOption(opt.id) },
+                  { label: tr("ui.delete_answer_option"), danger: true, onClick: () => removeOption(opt.id) },
                   ...deleteBlockItems,
                 ])
               }
@@ -894,7 +895,7 @@ function QuizBlockCanvas({
               <button
                 type="button"
                 className="weft-edit-block-quiz-option-checkbox"
-                title={block.open ? undefined : isCorrect ? "Als falsch markieren" : "Als richtig markieren"}
+                title={block.open ? undefined : isCorrect ? tr("ui.mark_as_wrong") : tr("ui.mark_as_correct")}
                 disabled={block.open}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
@@ -916,7 +917,7 @@ function QuizBlockCanvas({
               <button
                 type="button"
                 className="weft-edit-block-quiz-option-delete"
-                title="Antwortoption löschen"
+                title={tr("ui.delete_answer_option")}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => void removeOptionWithConfirm(opt.id)}
                 dangerouslySetInnerHTML={{ __html: trashIconSvg }}
@@ -993,17 +994,17 @@ function ListBlockCanvas({
 }) {
   const contextMenu = useContextMenu();
   const { lang, defaultLang } = useEditingLanguage();
-  const layerItems = layerMenuItems(onBringToFront, onSendToBack, onDelete, "Objekt löschen");
+  const layerItems = layerMenuItems(onBringToFront, onSendToBack, onDelete, tr("ui.delete_object"));
   const deleteBlockItems: ContextMenuItem[] = layerItems.length > 0 ? [{ separator: true }, ...layerItems] : [];
 
   function addItem() {
-    onUpdate?.({ items: [...block.items, { id: createId(), html: "Neuer Punkt" }] });
+    onUpdate?.({ items: [...block.items, { id: createId(), html: tr("ui.new_item") }] });
   }
   function removeItem(itemId: string) {
     onUpdate?.({ items: block.items.filter((item) => item.id !== itemId) });
   }
   async function removeItemWithConfirm(itemId: string) {
-    if (await confirmDestructive("Wirklich löschen?", "Listenpunkt löschen")) removeItem(itemId);
+    if (await confirmDestructive(tr("ui.really_delete"), tr("ui.delete_list_item"))) removeItem(itemId);
   }
 
   // Where the caret goes once the list has been re-rendered after Enter / Backspace / Delete changed its items.
@@ -1110,7 +1111,7 @@ function ListBlockCanvas({
       ref={rootRef}
       className="weft-edit-block-list"
       style={{ gap: `${block.spacing}cqw` }}
-      onContextMenu={(e) => contextMenu.open(e, [{ label: "+ Listenpunkt hinzufügen", onClick: addItem }, ...deleteBlockItems])}
+      onContextMenu={(e) => contextMenu.open(e, [{ label: tr("ui.add_list_item"), onClick: addItem }, ...deleteBlockItems])}
     >
       {block.items.map((item, index) => (
         <div
@@ -1119,9 +1120,9 @@ function ListBlockCanvas({
           data-list-item={item.id}
           onContextMenu={(e) =>
             contextMenu.open(e, [
-              { label: "+ Listenpunkt hinzufügen", onClick: addItem },
+              { label: tr("ui.add_list_item"), onClick: addItem },
               { separator: true },
-              { label: "Listenpunkt löschen", danger: true, onClick: () => removeItem(item.id) },
+              { label: tr("ui.delete_list_item"), danger: true, onClick: () => removeItem(item.id) },
               ...deleteBlockItems,
             ])
           }
@@ -1140,7 +1141,7 @@ function ListBlockCanvas({
             <button
               type="button"
               className="weft-edit-block-list-item-delete"
-              title="Listenpunkt löschen"
+              title={tr("ui.delete_list_item")}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => void removeItemWithConfirm(item.id)}
               dangerouslySetInnerHTML={{ __html: trashIconSvg }}
@@ -1207,7 +1208,7 @@ function IframeFrame({ block }: { block: IframeBlock }) {
       <iframe
         src={block.url}
         sandbox={block.sandbox.join(" ")}
-        title="Eingebetteter Inhalt"
+        title={tr("ui.embedded_content")}
         style={{
           width: `${width}px`,
           height: `${height}px`,
@@ -1431,7 +1432,7 @@ function QrGatePreview({ block }: { block: IframeBlock }) {
       ) : (
         <div className="weft-edit-block-qr-code is-empty" />
       )}
-      <span className="weft-edit-block-qr-link">{block.url || "(keine Adresse)"}</span>
+      <span className="weft-edit-block-qr-link">{block.url || tr("ui.no_address")}</span>
     </div>
   );
 }

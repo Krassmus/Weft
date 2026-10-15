@@ -1,5 +1,6 @@
 import { exists, mkdir, readDir, readFile, remove, rename, stat, writeFile } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
+import { tr } from "../../i18n/tr";
 
 /**
  * What the folder sync (folderSync.ts) needs of a file system: a shared folder, addressed by paths
@@ -100,7 +101,7 @@ export class MemorySyncFs implements SyncFs {
 
   async read(path: string[]): Promise<Uint8Array> {
     const file = this.files.get(this.key(path));
-    if (!file) throw new Error(`Datei fehlt: ${this.key(path)}`);
+    if (!file) throw new Error(tr("ui.file_missing", { key: this.key(path) }));
     return file.data.slice();
   }
 

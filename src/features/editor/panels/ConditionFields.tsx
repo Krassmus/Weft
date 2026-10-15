@@ -1,6 +1,7 @@
 import { useDocumentStore } from "../../../core/document/store";
 import { isBooleanVariable } from "../../../core/document/variables";
 import type { VariableCondition } from "../../../core/types";
+import { tr } from "../../../core/i18n/tr";
 
 const COMPARATORS: { value: VariableCondition["comparator"]; label: string }[] = [
   { value: "eq", label: "=" },
@@ -48,8 +49,8 @@ export function ConditionFields({ condition, onChange }: { condition: VariableCo
           value={condition?.value === true || condition?.value === "true" ? "yes" : "no"}
           onChange={(e) => onChange({ value: e.target.value === "yes" })}
         >
-          <option value="yes">Ja</option>
-          <option value="no">Nein</option>
+          <option value="yes">{tr("ui.yes")}</option>
+          <option value="no">{tr("ui.no")}</option>
         </select>
       ) : (
         <input value={String(condition?.value ?? "")} onChange={(e) => onChange({ value: e.target.value })} />

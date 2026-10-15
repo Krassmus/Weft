@@ -42,6 +42,7 @@ import { JumpOverview } from "./panels/JumpPanel";
 import { orderedValues } from "../../core/document/ordering";
 import { PresenceBar } from "./PresenceBar";
 import { branchPageIds, sequenceOf } from "../../core/document/sequence";
+import { tr } from "../../core/i18n/tr";
 
 const ARROW_STEP_PERCENT = 1;
 const ARROW_STEP_PERCENT_FAST = 5;
@@ -446,7 +447,7 @@ function IrisCenterHandle({ page, endId, stageRef }: { page: Page; endId: string
     <div
       className="weft-iris-handle"
       style={{ left: `${shown.x}%`, top: `${shown.y}%` }}
-      title="Mittelpunkt der Iris-Blende - verschieben"
+      title={tr("ui.centre_of_the_iris_wipe_drag")}
       onPointerDown={handlePointerDown}
       onClick={(e) => e.stopPropagation()}
     />
@@ -829,7 +830,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
           // Editing a layout has no slide to play, and nothing else on screen says how to get
           // back - so this takes Abspielen's place and returns to the page edited last.
           <button type="button" className="weft-canvas-end-edit-button" onClick={leaveLayoutEditing}>
-            Bearbeiten beenden
+            {tr("ui.stop_editing")}
           </button>
         ) : (
           <button
@@ -838,12 +839,12 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
             onClick={() => onPresent(target?.kind === "page" ? target.page.id : null)}
           >
             <span className="weft-canvas-play-icon" dangerouslySetInnerHTML={{ __html: playIconSvg }} />
-            Abspielen
+            {tr("ui.play")}
           </button>
         )}
-        {target?.kind === "layout" && <span className="weft-canvas-context">Layout: {target.layout.name}</span>}
+        {target?.kind === "layout" && <span className="weft-canvas-context">{tr("ui.layout")} {target.layout.name}</span>}
         {zoom !== 1 && (
-          <button type="button" className="weft-canvas-zoom-reset" onClick={resetZoom} title="Zoom zurücksetzen">
+          <button type="button" className="weft-canvas-zoom-reset" onClick={resetZoom} title={tr("ui.reset_zoom")}>
             {Math.round(zoom * 100)}%
           </button>
         )}
@@ -895,7 +896,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
         }}
       >
         {selection?.type === "logic" ? (
-          <div className="weft-canvas-empty">Wähle eine Folie in einem Zweig, um sie zu bearbeiten.</div>
+          <div className="weft-canvas-empty">{tr("ui.choose_a_slide_in_a_branch")}</div>
         ) : target?.kind === "layout" ? (
           <div className="weft-canvas-stage-zoom" ref={zoomBoxRef}>
             <div
@@ -987,7 +988,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                 if (partOfActiveBlocks && activeBlocksIds && activeBlocksIds.length >= 2) {
                   extraMenuItems = [
                     {
-                      label: "Objekte gruppieren",
+                      label: tr("ui.group_objects"),
                       onClick: () => {
                         const groupId = groupBlocks(target.page.id, activeBlocksIds);
                         if (groupId) select({ type: "group", pageId: target.page.id, groupId });
@@ -997,7 +998,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                 } else if (partOfActiveGroup && activeGroup) {
                   extraMenuItems = [
                     {
-                      label: "Gruppe auflösen",
+                      label: tr("ui.ungroup"),
                       onClick: () => {
                         ungroupBlocks(target.page.id, activeGroup.id);
                         select({ type: "blocks", container: { kind: "page", pageId: target.page.id }, blockIds: activeGroup.blockIds });
@@ -1089,7 +1090,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
             </div>
           </div>
         ) : (
-          <div className="weft-canvas-empty">Noch keine Folie – lege links eine an.</div>
+          <div className="weft-canvas-empty">{tr("ui.no_slide_yet_create_one_on")}</div>
         )}
       </div>
       {target?.kind === "page" && !target.page.jump && <Timeline page={target.page} />}

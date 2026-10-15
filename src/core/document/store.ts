@@ -9,6 +9,7 @@ import type { LiveInvitation, WeftDocument, WeftModule } from "../types";
 import { createEmptyDocument } from "./createEmptyDocument";
 import { findNode } from "./pageTimeline";
 import { plain } from "./plain";
+import { tr } from "../i18n/tr";
 
 /**
  * The document lives in an Automerge document, owned by a Repo: every edit is an Automerge change,
@@ -327,7 +328,7 @@ export async function openSharedDocument(url: string, timeoutMs = 45000): Promis
     await next.whenReady(undefined, { signal: AbortSignal.timeout(timeoutMs) });
   } catch {
     throw new Error(
-      "Das geteilte Dokument ließ sich nicht laden: Niemand hat geantwortet. Ist die andere Person online, und ist der Link vollständig?",
+      tr("ui.the_shared_document_could_not_be"),
     );
   }
   const localDoc = local.doc();

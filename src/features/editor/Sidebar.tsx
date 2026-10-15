@@ -31,6 +31,7 @@ import type { PeerPresence } from "../../core/collab/presence";
 import { PersonAvatar } from "./PersonAvatar";
 import { orderedValues } from "../../core/document/ordering";
 import { branchPageIds, sequenceOf } from "../../core/document/sequence";
+import { tr } from "../../core/i18n/tr";
 
 type DragBind = ReturnType<typeof useDragReorder>["bind"];
 
@@ -177,19 +178,19 @@ function AddSlideBar() {
       {open && (
         <div className="weft-add-menu" role="menu">
           <button type="button" role="menuitem" onClick={() => add("page")}>
-            Folie
+            {tr("ui.slide")}
           </button>
           <button type="button" role="menuitem" onClick={() => add("logic")}>
-            Verzweigung
+            {tr("ui.branching")}
           </button>
           <button type="button" role="menuitem" onClick={() => add("jump")}>
-            Sprungfolie
+            {tr("ui.jump_slide")}
           </button>
         </div>
       )}
       <button type="button" className="weft-add-slide" aria-expanded={open} onClick={() => setOpen(!open)}>
         <span className="weft-add-slide-plus">+</span>
-        <span>Hinzufügen</span>
+        <span>{tr("ui.add")}</span>
       </button>
     </div>
   );
@@ -295,9 +296,9 @@ function LayoutList() {
         <button
           type="button"
           className="weft-ghost-button weft-full-width"
-          onClick={() => select({ type: "layout", layoutId: addLayout("Neues Layout") })}
+          onClick={() => select({ type: "layout", layoutId: addLayout(tr("ui.new_layout_2")) })}
         >
-          + Neues Layout
+          {tr("ui.new_layout")}
         </button>
       </li>
     </ol>
@@ -324,19 +325,19 @@ function SequenceTree({ openMenu, bind }: { openMenu: ReturnType<typeof useConte
   if (sequence.length === 0) {
     return (
       <div className="weft-sequence-empty">
-        <p className="weft-hint">Noch keine Folien.</p>
+        <p className="weft-hint">{tr("ui.no_slides_yet")}</p>
         <button type="button" className="weft-ghost-button weft-full-width" onClick={() => addPageToSequence(-1, firstLayoutId())}>
-          + Folie
+          {tr("ui.slide_2")}
         </button>
         <button
           type="button"
           className="weft-ghost-button weft-full-width"
           onClick={() => addLogicBlockToSequence(-1, firstLayoutId())}
         >
-          + Logikblock
+          {tr("ui.logic_block")}
         </button>
         <button type="button" className="weft-ghost-button weft-full-width" onClick={() => addJumpToSequence(-1)}>
-          + Sprungfolie
+          {tr("ui.jump_slide_2")}
         </button>
       </div>
     );
@@ -358,11 +359,11 @@ function SequenceTree({ openMenu, bind }: { openMenu: ReturnType<typeof useConte
               )}
               onContextMenu={(e) =>
                 openMenu(e, [
-                  { label: "Folie darunter einfügen", onClick: () => addPageToSequence(index, firstLayoutId()) },
-                  { label: "Sprungfolie darunter einfügen", onClick: () => addJumpToSequence(index) },
-                  { label: "Logikblock darunter einfügen", onClick: () => addLogicBlockToSequence(index, firstLayoutId()) },
+                  { label: tr("ui.insert_slide_below"), onClick: () => addPageToSequence(index, firstLayoutId()) },
+                  { label: tr("ui.insert_jump_slide_below"), onClick: () => addJumpToSequence(index) },
+                  { label: tr("ui.insert_logic_block_below"), onClick: () => addLogicBlockToSequence(index, firstLayoutId()) },
                   { separator: true },
-                  { label: "Löschen", danger: true, onClick: () => removeSequenceNodeAt(index) },
+                  { label: tr("ui.delete"), danger: true, onClick: () => removeSequenceNodeAt(index) },
                 ])
               }
             />
@@ -377,12 +378,12 @@ function SequenceTree({ openMenu, bind }: { openMenu: ReturnType<typeof useConte
               dragProps={bind("logic", "top", index, (_targetContainerId, targetIndex) => moveSequenceNode(index, targetIndex))}
               onContextMenu={(e) =>
                 openMenu(e, [
-                  { label: "Folie darunter einfügen", onClick: () => addPageToSequence(index, firstLayoutId()) },
-                  { label: "Sprungfolie darunter einfügen", onClick: () => addJumpToSequence(index) },
-                  { label: "Logikblock darunter einfügen", onClick: () => addLogicBlockToSequence(index, firstLayoutId()) },
-                  { label: "Zweig hinzufügen", onClick: () => addBranch(node.logicBlockId, firstLayoutId()) },
+                  { label: tr("ui.insert_slide_below"), onClick: () => addPageToSequence(index, firstLayoutId()) },
+                  { label: tr("ui.insert_jump_slide_below"), onClick: () => addJumpToSequence(index) },
+                  { label: tr("ui.insert_logic_block_below"), onClick: () => addLogicBlockToSequence(index, firstLayoutId()) },
+                  { label: tr("ui.add_branch"), onClick: () => addBranch(node.logicBlockId, firstLayoutId()) },
                   { separator: true },
-                  { label: "Löschen", danger: true, onClick: () => removeSequenceNodeAt(index) },
+                  { label: tr("ui.delete"), danger: true, onClick: () => removeSequenceNodeAt(index) },
                 ])
               }
             />
@@ -474,7 +475,7 @@ function JumpRow({
       {...dragAttrs}
     >
       <span className="weft-node-index">{index}</span>
-      <span className="weft-node-jump-body" title={first && labels[first] ? `Sprungfolie → ${labels[first]}${count > 1 ? ` (+${count - 1})` : ""}` : "Sprungfolie"}>
+      <span className="weft-node-jump-body" title={first && labels[first] ? tr("ui.jump_slide_3", { n0: labels[first], n1: count > 1 ? ` (+${count - 1})` : "" }) : tr("ui.jump_slide")}>
         <span className="weft-node-jump-icon" dangerouslySetInnerHTML={{ __html: jumpIconSvg }} />
       </span>
     </button>
@@ -533,10 +534,10 @@ function LogicBlockRow({
               className="weft-branch-header"
               onContextMenu={(e) =>
                 openMenu(e, [
-                  { label: "Folie hinzufügen", onClick: () => addPageToBranch(logicBlock.id, branch.id, firstLayoutId()) },
-                  { label: "Sprungfolie hinzufügen", onClick: () => addJumpToBranch(logicBlock.id, branch.id) },
+                  { label: tr("ui.add_slide"), onClick: () => addPageToBranch(logicBlock.id, branch.id, firstLayoutId()) },
+                  { label: tr("ui.add_jump_slide"), onClick: () => addJumpToBranch(logicBlock.id, branch.id) },
                   { separator: true },
-                  { label: "Zweig löschen", danger: true, onClick: () => void removeBranchWithConfirm(logicBlock.id, branch.id) },
+                  { label: tr("ui.delete_branch"), danger: true, onClick: () => void removeBranchWithConfirm(logicBlock.id, branch.id) },
                 ])
               }
             >
@@ -558,13 +559,13 @@ function LogicBlockRow({
                   onContextMenu={(e) =>
                     openMenu(e, [
                       {
-                        label: "Folie zum Zweig hinzufügen",
+                        label: tr("ui.add_slide_to_branch"),
                         onClick: () => addPageToBranch(logicBlock.id, branch.id, firstLayoutId()),
                       },
-                      { label: "Sprungfolie zum Zweig hinzufügen", onClick: () => addJumpToBranch(logicBlock.id, branch.id) },
+                      { label: tr("ui.add_jump_slide_to_branch"), onClick: () => addJumpToBranch(logicBlock.id, branch.id) },
                       { separator: true },
                       {
-                        label: "Löschen",
+                        label: tr("ui.delete"),
                         danger: true,
                         onClick: () => removePageFromBranch(logicBlock.id, branch.id, pageId),
                       },
@@ -599,7 +600,7 @@ function EmptyBranchDropZone({ bind, logicBlockId, branchId }: { bind: DragBind;
   );
   return (
     <div className={"weft-branch-empty-drop" + dragClassName} data-drag-container={dragContainer} data-drag-index={dragIndex}>
-      Folie hierher ziehen
+      {tr("ui.drag_a_slide_here")}
     </div>
   );
 }

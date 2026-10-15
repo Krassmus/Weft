@@ -4,6 +4,7 @@ import type { LogicBlock } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
 import { removeBranchWithConfirm } from "../removeBranchWithConfirm";
 import { ConditionFields } from "./ConditionFields";
+import { tr } from "../../../core/i18n/tr";
 
 export function LogicBlockPanel({ logicBlock }: { logicBlock: LogicBlock }) {
   // A new branch's page starts with the layout of the module's first one.
@@ -12,14 +13,12 @@ export function LogicBlockPanel({ logicBlock }: { logicBlock: LogicBlock }) {
 
   return (
     <>
-      <Collapsible title="Logikblock">
+      <Collapsible title={tr("ui.logic_block_2")}>
         <p className="weft-hint">
-          Wird von oben nach unten geprüft: Zweig 1 gewinnt, wenn seine Bedingung zutrifft, sonst Zweig 2 usw. Der
-          letzte Zweig hat keine Bedingung und greift immer, wenn keiner der anderen zutraf – wie ein "sonst".
-          Danach geht es zurück in die Hauptfolge; Zweige können keine weiteren Logikblöcke enthalten.
+          {tr("ui.checked_from_top_to_bottom_branch")}
         </p>
         <label className="weft-field">
-          <span>Name</span>
+          <span>{tr("ui.name")}</span>
           <input value={logicBlock.name} onChange={(e) => renameLogicBlock(logicBlock.id, e.target.value)} />
         </label>
         <button
@@ -33,7 +32,7 @@ export function LogicBlockPanel({ logicBlock }: { logicBlock: LogicBlock }) {
             if (pageId) select({ type: "page", pageId });
           }}
         >
-          + Zweig hinzufügen
+          {tr("ui.add_branch_2")}
         </button>
       </Collapsible>
 
@@ -42,20 +41,20 @@ export function LogicBlockPanel({ logicBlock }: { logicBlock: LogicBlock }) {
         const condition = branch.condition;
 
         return (
-          <Collapsible key={branch.id} title={`${index + 1}. ${branch.label}`}>
+          <Collapsible key={branch.id} title={tr("ui.text_2", { n0: index + 1, label: branch.label })}>
             <label className="weft-field">
-              <span>Bezeichnung</span>
+              <span>{tr("ui.name_2")}</span>
               <input value={branch.label} onChange={(e) => renameBranch(logicBlock.id, branch.id, e.target.value)} />
             </label>
 
             {isLast ? (
-              <p className="weft-hint">Sonst – greift immer, wenn keine Bedingung der Zweige davor zutraf. Wird der Zweig weiter nach oben geschoben, bekommt er eine eigene Bedingung; der Zweig, der dann zuletzt kommt, wird zum „sonst“ und verliert seine.</p>
+              <p className="weft-hint">{tr("ui.otherwise_always_applies_if_no_condition")}</p>
             ) : (
               <ConditionFields condition={condition} onChange={(patch) => updateBranchCondition(logicBlock.id, branch.id, patch)} />
             )}
             <div className="weft-jump-actions">
               <button type="button" className="weft-ghost-button" disabled={index === 0} onClick={() => moveBranch(logicBlock.id, branch.id, -1)}>
-                ↑ Früher prüfen
+                {tr("ui.check_earlier")}
               </button>
               <button
                 type="button"
@@ -63,7 +62,7 @@ export function LogicBlockPanel({ logicBlock }: { logicBlock: LogicBlock }) {
                 disabled={isLast}
                 onClick={() => moveBranch(logicBlock.id, branch.id, 1)}
               >
-                ↓ Später prüfen
+                {tr("ui.check_later")}
               </button>
               <button
                 type="button"
@@ -71,7 +70,7 @@ export function LogicBlockPanel({ logicBlock }: { logicBlock: LogicBlock }) {
                 disabled={logicBlock.branches.length <= 1}
                 onClick={() => void removeBranchWithConfirm(logicBlock.id, branch.id)}
               >
-                Zweig löschen
+                {tr("ui.delete_branch")}
               </button>
             </div>
           </Collapsible>

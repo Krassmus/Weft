@@ -6,6 +6,7 @@ import { buildInlineFontFaceCss } from "../../core/runtime/buildInlineFontFaceCs
 import { buildRuntimeHtml } from "../../core/runtime/buildRuntimeHtml";
 import type { WeftModule } from "../../core/types";
 import { ModuleFrame } from "./ModuleFrame";
+import { tr } from "../../core/i18n/tr";
 
 /**
  * Renders the module exactly as it will play in the exported HTML - and, later, exactly as it
@@ -30,7 +31,7 @@ export function PreviewFrame({ module, startPageId = null }: { module: WeftModul
     };
   }, [module, startPageId, startLanguage]);
 
-  if (!srcDoc) return <div className="weft-preview-loading">Vorschau wird geladen …</div>;
+  if (!srcDoc) return <div className="weft-preview-loading">{tr("ui.loading_preview")}</div>;
 
-  return <ModuleFrame srcDoc={srcDoc} title="Lernmodul-Vorschau" />;
+  return <ModuleFrame srcDoc={srcDoc} title={tr("ui.learning_module_preview")} />;
 }

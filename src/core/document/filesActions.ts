@@ -6,6 +6,7 @@ import { createId } from "../id";
 import { plain, removeWhere } from "./plain";
 import type { BlockContainerRef } from "./store";
 import { useDocumentStore } from "./store";
+import { tr } from "../i18n/tr";
 
 // Everything a files block's panel does with its files and password. The password is only ever an
 // argument here, used to derive a key and then dropped - what is stored is the protection (salt, a verifier,
@@ -20,13 +21,13 @@ function blocksOf(m: { pages: Record<string, { blocks: Record<string, Block> }>;
 function currentFilesBlock(container: BlockContainerRef, blockId: string): FilesBlock {
   const content = useDocumentStore.getState().doc.content;
   const block = blocksOf(content, container)?.[blockId];
-  if (!block || block.kind !== "files") throw new Error("Das Element gibt es nicht mehr.");
+  if (!block || block.kind !== "files") throw new Error(tr("ui.this_element_no_longer_exists"));
   return block;
 }
 
 async function bytesOf(assetId: string): Promise<Uint8Array> {
   const blob = useAssetStore.getState().blobs.get(assetId);
-  if (!blob) throw new Error("Eine der Dateien ist hier noch nicht angekommen (sie kommt von den anderen, sobald jemand online ist, der sie hat).");
+  if (!blob) throw new Error(tr("ui.one_of_the_files_has_not"));
   return new Uint8Array(await blob.arrayBuffer());
 }
 
@@ -46,7 +47,7 @@ function newAsset(name: string, mimeType: string, size: number, bytes: Uint8Arra
 async function keyFor(protection: FilesProtection | null, password: string | null): Promise<FilesKey | null> {
   if (!protection) return null;
   const key = password === null ? null : await filesCheckPassword(protection, password);
-  if (!key) throw new Error("Falsches Passwort.");
+  if (!key) throw new Error(tr("ui.wrong_password"));
   return key;
 }
 
@@ -60,7 +61,7 @@ export async function addFilesToBlock(container: BlockContainerRef, blockId: str
     created.push(newAsset(file.name, file.type || "application/octet-stream", file.size, key ? await filesEncrypt(key, bytes) : bytes, key !== null));
   }
   if (created.length === 0) return;
-  useDocumentStore.getState().edit("Dateien hinzufügen", (m) => {
+  useDocumentStore.getState().edit(tr("ui.add_files_2"), (m) => {
     const target = blocksOf(m, container)?.[blockId];
     if (!target || target.kind !== "files") return;
     for (const { meta, entry } of created) {

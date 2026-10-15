@@ -14,6 +14,7 @@ import { baseName, readLibraryFile, writeExport, writeLibraryFile } from "./libr
 import { isPlayerArchive, loadPlayerFile } from "./playerFile";
 import type { PlayerFile } from "./playerFile";
 import { unpackDocument } from "./unpack";
+import { tr } from "../i18n/tr";
 
 export function isTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -44,7 +45,7 @@ async function writeBytes(
   suggestedName: string,
   dialogTitle: string,
   filterExtension: string,
-  kind: { filterName: string; mimeType: string } = { filterName: "Weft-Lernmodul", mimeType: "application/zip" },
+  kind: { filterName: string; mimeType: string } = { filterName: tr("ui.weft_learning_module"), mimeType: "application/zip" },
 ) {
   if (libraryMode()) {
     // No save dialog on a tablet: the file is kept in the library's folder for exports and offered for sharing.
@@ -102,7 +103,7 @@ async function writeFileSafely(path: string, bytes: Uint8Array): Promise<void> {
 
 export async function saveDocumentAs(doc: WeftDocument): Promise<string | null> {
   const bytes = await packDocument(doc);
-  const path = await writeBytes(bytes, suggestedFileName(doc.content.title, SAVE_EXTENSION), "Lernmodul speichern", SAVE_EXTENSION);
+  const path = await writeBytes(bytes, suggestedFileName(doc.content.title, SAVE_EXTENSION), tr("ui.save_learning_module"), SAVE_EXTENSION);
   // Where the module is now (see documentLocations.ts) - unless the file it was before is still there.
   if (path) await rememberSavedLocation(doc.content.id, path).catch(() => undefined);
   return path;
@@ -169,7 +170,7 @@ export async function exportAsHtmlModule(doc: WeftDocument): Promise<string | nu
   const bytes = await packDocument(doc, { forExport: true });
   // The dialog filter matches only the final extension - "weft.zip" already ends in "zip", so the
   // filter itself is just "zip" (matching EXPORT_EXTENSION's own last segment).
-  return writeBytes(bytes, suggestedFileName(doc.content.title, EXPORT_EXTENSION), "Lernmodul exportieren", "zip");
+  return writeBytes(bytes, suggestedFileName(doc.content.title, EXPORT_EXTENSION), tr("ui.export_learning_module"), "zip");
 }
 
 /** "Exportieren als PDF": the bytes of the PDF of the module (see features/editor/exportPdf.tsx), saved where the user says. */
@@ -184,7 +185,7 @@ export async function savePdf(doc: WeftDocument, bytes: Uint8Array): Promise<str
  * editor's preview does for a file the module offers (a frame in a preview can't download by itself). */
 export async function saveBytesAsFile(fileName: string, mimeType: string, bytes: Uint8Array): Promise<void> {
   if (isTauri()) {
-    const path = await save({ title: "Datei speichern", defaultPath: fileName });
+    const path = await save({ title: tr("ui.save_file"), defaultPath: fileName });
     if (path) await writeFile(path, bytes);
     return;
   }
@@ -197,7 +198,7 @@ export async function saveBytesAsFile(fileName: string, mimeType: string, bytes:
 }
 
 /** Lets the user pick any number of files of any kind (for a files block). */
-export async function pickFilesFromDisk(title = "Dateien hinzufügen"): Promise<File[]> {
+export async function pickFilesFromDisk(title = tr("ui.add_files_2")): Promise<File[]> {
   if (isTauri()) {
     const picked = await open({ title, multiple: true });
     if (!picked) return [];
@@ -253,11 +254,11 @@ export async function exportPlayerFile(doc: WeftDocument): Promise<string | null
 
 /** Lets the user pick a .weft / exported .weft.zip file and returns its raw bytes (and its path, in
  * the desktop app). */
-export async function pickDocumentFile(title = "Lernmodul öffnen"): Promise<{ bytes: Uint8Array; path: string | null; name: string } | null> {
+export async function pickDocumentFile(title = tr("ui.open_learning_module")): Promise<{ bytes: Uint8Array; path: string | null; name: string } | null> {
   if (isTauri()) {
     // .weft (saved), .weft.zip / plain .zip (exported) are all just zip archives underneath
     // (unpackDocument doesn't care about the name), so all of them stay openable here.
-    const path = await open({ title, multiple: false, filters: [{ name: "Weft-Lernmodul", extensions: ["weft", "zip"] }] });
+    const path = await open({ title, multiple: false, filters: [{ name: tr("ui.weft_learning_module"), extensions: ["weft", "zip"] }] });
     if (!path || Array.isArray(path)) return null;
     return { bytes: await readFile(path), path, name: baseName(path) };
   }
@@ -324,9 +325,9 @@ function fontMimeType(fileName: string): string {
 export async function pickFontFile(): Promise<File | null> {
   if (isTauri()) {
     const path = await open({
-      title: "Schriftart auswählen",
+      title: tr("ui.choose_font"),
       multiple: false,
-      filters: [{ name: "Schriftart", extensions: ["woff2", "woff", "ttf", "otf"] }],
+      filters: [{ name: tr("ui.font"), extensions: ["woff2", "woff", "ttf", "otf"] }],
     });
     if (!path || Array.isArray(path)) return null;
     const bytes = await readFile(path);
@@ -389,23 +390,17 @@ export interface UnplayableVideo {
  */
 export async function warnUnplayableVideo(videos: UnplayableVideo[]): Promise<void> {
   const list = videos.map((v) => `„${v.fileName}“`).join(", ");
-  const subject = videos.length === 1 ? "konnte" : "konnten";
   const anyAttempted = videos.some((v) => v.ffmpegAttempted);
   const errors = videos
     .filter((v) => v.error)
     .map((v) => `${videos.length > 1 ? `${v.fileName}: ` : ""}${v.error}`)
     .join("\n");
   const suggestion = anyAttempted
-    ? "Die automatische Konvertierung mit ffmpeg hat es leider auch nicht spielbar gemacht - bitte die Datei " +
-      "extern konvertieren, z. B. mit HandBrake oder „Exportieren als …“ in QuickTime, und erneut hochladen." +
-      (errors ? `\n\nMeldung von ffmpeg:\n${errors}` : "")
-    : "Weft kann Videos automatisch nach H.264 konvertieren, sobald ffmpeg installiert ist - z. B. mit " +
-      "„brew install ffmpeg“ (Terminal) oder von ffmpeg.org. Bis dahin bitte die Datei extern konvertieren, " +
-      "z. B. mit HandBrake oder „Exportieren als …“ in QuickTime, und erneut hochladen.";
+    ? tr("ui.video_converted_not_playable") + (errors ? `\n\n${tr("ui.video_ffmpeg_message")}\n${errors}` : "")
+    : tr("ui.video_install_ffmpeg");
   await showWarning(
-    `${list} ${subject} in diesem Browser nicht abgespielt werden - vermutlich ein nicht unterstützter ` +
-      `Codec (z. B. HEVC/H.265 statt H.264/AAC). ${suggestion}`,
-    "Video möglicherweise nicht abspielbar",
+    tr(videos.length === 1 ? "ui.video_cannot_play_one" : "ui.video_cannot_play_many", { list, suggestion }),
+    tr("ui.video_may_not_be_playable"),
   );
 }
 
@@ -444,13 +439,12 @@ function totalMediaBytes(): number {
 export async function warnLargeVideos(videos: { fileName: string; sizeBytes: number }[]): Promise<void> {
   const list = videos.map((v) => `„${v.fileName}“ (${formatSize(v.sizeBytes)})`).join(", ");
   await showWarning(
-    `${list} ${videos.length === 1 ? "ist" : "sind"} ein großes Video. Es ist hinzugefügt, aber bedenke:\n\n` +
-      "• Die gespeicherte Datei und das exportierte Lernmodul werden entsprechend groß.\n" +
-      "• Beim gemeinsamen Arbeiten muss jede Person das Video erst empfangen - das dauert, auch für jeden, der später dazukommt.\n" +
-      "• Viele Lernplattformen begrenzen die Größe eines hochgeladenen Lernmoduls.\n\n" +
-      "Oft lässt sich ein Video mit geringerer Auflösung oder Bitrate stark verkleinern (z. B. mit HandBrake) - oder du bindest es von einem Videoportal als Iframe-Element ein.\n\n" +
-      `Alle Medien im Lernmodul zusammen: ${formatSize(totalMediaBytes())}.`,
-    "Großes Video",
+    tr(videos.length === 1 ? "ui.large_video_one" : "ui.large_video_many", { list }) +
+      "\n\n" +
+      `${tr("ui.large_video_bullet_size")}\n${tr("ui.large_video_bullet_collab")}\n${tr("ui.large_video_bullet_platforms")}\n\n` +
+      `${tr("ui.large_video_tip")}\n\n` +
+      tr("ui.large_video_total", { size: formatSize(totalMediaBytes()) }),
+    tr("ui.large_video"),
   );
 }
 

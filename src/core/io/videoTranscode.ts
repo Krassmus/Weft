@@ -4,6 +4,7 @@ import { exists, mkdir, readFile, remove, writeFile } from "@tauri-apps/plugin-f
 import { Command } from "@tauri-apps/plugin-shell";
 import { createId } from "../id";
 import { isTauri } from "./fileIO";
+import { tr } from "../i18n/tr";
 
 /**
  * ffmpeg isn't bundled with Weft - that would mean shipping a ~50-80MB binary per platform (mac/
@@ -137,7 +138,7 @@ function runFfmpeg(commandName: string, args: string[]): Promise<void> {
  */
 export async function transcodeToH264(file: File): Promise<File> {
   const commandName = await findFfmpegCommandName();
-  if (!commandName) throw new Error("ffmpeg wurde nicht gefunden.");
+  if (!commandName) throw new Error(tr("ui.ffmpeg_was_not_found"));
 
   const dir = await ensureCacheDir();
   const jobId = createId();

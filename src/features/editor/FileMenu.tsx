@@ -3,6 +3,7 @@ import settingsIconSvg from "../../../mockups/icons/admin.svg?raw";
 import { readRecentFiles } from "../../core/io/recentFiles";
 import { libraryMode } from "../../core/platform";
 import { useDocumentStore } from "../../core/document/store";
+import { tr } from "../../core/i18n/tr";
 
 export type MenuCommand =
   | "new"
@@ -33,23 +34,23 @@ const EDITING_COMMANDS: MenuCommand[] = [
 function items(): ({ command: MenuCommand; label: string } | "separator")[] {
   const library = libraryMode();
   return [
-    { command: "new", label: "Neu" },
-    { command: "duplicate", label: "Duplizieren" },
+    { command: "new", label: tr("ui.new") },
+    { command: "duplicate", label: tr("ui.duplicate") },
     "separator",
-    { command: "open", label: library ? "Lernmodule…" : "Öffnen…" },
-    { command: "join", label: "Einladung beitreten…" },
+    { command: "open", label: library ? "Lernmodule…" : tr("ui.open_2") },
+    { command: "join", label: tr("ui.join_invitation") },
     "separator",
-    { command: "save", label: "Speichern" },
+    { command: "save", label: tr("ui.save") },
     {
       command: "saveAs",
-      label: library ? "Weft-Datei teilen…" : "Speichern unter…",
+      label: library ? "Weft-Datei teilen…" : tr("ui.save_as"),
     },
-    { command: "export", label: "Exportieren…" },
-    { command: "exportPdf", label: "Exportieren als PDF…" },
-    { command: "exportPlayer", label: "Player-Datei exportieren…" },
-    { command: "merge", label: "Mit Datei zusammenführen…" },
+    { command: "export", label: tr("ui.export") },
+    { command: "exportPdf", label: tr("ui.export_as_pdf") },
+    { command: "exportPlayer", label: tr("ui.export_player_file") },
+    { command: "merge", label: tr("ui.merge_with_file_2") },
     "separator",
-    { command: "settings", label: "Einstellungen…" },
+    { command: "settings", label: tr("ui.settings_2") },
   ];
 }
 
@@ -98,7 +99,7 @@ export function FileMenu({
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        Datei
+        {tr("ui.file")}
       </button>
       {open && (
         <>
@@ -131,7 +132,7 @@ export function FileMenu({
             {recent.length > 0 && (
               <>
                 <div className="weft-filemenu-separator" />
-                <div className="weft-filemenu-heading">Zuletzt geöffnet</div>
+                <div className="weft-filemenu-heading">{tr("ui.recent")}</div>
                 {recent.map((path) => (
                   <button
                     key={path}
@@ -173,8 +174,8 @@ export function AppBar({
       <button
         type="button"
         className="weft-appbar-button"
-        title="Rückgängig"
-        aria-label="Rückgängig"
+        title={tr("ui.undo")}
+        aria-label={tr("ui.undo")}
         disabled={!canUndo}
         onClick={undo}
       >
@@ -183,8 +184,8 @@ export function AppBar({
       <button
         type="button"
         className="weft-appbar-button"
-        title="Wiederholen"
-        aria-label="Wiederholen"
+        title={tr("ui.redo")}
+        aria-label={tr("ui.redo")}
         disabled={!canRedo}
         onClick={redo}
       >
@@ -194,8 +195,8 @@ export function AppBar({
       <button
         type="button"
         className="weft-appbar-button weft-appbar-icon"
-        title="Einstellungen"
-        aria-label="Einstellungen"
+        title={tr("ui.settings")}
+        aria-label={tr("ui.settings")}
         onClick={() => onCommand("settings")}
         dangerouslySetInnerHTML={{ __html: settingsIconSvg }}
       />

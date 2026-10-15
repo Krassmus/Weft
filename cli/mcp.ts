@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from "node:fs";
+import { setFixedLanguage } from "../src/core/i18n/tr";
 import { CliError } from "./load";
 import { OPERATION_NAMES } from "./ops";
 import type { Operation } from "./ops";
@@ -15,6 +16,9 @@ import type { TextsFile } from "./texts";
  *
  * Written against the protocol directly (it is little: JSON-RPC 2.0, one message per line) so that there is nothing to install.
  */
+
+// New content (a new text, the names of a branch ...) is made in German unless WEFT_LANG=en.
+setFixedLanguage(process.env.WEFT_LANG === "en" ? "en" : "de");
 
 const SERVER = { name: "weft", version: "0.1.0" };
 const PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];

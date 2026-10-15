@@ -16,6 +16,7 @@ import { sequenceKey } from "./sequence";
 import { defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
 import { createDefaultPageTimeline, syncPageTimelineEvents } from "./pageTimeline";
 import { ensureBuiltinVariables } from "./variables";
+import { tr } from "../i18n/tr";
 
 /** A page's/layout's blocks keyed by id, stacked in the order given (the last one on top). */
 function blockRecord<T extends NewBlock>(blocks: T[]): Record<string, T & { order: string }> {
@@ -31,13 +32,13 @@ export function createEmptyDocument(): WeftDocument {
 
   const layout: Layout = {
     id: createId(),
-    name: "Standard",
+    name: tr("ui.default"),
     blocks: blockRecord([
       {
         id: createId(),
         kind: "text",
         position: { x: 5, y: 5, width: 90, height: 15 },
-        html: "<h1>Titel der Folie</h1>",
+        html: tr("ui.slide_title"),
         entranceEffect: defaultEntranceEffect(),
         exitEffect: defaultExitEffect(),
       },
@@ -54,7 +55,7 @@ export function createEmptyDocument(): WeftDocument {
         id: createId(),
         kind: "text",
         position: { x: 5, y: 25, width: 90, height: 50 },
-        html: "<p>Willkommen in eurem neuen Lernmodul. Bearbeite diese Folie oder füge weitere hinzu.</p>",
+        html: tr("ui.welcome_to_your_new_learning_module"),
         entranceEffect: defaultEntranceEffect(),
         exitEffect: defaultExitEffect(),
       },
@@ -74,10 +75,10 @@ export function createEmptyDocument(): WeftDocument {
         id: createId(),
         kind: "quiz",
         position: { x: 5, y: 25, width: 90, height: 50 },
-        questionHtml: "<p>Ist Weft plattformübergreifend?</p>",
+        questionHtml: tr("ui.is_weft_cross_platform"),
         options: [
-          { id: quizOptionYes, html: "Ja" },
-          { id: quizOptionNo, html: "Nein" },
+          { id: quizOptionYes, html: tr("ui.yes") },
+          { id: quizOptionNo, html: tr("ui.no") },
         ],
         correctOptionIds: [quizOptionYes],
         onCorrect: [{ variableId: scoreVariableId, op: "add", value: 1 }],
@@ -101,7 +102,7 @@ export function createEmptyDocument(): WeftDocument {
         id: createId(),
         kind: "text",
         position: { x: 5, y: 25, width: 90, height: 50 },
-        html: "<p>Das ist der zweite Zweig – lege hier den alternativen Lernpfad an.</p>",
+        html: tr("ui.this_is_the_second_branch_put"),
         entranceEffect: defaultEntranceEffect(),
         exitEffect: defaultExitEffect(),
       },
@@ -113,16 +114,16 @@ export function createEmptyDocument(): WeftDocument {
   const branches: Branch[] = [
     {
       id: branchAId,
-      label: "Zweig A",
+      label: tr("ui.branch_a"),
       condition: { variableId: scoreVariableId, comparator: "gte", value: 1 },
       pages: orderedRecord([{ id: branchAPage.id }]),
     },
-    { id: createId(), label: "Zweig B (sonst)", condition: null, pages: orderedRecord([{ id: branchBPage.id }]) },
+    { id: createId(), label: tr("ui.branch_b_else"), condition: null, pages: orderedRecord([{ id: branchBPage.id }]) },
   ];
 
   const logicBlock: LogicBlock = {
     id: createId(),
-    name: "Verzweigung",
+    name: tr("ui.branching"),
     branches,
   };
 
@@ -134,7 +135,7 @@ export function createEmptyDocument(): WeftDocument {
         id: createId(),
         kind: "text",
         position: { x: 5, y: 25, width: 90, height: 50 },
-        html: "<p>Geschafft! Hier landen alle Zweige wieder.</p>",
+        html: tr("ui.done_this_is_where_all_branches"),
         entranceEffect: defaultEntranceEffect(),
         exitEffect: defaultExitEffect(),
       },
@@ -161,7 +162,7 @@ export function createEmptyDocument(): WeftDocument {
 
   const content: WeftModule = {
     id: createId(),
-    title: "Neues Lernmodul",
+    title: tr("ui.new_learning_module"),
     aspectRatio: "16:9",
     createdAt: now,
     modifiedAt: now,

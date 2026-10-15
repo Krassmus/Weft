@@ -15,11 +15,12 @@ import { JumpPanel } from "./panels/JumpPanel";
 import { LogicBlockPanel } from "./panels/LogicBlockPanel";
 import { MultiBlockPanel } from "./panels/MultiBlockPanel";
 import { PagePanel } from "./panels/PagePanel";
+import { tr } from "../../core/i18n/tr";
 
 function EmptyState() {
   return (
     <div className="weft-inspector-empty">
-      <p>Wähle links eine Folie, einen Logikblock oder ein Element aus, um seine Eigenschaften zu bearbeiten.</p>
+      <p>{tr("ui.choose_a_slide_a_logic_block")}</p>
     </div>
   );
 }
@@ -30,7 +31,7 @@ export function Inspector() {
 
   return (
     <aside className="weft-inspector">
-      <div className="weft-inspector-header">Eigenschaften</div>
+      <div className="weft-inspector-header">{tr("ui.properties")}</div>
       <div className="weft-inspector-body">
         <InspectorBody doc={doc} selection={selection} />
       </div>

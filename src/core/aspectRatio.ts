@@ -1,4 +1,5 @@
 import type { AspectRatio } from "./types";
+import { tr } from "./i18n/tr";
 
 // The player (core/runtime/player.runtime.js, parseAspectRatio) reads the same "W:H" text by hand -
 // that file ships with no bundler and can't import this one, so keep both in sync.
@@ -9,7 +10,7 @@ export const ASPECT_RATIO_PRESETS: { value: AspectRatio; label: string }[] = [
   { value: "4:3", label: "4:3" },
   { value: "1:1", label: "1:1" },
   { value: "3:2", label: "3:2" },
-  { value: "9:16", label: "9:16 (Smartphone)" },
+  { value: "9:16", get label() { return tr("ui.9_16_smartphone"); } },
 ];
 
 /** A custom ratio is kept between 1:10 and 10:1 - beyond that the slide is just a sliver nobody can

@@ -1,5 +1,6 @@
 import type { ImageMask, ImageMaskPoint, ImageMaskShape } from "../types";
 import { imageMaskSegmentMiddles } from "../runtime/imageGeometry.js";
+import { tr } from "../i18n/tr";
 
 /**
  * The masks of images (ImageBlock.mask): the starting shapes and what the editor does to a mask's points. The drawing itself is
@@ -8,12 +9,12 @@ import { imageMaskSegmentMiddles } from "../runtime/imageGeometry.js";
  */
 
 export const IMAGE_MASK_SHAPES: { id: ImageMaskShape; label: string }[] = [
-  { id: "rectangle", label: "Rechteck" },
-  { id: "rounded", label: "Abgerundet" },
-  { id: "circle", label: "Kreis" },
-  { id: "ellipse", label: "Ellipse" },
-  { id: "triangle", label: "Dreieck" },
-  { id: "star", label: "Stern" },
+  { id: "rectangle", get label() { return tr("ui.rectangle"); } },
+  { id: "rounded", get label() { return tr("ui.rounded"); } },
+  { id: "circle", get label() { return tr("ui.circle"); } },
+  { id: "ellipse", get label() { return tr("ui.ellipse"); } },
+  { id: "triangle", get label() { return tr("ui.triangle"); } },
+  { id: "star", get label() { return tr("ui.star"); } },
 ];
 
 /** How far in from the picture's edges a new mask begins, in percent: so that it can be seen and its points can be reached. */

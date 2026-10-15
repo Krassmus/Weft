@@ -95,6 +95,7 @@ import { useEditingLanguage } from "../useEditingLanguage";
 import { LanguageSelect } from "./LanguageSelect";
 import { TexEditor } from "./TexEditor";
 import { TriggerPicker } from "./TriggerPicker";
+import { tr } from "../../../core/i18n/tr";
 
 const SANDBOX_FLAGS = ["allow-scripts", "allow-same-origin", "allow-popups", "allow-forms"];
 const UPLOAD_FONT_VALUE = "__upload__";
@@ -166,27 +167,25 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
         />
       )}
       {block.kind === "placeholder" && (
-        <Collapsible title="Platzhalter">
+        <Collapsible title={tr("ui.placeholder")}>
           <label className="weft-field">
-            <span>Name</span>
+            <span>{tr("ui.name")}</span>
             <input value={block.label} onChange={(e) => onUpdate({ label: e.target.value })} />
           </label>
           <p className="weft-hint">
-            Der Text hier ist nur ein Muster für die Formatierung: Auf den Folien, die dieses Layout benutzen, steht an dieser Stelle
-            ein Feld, in das man einen eigenen Text schreibt - zunächst so formatiert wie dieses Muster. Die Lage lässt sich dort nicht
-            ändern.
+            {tr("ui.the_text_here_is_only_a")}
           </p>
         </Collapsible>
       )}
       {fromPlaceholder && page?.layoutId && (
-        <Collapsible title="Element · Textplatzhalter" defaultOpen>
-          <p className="weft-hint">Die Position wird auf der Template-Folie definiert und ist hier nicht änderbar.</p>
+        <Collapsible title={tr("ui.element_text_placeholder")} defaultOpen>
+          <p className="weft-hint">{tr("ui.the_position_is_defined_on_the")}</p>
           <button
             type="button"
             className="weft-ghost-button weft-full-width"
             onClick={() => useDocumentStore.getState().select({ type: "layout", layoutId: page.layoutId! })}
           >
-            Template-Folie bearbeiten
+            {tr("ui.edit_template_slide")}
           </button>
         </Collapsible>
       )}
@@ -206,7 +205,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
         <>
           <BlockEffectEditor
             key={block.id + "-entrance"}
-            title="Aufbau"
+            title={tr("ui.entrance")}
             page={page}
             targetNodeId={blockEffectNodeId(block.id, "entrance")}
             effect={block.entranceEffect}
@@ -221,7 +220,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
           />
           <BlockEffectEditor
             key={block.id + "-exit"}
-            title="Abbau"
+            title={tr("ui.exit")}
             page={page}
             targetNodeId={blockEffectNodeId(block.id, "exit")}
             effect={block.exitEffect}
@@ -244,15 +243,15 @@ const BLOCK_EFFECT_DIRECTIONS: TransitionDirection[] = ["right", "left", "down",
 
 // "off" is listed separately (its label depends on Aufbau/Abbau, see BlockEffectEditor).
 const BLOCK_EFFECT_LABELS: Record<Exclude<BlockEffectType, "off">, { entrance: string; exit: string }> = {
-  none: { entrance: "Keine Animation", exit: "Keine Animation" },
-  fade: { entrance: "Fade", exit: "Fade" },
-  move: { entrance: "Move", exit: "Move" },
-  iris: { entrance: "Irisblende", exit: "Irisblende" },
-  wipe: { entrance: "Wischen", exit: "Wischen" },
-  anvil: { entrance: "Amboss", exit: "Amboss (nach oben weg)" },
-  blur: { entrance: "Weichzeichnen", exit: "Weichzeichnen" },
+  none: { get entrance() { return tr("ui.no_animation"); }, get exit() { return tr("ui.no_animation"); } },
+  fade: { get entrance() { return tr("ui.fade"); }, get exit() { return tr("ui.fade"); } },
+  move: { get entrance() { return tr("ui.move"); }, get exit() { return tr("ui.move"); } },
+  iris: { get entrance() { return tr("ui.iris_wipe"); }, get exit() { return tr("ui.iris_wipe"); } },
+  wipe: { get entrance() { return tr("ui.wipe"); }, get exit() { return tr("ui.wipe"); } },
+  anvil: { get entrance() { return tr("ui.anvil"); }, get exit() { return tr("ui.anvil_away_upwards"); } },
+  blur: { get entrance() { return tr("ui.blur_2"); }, get exit() { return tr("ui.blur_2"); } },
   // Only an Abbau (see BLOCK_EFFECT_EXIT_ONLY).
-  shatter: { entrance: "Zersplittern", exit: "Zersplittern" },
+  shatter: { get entrance() { return tr("ui.shatter"); }, get exit() { return tr("ui.shatter"); } },
 };
 const BLOCK_EFFECT_ORDER: Exclude<BlockEffectType, "off">[] = ["none", "fade", "move", "iris", "wipe", "anvil", "blur", "shatter"];
 /** Effects that make no sense as an Aufbau (a thing that breaks to pieces and flies off can't appear that way). */
@@ -296,11 +295,11 @@ export function BlockEffectEditor({
   onTriggerChange: (from: string | null, delayMs: number, kind: TimelineEdgeKind) => void;
 }) {
   const phase = title === "Aufbau" ? "entrance" : "exit";
-  const offLabel = phase === "entrance" ? "Kein Aufbau" : "Kein Abbau";
+  const offLabel = phase === "entrance" ? tr("ui.no_entrance") : tr("ui.no_exit");
   return (
     <Collapsible title={title} defaultOpen={effect.type !== "off"}>
       <label className="weft-field">
-        <span>Art</span>
+        <span>{tr("ui.type")}</span>
         <select value={effect.type} onChange={(e) => onEffectChange({ ...effect, type: e.target.value as BlockEffectType })}>
           <option value="off">{offLabel}</option>
           {BLOCK_EFFECT_ORDER.filter((type) => phase === "exit" || !BLOCK_EFFECT_EXIT_ONLY.includes(type)).map((type) => (
@@ -314,9 +313,9 @@ export function BlockEffectEditor({
         <>
           {effect.type !== "none" && (
             <div className="weft-field">
-              <span>Dauer (in Sekunden)</span>
+              <span>{tr("ui.duration_in_seconds")}</span>
               <SecondsControl
-                label="Dauer (Sekunden)"
+                label={tr("ui.duration_seconds")}
                 minMs={100}
                 valueMs={effect.durationMs}
                 onChange={(durationMs) => onEffectChange({ ...effect, durationMs })}
@@ -325,7 +324,7 @@ export function BlockEffectEditor({
           )}
           {effect.type === "wipe" && (
             <label className="weft-field">
-              <span>Wischrichtung</span>
+              <span>{tr("ui.direction_of_the_wipe")}</span>
               <select
                 value={effect.direction ?? "right"}
                 onChange={(e) => onEffectChange({ ...effect, direction: e.target.value as TransitionDirection })}
@@ -403,11 +402,11 @@ function PositionEditor({ block, onUpdate }: { block: Block; onUpdate: BlockPane
         <input type="number" value={round3(y)} onChange={(e) => onUpdate({ position: { ...block.position, y: Number(e.target.value) } })} />
       </label>
       <label>
-        <span>Breite</span>
+        <span>{tr("ui.width")}</span>
         <input type="number" value={round3(width)} onChange={(e) => updateWidth(Number(e.target.value))} />
       </label>
       <label>
-        <span>Höhe</span>
+        <span>{tr("ui.height")}</span>
         <input type="number" value={round3(height)} onChange={(e) => updateHeight(Number(e.target.value))} />
       </label>
     </div>
@@ -420,9 +419,9 @@ function RotationEditor({ block, onUpdate }: { block: Block; onUpdate: BlockPane
   const rotation = round3(block.position.rotation ?? 0);
   return (
     <div className="weft-rotation-row">
-      <span>Drehung °</span>
+      <span>{tr("ui.rotation")}</span>
       <StepperSlider
-        label="Drehung"
+        label={tr("ui.rotation_2")}
         value={rotation}
         min={0}
         max={360}
@@ -481,28 +480,28 @@ function TextEditor({
     ...(customFonts.length > 0
       ? [
           {
-            label: "Eigene Schriften",
+            label: tr("ui.own_fonts"),
             options: customFonts.map((font) => ({ value: font.family, label: font.family, previewFamily: font.family })),
           },
         ]
       : []),
     {
-      label: "Schriften (im Export enthalten)",
+      label: tr("ui.fonts_included_in_the_export"),
       options: sortedOtherFonts.map((family) => ({ value: family, label: family, previewFamily: family })),
     },
-    { options: [{ value: UPLOAD_FONT_VALUE, label: "Eigene Schriftart hochladen …" }] },
+    { options: [{ value: UPLOAD_FONT_VALUE, label: tr("ui.upload_your_own_font") }] },
   ];
 
   return (
-    <Collapsible title="Inhalt">
+    <Collapsible title={tr("ui.content")}>
       {block && <LanguageSelect block={block} />}
-      <p className="weft-hint">Text direkt auf der Folie eingeben. Markierten Text hier formatieren.</p>
+      <p className="weft-hint">{tr("ui.type_text_directly_on_the_slide")}</p>
       <div className="weft-format-toolbar" data-weft-format-control>
         <div className="weft-format-row">
           <button
             type="button"
             className={formatButtonClass(snapshot.bold)}
-            title="Fett"
+            title={tr("ui.bold")}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => applyFormat("bold")}
           >
@@ -511,7 +510,7 @@ function TextEditor({
           <button
             type="button"
             className={formatButtonClass(snapshot.italic)}
-            title="Kursiv"
+            title={tr("ui.italic")}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => applyFormat("italic")}
           >
@@ -520,7 +519,7 @@ function TextEditor({
           <button
             type="button"
             className={formatButtonClass(snapshot.underline)}
-            title="Unterstrichen"
+            title={tr("ui.underline")}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => applyFormat("underline")}
           >
@@ -530,7 +529,7 @@ function TextEditor({
           <button
             type="button"
             className={"weft-format-button" + (snapshot.align === "left" ? " is-active" : "")}
-            title="Linksbündig"
+            title={tr("ui.align_left")}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => applyFormat("justifyLeft")}
           >
@@ -539,7 +538,7 @@ function TextEditor({
           <button
             type="button"
             className={"weft-format-button" + (snapshot.align === "center" ? " is-active" : "")}
-            title="Zentriert"
+            title={tr("ui.centre")}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => applyFormat("justifyCenter")}
           >
@@ -548,7 +547,7 @@ function TextEditor({
           <button
             type="button"
             className={"weft-format-button" + (snapshot.align === "right" ? " is-active" : "")}
-            title="Rechtsbündig"
+            title={tr("ui.align_right")}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => applyFormat("justifyRight")}
           >
@@ -557,7 +556,7 @@ function TextEditor({
         </div>
 
         <label className="weft-field">
-          <span>Schriftart</span>
+          <span>{tr("ui.font")}</span>
           <FontSelect
             value={snapshot.fontFamily === "mixed" ? "" : snapshot.fontFamily || DEFAULT_FONT_FAMILY}
             isMixed={snapshot.fontFamily === "mixed"}
@@ -578,12 +577,12 @@ function TextEditor({
 
         <div className="weft-format-row">
           <label className="weft-field">
-            <span>Schriftgröße</span>
+            <span>{tr("ui.font_size")}</span>
             <div className="weft-stepper">
               <button
                 type="button"
                 className="weft-format-button"
-                title="Kleiner"
+                title={tr("ui.smaller")}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   const current = typeof snapshot.fontSizePx === "number" ? snapshot.fontSizePx : 16;
@@ -598,7 +597,7 @@ function TextEditor({
                 min={MIN_FONT_SIZE_PX}
                 max={MAX_FONT_SIZE_PX}
                 defaultValue={fontSizeKey === "mixed" ? "" : fontSizeKey}
-                placeholder={snapshot.fontSizePx === "mixed" ? "Verschiedene" : "24"}
+                placeholder={snapshot.fontSizePx === "mixed" ? tr("ui.mixed") : "24"}
                 onBlur={(e) => {
                   const px = Number(e.target.value);
                   // Clamped here, not just via the input's own min/max attributes - those only
@@ -611,7 +610,7 @@ function TextEditor({
               <button
                 type="button"
                 className="weft-format-button"
-                title="Größer"
+                title={tr("ui.larger")}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   const current = typeof snapshot.fontSizePx === "number" ? snapshot.fontSizePx : 16;
@@ -623,7 +622,7 @@ function TextEditor({
             </div>
           </label>
           <label className="weft-field">
-            <span>Farbe</span>
+            <span>{tr("ui.colour")}</span>
             <input
               key={colorKey}
               type="color"
@@ -635,8 +634,8 @@ function TextEditor({
           <button
             type="button"
             className="weft-format-button weft-format-more"
-            title="Weitere Schriftoptionen"
-            aria-label="Weitere Schriftoptionen"
+            title={tr("ui.more_font_options")}
+            aria-label={tr("ui.more_font_options")}
             disabled={!snapshot.active}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setFormatDialogOpen(true)}
@@ -648,19 +647,19 @@ function TextEditor({
       {onApplyToPages && (
         <>
           <button type="button" className="weft-ghost-button weft-full-width" onClick={onApplyToPages}>
-            Formatierung auf alle Folien anwenden
+            {tr("ui.apply_formatting_to_all_slides")}
           </button>
           <p className="weft-hint">
             {appliesToCount === 1
-              ? "Ein Text auf den Folien hat eine andere Formatierung als hier."
-              : `${appliesToCount} Texte auf den Folien haben eine andere Formatierung als hier.`}{" "}
-            Die Wörter bleiben, die Formatierung wird von hier übernommen.
+              ? tr("ui.one_text_on_the_slides_has")
+              : tr("ui.texts_on_the_slides_have_a", { appliesToCount: appliesToCount })}{" "}
+            {tr("ui.the_words_stay_the_formatting_is")}
           </p>
         </>
       )}
       {onResetStyle && (
         <button type="button" className="weft-ghost-button weft-full-width" onClick={onResetStyle}>
-          Formatierung der Vorlage wiederherstellen
+          {tr("ui.restore_the_formatting_of_the_template")}
         </button>
       )}
       {block && block.kind === "text" && (
@@ -671,11 +670,10 @@ function TextEditor({
               checked={!!block.scrollable}
               onChange={(e) => onUpdate({ scrollable: e.target.checked })}
             />
-            <span>Scrollbar</span>
+            <span>{tr("ui.scrollbar")}</span>
           </label>
           <p className="weft-hint">
-            Zu langer Text lässt sich dann senkrecht scrollen. Ohne diese Option wird er am Rand des Blocks
-            abgeschnitten.
+            {tr("ui.text_that_is_too_long_can")}
           </p>
         </>
       )}
@@ -693,9 +691,9 @@ function ImageEditor({
   onSetImage: BlockPanelProps["onSetImage"];
 }) {
   return (
-    <Collapsible title="Inhalt">
+    <Collapsible title={tr("ui.content")}>
       <label className="weft-field">
-        <span>Bilddatei</span>
+        <span>{tr("ui.image_file")}</span>
         <input
           type="file"
           accept="image/*"
@@ -706,7 +704,7 @@ function ImageEditor({
         />
       </label>
       <label className="weft-field">
-        <span>Alt-Text</span>
+        <span>{tr("ui.alt_text")}</span>
         <input value={block.alt} onChange={(e) => onUpdate({ alt: e.target.value })} />
       </label>
       {block.assetId && <ImageEditTiles block={block} onUpdate={onUpdate} />}
@@ -754,20 +752,20 @@ function ImageEditTiles({ block, onUpdate }: { block: ImageBlock; onUpdate: Bloc
             <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeDasharray="3 2.4" />
             <rect x="9" y="9" width="6" height="6" fill="currentColor" opacity="0.5" />
           </svg>
-          <span>Maske</span>
+          <span>{tr("ui.mask")}</span>
         </button>
         <button type="button" className={"weft-image-tile" + (block.effect ? " is-set" : "")} onClick={() => setEffectOpen(true)}>
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
             <rect x="5" y="5" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
             <rect x="9" y="9" width="11" height="11" rx="1.5" fill="currentColor" opacity="0.4" />
           </svg>
-          <span>Effekt</span>
+          <span>{tr("ui.effect")}</span>
         </button>
       </div>
 
       {editing && (
         <div className="weft-image-mask-panel">
-          <span className="weft-image-mask-title">Grundform</span>
+          <span className="weft-image-mask-title">{tr("ui.basic_shape")}</span>
           <div className="weft-image-shapes">
             {IMAGE_MASK_SHAPES.map((shape) => (
               <button
@@ -786,14 +784,13 @@ function ImageEditTiles({ block, onUpdate }: { block: ImageBlock; onUpdate: Bloc
           {mask ? (
             <>
               <p className="weft-hint">
-                Auf der Folie: Punkte ziehen, auf der Kurve ein „+“ ziehen für einen neuen Punkt, die Linie ziehen verschiebt die Form,
-                die Quadrate an den Ecken verändern ihre Größe. Doppelklick auf einen Punkt: Ecke oder weicher Übergang.
+                {tr("ui.on_the_slide_drag_points_drag")}
               </p>
               {canRound && (
                 <div className="weft-field">
-                  <span>{selectedPoint ? "Rundung dieser Ecke" : "Rundung der Ecken"}</span>
+                  <span>{selectedPoint ? tr("ui.rounding_of_this_corner") : tr("ui.rounding_of_the_corners")}</span>
                   <StepperSlider
-                    label="Rundung"
+                    label={tr("ui.rounding")}
                     value={Math.round(radius)}
                     min={0}
                     max={40}
@@ -809,7 +806,7 @@ function ImageEditTiles({ block, onUpdate }: { block: ImageBlock; onUpdate: Bloc
                     className="weft-ghost-button"
                     onClick={() => onUpdate({ mask: { ...mask, points: toggleSmooth(mask.points, selected!) } })}
                   >
-                    {selectedPoint.smooth ? "Zur Ecke machen" : "Weich machen"}
+                    {selectedPoint.smooth ? tr("ui.make_corner") : tr("ui.make_smooth")}
                   </button>
                   <button
                     type="button"
@@ -820,7 +817,7 @@ function ImageEditTiles({ block, onUpdate }: { block: ImageBlock; onUpdate: Bloc
                       select(null);
                     }}
                   >
-                    Punkt entfernen
+                    {tr("ui.remove_point")}
                   </button>
                 </div>
               )}
@@ -832,11 +829,11 @@ function ImageEditTiles({ block, onUpdate }: { block: ImageBlock; onUpdate: Bloc
                   onUpdate({ mask: null });
                 }}
               >
-                Maske zurücksetzen
+                {tr("ui.reset_mask")}
               </button>
             </>
           ) : (
-            <p className="weft-hint">Eine Form wählen: Alles außerhalb davon wird abgeschnitten.</p>
+            <p className="weft-hint">{tr("ui.choose_a_shape_everything_outside_of")}</p>
           )}
         </div>
       )}
@@ -855,12 +852,12 @@ function ImageEditTiles({ block, onUpdate }: { block: ImageBlock; onUpdate: Bloc
 
 function CodeEditor({ block, onUpdate }: { block: CodeBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
   return (
-    <Collapsible title="Code">
-      <p className="weft-hint">Code direkt auf der Folie eingeben. Mit Tab wird eingerückt.</p>
+    <Collapsible title={tr("ui.code")}>
+      <p className="weft-hint">{tr("ui.type_code_directly_on_the_slide")}</p>
       <label className="weft-field">
-        <span>Sprache</span>
+        <span>{tr("ui.language")}</span>
         <select value={block.language} onChange={(e) => onUpdate({ language: e.target.value })}>
-          <option value={AUTO_LANGUAGE}>Automatisch erkennen</option>
+          <option value={AUTO_LANGUAGE}>{tr("ui.detect_automatically")}</option>
           {CODE_LANGUAGES.map((language) => (
             <option key={language.id} value={language.id}>
               {language.label}
@@ -869,7 +866,7 @@ function CodeEditor({ block, onUpdate }: { block: CodeBlock; onUpdate: BlockPane
         </select>
       </label>
       <label className="weft-field">
-        <span>Design</span>
+        <span>{tr("ui.theme")}</span>
         <select value={block.theme} onChange={(e) => onUpdate({ theme: e.target.value })}>
           {CODE_THEMES.map((theme) => (
             <option key={theme.id} value={theme.id}>
@@ -884,10 +881,10 @@ function CodeEditor({ block, onUpdate }: { block: CodeBlock; onUpdate: BlockPane
           checked={!!block.transparentBackground}
           onChange={(e) => onUpdate({ transparentBackground: e.target.checked })}
         />
-        <span>Transparenter Hintergrund</span>
+        <span>{tr("ui.transparent_background")}</span>
       </label>
       <label className="weft-field">
-        <span>Schriftgröße</span>
+        <span>{tr("ui.font_size")}</span>
         <input
           type="number"
           min={6}
@@ -916,9 +913,9 @@ function VideoEditor({
   const [stopPointDialogOpen, setStopPointDialogOpen] = useState(false);
   return (
     <>
-      <Collapsible title="Inhalt">
+      <Collapsible title={tr("ui.content")}>
         <label className="weft-field">
-          <span>Videodatei</span>
+          <span>{tr("ui.video_file")}</span>
           <input
             type="file"
             accept="video/*"
@@ -934,23 +931,21 @@ function VideoEditor({
         </label>
         {transcode.active && (
           <p className="weft-hint">
-            „{transcode.fileName}“ wird nach H.264 konvertiert
+            „{transcode.fileName}{tr("ui.is_being_converted_to_h_264")}
             {transcode.progress !== null ? ` … ${Math.round(transcode.progress * 100)}%` : " …"}
           </p>
         )}
         <p className="weft-hint">
-          Am besten MP4 (H.264/AAC) verwenden. Ein Video in einem anderen Format oder Codec (z. B. HEVC/H.265 aus
-          einem iPhone-Export) wird automatisch nach H.264 konvertiert, sofern ffmpeg installiert ist - sonst
-          erscheint ein Hinweis mit Installationsanleitung.
+          {tr("ui.mp4_h_264_aac_is_best")}
         </p>
 
         <label className="weft-field weft-field-inline">
           <input type="checkbox" checked={block.controls} onChange={(e) => onUpdate({ controls: e.target.checked })} />
-          <span>Steuerelemente anzeigen</span>
+          <span>{tr("ui.show_controls")}</span>
         </label>
         <label className="weft-field weft-field-inline">
           <input type="checkbox" checked={block.loop} onChange={(e) => onUpdate({ loop: e.target.checked })} />
-          <span>Endlosschleife</span>
+          <span>{tr("ui.loop")}</span>
         </label>
         <label className="weft-field weft-field-inline">
           <input
@@ -959,7 +954,7 @@ function VideoEditor({
             disabled={block.autoplay}
             onChange={(e) => onUpdate({ muted: e.target.checked })}
           />
-          <span>Stumm</span>
+          <span>{tr("ui.muted")}</span>
         </label>
         <label className="weft-field weft-field-inline">
           <input
@@ -973,18 +968,17 @@ function VideoEditor({
               onUpdate(autoplay ? { autoplay, muted: true } : { autoplay });
             }}
           />
-          <span>Automatisch abspielen (nur stumm möglich)</span>
+          <span>{tr("ui.play_automatically_muted_only")}</span>
         </label>
       </Collapsible>
 
-      <Collapsible title="Zeitmarken" defaultOpen={block.stopPoints.length > 0}>
+      <Collapsible title={tr("ui.time_marks")} defaultOpen={block.stopPoints.length > 0}>
         <p className="weft-hint">
-          Zeitmarken können das Video zu einem bestimmten Zeitpunkt pausieren und/oder verschiedene Events ausführen wie das Anzeigen
-          von Erklärtexten oder Quizzen.
+          {tr("ui.time_marks_can_pause_the_video")}
         </p>
         {block.stopPoints.length > 0 && (
           <p className="weft-hint">
-            {block.stopPoints.length} Zeitmarke{block.stopPoints.length === 1 ? "" : "n"} angelegt.
+            {block.stopPoints.length} {tr("ui.time_mark_2")}{block.stopPoints.length === 1 ? "" : "n"} angelegt.
           </p>
         )}
         <button
@@ -993,9 +987,9 @@ function VideoEditor({
           disabled={!block.assetId}
           onClick={() => setStopPointDialogOpen(true)}
         >
-          Zeitmarken konfigurieren
+          {tr("ui.configure_time_marks")}
         </button>
-        {!block.assetId && <p className="weft-hint">Zuerst eine Videodatei auswählen.</p>}
+        {!block.assetId && <p className="weft-hint">{tr("ui.choose_a_video_file_first")}</p>}
       </Collapsible>
 
       {stopPointDialogOpen && block.assetId && (
@@ -1087,8 +1081,8 @@ function VideoStopPointDialog({
     <div className="weft-modal-backdrop" onClick={onClose}>
       <div className="weft-modal" onClick={(e) => e.stopPropagation()}>
         <div className="weft-modal-header">
-          <h3>Zeitmarken</h3>
-          <button type="button" className="weft-icon-button" title="Schließen" onClick={onClose}>
+          <h3>{tr("ui.time_marks")}</h3>
+          <button type="button" className="weft-icon-button" title={tr("ui.close")} onClick={onClose}>
             ×
           </button>
         </div>
@@ -1130,27 +1124,27 @@ function VideoStopPointDialog({
 
         {selectedStopPoint && (
           <div className="weft-stop-point-settings">
-            <p className="weft-stop-point-settings-title">Zeitmarke bei {formatTimeMMSS(selectedStopPoint.timeSeconds)}</p>
+            <p className="weft-stop-point-settings-title">{tr("ui.time_mark_at")} {formatTimeMMSS(selectedStopPoint.timeSeconds)}</p>
             <label className="weft-field weft-field-inline">
               <input
                 type="checkbox"
                 checked={selectedStopPoint.stopsVideo}
                 onChange={(e) => updateStopPoint(selectedStopPoint.id, { stopsVideo: e.target.checked })}
               />
-              <span>Video hier stoppen</span>
+              <span>{tr("ui.stop_the_video_here")}</span>
             </label>
-            {!selectedStopPoint.stopsVideo && <p className="weft-hint">Das Video läuft an dieser Stelle einfach weiter.</p>}
+            {!selectedStopPoint.stopsVideo && <p className="weft-hint">{tr("ui.the_video_just_goes_on_at")}</p>}
             <button type="button" className="weft-ghost-button" onClick={() => removeStopPoint(selectedStopPoint.id)}>
-              Zeitmarke entfernen
+              {tr("ui.remove_time_mark")}
             </button>
           </div>
         )}
         <div className="weft-format-row weft-stop-point-actions">
           <button type="button" className="weft-ghost-button" onClick={() => videoRef.current?.pause()}>
-            Pausieren
+            {tr("ui.pause")}
           </button>
           <button type="button" className="weft-primary-button" onClick={addStopPointHere}>
-            Zeitmarke erstellen
+            {tr("ui.create_time_mark")}
           </button>
         </div>
       </div>
@@ -1162,9 +1156,9 @@ function VideoStopPointDialog({
 const DEFAULT_VIEWPORT_WIDTH = 768;
 
 const VIEWPORT_WIDTH_PRESETS: { label: string; width: number }[] = [
-  { label: "Mobil", width: 375 },
-  { label: "Tablet", width: DEFAULT_VIEWPORT_WIDTH },
-  { label: "Desktop", width: 1280 },
+  { get label() { return tr("ui.mobile"); }, width: 375 },
+  { get label() { return tr("ui.tablet"); }, width: DEFAULT_VIEWPORT_WIDTH },
+  { get label() { return tr("ui.desktop"); }, width: 1280 },
 ];
 
 // The embedded page always sees a fixed virtual viewport width (see IframeFrame in
@@ -1174,13 +1168,13 @@ const VIEWPORT_WIDTH_PRESETS: { label: string; width: number }[] = [
 function IframeEditor({ block, onUpdate }: { block: IframeBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
   const forcedViewportWidth = block.forcedViewportWidth ?? DEFAULT_VIEWPORT_WIDTH;
   return (
-    <Collapsible title="Inhalt">
+    <Collapsible title={tr("ui.content")}>
       <label className="weft-field">
-        <span>URL (z. B. YouTube-Embed oder ein anderes interaktives Tool)</span>
+        <span>{tr("ui.url_e_g_a_youtube_embed")}</span>
         <input value={block.url} onChange={(e) => onUpdate({ url: e.target.value })} />
       </label>
       <label className="weft-field">
-        <span>Virtuelle Breite (px)</span>
+        <span>{tr("ui.virtual_width_px")}</span>
         <input
           type="number"
           min={1}
@@ -1201,7 +1195,7 @@ function IframeEditor({ block, onUpdate }: { block: IframeBlock; onUpdate: Block
         ))}
       </div>
 
-      <span className="weft-subgroup-label">Sandbox-Rechte</span>
+      <span className="weft-subgroup-label">{tr("ui.sandbox_permissions")}</span>
       {SANDBOX_FLAGS.map((flag) => (
         <label key={flag} className="weft-field weft-field-inline">
           <input
@@ -1216,26 +1210,24 @@ function IframeEditor({ block, onUpdate }: { block: IframeBlock; onUpdate: Block
         </label>
       ))}
       <label className="weft-field">
-        <span>allow (Permissions Policy, z. B. "autoplay; fullscreen")</span>
+        <span>{tr("ui.allow_permissions_policy_e_g_autoplay")}</span>
         <input value={block.allow ?? ""} onChange={(e) => onUpdate({ allow: e.target.value })} />
       </label>
 
       <label className="weft-field weft-field-inline">
         <input type="checkbox" checked={block.qrCode} onChange={(e) => onUpdate({ qrCode: e.target.checked })} />
-        <span>Erst QR-Code zeigen, per Klick auf die Adresse einblenden</span>
+        <span>{tr("ui.show_a_qr_code_first_reveal")}</span>
       </label>
       {block.qrCode && (
         <label className="weft-field">
-          <span>Alternative Adresse für die Präsentation (optional)</span>
+          <span>{tr("ui.alternative_address_for_the_presentation_optional")}</span>
           <input
             value={block.presentationUrl ?? ""}
             placeholder={block.url}
             onChange={(e) => onUpdate({ presentationUrl: e.target.value || undefined })}
           />
           <span className="weft-hint">
-            Der QR-Code verlinkt weiterhin auf die URL oben. Ist hier eine andere Adresse eingetragen, wird nach dem
-            Klick diese statt der gescannten URL angezeigt – z. B. die Ergebnisse einer Umfrage, an der man
-            per QR-Code teilnimmt.
+            {tr("ui.the_qr_code_still_links_to")}
           </span>
         </label>
       )}
@@ -1257,14 +1249,13 @@ function ClozeEditor({ block, page, onUpdate }: { block: ClozeBlock; page?: Page
 
   return (
     <>
-      <Collapsible title="Lücken">
+      <Collapsible title={tr("ui.gaps")}>
         <LanguageSelect block={block} />
         <p className="weft-hint">
-          Den Text direkt auf der Folie eingeben. Eine Lücke schreibst du als [[Antwort]]; mehrere richtige Antworten trennst du mit | (zum
-          Beispiel [[Berlin|Hauptstadt]]). Eine Lücke muss ohne Formatierung in der Mitte geschrieben sein.
+          {tr("ui.type_the_text_directly_on_the")}
         </p>
         {blanks.length === 0 ? (
-          <p className="weft-hint">Noch keine Lücke erkannt.</p>
+          <p className="weft-hint">{tr("ui.no_gap_recognised_yet")}</p>
         ) : (
           <ol className="weft-cloze-answers">
             {blanks.map((blank, index) => (
@@ -1280,29 +1271,29 @@ function ClozeEditor({ block, page, onUpdate }: { block: ClozeBlock; page?: Page
         )}
       </Collapsible>
 
-      <Collapsible title="Bewertung" defaultOpen={false}>
+      <Collapsible title={tr("ui.scoring")} defaultOpen={false}>
         <label className="weft-field weft-field-inline">
           <input type="checkbox" checked={!!block.caseSensitive} onChange={(e) => onUpdate({ caseSensitive: e.target.checked })} />
-          <span>Groß- und Kleinschreibung beachten</span>
+          <span>{tr("ui.case_sensitive")}</span>
         </label>
         <label className="weft-field">
-          <span>Toleranz bei Tippfehlern</span>
+          <span>{tr("ui.tolerance_for_typos")}</span>
           <select value={block.tolerance ?? 0} onChange={(e) => onUpdate({ tolerance: Number(e.target.value) })}>
-            <option value={0}>Keine - genau so geschrieben</option>
-            <option value={1}>1 falsches Zeichen</option>
-            <option value={2}>2 falsche Zeichen</option>
+            <option value={0}>{tr("ui.none_exactly_as_written")}</option>
+            <option value={1}>{tr("ui.1_wrong_character")}</option>
+            <option value={2}>{tr("ui.2_wrong_characters")}</option>
           </select>
         </label>
-        <p className="weft-hint">Bei sehr kurzen Antworten gilt immer die genaue Schreibweise.</p>
+        <p className="weft-hint">{tr("ui.for_very_short_answers_the_exact")}</p>
       </Collapsible>
 
-      <Collapsible title="Bei jeder richtigen Antwort" defaultOpen={false}>
+      <Collapsible title={tr("ui.for_every_correct_answer")} defaultOpen={false}>
         <EffectListEditor effects={block.onEachCorrect ?? []} variables={variables} onChange={(onEachCorrect) => onUpdate({ onEachCorrect })} />
       </Collapsible>
 
       {keys.length > 0 && (
-        <Collapsible title="Je nach Antwort" defaultOpen={false}>
-          <p className="weft-hint">Zusätzlich zu dem, was bei jeder richtigen Antwort geschieht.</p>
+        <Collapsible title={tr("ui.depending_on_the_answer")} defaultOpen={false}>
+          <p className="weft-hint">{tr("ui.in_addition_to_what_happens_for")}</p>
           {keys.map((key) => (
             <Collapsible key={key} title={key} defaultOpen={false}>
               <EffectListEditor
@@ -1319,7 +1310,7 @@ function ClozeEditor({ block, page, onUpdate }: { block: ClozeBlock; page?: Page
         </Collapsible>
       )}
 
-      <Collapsible title="Wenn alles richtig ist" defaultOpen={false}>
+      <Collapsible title={tr("ui.when_everything_is_correct")} defaultOpen={false}>
         <EffectListEditor effects={block.onCorrect} variables={variables} onChange={(onCorrect) => onUpdate({ onCorrect })} />
         <label className="weft-field weft-field-inline">
           <input
@@ -1328,10 +1319,10 @@ function ClozeEditor({ block, page, onUpdate }: { block: ClozeBlock; page?: Page
             disabled={!page}
             onChange={(e) => page && setQuizAdvance(page.id, block.id, "richtig", e.target.checked)}
           />
-          <span>Weiter zur nächsten Folie</span>
+          <span>{tr("ui.continue_to_the_next_slide")}</span>
         </label>
       </Collapsible>
-      <Collapsible title="Wenn nicht alles richtig ist" defaultOpen={false}>
+      <Collapsible title={tr("ui.when_not_everything_is_correct")} defaultOpen={false}>
         <EffectListEditor effects={block.onIncorrect} variables={variables} onChange={(onIncorrect) => onUpdate({ onIncorrect })} />
         <label className="weft-field weft-field-inline">
           <input
@@ -1340,7 +1331,7 @@ function ClozeEditor({ block, page, onUpdate }: { block: ClozeBlock; page?: Page
             disabled={!page}
             onChange={(e) => page && setQuizAdvance(page.id, block.id, "falsch", e.target.checked)}
           />
-          <span>Weiter zur nächsten Folie</span>
+          <span>{tr("ui.continue_to_the_next_slide")}</span>
         </label>
       </Collapsible>
     </>
@@ -1348,10 +1339,10 @@ function ClozeEditor({ block, page, onUpdate }: { block: ClozeBlock; page?: Page
 }
 
 const LIST_MARKER_LABELS: Record<ListMarkerKind, string> = {
-  dot: "Punkt",
-  dash: "Strich",
-  number: "Nummer",
-  image: "Eigenes Bild",
+  get dot() { return tr("ui.dot"); },
+  get dash() { return tr("ui.dash"); },
+  get number() { return tr("ui.number"); },
+  get image() { return tr("ui.own_image"); },
 };
 
 /** The settings of a list: its items (add, order, remove - the text itself is edited on the slide), the mark in front of them, the
@@ -1377,20 +1368,20 @@ function ListEditor({
     onUpdate({ items });
   }
   return (
-    <Collapsible title="Liste">
+    <Collapsible title={tr("ui.list")}>
       <LanguageSelect block={block} />
-      <p className="weft-hint">Die Punkte direkt auf der Folie eingeben. Markierten Text unter „Inhalt“ formatieren.</p>
+      <p className="weft-hint">{tr("ui.type_the_items_directly_on_the")}</p>
       <ul className="weft-list-items">
         {block.items.map((item, index) => (
           <li key={item.id} className="weft-list-items-row">
-            <span className="weft-list-items-label">{stripHtml(listItemHtml(block, item.id, lang, defaultLang)) || "(leer)"}</span>
-            <button type="button" className="weft-ghost-button" title="Nach oben" disabled={index === 0} onClick={() => move(index, -1)}>
+            <span className="weft-list-items-label">{stripHtml(listItemHtml(block, item.id, lang, defaultLang)) || tr("ui.empty")}</span>
+            <button type="button" className="weft-ghost-button" title={tr("ui.up")} disabled={index === 0} onClick={() => move(index, -1)}>
               ↑
             </button>
             <button
               type="button"
               className="weft-ghost-button"
-              title="Nach unten"
+              title={tr("ui.down")}
               disabled={index === block.items.length - 1}
               onClick={() => move(index, 1)}
             >
@@ -1399,7 +1390,7 @@ function ListEditor({
             <button
               type="button"
               className="weft-event-trigger-remove"
-              aria-label="Listenpunkt entfernen"
+              aria-label={tr("ui.remove_list_item")}
               disabled={block.items.length < 2}
               onClick={() => onUpdate({ items: block.items.filter((other) => other.id !== item.id) })}
             >
@@ -1411,13 +1402,13 @@ function ListEditor({
       <button
         type="button"
         className="weft-ghost-button weft-full-width"
-        onClick={() => onUpdate({ items: [...block.items, { id: createId(), html: "Neuer Punkt" }] })}
+        onClick={() => onUpdate({ items: [...block.items, { id: createId(), html: tr("ui.new_item") }] })}
       >
-        + Listenpunkt
+        {tr("ui.list_item_2")}
       </button>
 
       <label className="weft-field">
-        <span>Aufzählungszeichen</span>
+        <span>{tr("ui.bullet_style")}</span>
         <select value={block.marker} onChange={(e) => onUpdate({ marker: e.target.value as ListMarkerKind })}>
           {(Object.keys(LIST_MARKER_LABELS) as ListMarkerKind[]).map((marker) => (
             <option key={marker} value={marker}>
@@ -1428,7 +1419,7 @@ function ListEditor({
       </label>
       {block.marker === "image" && (
         <label className="weft-field">
-          <span>Bilddatei für die Zeichen</span>
+          <span>{tr("ui.image_file_for_the_markers")}</span>
           <input
             type="file"
             accept="image/*"
@@ -1441,9 +1432,9 @@ function ListEditor({
       )}
       {block.marker === "image" && (
         <div className="weft-field">
-          <span>Größe des Bildes</span>
+          <span>{tr("ui.size_of_the_image")}</span>
           <StepperSlider
-            label="Größe des Bildes"
+            label={tr("ui.size_of_the_image")}
             value={block.markerSize ?? 1.2}
             min={0.5}
             max={4}
@@ -1453,26 +1444,25 @@ function ListEditor({
         </div>
       )}
       <div className="weft-field">
-        <span>Abstand zwischen den Punkten</span>
-        <StepperSlider label="Abstand" value={block.spacing} min={0} max={6} step={0.2} onChange={(spacing) => onUpdate({ spacing: Math.round(spacing * 10) / 10 })} />
+        <span>{tr("ui.space_between_the_items")}</span>
+        <StepperSlider label={tr("ui.spacing")} value={block.spacing} min={0} max={6} step={0.2} onChange={(spacing) => onUpdate({ spacing: Math.round(spacing * 10) / 10 })} />
       </div>
 
       {page && (
         <>
           <label className="weft-field">
-            <span>Aufbau</span>
+            <span>{tr("ui.entrance")}</span>
             <select value={block.itemEntrance ? "items" : "list"} onChange={(e) => onUpdate({ itemEntrance: e.target.value === "items" })}>
-              <option value="list">Die ganze Liste auf einmal</option>
-              <option value="items">Jeder Listenpunkt einzeln</option>
+              <option value="list">{tr("ui.the_whole_list_at_once")}</option>
+              <option value="items">{tr("ui.each_list_item_on_its_own")}</option>
             </select>
           </label>
           {block.itemEntrance && block.entranceEffect.type === "off" && (
-            <p className="weft-hint">Wähle unter „Aufbau“ eine Animation, damit die Punkte nacheinander erscheinen.</p>
+            <p className="weft-hint">{tr("ui.choose_an_animation_under_entrance_so")}</p>
           )}
           {perItem && (
             <p className="weft-hint">
-              Jeder Punkt ist ein eigenes Ereignis im Graphen (standardmäßig nacheinander mit Weiter) und erscheint mit dem Effekt von
-              „Aufbau“ unten. Der Abbau gilt für die ganze Liste.
+              {tr("ui.each_item_is_an_event_of")}
             </p>
           )}
         </>
@@ -1540,16 +1530,16 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
 
   return (
     <>
-      <Collapsible title="Aktion">
+      <Collapsible title={tr("ui.action")}>
         <label className="weft-field">
-          <span>Beim Klick</span>
+          <span>{tr("ui.on_click")}</span>
           <select value={value} onChange={(e) => chooseAction(e.target.value)}>
-            <option value="advance">Weiter</option>
-            <option value="prev">Vorherige Folie</option>
-            <optgroup label="Zu einer Folie springen">
-              {block.action === "goto" && !block.targetPageId && <option value="goto:">Folie wählen …</option>}
+            <option value="advance">{tr("ui.next")}</option>
+            <option value="prev">{tr("ui.previous_slide")}</option>
+            <optgroup label={tr("ui.jump_to_a_slide")}>
+              {block.action === "goto" && !block.targetPageId && <option value="goto:">{tr("ui.choose_slide")}</option>}
               {block.action === "goto" && block.targetPageId && !targetKnown && (
-                <option value={`goto:${block.targetPageId}`}>(gelöschte Folie)</option>
+                <option value={`goto:${block.targetPageId}`}>{tr("ui.deleted_slide")}</option>
               )}
               {pages.map((choice) => (
                 <option key={choice.pageId} value={`goto:${choice.pageId}`}>
@@ -1558,8 +1548,8 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
               ))}
             </optgroup>
             {page ? (
-              <optgroup label="Ereignis auslösen">
-                <option value={NO_TARGET}>Nichts (nur „Button geklickt“)</option>
+              <optgroup label={tr("ui.trigger_an_event")}>
+                <option value={NO_TARGET}>{tr("ui.nothing_only_button_clicked")}</option>
                 {targets.map((target) => (
                   <option key={target.id} value={`event:${target.id}`}>
                     {target.label}
@@ -1567,19 +1557,18 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
                 ))}
               </optgroup>
             ) : (
-              <option value="event">Ereignis auslösen (im Graphen)</option>
+              <option value="event">{tr("ui.trigger_an_event_in_the_graph")}</option>
             )}
           </select>
         </label>
         {block.action === "advance" && (
           <p className="weft-hint">
-            Zeigt zuerst noch wartende, auf „Weiter" wartende Aufbauten dieser Folie - erst wenn keine mehr warten,
-            geht es zur nächsten Folie. Genau wie Leertaste/Pfeil rechts.
+            {tr("ui.first_shows_the_entrances_of_this")}
           </p>
         )}
         {block.action === "prev" && (
           <p className="weft-hint">
-            Auf der ersten Folie automatisch deaktiviert – der Player merkt sich dazu den bisherigen Lernpfad.
+            {tr("ui.automatically_disabled_on_the_first_slide")}
           </p>
         )}
         {block.action === "goto" && (
@@ -1589,43 +1578,42 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
                 <PageMiniature pageId={block.targetPageId} />
               </div>
             ) : (
-              <p className="weft-hint">⚠ Diese Folie gibt es nicht mehr - der Klick tut dann nichts. Wähle eine andere.</p>
+              <p className="weft-hint">{tr("ui.this_slide_no_longer_exists_the")}</p>
             )}
             <p className="weft-hint">
-              Springt zu dieser Folie; danach geht es mit der Folie weiter, die auf sie folgt. Der Zurück-Weg führt zur Folie, auf
-              der der Button war.
+              {tr("ui.jumps_to_this_slide_after_that")}
             </p>
           </>
         )}
         {block.action === "event" && !page && (
           <p className="weft-hint">
-            Der Klick ist ein Ereignis im Graphen („Button geklickt“). Was er auslöst, stellst du auf der Folie ein.
+            {tr("ui.the_click_is_an_event_in")}
           </p>
         )}
       </Collapsible>
       {block.action === "event" && page && clickNode && <OutgoingTriggersSection page={page} node={clickNode} />}
-      <Collapsible title="Variablen ändern" defaultOpen={(block.onClick ?? []).length > 0}>
-        <p className="weft-hint">Bei jedem Klick, zusätzlich zur Aktion - zuerst werden die Variablen geändert, dann geht die Aktion los.</p>
+      <Collapsible title={tr("ui.change_variables")} defaultOpen={(block.onClick ?? []).length > 0}>
+        <p className="weft-hint">{tr("ui.on_every_click_in_addition_to")}</p>
         <EffectListEditor effects={block.onClick ?? []} variables={variables} onChange={(onClick) => onUpdate({ onClick })} />
-        {variables.length === 0 && <p className="weft-hint">Es gibt noch keine Variablen - sie legst du im Reiter „Variablen" an.</p>}
+        {variables.length === 0 && <p className="weft-hint">{tr("ui.there_are_no_variables_yet_create")}</p>}
       </Collapsible>
-      <Collapsible title="Aussehen">
+      <Collapsible title={tr("ui.appearance")}>
         <div className="weft-field">
-          <span>Hintergrund</span>
+          <span>{tr("ui.background")}</span>
           <div className="weft-button-look-row">
             <label className="weft-field weft-field-inline">
               <input type="checkbox" checked={look.background === null} onChange={(e) => setLook({ background: e.target.checked ? null : "#18181b" })} />
-              <span>Kein Hintergrund</span>
+              <span>{tr("ui.no_background")}</span>
             </label>
             {look.background !== null && (
-              <input type="color" value={look.background} aria-label="Hintergrundfarbe" onChange={(e) => setLook({ background: e.target.value })} />
+              <input type="color" value={look.background} aria-label={tr("ui.background_colour")} onChange={(e) => setLook({ background: e.target.value })} />
             )}
           </div>
         </div>
         <div className="weft-field">
-          <span>Rand: Dicke (% der Folienbreite)</span>
+          <span>{tr("ui.border_thickness_of_the_slide_width")}</span>
           <StepperSlider
-            label="Dicke des Rands"
+            label={tr("ui.border_thickness")}
             value={Math.round(look.borderWidth * 100) / 100}
             min={0}
             max={2}
@@ -1635,14 +1623,14 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
         </div>
         {look.borderWidth > 0 && (
           <label className="weft-field">
-            <span>Rand: Farbe</span>
+            <span>{tr("ui.border_colour")}</span>
             <input type="color" value={look.borderColor} onChange={(e) => setLook({ borderColor: e.target.value })} />
           </label>
         )}
         <div className="weft-field">
-          <span>Rundung der Ecken (% der Folienbreite)</span>
+          <span>{tr("ui.rounding_of_the_corners_of_the")}</span>
           <StepperSlider
-            label="Rundung der Ecken"
+            label={tr("ui.rounding_of_the_corners")}
             value={Math.round(look.radius * 100) / 100}
             min={0}
             max={5}
@@ -1651,7 +1639,7 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
           />
         </div>
         <button type="button" className="weft-ghost-button" onClick={() => onUpdate({ appearance: undefined })}>
-          Aussehen zurücksetzen
+          {tr("ui.reset_appearance")}
         </button>
       </Collapsible>
     </>
@@ -1690,10 +1678,10 @@ function FilesEditor({ block, container, onUpdate }: { block: FilesBlock; contai
   }
 
   return (
-    <Collapsible title="Dateien">
+    <Collapsible title={tr("ui.files")}>
       <label className="weft-field">
-        <span>Überschrift</span>
-        <input value={block.title} placeholder="Dateien" onChange={(e) => onUpdate({ title: e.target.value })} />
+        <span>{tr("ui.heading")}</span>
+        <input value={block.title} placeholder={tr("ui.files")} onChange={(e) => onUpdate({ title: e.target.value })} />
       </label>
       {block.files.length > 0 && (
         <ul className="weft-files-editor-list">
@@ -1703,7 +1691,7 @@ function FilesEditor({ block, container, onUpdate }: { block: FilesBlock; contai
                 {file.name}
               </span>
               <span className="weft-hint">{formatFileSize(file.size)}</span>
-              <button type="button" className="weft-icon-button" title="Entfernen" onClick={() => removeFileFromBlock(container, block.id, file.id)}>
+              <button type="button" className="weft-icon-button" title={tr("ui.remove")} onClick={() => removeFileFromBlock(container, block.id, file.id)}>
                 ×
               </button>
             </li>
@@ -1711,16 +1699,16 @@ function FilesEditor({ block, container, onUpdate }: { block: FilesBlock; contai
         </ul>
       )}
       <button type="button" className="weft-ghost-button weft-full-width" disabled={busy || !canEdit} onClick={() => void addFiles()}>
-        + Dateien hinzufügen
+        {tr("ui.add_files")}
       </button>
-      {!canEdit && <p className="weft-hint">Zum Hinzufügen erst das Passwort eingeben (unten).</p>}
+      {!canEdit && <p className="weft-hint">{tr("ui.to_add_files_enter_the_password")}</p>}
 
       <div className="weft-divider" />
       {!protectedBlock && (
         <>
           <label className="weft-field">
-            <span>Passwortschutz (optional)</span>
-            <input type="password" autoComplete="off" value={password} placeholder="Passwort" onChange={(e) => setPassword(e.target.value)} />
+            <span>{tr("ui.password_protection_optional")}</span>
+            <input type="password" autoComplete="off" value={password} placeholder={tr("ui.password")} onChange={(e) => setPassword(e.target.value)} />
           </label>
           <button
             type="button"
@@ -1734,19 +1722,18 @@ function FilesEditor({ block, container, onUpdate }: { block: FilesBlock; contai
               })
             }
           >
-            Mit Passwort schützen
+            {tr("ui.protect_with_password")}
           </button>
           <p className="weft-hint">
-            Die Dateien werden dann verschlüsselt (AES-256) im Lernmodul abgelegt und erscheinen erst nach Eingabe des Passworts.
-            Das Passwort wird nirgends gespeichert - ohne es sind die Dateien nicht wiederherzustellen.
+            {tr("ui.the_files_are_then_stored_encrypted")}
           </p>
         </>
       )}
       {protectedBlock && unlocked === null && (
         <>
-          <p className="weft-hint">🔒 Mit Passwort geschützt. Zum Ändern oder Hinzufügen erst das Passwort eingeben.</p>
+          <p className="weft-hint">{tr("ui.protected_with_a_password_to_change")}</p>
           <label className="weft-field">
-            <span>Passwort</span>
+            <span>{tr("ui.password")}</span>
             <input type="password" autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)} />
           </label>
           <button
@@ -1755,21 +1742,21 @@ function FilesEditor({ block, container, onUpdate }: { block: FilesBlock; contai
             disabled={busy || password === ""}
             onClick={() =>
               void run(async () => {
-                if (!block.protection || !(await filesCheckPassword(block.protection, password))) throw new Error("Falsches Passwort.");
+                if (!block.protection || !(await filesCheckPassword(block.protection, password))) throw new Error(tr("ui.wrong_password"));
                 setUnlocked(password);
                 setPassword("");
               })
             }
           >
-            Entsperren
+            {tr("ui.unlock")}
           </button>
         </>
       )}
       {protectedBlock && unlocked !== null && (
         <>
-          <p className="weft-hint">🔒 Mit Passwort geschützt - entsperrt, solange dieses Element ausgewählt bleibt.</p>
+          <p className="weft-hint">{tr("ui.protected_with_a_password_unlocked_as")}</p>
           <label className="weft-field">
-            <span>Neues Passwort</span>
+            <span>{tr("ui.new_password")}</span>
             <input type="password" autoComplete="off" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
           </label>
           <button
@@ -1784,7 +1771,7 @@ function FilesEditor({ block, container, onUpdate }: { block: FilesBlock; contai
               })
             }
           >
-            Passwort ändern
+            {tr("ui.change_password")}
           </button>
           <button
             type="button"
@@ -1792,33 +1779,33 @@ function FilesEditor({ block, container, onUpdate }: { block: FilesBlock; contai
             disabled={busy}
             onClick={() =>
               void run(async () => {
-                if (!(await confirmDestructive("Der Passwortschutz wird entfernt: Die Dateien liegen danach unverschlüsselt im Lernmodul und sind für alle sichtbar.", "Passwortschutz entfernen"))) return;
+                if (!(await confirmDestructive(tr("ui.the_password_protection_is_removed_the"), tr("ui.remove_password_protection")))) return;
                 await setFilesPassword(container, block.id, unlocked, null);
                 setUnlocked(null);
               })
             }
           >
-            Passwortschutz entfernen
+            {tr("ui.remove_password_protection")}
           </button>
         </>
       )}
-      {busy && <p className="weft-hint">Einen Moment …</p>}
+      {busy && <p className="weft-hint">{tr("ui.one_moment")}</p>}
       {error && <p className="weft-placeholder-warning">{error}</p>}
     </Collapsible>
   );
 }
 
 const ARROW_STYLE_LABELS: Record<ArrowStyle, string> = {
-  plain: "Nüchtern",
-  sketch: "Handgemalt",
-  ornate: "Verschnörkelt (Jugendstil)",
+  get plain() { return tr("ui.plain"); },
+  get sketch() { return tr("ui.hand_drawn"); },
+  get ornate() { return tr("ui.ornate_art_nouveau"); },
 };
 
 function ArrowEditor({ block, onUpdate }: { block: ArrowBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
   return (
-    <Collapsible title="Pfeil">
+    <Collapsible title={tr("ui.arrow")}>
       <label className="weft-field">
-        <span>Stil</span>
+        <span>{tr("ui.style")}</span>
         <select value={block.arrowStyle} onChange={(e) => onUpdate({ arrowStyle: e.target.value as ArrowStyle })}>
           {(Object.keys(ARROW_STYLE_LABELS) as ArrowStyle[]).map((style) => (
             <option key={style} value={style}>
@@ -1832,38 +1819,37 @@ function ArrowEditor({ block, onUpdate }: { block: ArrowBlock; onUpdate: BlockPa
         <input type="range" min={0.2} max={4} step={0.1} value={block.width} onChange={(e) => onUpdate({ width: Number(e.target.value) })} />
       </label>
       <label className="weft-field weft-field-inline">
-        <span>Farbe</span>
+        <span>{tr("ui.colour")}</span>
         <input type="color" value={block.color} onChange={(e) => onUpdate({ color: e.target.value })} />
       </label>
       <label className="weft-field weft-field-inline">
         <input type="checkbox" checked={block.startHead} onChange={(e) => onUpdate({ startHead: e.target.checked })} />
-        <span>Pfeilspitze am Anfang</span>
+        <span>{tr("ui.arrowhead_at_the_start")}</span>
       </label>
       <label className="weft-field weft-field-inline">
         <input type="checkbox" checked={block.endHead} onChange={(e) => onUpdate({ endHead: e.target.checked })} />
-        <span>Pfeilspitze am Ende</span>
+        <span>{tr("ui.arrowhead_at_the_end")}</span>
       </label>
       <p className="weft-hint">
-        Die Linie läuft als Kurve durch alle Wegpunkte. Auf der Folie: Punkt ziehen verschiebt ihn, am Mittelpunkt
-        zwischen zwei Punkten ziehen macht einen neuen Wegpunkt, Doppelklick auf einen Punkt entfernt ihn.
+        {tr("ui.the_line_runs_as_a_curve")}
       </p>
     </Collapsible>
   );
 }
 
 const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
-  rectangle: "Rechteck",
-  ellipse: "Ellipse",
+  get rectangle() { return tr("ui.rectangle"); },
+  get ellipse() { return tr("ui.ellipse"); },
   polygon: "n-Eck",
-  star: "Stern",
+  get star() { return tr("ui.star"); },
 };
 
 function ShapeEditor({ block, onUpdate }: { block: ShapeBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
   return (
     <>
-      <Collapsible title="Form">
+      <Collapsible title={tr("ui.shape")}>
         <label className="weft-field">
-          <span>Typ</span>
+          <span>{tr("ui.kind")}</span>
           <select value={block.shapeKind} onChange={(e) => onUpdate({ shapeKind: e.target.value as ShapeKind })}>
             {(Object.keys(SHAPE_KIND_LABELS) as ShapeKind[]).map((kind) => (
               <option key={kind} value={kind}>
@@ -1907,15 +1893,15 @@ function ShapeEditor({ block, onUpdate }: { block: ShapeBlock; onUpdate: BlockPa
         )}
       </Collapsible>
 
-      <Collapsible title="Füllung">
+      <Collapsible title={tr("ui.fill")}>
         <ShapeFillEditor fill={block.fill} onChange={(fill) => onUpdate({ fill })} />
       </Collapsible>
 
-      <Collapsible title="Kontur" defaultOpen={false}>
+      <Collapsible title={tr("ui.outline")} defaultOpen={false}>
         <ShapeStrokeEditor stroke={block.stroke} onChange={(stroke) => onUpdate({ stroke })} />
       </Collapsible>
 
-      <Collapsible title="Schatten" defaultOpen={false}>
+      <Collapsible title={tr("ui.shadow")} defaultOpen={false}>
         <ShapeShadowEditor shadow={block.shadow} onChange={(shadow) => onUpdate({ shadow })} />
       </Collapsible>
     </>
@@ -1930,10 +1916,10 @@ function ShapeEditor({ block, onUpdate }: { block: ShapeBlock; onUpdate: BlockPa
 // just for a sensible reading sequence, not a grid position - but keeping bottomLeft before
 // bottomRight here still matters for that reason.
 const CORNER_FIELDS: { key: keyof ShapeCornerRadii; label: string }[] = [
-  { key: "topLeft", label: "Oben links" },
-  { key: "topRight", label: "Oben rechts" },
-  { key: "bottomLeft", label: "Unten links" },
-  { key: "bottomRight", label: "Unten rechts" },
+  { key: "topLeft", get label() { return tr("ui.top_left"); } },
+  { key: "topRight", get label() { return tr("ui.top_right"); } },
+  { key: "bottomLeft", get label() { return tr("ui.bottom_left"); } },
+  { key: "bottomRight", get label() { return tr("ui.bottom_right"); } },
 ];
 
 /** One shared "Eckenradius" slider that sets all four corners together (the common case, and
@@ -1960,7 +1946,7 @@ function ShapeCornerRadiiEditor({
     <>
       <label className="weft-field weft-field-inline">
         <input type="checkbox" checked={individual} onChange={(e) => setIndividual(e.target.checked)} />
-        <span>Ecken einzeln einstellen</span>
+        <span>{tr("ui.set_corners_individually")}</span>
       </label>
       {individual ? (
         // Plain stacked .weft-field rows, not .weft-field-grid - that grid's narrow 2-column
@@ -2006,9 +1992,9 @@ function ShapeCornerRadiiEditor({
 }
 
 const SHAPE_FILL_TYPE_LABELS: Record<ShapeFill["type"], string> = {
-  none: "Keine",
-  solid: "Farbe",
-  gradient: "Verlauf",
+  get none() { return tr("ui.none_2"); },
+  get solid() { return tr("ui.colour"); },
+  get gradient() { return tr("ui.gradient_2"); },
 };
 
 function ShapeFillEditor({ fill, onChange }: { fill: ShapeFill; onChange: (fill: ShapeFill) => void }) {
@@ -2025,7 +2011,7 @@ function ShapeFillEditor({ fill, onChange }: { fill: ShapeFill; onChange: (fill:
       {fill.type === "solid" && (
         <div className="weft-format-row">
           <label className="weft-field">
-            <span>Farbe</span>
+            <span>{tr("ui.colour")}</span>
             <input type="color" value={fill.color} onChange={(e) => onChange({ ...fill, color: e.target.value })} />
           </label>
           <label className="weft-field">
@@ -2077,7 +2063,7 @@ function ShapeGradientEditor({ gradient, onChange }: { gradient: ShapeGradient; 
             checked={gradient.kind === "linear"}
             onChange={() => onChange({ ...gradient, kind: "linear" })}
           />
-          <span>Linear</span>
+          <span>{tr("ui.linear")}</span>
         </label>
         <label className="weft-field weft-field-inline">
           <input
@@ -2086,7 +2072,7 @@ function ShapeGradientEditor({ gradient, onChange }: { gradient: ShapeGradient; 
             checked={gradient.kind === "radial"}
             onChange={() => onChange({ ...gradient, kind: "radial" })}
           />
-          <span>Radial</span>
+          <span>{tr("ui.radial")}</span>
         </label>
       </div>
       {gradient.kind === "linear" && (
@@ -2101,13 +2087,13 @@ function ShapeGradientEditor({ gradient, onChange }: { gradient: ShapeGradient; 
           />
         </label>
       )}
-      <span className="weft-subgroup-label">Farbverlaufspunkte</span>
+      <span className="weft-subgroup-label">{tr("ui.gradient_points")}</span>
       {gradient.stops.map((stop) => (
         <div key={stop.id} className="weft-effect-row">
           <input
             type="color"
             value={stop.color}
-            title="Farbe"
+            title={tr("ui.colour")}
             onChange={(e) => updateStop(stop.id, { color: e.target.value })}
           />
           <input
@@ -2115,7 +2101,7 @@ function ShapeGradientEditor({ gradient, onChange }: { gradient: ShapeGradient; 
             min={0}
             max={100}
             value={Math.round(stop.offset)}
-            title="Position (%)"
+            title={tr("ui.position")}
             onChange={(e) => updateStop(stop.id, { offset: Math.min(100, Math.max(0, Number(e.target.value))) })}
           />
           <input
@@ -2124,7 +2110,7 @@ function ShapeGradientEditor({ gradient, onChange }: { gradient: ShapeGradient; 
             max={1}
             step={0.01}
             value={stop.opacity}
-            title="Deckkraft"
+            title={tr("ui.opacity")}
             onChange={(e) => updateStop(stop.id, { opacity: Number(e.target.value) })}
           />
           <button
@@ -2138,16 +2124,16 @@ function ShapeGradientEditor({ gradient, onChange }: { gradient: ShapeGradient; 
         </div>
       ))}
       <button type="button" className="weft-ghost-button weft-full-width" onClick={addStop}>
-        + Farbverlaufspunkt
+        {tr("ui.gradient_point")}
       </button>
     </>
   );
 }
 
 const SHAPE_STROKE_STYLE_LABELS: Record<ShapeStroke["style"], string> = {
-  solid: "Durchgezogen",
-  dashed: "Gestrichelt",
-  dotted: "Gepunktet",
+  get solid() { return tr("ui.solid"); },
+  get dashed() { return tr("ui.dashed"); },
+  get dotted() { return tr("ui.dotted"); },
 };
 
 function ShapeStrokeEditor({ stroke, onChange }: { stroke: ShapeStroke; onChange: (stroke: ShapeStroke) => void }) {
@@ -2155,13 +2141,13 @@ function ShapeStrokeEditor({ stroke, onChange }: { stroke: ShapeStroke; onChange
     <>
       <label className="weft-field weft-field-inline">
         <input type="checkbox" checked={stroke.enabled} onChange={(e) => onChange({ ...stroke, enabled: e.target.checked })} />
-        <span>Kontur anzeigen</span>
+        <span>{tr("ui.show_outline")}</span>
       </label>
       {stroke.enabled && (
         <>
           <div className="weft-format-row">
             <label className="weft-field">
-              <span>Farbe</span>
+              <span>{tr("ui.colour")}</span>
               <input type="color" value={stroke.color} onChange={(e) => onChange({ ...stroke, color: e.target.value })} />
             </label>
             <label className="weft-field">
@@ -2177,7 +2163,7 @@ function ShapeStrokeEditor({ stroke, onChange }: { stroke: ShapeStroke; onChange
             </label>
           </div>
           <label className="weft-field">
-            <span>Breite</span>
+            <span>{tr("ui.width")}</span>
             <input
               type="number"
               min={0}
@@ -2187,7 +2173,7 @@ function ShapeStrokeEditor({ stroke, onChange }: { stroke: ShapeStroke; onChange
             />
           </label>
           <label className="weft-field">
-            <span>Stil</span>
+            <span>{tr("ui.style")}</span>
             <select value={stroke.style} onChange={(e) => onChange({ ...stroke, style: e.target.value as ShapeStroke["style"] })}>
               {(Object.keys(SHAPE_STROKE_STYLE_LABELS) as ShapeStroke["style"][]).map((style) => (
                 <option key={style} value={style}>
@@ -2207,13 +2193,13 @@ function ShapeShadowEditor({ shadow, onChange }: { shadow: ShapeShadow; onChange
     <>
       <label className="weft-field weft-field-inline">
         <input type="checkbox" checked={shadow.enabled} onChange={(e) => onChange({ ...shadow, enabled: e.target.checked })} />
-        <span>Schatten anzeigen</span>
+        <span>{tr("ui.show_shadow")}</span>
       </label>
       {shadow.enabled && (
         <>
           <div className="weft-format-row">
             <label className="weft-field">
-              <span>Farbe</span>
+              <span>{tr("ui.colour")}</span>
               <input type="color" value={shadow.color} onChange={(e) => onChange({ ...shadow, color: e.target.value })} />
             </label>
             <label className="weft-field">
@@ -2229,7 +2215,7 @@ function ShapeShadowEditor({ shadow, onChange }: { shadow: ShapeShadow; onChange
             </label>
           </div>
           <label className="weft-field">
-            <span>Unschärfe</span>
+            <span>{tr("ui.blur")}</span>
             <input
               type="number"
               min={0}
@@ -2240,11 +2226,11 @@ function ShapeShadowEditor({ shadow, onChange }: { shadow: ShapeShadow; onChange
           </label>
           <div className="weft-field-grid">
             <label>
-              <span>Versatz X</span>
+              <span>{tr("ui.offset_x")}</span>
               <input type="number" step={0.1} value={shadow.offsetX} onChange={(e) => onChange({ ...shadow, offsetX: Number(e.target.value) })} />
             </label>
             <label>
-              <span>Versatz Y</span>
+              <span>{tr("ui.offset_y")}</span>
               <input type="number" step={0.1} value={shadow.offsetY} onChange={(e) => onChange({ ...shadow, offsetY: Number(e.target.value) })} />
             </label>
           </div>
@@ -2290,7 +2276,7 @@ function QuizOptionRow({
         {!openQuestion && (
           <input
             type="checkbox"
-            title="Richtig?"
+            title={tr("ui.correct")}
             checked={block.correctOptionIds.includes(option.id)}
             onChange={(e) => {
               const correctOptionIds = e.target.checked
@@ -2304,11 +2290,11 @@ function QuizOptionRow({
         <button
           type="button"
           className={"weft-ghost-button weft-quiz-option-effects-toggle" + (count > 0 ? " has-effects" : "")}
-          title="Punkte & Effekte dieser Antwort"
+          title={tr("ui.points_effects_of_this_answer")}
           aria-expanded={open}
           onClick={() => setOpen(!open)}
         >
-          {count > 0 ? `Effekte (${count})` : "Effekte"}
+          {count > 0 ? tr("ui.effects", { count: count }) : tr("ui.effects_2")}
         </button>
         <button
           type="button"
@@ -2327,12 +2313,12 @@ function QuizOptionRow({
         <div className="weft-quiz-option-effects">
           <p className="weft-hint">
             {openQuestion
-              ? "Je nachdem, ob die Antwort angekreuzt wurde oder nicht."
-              : "Richtig behandelt heißt: angekreuzt, wenn die Antwort stimmt – und nicht angekreuzt, wenn sie nicht stimmt. Das gilt für jede Antwort einzeln, unabhängig davon, ob das Quiz insgesamt richtig ist."}
+              ? tr("ui.depending_on_whether_the_answer_was")
+              : tr("ui.handled_correctly_means_ticked_if_the")}
           </p>
-          <span className="weft-field-label">{openQuestion ? "Wenn angekreuzt" : "Richtig behandelt"}</span>
+          <span className="weft-field-label">{openQuestion ? tr("ui.if_ticked") : tr("ui.handled_correctly")}</span>
           <EffectListEditor effects={onRight} variables={variables} onChange={(onRight) => patchOption({ onRight })} />
-          <span className="weft-field-label">{openQuestion ? "Wenn nicht angekreuzt" : "Falsch behandelt"}</span>
+          <span className="weft-field-label">{openQuestion ? tr("ui.if_not_ticked") : tr("ui.handled_wrongly")}</span>
           <EffectListEditor effects={onWrong} variables={variables} onChange={(onWrong) => patchOption({ onWrong })} />
         </div>
       )}
@@ -2348,23 +2334,23 @@ function QuizEditor({ block, page, onUpdate }: { block: QuizBlock; page?: Page; 
 
   return (
     <>
-      <Collapsible title="Frage & Antworten">
+      <Collapsible title={tr("ui.question_answers")}>
         <label className="weft-field">
-          <span>Art</span>
+          <span>{tr("ui.type")}</span>
           <select value={block.open ? "open" : "test"} onChange={(e) => onUpdate({ open: e.target.value === "open" })}>
-            <option value="test">Test (richtig oder falsch)</option>
-            <option value="open">Offene Frage (nichts ist falsch)</option>
+            <option value="test">{tr("ui.test_right_or_wrong")}</option>
+            <option value="open">{tr("ui.open_question_nothing_is_wrong")}</option>
           </select>
         </label>
         <LanguageSelect block={block} />
-        <p className="weft-hint">Frage und Antworten direkt auf der Folie eingeben. Markierten Text hier formatieren.</p>
+        <p className="weft-hint">{tr("ui.type_the_question_and_answers_directly")}</p>
 
         {block.options.map((opt) => (
           <QuizOptionRow
             key={opt.id}
             block={block}
             option={opt}
-            label={stripHtml(quizOptionHtml(block, opt.id, lang, defaultLang)) || "(leer)"}
+            label={stripHtml(quizOptionHtml(block, opt.id, lang, defaultLang)) || tr("ui.empty")}
             variables={variables}
             open={!!block.open}
             onUpdate={onUpdate}
@@ -2373,13 +2359,13 @@ function QuizEditor({ block, page, onUpdate }: { block: QuizBlock; page?: Page; 
         <button
           type="button"
           className="weft-ghost-button weft-full-width"
-          onClick={() => onUpdate({ options: [...block.options, { id: createId(), html: "Neue Option" }] })}
+          onClick={() => onUpdate({ options: [...block.options, { id: createId(), html: tr("ui.new_option") }] })}
         >
-          + Option
+          {tr("ui.option")}
         </button>
       </Collapsible>
 
-      <Collapsible title={block.open ? "Nach dem Abschicken" : "Bei richtiger Antwort"} defaultOpen={false}>
+      <Collapsible title={block.open ? tr("ui.after_submitting") : tr("ui.on_a_correct_answer")} defaultOpen={false}>
         <EffectListEditor effects={block.onCorrect} variables={variables} onChange={(onCorrect) => onUpdate({ onCorrect })} />
         <label className="weft-field weft-field-inline">
           <input
@@ -2388,14 +2374,14 @@ function QuizEditor({ block, page, onUpdate }: { block: QuizBlock; page?: Page; 
             disabled={!page}
             onChange={(e) => page && setQuizAdvance(page.id, block.id, "richtig", e.target.checked)}
           />
-          <span>Weiter zur nächsten Folie</span>
+          <span>{tr("ui.continue_to_the_next_slide")}</span>
         </label>
         {goesOn("richtig") && (
-          <p className="weft-hint">Passiert 1,5 Sekunden nach Erscheinen von "Richtig", damit die Rückmeldung noch zu sehen ist.</p>
+          <p className="weft-hint">{tr("ui.happens_1_5_seconds_after_correct")}</p>
         )}
       </Collapsible>
       {!block.open && (
-        <Collapsible title="Bei falscher Antwort" defaultOpen={false}>
+        <Collapsible title={tr("ui.on_a_wrong_answer")} defaultOpen={false}>
           <EffectListEditor effects={block.onIncorrect} variables={variables} onChange={(onIncorrect) => onUpdate({ onIncorrect })} />
           <label className="weft-field weft-field-inline">
             <input
@@ -2404,11 +2390,11 @@ function QuizEditor({ block, page, onUpdate }: { block: QuizBlock; page?: Page; 
               disabled={!page}
               onChange={(e) => page && setQuizAdvance(page.id, block.id, "falsch", e.target.checked)}
             />
-            <span>Weiter zur nächsten Folie</span>
+            <span>{tr("ui.continue_to_the_next_slide")}</span>
           </label>
           {goesOn("falsch") && (
             <p className="weft-hint">
-              Passiert 1,5 Sekunden nach Erscheinen der Rückmeldung, damit sie noch zu sehen ist.
+              {tr("ui.happens_1_5_seconds_after_the")}
             </p>
           )}
         </Collapsible>
@@ -2477,7 +2463,7 @@ function EffectListEditor({
               }}
             >
               {/* Keeps showing a target that was computed after the effect was made, rather than a blank. */}
-              {target && !isSettableVariable(target) && <option value={target.id}>{target.name} (berechnet)</option>}
+              {target && !isSettableVariable(target) && <option value={target.id}>{target.name} {tr("ui.calculated")}</option>}
               {variables.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.name}
@@ -2499,9 +2485,9 @@ function EffectListEditor({
                 onChange(next);
               }}
             >
-              <option value="set">setzen auf</option>
+              <option value="set">{tr("ui.set_to")}</option>
               {!isBoolean && <option value="add">addieren</option>}
-              {!isBoolean && <option value="append">anhängen</option>}
+              {!isBoolean && <option value="append">{tr("ui.append")}</option>}
             </select>
             {isBoolean ? (
               <select
@@ -2512,8 +2498,8 @@ function EffectListEditor({
                   onChange(next);
                 }}
               >
-                <option value="yes">Ja</option>
-                <option value="no">Nein</option>
+                <option value="yes">{tr("ui.yes")}</option>
+                <option value="no">{tr("ui.no")}</option>
               </select>
             ) : (
               <EffectValueInput
@@ -2539,7 +2525,7 @@ function EffectListEditor({
           className="weft-ghost-button weft-full-width"
           onClick={() => onChange([...effects, defaultEffectFor(variables[0])])}
         >
-          + Effekt
+          {tr("ui.effect_2")}
         </button>
       )}
     </>

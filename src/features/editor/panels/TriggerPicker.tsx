@@ -1,6 +1,7 @@
 import { canTriggerFrom, computeAdvanceChainTail } from "../../../core/document/pageTimeline";
 import type { ResolvedTrigger } from "../../../core/document/pageTimeline";
 import type { Page, TimelineEdgeKind } from "../../../core/types";
+import { tr } from "../../../core/i18n/tr";
 
 // A UI-only sentinel for the main select's "Weiter" option - never itself written into the
 // document (see handleMainChange below, which always resolves it to a real node id + kind
@@ -56,10 +57,10 @@ export function TriggerPicker({
   return (
     <>
       <label className="weft-field">
-        <span>Ausgelöst durch</span>
+        <span>{tr("ui.triggered_by")}</span>
         <select value={mainValue} onChange={(e) => handleMainChange(e.target.value)}>
           {allowNoTrigger && <option value="">{noTriggerLabel}</option>}
-          <option value={ADVANCE_SENTINEL}>Weiter</option>
+          <option value={ADVANCE_SENTINEL}>{tr("ui.next")}</option>
           {sources.map((event) => (
             <option key={event.id} value={event.id}>
               {event.label}
@@ -69,7 +70,7 @@ export function TriggerPicker({
       </label>
       {trigger?.kind === "advance" ? (
         <label className="weft-field">
-          <span>Nach welchem Ereignis</span>
+          <span>{tr("ui.after_which_event")}</span>
           <select value={trigger.from} onChange={(e) => onChange(e.target.value, 0, "advance")}>
             {sources.map((event) => (
               <option key={event.id} value={event.id}>
@@ -80,7 +81,7 @@ export function TriggerPicker({
         </label>
       ) : (
         <label className="weft-field">
-          <span>Verzögerung (Sekunden)</span>
+          <span>{tr("ui.delay_seconds")}</span>
           <input
             type="number"
             min={0}

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
 import { saveBytesAsFile, showWarning } from "../../core/io/fileIO";
+import { tr } from "../../core/i18n/tr";
 
 /**
  * A module's page in a sandboxed frame (no `allow-same-origin`: it genuinely can't reach the window around it).
@@ -19,7 +20,7 @@ export function ModuleFrame({ srcDoc, title, frameRef: outerRef }: { srcDoc: str
       if (e.source !== frameRef.current?.contentWindow || !data || data.source !== "weft-module" || data.type !== "save-file") return;
       if (typeof data.name !== "string" || !(data.bytes instanceof Uint8Array)) return;
       saveBytesAsFile(data.name, String(data.mimeType ?? ""), data.bytes).catch((err) =>
-        showWarning(`Die Datei ließ sich nicht speichern: ${err instanceof Error ? err.message : String(err)}`, "Speichern fehlgeschlagen"),
+        showWarning(tr("ui.file_could_not_be_saved", { error: err instanceof Error ? err.message : String(err) }), tr("ui.saving_failed")),
       );
     }
     window.addEventListener("message", onMessage);

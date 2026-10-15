@@ -20,6 +20,7 @@ import { layoutGraph } from "./eventGraph/layout";
 import type { EdgeRoute } from "./eventGraph/layout";
 import { TRANSITION_LABELS } from "../../core/document/transitions";
 import type { Page, TimelineEventType, TimelineNode } from "../../core/types";
+import { tr } from "../../core/i18n/tr";
 
 
 // This icon sets its colour in a style attribute, which the colour of an event (see App.css) can't reach: as a fill attribute
@@ -35,22 +36,22 @@ const INFINITY_ICON_SVG =
   '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><text x="8" y="12" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#28497c">∞</text></svg>';
 
 const EVENT_LABELS: Record<TimelineEventType, string> = {
-  "quiz-fill-start": "Ausfüllen",
-  "quiz-submit": "Quiz abgeschickt",
-  "quiz-submit-correct": "Quiz abgeschickt",
-  "quiz-submit-incorrect": "Quiz abgeschickt",
-  "video-start-auto": "Start des Videos",
-  "video-start-manual": "Start des Videos",
-  "video-stop-point": "Zeitmarke",
-  "video-resume": "Video läuft weiter",
-  "video-end-loop": "Ende des Videos",
-  "video-end-stop": "Ende des Videos",
-  "block-entrance": "Erscheint",
-  "block-exit": "Verschwindet",
-  "button-click": "Button geklickt",
-  "group-entrance": "Gruppe erscheint",
-  "group-exit": "Gruppe verschwindet",
-  "list-item-entrance": "Listenpunkt",
+  get "quiz-fill-start"() { return tr("ui.fill_in"); },
+  get "quiz-submit"() { return tr("ui.quiz_submitted"); },
+  get "quiz-submit-correct"() { return tr("ui.quiz_submitted"); },
+  get "quiz-submit-incorrect"() { return tr("ui.quiz_submitted"); },
+  get "video-start-auto"() { return tr("ui.start_of_the_video"); },
+  get "video-start-manual"() { return tr("ui.start_of_the_video"); },
+  get "video-stop-point"() { return tr("ui.time_mark_2"); },
+  get "video-resume"() { return tr("ui.video_continues_2"); },
+  get "video-end-loop"() { return tr("ui.end_of_the_video"); },
+  get "video-end-stop"() { return tr("ui.end_of_the_video"); },
+  get "block-entrance"() { return tr("ui.appears"); },
+  get "block-exit"() { return tr("ui.disappears"); },
+  get "button-click"() { return tr("ui.button_clicked"); },
+  get "group-entrance"() { return tr("ui.group_appears"); },
+  get "group-exit"() { return tr("ui.group_disappears"); },
+  get "list-item-entrance"() { return tr("ui.list_item_3"); },
 };
 
 // "richtig" keeps the checkmark; "falsch" gets its own (decline.svg) rather than sharing accept.svg
@@ -88,8 +89,8 @@ export function eventTitle(page: Page, node: TimelineNode): string {
 
 export function nodeLabel(node: TimelineNode): string {
   if (node.label) return node.label;
-  if (node.kind === "start") return "Start der Folie";
-  if (node.kind === "end") return "Nächste Folie";
+  if (node.kind === "start") return tr("ui.start_of_the_slide");
+  if (node.kind === "end") return tr("ui.next_slide");
   if (node.kind === "event" && node.eventType) return EVENT_LABELS[node.eventType];
   return "";
 }
@@ -543,12 +544,12 @@ function TimelineGraph({ page }: { page: Page }) {
                     <path className={className} d={d}>
                       <title>
                         {info.doubled
-                          ? "Zwei Auslöser - die Ereignisse stehen zusammen in ihren Knoten"
+                          ? tr("ui.two_triggers_the_events_are_shown")
                           : waits
-                            ? "Wartet auf die Lernperson"
+                            ? tr("ui.waits_for_the_learner")
                             : info.delayMs > 0
-                              ? `Nach ${info.delayMs / 1000} s`
-                              : "Passiert sofort"}
+                              ? tr("ui.after_s", { n0: info.delayMs / 1000 })
+                              : tr("ui.happens_at_once")}
                       </title>
                     </path>
                     {/* A double line: the wide line with a narrow one in the colour of the ground over it. */}
@@ -641,7 +642,7 @@ function TimelineGraph({ page }: { page: Page }) {
   );
 }
 
-const BLOCK_FRAME_LABELS: Record<string, string> = { quiz: "Quiz", cloze: "Lückentext", video: "Video" };
+const BLOCK_FRAME_LABELS: Record<string, string> = { get quiz() { return tr("ui.quiz"); }, get cloze() { return tr("ui.gap_text"); }, get video() { return tr("ui.video"); } };
 
 function TimelineNodeIcon({
   node,
@@ -674,7 +675,7 @@ function TimelineNodeIcon({
       type="button"
       className={className}
       onClick={onSelect}
-      title={unreachable ? `${title ?? nodeLabel(node)} – nichts löst dieses Ereignis aus` : (title ?? nodeLabel(node))}
+      title={unreachable ? tr("ui.nothing_triggers_this_event", { n0: title ?? nodeLabel(node) }) : (title ?? nodeLabel(node))}
       dangerouslySetInnerHTML={{ __html: icon }}
     />
   );

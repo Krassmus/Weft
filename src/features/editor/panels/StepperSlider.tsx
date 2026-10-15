@@ -1,3 +1,4 @@
+import { tr } from "../../../core/i18n/tr";
 /**
  * A number with "−" / "+" and a slider, for the tablet (see SecondsControl, which is the same for times). `value` may be outside
  * [min, max] if it was typed - the slider then stands at its end - but not below `min`.
@@ -22,7 +23,7 @@ export function StepperSlider({
   const set = (next: number) => onChange(Math.max(min, Math.round(next / step) * step));
   return (
     <span className="weft-delay-control">
-      <button type="button" className="weft-delay-step" aria-label={`${label} verringern`} disabled={value <= min} onClick={() => set(value - step)}>
+      <button type="button" className="weft-delay-step" aria-label={tr("ui.decrease", { label: label })} disabled={value <= min} onClick={() => set(value - step)}>
         −
       </button>
       <input
@@ -36,7 +37,7 @@ export function StepperSlider({
           if (Number.isFinite(typed) && typed >= min) onChange(typed);
         }}
       />
-      <button type="button" className="weft-delay-step" aria-label={`${label} erhöhen`} onClick={() => set(value + step)}>
+      <button type="button" className="weft-delay-step" aria-label={tr("ui.increase", { label: label })} onClick={() => set(value + step)}>
         +
       </button>
       <input
@@ -46,7 +47,7 @@ export function StepperSlider({
         max={max}
         step={step}
         value={Math.min(Math.max(value, min), max)}
-        aria-label={`${label} einstellen`}
+        aria-label={tr("ui.set", { label: label })}
         onChange={(e) => set(Number(e.target.value))}
       />
     </span>

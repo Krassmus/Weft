@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useDocumentStore } from "../../core/document/store";
 import { exitFullscreenPreview } from "../../core/window/fullscreen";
 import { PreviewFrame } from "./PreviewFrame";
+import { tr } from "../../core/i18n/tr";
 
 /**
  * The Keynote-style "present" screen: full-viewport, nothing but the running module. No
@@ -50,7 +51,7 @@ export function PresentationView({
 
   return (
     <div className="weft-presentation">
-      <button type="button" className="weft-presentation-exit" onClick={() => void handleExit()} title="Vorschau beenden (Esc)">
+      <button type="button" className="weft-presentation-exit" onClick={() => void handleExit()} title={tr("ui.end_preview_esc")}>
         ✕
       </button>
       <PreviewFrame module={content} startPageId={startPageId} />

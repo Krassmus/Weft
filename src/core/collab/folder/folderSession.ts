@@ -10,6 +10,7 @@ import { FolderSync, findModuleFolder, listFolderModules, moduleFolderName, read
 import type { AssetStorage, FolderModule, FolderSyncStatus } from "./folderSync";
 import { TauriSyncFs } from "./syncFs";
 import type { SyncFs } from "./syncFs";
+import { tr } from "../../i18n/tr";
 
 /**
  * The folder sync (folderSync.ts) as the app uses it: which shared folder a module is synced with is
@@ -91,7 +92,7 @@ export function folderSyncAvailable(): boolean {
 
 /** Lets the person pick the shared folder. */
 export async function chooseSyncFolder(): Promise<string | null> {
-  const picked = await open({ directory: true, multiple: false, title: "Gemeinsamen Ordner wählen" });
+  const picked = await open({ directory: true, multiple: false, title: tr("ui.choose_shared_folder") });
   return typeof picked === "string" ? picked : null;
 }
 
@@ -132,7 +133,7 @@ export async function startFolderSync(root: string): Promise<void> {
       active: false,
       folder: root,
       dir: null,
-      status: { ...EMPTY_STATUS, error: `Der Ordner lässt sich nicht verwenden: ${error instanceof Error ? error.message : String(error)}` },
+      status: { ...EMPTY_STATUS, error: tr("ui.the_folder_cannot_be_used", { n0: error instanceof Error ? error.message : String(error) }) },
     });
   }
 }

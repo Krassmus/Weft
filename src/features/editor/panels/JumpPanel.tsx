@@ -13,12 +13,13 @@ import { pageChoices as targetChoices } from "./pageChoices";
 import { Collapsible } from "../Collapsible";
 import { PageMiniature } from "../PageMiniature";
 import { ConditionFields } from "./ConditionFields";
+import { tr } from "../../../core/i18n/tr";
 
 const COMPARATOR_LABELS: Record<VariableCondition["comparator"], string> = { eq: "=", neq: "≠", gt: ">", gte: "≥", lt: "<", lte: "≤" };
 
 function conditionText(content: WeftModule, condition: VariableCondition): string {
   const variable = content.variables.find((v) => v.id === condition.variableId);
-  const value = variable && isBooleanVariable(variable) ? (condition.value === true || condition.value === "true" ? "Ja" : "Nein") : String(condition.value);
+  const value = variable && isBooleanVariable(variable) ? (condition.value === true || condition.value === "true" ? tr("ui.yes") : tr("ui.no")) : String(condition.value);
   return `${variable?.name ?? "?"} ${COMPARATOR_LABELS[condition.comparator]} ${value}`;
 }
 
@@ -30,9 +31,9 @@ function TargetSelect({ value, onChange, optional }: { value: string | null; onC
   return (
     <div className="weft-jump-target">
       <select value={value ?? ""} onChange={(e) => onChange(e.target.value || null)}>
-        {optional && <option value="">– weiter wie gewohnt –</option>}
-        {!known && <option value={value ?? ""}>(gelöschte Folie)</option>}
-        {!optional && value === "" && <option value="">Folie wählen …</option>}
+        {optional && <option value="">{tr("ui.continue_as_usual")}</option>}
+        {!known && <option value={value ?? ""}>{tr("ui.deleted_slide")}</option>}
+        {!optional && value === "" && <option value="">{tr("ui.choose_slide")}</option>}
         {choices.map((c) => (
           <option key={c.pageId} value={c.pageId}>
             {c.label}
@@ -56,27 +57,26 @@ export function JumpPanel({ page }: { page: Page }) {
 
   return (
     <>
-      <Collapsible title="Sprungfolie">
+      <Collapsible title={tr("ui.jump_slide")}>
         <p className="weft-hint">
-          Diese Folie wird nicht gezeigt: Wer sie erreicht, wird sofort weitergeleitet. Die Bedingungen werden von oben nach unten geprüft; die erste, die zutrifft, bestimmt das Ziel. Trifft keine zu, geht es zum Standardziel.
-          Danach läuft das Lernmodul von dort aus normal weiter.
+          {tr("ui.this_slide_is_not_shown_whoever")}
         </p>
       </Collapsible>
 
       {jump.targets.map((target, index) => (
-        <Collapsible key={target.id} title={`${index + 1}. Wenn ${conditionText(content, target.condition)}`}>
+        <Collapsible key={target.id} title={tr("ui.if", { n0: index + 1, n1: conditionText(content, target.condition) })}>
           <ConditionFields condition={target.condition} onChange={(patch) => updateJumpTarget(page.id, target.id, { condition: patch })} />
-          <span className="weft-field-label">springe zu</span>
+          <span className="weft-field-label">{tr("ui.jump_to")}</span>
           <TargetSelect value={target.pageId} onChange={(pageId) => pageId && updateJumpTarget(page.id, target.id, { pageId })} />
           <div className="weft-jump-actions">
             <button type="button" className="weft-ghost-button" disabled={index === 0} onClick={() => moveJumpTarget(page.id, target.id, -1)}>
-              ↑ Früher prüfen
+              {tr("ui.check_earlier")}
             </button>
             <button type="button" className="weft-ghost-button" disabled={index === jump.targets.length - 1} onClick={() => moveJumpTarget(page.id, target.id, 1)}>
-              ↓ Später prüfen
+              {tr("ui.check_later")}
             </button>
             <button type="button" className="weft-ghost-button" onClick={() => removeJumpTarget(page.id, target.id)}>
-              Entfernen
+              {tr("ui.remove")}
             </button>
           </div>
         </Collapsible>
@@ -88,11 +88,11 @@ export function JumpPanel({ page }: { page: Page }) {
         disabled={choices.length === 0}
         onClick={() => addJumpTarget(page.id, choices[0].pageId)}
       >
-        + Bedingung
+        {tr("ui.condition")}
       </button>
 
-      <Collapsible title="Sonst (Standardziel)">
-        <p className="weft-hint">Hierhin geht es, wenn keine der Bedingungen zutrifft. Ohne Ziel wird die Sprungfolie einfach übergangen.</p>
+      <Collapsible title={tr("ui.otherwise_default_target")}>
+        <p className="weft-hint">{tr("ui.this_is_where_it_goes_if")}</p>
         <TargetSelect value={jump.defaultPageId} optional onChange={(pageId) => setJumpDefault(page.id, pageId)} />
       </Collapsible>
     </>
@@ -115,17 +115,17 @@ export function JumpOverview({ page }: { page: Page }) {
           <span>{labels[pageId] ?? "?"}</span>
         </div>
       ) : (
-        <span className="weft-jump-row-none">weiter wie gewohnt</span>
+        <span className="weft-jump-row-none">{tr("ui.continue_as_usual_2")}</span>
       )}
     </li>
   );
   return (
     <div className="weft-jump-overview">
-      <h3>Sprungfolie</h3>
-      <p className="weft-hint">Wird nicht gezeigt – leitet sofort weiter.</p>
+      <h3>{tr("ui.jump_slide")}</h3>
+      <p className="weft-hint">{tr("ui.not_shown_forwards_at_once")}</p>
       <ol>
         {jump.targets.map((target, index) => row(target.id, `${index + 1}. Wenn ${conditionText(content, target.condition)}`, target.pageId))}
-        {row("default", "Sonst", jump.defaultPageId)}
+        {row("default", tr("ui.otherwise"), jump.defaultPageId)}
       </ol>
     </div>
   );

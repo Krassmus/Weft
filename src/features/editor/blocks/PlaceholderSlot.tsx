@@ -2,6 +2,7 @@ import { createPlaceholderText } from "../../../core/document/actions";
 import { useDocumentStore } from "../../../core/document/store";
 import type { PlaceholderBlock } from "../../../core/types";
 import { usePendingEdit } from "./pendingEditStore";
+import { tr } from "../../../core/i18n/tr";
 
 /**
  * A placeholder of the layout as it shows on a page that has no text for it yet: a dashed slot where the text will be (never part of
@@ -21,7 +22,7 @@ export function PlaceholderSlot({ block, pageId }: { block: PlaceholderBlock; pa
       className="weft-edit-block weft-placeholder-slot"
       style={style}
       role="button"
-      title="Klicken, um Text einzugeben"
+      title={tr("ui.click_to_enter_text")}
       onClick={(event) => {
         event.stopPropagation();
         const blockId = createPlaceholderText(pageId, block.id);
@@ -30,7 +31,7 @@ export function PlaceholderSlot({ block, pageId }: { block: PlaceholderBlock; pa
         usePendingEdit.getState().request(blockId);
       }}
     >
-      <span className="weft-placeholder-slot-label">{block.label || "Platzhalter"} - Text eingeben</span>
+      <span className="weft-placeholder-slot-label">{block.label || tr("ui.placeholder")} {tr("ui.enter_text")}</span>
     </div>
   );
 }

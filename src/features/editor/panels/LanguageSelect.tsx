@@ -5,6 +5,7 @@ import { useTranslation } from "../../../core/i18n/useTranslation";
 import { flagForLocale, languageName } from "../../../core/i18n/languages";
 import type { ButtonBlock, ClozeBlock, ListBlock, QuizBlock, TextBlock } from "../../../core/types";
 import { useEditingLanguage } from "../useEditingLanguage";
+import { tr } from "../../../core/i18n/tr";
 
 /**
  * The language switch at the top of a text-carrying block's "Inhalt" in the sidebar: a select of the
@@ -26,7 +27,7 @@ export function LanguageSelect({ block }: { block: TextBlock | QuizBlock | Butto
   return (
     <>
       <label className="weft-field">
-        <span>Sprache</span>
+        <span>{tr("ui.language")}</span>
         <select value={lang} onChange={(e) => setEditingLanguage(e.target.value)}>
           {languages.map((locale) => (
             <option key={locale} value={locale}>
@@ -38,8 +39,7 @@ export function LanguageSelect({ block }: { block: TextBlock | QuizBlock | Butto
       </label>
       {!isTranslated(block, lang, defaultLang) && (
         <p className="weft-hint">
-          Für diese Sprache gibt es noch keine Übersetzung - bis du hier etwas änderst, wird der Text der
-          Standardsprache angezeigt.
+          {tr("ui.there_is_no_translation_for_this")}
         </p>
       )}
     </>

@@ -81,6 +81,8 @@ import { applyFontSize, applyFormat, useFormatSnapshot } from "../blocks/richTex
 import type { TriState } from "../blocks/richText";
 import { listPageTriggerEvents, listTriggerableNodes, nodeLabel } from "../Timeline";
 import { OutgoingTriggersSection } from "./TriggerSections";
+import { pageChoices } from "./pageChoices";
+import { PageMiniature } from "../PageMiniature";
 import { buttonAppearanceOf } from "../../../core/document/buttonAppearance";
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
@@ -1413,13 +1415,28 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
         ...endNodeIds(page).map((id) => ({ id, label: page.timeline.titles?.[id]?.trim() || nodeLabel({ id, kind: "end" }) })),
       ].filter((target) => target.id !== clickId)
     : [];
-  const value = block.action === "event" ? (outgoing[0] ? `event:${outgoing[0].to}` : NO_TARGET) : block.action;
+  // The pages a click can lead to, named by their place in the sidebar ("4.a.1") - the block stores the id of the page.
+  const content = useDocumentStore((s) => s.doc.content);
+  const pages = pageChoices(content);
+  const targetKnown = !!block.targetPageId && pages.some((p) => p.pageId === block.targetPageId);
+  const value =
+    block.action === "event"
+      ? outgoing[0]
+        ? `event:${outgoing[0].to}`
+        : NO_TARGET
+      : block.action === "goto"
+        ? `goto:${block.targetPageId ?? ""}`
+        : block.action;
   const look = buttonAppearanceOf(block);
   const setLook = (patch: Partial<ButtonAppearance>) => onUpdate({ appearance: { ...look, ...patch } });
 
   function chooseAction(chosen: string) {
     if (chosen === "advance" || chosen === "prev") {
       onUpdate({ action: chosen });
+      return;
+    }
+    if (chosen.startsWith("goto:")) {
+      onUpdate({ action: "goto", targetPageId: chosen.slice("goto:".length) || undefined });
       return;
     }
     if (!page) {
@@ -1448,6 +1465,17 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
           <select value={value} onChange={(e) => chooseAction(e.target.value)}>
             <option value="advance">Weiter</option>
             <option value="prev">Vorherige Folie</option>
+            <optgroup label="Zu einer Folie springen">
+              {block.action === "goto" && !block.targetPageId && <option value="goto:">Folie wählen …</option>}
+              {block.action === "goto" && block.targetPageId && !targetKnown && (
+                <option value={`goto:${block.targetPageId}`}>(gelöschte Folie)</option>
+              )}
+              {pages.map((choice) => (
+                <option key={choice.pageId} value={`goto:${choice.pageId}`}>
+                  {choice.label}
+                </option>
+              ))}
+            </optgroup>
             {page ? (
               <optgroup label="Ereignis auslösen">
                 <option value={NO_TARGET}>Nichts (nur „Button geklickt“)</option>
@@ -1472,6 +1500,21 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
           <p className="weft-hint">
             Auf der ersten Folie automatisch deaktiviert – der Player merkt sich dazu den bisherigen Lernpfad.
           </p>
+        )}
+        {block.action === "goto" && (
+          <>
+            {targetKnown && block.targetPageId ? (
+              <div className="weft-jump-miniature">
+                <PageMiniature pageId={block.targetPageId} />
+              </div>
+            ) : (
+              <p className="weft-hint">⚠ Diese Folie gibt es nicht mehr - der Klick tut dann nichts. Wähle eine andere.</p>
+            )}
+            <p className="weft-hint">
+              Springt zu dieser Folie; danach geht es mit der Folie weiter, die auf sie folgt. Der Zurück-Weg führt zur Folie, auf
+              der der Button war.
+            </p>
+          </>
         )}
         {block.action === "event" && !page && (
           <p className="weft-hint">

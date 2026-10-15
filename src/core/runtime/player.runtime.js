@@ -634,6 +634,31 @@
     render(pageTransition(outgoing));
   }
 
+  // The page `pageId`, wherever it is in the module (a button whose action is "goto"): the way on from there is the one after that
+  // page, as with a jump page (see resolveJumps). Pages that were shown after the current one on a way back are forgotten. A page
+  // that is not part of the module (it was deleted) leaves everything as it is.
+  function goToPage(pageId) {
+    var place = pageId ? findStartCursor(pageId) : null;
+    if (!place) return;
+    var outgoing = pos >= 0 && pos < history.length ? history[pos] : null;
+    var keep = Math.min(pos + 1, history.length);
+    history.length = keep;
+    variablesAtEntry.length = keep;
+    cursorAtEntry.length = keep;
+    cursor = place;
+    var node = resolveJumps({ type: "page", pageId: pageId });
+    if (node.type === "end") {
+      pos = history.length;
+      render(pageTransition(outgoing));
+      return;
+    }
+    variablesAtEntry[history.length] = Object.assign({}, variables);
+    cursorAtEntry[history.length] = JSON.parse(JSON.stringify(cursor));
+    history.push(node.pageId);
+    pos = history.length - 1;
+    render(pageTransition(outgoing));
+  }
+
   function goPrev() {
     if (pos <= 0) return;
     pos--;
@@ -2143,6 +2168,18 @@
       button.addEventListener("click", function () {
         happened(clickEventId);
         goPrev();
+      });
+    } else if (block.action === "goto") {
+      button.addEventListener("click", function () {
+        if (pos >= history.length) {
+          restart();
+          return;
+        }
+        var shownBefore = pos;
+        var lengthBefore = history.length;
+        happened(clickEventId);
+        // Whatever the click triggered may have left the page already (a trigger to "Nächste Folie"): then that is where it went.
+        if (pos === shownBefore && history.length === lengthBefore) goToPage(block.targetPageId);
       });
     } else {
       // "Weiter" (action "advance") is the same Weiter Space/→ is (see weiter): everything that waits for it arrives - the next

@@ -365,7 +365,10 @@ export interface ButtonBlock extends BaseBlock {
    * "event" does nothing of its own: what follows the click is what the graph says - by default a trigger to "Nächste Folie", which
    * the author can change or take away (a button that only starts an animation). Once the module has ended, "advance" and "event"
    * restart it instead. Format 4 and older had "next" here (jump to the next slide): see migrateButtonActions in io/unpack.ts. */
-  action: "event" | "prev" | "advance";
+  action: "event" | "prev" | "advance" | "goto";
+  /** For "goto": the page the click leads to, by id (so that the link survives pages being added, moved or removed). A page that is
+   * not there any more: the click does nothing but being an event. The sequence goes on after that page, as after a jump page. */
+  targetPageId?: string;
 }
 
 /** The basic PowerPoint/Keynote-style shapes ShapeBlock supports - "polygon" is any regular n-gon

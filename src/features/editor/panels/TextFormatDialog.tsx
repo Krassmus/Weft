@@ -20,6 +20,7 @@ import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { StepperSlider } from "./StepperSlider";
 import { tr } from "../../../core/i18n/tr";
+import { ColorField } from "../ColorField";
 
 type Align = "left" | "center" | "right";
 
@@ -178,7 +179,7 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
           </div>
           <label className="weft-field">
             <span>{tr("ui.colour")}</span>
-            <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
+            <ColorField value={color} ariaLabel={tr("ui.colour")} onChange={setColor} />
           </label>
 
           <div className="weft-field weft-text-format-wide">
@@ -263,8 +264,8 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
             </select>
             {backgroundKind === "gradient" && (
               <div className="weft-text-format-gradient">
-                <input type="color" value={from} onChange={(e) => setFrom(e.target.value)} aria-label={tr("ui.colour_at_the_start")} />
-                <input type="color" value={to} onChange={(e) => setTo(e.target.value)} aria-label={tr("ui.colour_at_the_end")} />
+                <ColorField value={from} onChange={setFrom} ariaLabel={tr("ui.colour_at_the_start")} />
+                <ColorField value={to} onChange={setTo} ariaLabel={tr("ui.colour_at_the_end")} />
                 <StepperSlider label={tr("ui.angle")} value={angle} min={0} max={360} step={15} onChange={setAngle} />
               </div>
             )}

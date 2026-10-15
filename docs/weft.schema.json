@@ -1399,6 +1399,23 @@
       ],
       "type": "object"
     },
+    "PaletteColor": {
+      "additionalProperties": false,
+      "description": "One colour of the module's colour scheme (WeftModule.colorPalette): \"#rrggbb\".",
+      "properties": {
+        "color": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        }
+      },
+      "required": [
+        "id",
+        "color"
+      ],
+      "type": "object"
+    },
     "PlaceholderBlock": {
       "additionalProperties": false,
       "description": "A placeholder for a text on the pages that use a layout (only exists in a layout): it has no text of its own. What the author sets up is where it stands and how its text looks; the `html` is a sample that carries that formatting (font, size, colour, alignment, ...) - it is never shown on a page. On a page the slot can be clicked to type a text, which then starts out formatted like the sample (see core/document/placeholders.ts).",
@@ -2353,6 +2370,13 @@
         "assets": {
           "items": {
             "$ref": "#/definitions/AssetMeta"
+          },
+          "type": "array"
+        },
+        "colorPalette": {
+          "description": "The module's colour scheme: colours that come up again and again, managed under the module's settings and offered in every colour picker (features/editor/ColorField.tsx). Missing in modules saved before this existed - read it as empty. A block that uses one of them just carries the hex value, so changing a scheme colour later does not recolour what already uses it.",
+          "items": {
+            "$ref": "#/definitions/PaletteColor"
           },
           "type": "array"
         },

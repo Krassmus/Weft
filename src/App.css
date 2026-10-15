@@ -4959,3 +4959,102 @@ button.weft-timeline-node-icon.is-red:hover,
 .weft-eg-line-gap.is-waiting {
   stroke-dasharray: 5 4;
 }
+
+/* ColorField (features/editor/ColorField.tsx): the swatch and the panel of the colour picker. */
+.weft-color-swatch {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: linear-gradient(var(--swatch), var(--swatch)), repeating-conic-gradient(#8884 0 25%, transparent 0 50%) 0 0 / 10px 10px;
+  box-shadow: inset 0 0 0 2px var(--weft-input-bg);
+  cursor: pointer;
+}
+
+.weft-color-swatch:hover,
+.weft-color-swatch[aria-expanded="true"] {
+  border-color: var(--weft-accent);
+}
+
+.weft-color-popover {
+  position: fixed;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--weft-panel-raised);
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius);
+  box-shadow: var(--weft-shadow);
+}
+
+.weft-color-popover-label {
+  font-size: 12px;
+  color: var(--weft-text-muted);
+}
+
+.weft-color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 28px);
+  gap: 6px;
+}
+
+.weft-color-cell {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--swatch);
+  cursor: pointer;
+}
+
+.weft-color-cell:hover {
+  border-color: var(--weft-text-muted);
+}
+
+.weft-color-cell.is-current {
+  outline: 2px solid var(--weft-accent);
+  outline-offset: 1px;
+}
+
+.weft-color-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.weft-color-other {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.weft-color-other input[type="color"] {
+  flex: none;
+  width: 32px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-input-bg);
+}
+
+.weft-color-palette-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.weft-color-palette-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}

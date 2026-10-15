@@ -1701,6 +1701,28 @@ export function addCustomFont(file: File): { id: string; family: string } {
   return { id: fontId, family };
 }
 
+/** The module's colour scheme (WeftModule.colorPalette). Adding a colour that is already in it does nothing. */
+export function addPaletteColor(color: string) {
+  const hex = color.toLowerCase();
+  if ((useDocumentStore.getState().doc.content.colorPalette ?? []).some((c) => c.color.toLowerCase() === hex)) return;
+  edit("Farbe zum Farbschema hinzufügen", (m) => {
+    (m.colorPalette ??= []).push({ id: createId(), color: hex });
+  });
+}
+
+export function setPaletteColor(id: string, color: string) {
+  edit("Farbe im Farbschema ändern", (m) => {
+    const entry = (m.colorPalette ?? []).find((c) => c.id === id);
+    if (entry) entry.color = color.toLowerCase();
+  });
+}
+
+export function removePaletteColor(id: string) {
+  edit("Farbe aus dem Farbschema entfernen", (m) => {
+    if (m.colorPalette) removeWhere(m.colorPalette, (c) => c.id === id);
+  });
+}
+
 export function removeCustomFont(id: string) {
   edit("Schriftart entfernen", (m) => {
     removeWhere(m.customFonts, (f) => f.id === id);

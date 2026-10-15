@@ -96,6 +96,7 @@ import { LanguageSelect } from "./LanguageSelect";
 import { TexEditor } from "./TexEditor";
 import { TriggerPicker } from "./TriggerPicker";
 import { tr } from "../../../core/i18n/tr";
+import { ColorField } from "../ColorField";
 
 const SANDBOX_FLAGS = ["allow-scripts", "allow-same-origin", "allow-popups", "allow-forms"];
 const UPLOAD_FONT_VALUE = "__upload__";
@@ -474,7 +475,6 @@ function TextEditor({
   // tied to the reflected value forces a fresh DOM input (and fresh cursor) only when the
   // selection actually moved to different formatting, never while the user is still typing here.
   const fontSizeKey = snapshot.fontSizePx === "mixed" ? "mixed" : String(snapshot.fontSizePx ?? "");
-  const colorKey = snapshot.color === "mixed" ? "mixed" : snapshot.color;
   const fontGroups: FontSelectGroup[] = [
     { options: [{ value: DEFAULT_FONT_FAMILY, label: DEFAULT_FONT_FAMILY, previewFamily: DEFAULT_FONT_FAMILY }] },
     ...(customFonts.length > 0
@@ -623,11 +623,10 @@ function TextEditor({
           </label>
           <label className="weft-field">
             <span>{tr("ui.colour")}</span>
-            <input
-              key={colorKey}
-              type="color"
-              defaultValue={snapshot.color === "mixed" || !snapshot.color ? "#000000" : snapshot.color}
-              onChange={(e) => applyFormat("foreColor", e.target.value)}
+            <ColorField
+              value={snapshot.color === "mixed" || !snapshot.color ? "#000000" : snapshot.color}
+              ariaLabel={tr("ui.colour")}
+              onChange={(color) => applyFormat("foreColor", color)}
             />
           </label>
           {/* More options in a dialog: line height, small capitals, a gradient or picture behind the letters (see TextFormatDialog). */}
@@ -1606,7 +1605,7 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
               <span>{tr("ui.no_background")}</span>
             </label>
             {look.background !== null && (
-              <input type="color" value={look.background} aria-label={tr("ui.background_colour")} onChange={(e) => setLook({ background: e.target.value })} />
+              <ColorField value={look.background} ariaLabel={tr("ui.background_colour")} onChange={(color) => setLook({ background: color })} />
             )}
           </div>
         </div>
@@ -1624,7 +1623,7 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
         {look.borderWidth > 0 && (
           <label className="weft-field">
             <span>{tr("ui.border_colour")}</span>
-            <input type="color" value={look.borderColor} onChange={(e) => setLook({ borderColor: e.target.value })} />
+            <ColorField value={look.borderColor} ariaLabel={tr("ui.border_colour")} onChange={(color) => setLook({ borderColor: color })} />
           </label>
         )}
         <div className="weft-field">
@@ -1820,7 +1819,7 @@ function ArrowEditor({ block, onUpdate }: { block: ArrowBlock; onUpdate: BlockPa
       </label>
       <label className="weft-field weft-field-inline">
         <span>{tr("ui.colour")}</span>
-        <input type="color" value={block.color} onChange={(e) => onUpdate({ color: e.target.value })} />
+        <ColorField value={block.color} onChange={(color) => onUpdate({ color })} />
       </label>
       <label className="weft-field weft-field-inline">
         <input type="checkbox" checked={block.startHead} onChange={(e) => onUpdate({ startHead: e.target.checked })} />
@@ -2012,7 +2011,7 @@ function ShapeFillEditor({ fill, onChange }: { fill: ShapeFill; onChange: (fill:
         <div className="weft-format-row">
           <label className="weft-field">
             <span>{tr("ui.colour")}</span>
-            <input type="color" value={fill.color} onChange={(e) => onChange({ ...fill, color: e.target.value })} />
+            <ColorField value={fill.color} onChange={(color) => onChange({ ...fill, color })} />
           </label>
           <label className="weft-field">
             <span>Deckkraft ({Math.round(fill.opacity * 100)}%)</span>
@@ -2090,12 +2089,7 @@ function ShapeGradientEditor({ gradient, onChange }: { gradient: ShapeGradient; 
       <span className="weft-subgroup-label">{tr("ui.gradient_points")}</span>
       {gradient.stops.map((stop) => (
         <div key={stop.id} className="weft-effect-row">
-          <input
-            type="color"
-            value={stop.color}
-            title={tr("ui.colour")}
-            onChange={(e) => updateStop(stop.id, { color: e.target.value })}
-          />
+          <ColorField value={stop.color} title={tr("ui.colour")} onChange={(color) => updateStop(stop.id, { color })} />
           <input
             type="number"
             min={0}
@@ -2148,7 +2142,7 @@ function ShapeStrokeEditor({ stroke, onChange }: { stroke: ShapeStroke; onChange
           <div className="weft-format-row">
             <label className="weft-field">
               <span>{tr("ui.colour")}</span>
-              <input type="color" value={stroke.color} onChange={(e) => onChange({ ...stroke, color: e.target.value })} />
+              <ColorField value={stroke.color} onChange={(color) => onChange({ ...stroke, color })} />
             </label>
             <label className="weft-field">
               <span>Deckkraft ({Math.round(stroke.opacity * 100)}%)</span>
@@ -2200,7 +2194,7 @@ function ShapeShadowEditor({ shadow, onChange }: { shadow: ShapeShadow; onChange
           <div className="weft-format-row">
             <label className="weft-field">
               <span>{tr("ui.colour")}</span>
-              <input type="color" value={shadow.color} onChange={(e) => onChange({ ...shadow, color: e.target.value })} />
+              <ColorField value={shadow.color} onChange={(color) => onChange({ ...shadow, color })} />
             </label>
             <label className="weft-field">
               <span>Deckkraft ({Math.round(shadow.opacity * 100)}%)</span>

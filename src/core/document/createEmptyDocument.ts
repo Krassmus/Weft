@@ -173,6 +173,7 @@ export function createEmptyDocument(): WeftDocument {
     sequence,
     assets: [],
     customFonts: [],
+    colorPalette: [],
     languages: [],
     keyboardNavigationEnabled: true,
   };

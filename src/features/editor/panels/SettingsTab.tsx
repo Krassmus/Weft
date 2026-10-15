@@ -10,7 +10,10 @@ import {
 } from "../../../core/aspectRatio";
 import {
   addCustomFont,
+  addPaletteColor,
   removeCustomFont,
+  removePaletteColor,
+  setPaletteColor,
   setAspectRatio,
   setKeyboardNavigationEnabled,
   setModuleTitle,
@@ -44,9 +47,52 @@ import {
   invitationLink,
 } from "../../../core/collab/session";
 import { useDragReorder } from "../useDragReorder";
+import { ColorField } from "../ColorField";
 import { tr } from "../../../core/i18n/tr";
 
 const CUSTOM_VALUE = "custom";
+
+/** What new scheme colours start as, in this order (the person changes them right away). */
+const NEW_PALETTE_COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f5b83d", "#a66cff", "#111827", "#ffffff"];
+
+/** The module's colour scheme (WeftModule.colorPalette): colours every colour picker offers. A colour can also be added from a
+ * picker itself ("Add to color scheme"). */
+function ColorSchemeField() {
+  const palette = useDocumentStore((s) => s.doc.content.colorPalette) ?? [];
+  return (
+    <div className="weft-field">
+      <span>{tr("ui.colour_scheme")}</span>
+      <p className="weft-hint">{tr("ui.colour_scheme_hint")}</p>
+      {palette.length > 0 && (
+        <div className="weft-color-palette-row">
+          {palette.map((entry) => (
+            <span key={entry.id} className="weft-color-palette-item">
+              <ColorField value={entry.color} ariaLabel={tr("ui.colour")} onChange={(color) => setPaletteColor(entry.id, color)} />
+              <button type="button" className="weft-icon-button" title={tr("ui.remove_colour")} aria-label={tr("ui.remove_colour")} onClick={() => removePaletteColor(entry.id)}>
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <button type="button" className="weft-ghost-button weft-full-width" onClick={() => addPaletteColor(unusedPaletteColor(palette.map((c) => c.color)))}>
+        {tr("ui.add_colour")}
+      </button>
+    </div>
+  );
+}
+
+/** A start colour for a new scheme colour that is not in the scheme yet (adding a duplicate does nothing). */
+function unusedPaletteColor(taken: string[]): string {
+  const used = new Set(taken.map((c) => c.toLowerCase()));
+  const free = NEW_PALETTE_COLORS.find((c) => !used.has(c));
+  if (free) return free;
+  for (let n = 1; n < 256; n++) {
+    const candidate = `#${(n * 0x010203).toString(16).padStart(6, "0")}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  return "#808080";
+}
 
 const LANGUAGE_LIST_ID = "languages";
 
@@ -549,6 +595,10 @@ export function SettingsTab() {
       <p className="weft-hint">
         {tr("ui.space_and_the_arrow_keys_go")}
       </p>
+
+      <div className="weft-divider" />
+
+      <ColorSchemeField />
 
       <div className="weft-divider" />
 

@@ -4,6 +4,7 @@ import type { ImageBlock, ImageEffect, ImageEffectKind } from "../../../core/typ
 import { ImageSvg, useImageBoxAspect } from "../blocks/ImageSvg";
 import { StepperSlider } from "./StepperSlider";
 import { tr } from "../../../core/i18n/tr";
+import { ColorField } from "../ColorField";
 
 export const IMAGE_EFFECT_KINDS: { id: ImageEffectKind; label: string }[] = [
   { id: "border", get label() { return tr("ui.border"); } },
@@ -87,7 +88,7 @@ export function ImageEffectDialog({
   const colour = (label: string, key: string, value: string) => (
     <label className="weft-field" key={key}>
       <span>{label}</span>
-      <input type="color" value={value} onChange={(e) => patch({ [key]: e.target.value })} />
+      <ColorField value={value} ariaLabel={label} onChange={(color) => patch({ [key]: color })} />
     </label>
   );
 

@@ -71,6 +71,12 @@ block2 = "0.6"
 # For reading a file that "Open in Weft" hands over in place (src/open_files.rs).
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "alloc", "NSURL", "NSString"] }
 
+# The system's colour sampler (the eyedropper of the colour picker, see src/color_sampler.rs). Already part of the build through wry.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+block2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "block2", "NSColor", "NSColorSampler", "NSColorSpace"] }
+
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 

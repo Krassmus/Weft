@@ -868,6 +868,12 @@ export interface CustomFont {
   mimeType: string;
 }
 
+/** One colour of the module's colour scheme (WeftModule.colorPalette): "#rrggbb". */
+export interface PaletteColor {
+  id: UUID;
+  color: string;
+}
+
 export interface WeftModule {
   /** Set once with crypto.randomUUID() at creation and never reused, so an LMS can key progress on it forever. */
   id: UUID;
@@ -884,6 +890,10 @@ export interface WeftModule {
   sequence: Record<UUID, SequenceEntry>;
   assets: AssetMeta[];
   customFonts: CustomFont[];
+  /** The module's colour scheme: colours that come up again and again, managed under the module's settings and offered in every
+   * colour picker (features/editor/ColorField.tsx). Missing in modules saved before this existed - read it as empty. A block that
+   * uses one of them just carries the hex value, so changing a scheme colour later does not recolour what already uses it. */
+  colorPalette?: PaletteColor[];
   /** The languages this module is offered in, as locales ("de_DE", "en_US" - see
    * core/i18n/languages.ts), the first being the default one. Empty (the default) means a
    * single-language module: no `userlanguage` variable, no language switchers, nothing translated. */

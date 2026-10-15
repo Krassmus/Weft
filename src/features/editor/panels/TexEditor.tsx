@@ -7,6 +7,7 @@ import type { TexBlock } from "../../../core/types";
 import { useTexDialog } from "../blocks/texDialogStore";
 import { Collapsible } from "../Collapsible";
 import { tr } from "../../../core/i18n/tr";
+import { ColorField } from "../ColorField";
 
 const DEFAULT_INSERT_COLOR = "#dc2626";
 
@@ -46,7 +47,7 @@ export function TexEditor({ block, onUpdate }: { block: TexBlock; onUpdate: Upda
         <p className="weft-hint">{tr("ui.tex_line_break_align")}</p>
         <label className="weft-field weft-field-inline">
           <span>{tr("ui.colour_of_the_formula")}</span>
-          <input type="color" value={block.color || "#000000"} onChange={(e) => onUpdate({ color: e.target.value })} />
+          <ColorField value={block.color || "#000000"} onChange={(color) => onUpdate({ color })} />
           {block.color && (
             <button type="button" className="weft-ghost-button" onClick={() => onUpdate({ color: "" })}>
               {tr("ui.reset")}
@@ -86,7 +87,7 @@ function TexFormatBar({
 
   return (
     <div className="weft-format-row weft-tex-format-bar">
-      <input type="color" title={tr("ui.colour_for_the_selection")} value={color} onChange={(e) => setColor(e.target.value)} />
+      <ColorField title={tr("ui.colour_for_the_selection")} value={color} onChange={setColor} />
       <button
         type="button"
         className="weft-ghost-button"

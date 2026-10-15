@@ -5,6 +5,7 @@
 // touches any of that is gated the same way - see run()'s own setup closure and
 // set_menu_language for how mobile still compiles (and behaves correctly - Settings lives in the
 // in-app sidebar tab there instead, needing no native menu item to open it) without any of it.
+mod color_sampler;
 mod open_files;
 #[cfg(target_os = "ios")]
 mod ios_open_urls;
@@ -431,6 +432,8 @@ pub fn run() {
             set_player_mode,
             open_files::take_pending_open_files,
             read_clipboard_file_paths,
+            color_sampler::screen_color_picker_available,
+            color_sampler::pick_screen_color,
             exit_app,
             cancel_exit
         ])

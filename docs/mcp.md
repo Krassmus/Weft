@@ -70,6 +70,6 @@ Wichtig zum Aufbau: Eine Sprung-Folie führt zu einer Folie, danach läuft die F
 
 ## Grenzen
 
-- Bilder, Videos und Schriften lassen sich noch nicht hinzufügen oder austauschen (das geht im Editor). Vorhandene bleiben bei jeder Änderung erhalten.
+- Bilder und Videos kommen von der Festplatte (`add_image`, `add_video`, `add_asset`, `set_media` - nur Dateien dieser Arten, nichts anderes). Schriften lassen sich damit nicht hinzufügen (das geht im Editor). Videos werden nicht umgewandelt: Das Format muss für die Browser passen (H.264 in mp4, oder WebM); bei anderen Kodierungen (HEVC, ProRes ...) gibt es eine Warnung. Ist `ffprobe` installiert, wird die Größe des Videos gelesen; sonst gilt 16:9.
 - Es gibt keine Vorschau als Bild. Was auf einer Folie wirklich zu sehen ist, sagt `weft_validate` nur strukturell (außerhalb der Folie, überlappend ist nicht geprüft).
 - Der Server verändert nur Dateien, die man ihm nennt (Quelle lesen, Ziel schreiben); eine vorhandene Zieldatei überschreibt er nicht (außer der Arbeitskopie `….ai.weft`).

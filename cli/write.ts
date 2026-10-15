@@ -13,7 +13,13 @@ const STALE = new Set(["weft.automerge", "weft.collab.json", "index.html"]);
  * Writes `json` as a new .weft file made from `source` (an existing archive): everything else in it - the pictures, the videos, the
  * fonts - is copied as it is. Never overwrites a file that is there unless `force`.
  */
-export function writeWeft(source: string, json: WeftFileJson, target: string, force = false): void {
+export function writeWeft(
+  source: string,
+  json: WeftFileJson,
+  target: string,
+  force = false,
+  newAssets: { id: string; fileName: string; bytes: Uint8Array }[] = [],
+): void {
   if (existsSync(target) && !force) {
     throw new CliError(`Die Datei „${target}" gibt es schon. Anderen Namen mit -o wählen oder --force zum Überschreiben.`);
   }
@@ -26,6 +32,8 @@ export function writeWeft(source: string, json: WeftFileJson, target: string, fo
       files[name] = [data, { level: name.startsWith("assets/") ? 0 : 6 }];
     }
   }
+  // Files added by this change: pictures and videos (compressed already), under the name Weft looks for them by.
+  for (const asset of newAssets) files[`assets/${asset.id}_${asset.fileName}`] = [asset.bytes, { level: 0 }];
   files["weft.json"] = strToU8(JSON.stringify(json, null, 2));
   if (target.toLowerCase().endsWith(".json")) {
     writeFileSync(target, JSON.stringify(json, null, 2));

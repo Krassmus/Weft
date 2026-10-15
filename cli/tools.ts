@@ -73,8 +73,11 @@ export function editFile(
   const loaded = loadWeft(file);
   const before = new Set(validate(loaded).map(findingKey));
   const content = structuredClone(loaded.content);
-  const results = runOperations(content, operations);
-  const next: LoadedWeft = { ...loaded, content, json: { ...loaded.json, content } };
+  const { results, assets } = runOperations(content, operations);
+  // The files that come with the change are part of the archive it makes (the check looks for them there).
+  const files = new Set(loaded.files);
+  for (const asset of assets) files.add(`assets/${asset.id}_${asset.fileName}`);
+  const next: LoadedWeft = { ...loaded, content, files, json: { ...loaded.json, content } };
   const after = validate(next);
   const introduced = after.filter((f) => !before.has(findingKey(f)));
   const totals = { error: 0, warning: 0, info: 0 };
@@ -89,7 +92,7 @@ export function editFile(
     outcome.refused = "Die Änderungen erzeugen Fehler; nichts geschrieben. Mit allow_errors/--allow-errors trotzdem schreiben.";
     return outcome;
   }
-  writeWeft(file, next.json, target, options.force || inPlace);
+  writeWeft(file, next.json, target, options.force || inPlace, assets);
   outcome.wrote = true;
   return outcome;
 }

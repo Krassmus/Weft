@@ -90,7 +90,7 @@ npm run weft -- new raum.weft --title "Escape Room" --languages de_DE
 npm run weft -- edit raum.weft operationen.json      # schreibt raum.ai.weft
 ```
 
-`weft edit` führt eine Liste von Operationen aus (`set_title`, `add_page`, `add_block`, `update_block`, `add_variable`, `add_logic`, `add_jump_page`, `add_trigger`, `fill_placeholder` ...). Es sind die Aktionen des Editors, ausgeführt auf der Datei. Die Quelle bleibt unverändert, geschrieben wird in die Arbeitskopie `<name>.ai.weft` (oder mit `-o`). Es wird nichts geschrieben, wenn eine Operation fehlschlägt oder die Änderungen Fehler erzeugen (`--allow-errors`); `--dry-run` prüft nur. Die Operationen mit Beispielen stehen in [mcp.md](mcp.md); als MCP-Server sind alle Befehle ohne Kommandozeile für KI-Assistenten da.
+`weft edit` führt eine Liste von Operationen aus (`set_title`, `add_page`, `add_block`, `update_block`, `add_variable`, `add_logic`, `add_jump_page`, `add_trigger`, `fill_placeholder`, `add_image`, `add_video` ...). Es sind die Aktionen des Editors, ausgeführt auf der Datei. Die Quelle bleibt unverändert, geschrieben wird in die Arbeitskopie `<name>.ai.weft` (oder mit `-o`). Es wird nichts geschrieben, wenn eine Operation fehlschlägt oder die Änderungen Fehler erzeugen (`--allow-errors`); `--dry-run` prüft nur. Die Operationen mit Beispielen stehen in [mcp.md](mcp.md); als MCP-Server sind alle Befehle ohne Kommandozeile für KI-Assistenten da.
 
 ## Wie eine KI damit arbeiten kann
 

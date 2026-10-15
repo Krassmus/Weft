@@ -246,6 +246,10 @@ Blöcke mit Id. Jede Operation kann mit "as" einen Namen für das Angelegte verg
 - add_jump_page {after? | branch?, targets?:[{page, condition:{variable, comparator, value}}], default?, as?}  (eine Sprung-Folie wird nie gezeigt: sie führt je nach Bedingung zu einer Folie)
 - add_logic {after?, name?, layout?, branches:[{label, condition?:{variable, comparator:"eq|neq|gt|gte|lt|lte", value}}], as?}  (der letzte Zweig ist das „sonst", ohne Bedingung)
 - remove_page {page} · set_page_layout {page, layout|null}
+- add_asset {file, as?}  (eine Bild-/Videodatei von der Festplatte in das Modul aufnehmen: png jpg gif webp svg avif · mp4 webm ogv mov m4v)
+- add_image {page | layout, file | asset, alt?, position?, fit?, as?} · add_video {page | layout, file | asset, autoplay?, loop?, muted?, controls?, position?, fit?, as?}
+  (legt Datei und Block in einem Schritt an; der Block bekommt die Form der Datei - "position" ist dafür der ungefähre Platz, mit "fit": false genau diese Lage)
+- set_media {block, file | asset, fit?}  (ein anderes Bild/Video in einen vorhandenen Block)
 - add_block {page | layout, kind, set?:{…Felder…}, as?}  → {block}   (kind: text, list, quiz, cloze, button, image, video, code, tex, iframe, shape, arrow, files, language; im Layout auch placeholder). Felder und Bedeutung: weft_schema <kind>.
 - update_block {block, set:{…}} · remove_block {block}
 - fill_placeholder {page, placeholder?, text | html}  (der Text der Folie für einen Platzhalter des Layouts, formatiert wie dieser; text: Zeilen = Absätze)

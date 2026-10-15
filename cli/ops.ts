@@ -17,7 +17,10 @@ import {
 } from "../src/core/document/pageTimeline";
 import { branchPageIds, sequenceOf } from "../src/core/document/sequence";
 import type { Block, VariableCondition, VariableType, WeftModule } from "../src/core/types";
+import { createId } from "../src/core/id";
+import { aspectRatioNumeric } from "../src/core/aspectRatio";
 import { CliError } from "./load";
+import { readMedia } from "./media";
 import { setCurrentModule } from "./storeStub";
 
 /**
@@ -47,9 +50,20 @@ export interface OperationResult {
 
 const COMPARATORS = ["eq", "neq", "gt", "gte", "lt", "lte"] as const;
 
+/** A file that goes into the archive along with the changes (a picture, a video): the module only lists it (assets). */
+export interface PendingAsset {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  bytes: Uint8Array;
+}
+
 interface Context {
   content: WeftModule;
   aliases: Map<string, string>;
+  assets: PendingAsset[];
+  /** What is known of the files added in this run, by asset id (the pixel size). */
+  media: Map<string, { kind: "image" | "video"; width?: number; height?: number; path: string }>;
 }
 
 function fail(message: string): never {
@@ -226,6 +240,80 @@ function resolveSet(ctx: Context, value: unknown, key?: string): unknown {
     return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, resolveSet(ctx, v, k)]));
   }
   return value;
+}
+
+interface AssetInfo {
+  kind: "image" | "video";
+  fileName: string;
+  mimeType: string;
+  size: number;
+  width?: number;
+  height?: number;
+  warnings: string[];
+}
+
+/** The asset an operation names: a file on disk (`file`: it is added to the module) or one the module has (`asset`: its id, file name or
+ * a "$name" from add_asset). Only a file added in this run is known by its pixel size. */
+function assetFor(ctx: Context, op: Operation, expect: "image" | "video" | undefined): { id: string; info: AssetInfo } {
+  if (typeof op.file === "string") {
+    const media = readMedia(op.file);
+    if (expect && media.kind !== expect) fail(`„${op.file}" ist ein ${media.kind === "image" ? "Bild" : "Video"}, hier wird ein ${expect === "image" ? "Bild" : "Video"} gebraucht.`);
+    // The same file twice in one run is one asset.
+    const known = [...ctx.media.entries()].find(([, m]) => m.path === media.path);
+    if (known) {
+      const meta = ctx.content.assets.find((a) => a.id === known[0])!;
+      return { id: known[0], info: { kind: media.kind, fileName: meta.fileName, mimeType: meta.mimeType, size: media.bytes.length, width: media.width, height: media.height, warnings: [] } };
+    }
+    const id = createId();
+    ctx.content.assets.push({ id, fileName: media.fileName, mimeType: media.mimeType });
+    ctx.assets.push({ id, fileName: media.fileName, mimeType: media.mimeType, bytes: media.bytes });
+    ctx.media.set(id, { kind: media.kind, width: media.width, height: media.height, path: media.path });
+    return {
+      id,
+      info: { kind: media.kind, fileName: media.fileName, mimeType: media.mimeType, size: media.bytes.length, width: media.width, height: media.height, warnings: media.warnings },
+    };
+  }
+  if (typeof op.asset === "string") {
+    const ref = alias(ctx, op.asset);
+    const meta = ctx.content.assets.find((a) => a.id === ref) ?? ctx.content.assets.find((a) => a.fileName === ref);
+    if (!meta) return fail(`Das Modul hat keine Datei „${ref}". Mit "file" eine Datei hinzufügen (oder add_asset).`);
+    const kind = meta.mimeType.startsWith("video/") ? "video" : "image";
+    if (expect && kind !== expect) fail(`Die Datei „${meta.fileName}" ist ein ${kind === "image" ? "Bild" : "Video"}, hier wird ein ${expect === "image" ? "Bild" : "Video"} gebraucht.`);
+    const known = ctx.media.get(meta.id);
+    return { id: meta.id, info: { kind, fileName: meta.fileName, mimeType: meta.mimeType, size: 0, width: known?.width, height: known?.height, warnings: [] } };
+  }
+  return fail('"file" (Pfad einer Bild-/Videodatei) oder "asset" (eine Datei, die das Modul schon hat) fehlt.');
+}
+
+/** `position`, reshaped to the picture's own shape (the same centre and about the same area), so that it fills its box. */
+function fittedPosition(ctx: Context, position: Block["position"], info: AssetInfo) {
+  const ratio = info.width && info.height ? info.width / info.height : info.kind === "video" ? 16 / 9 : null;
+  if (!ratio) return position;
+  return actions.fitToAspect(position, ratio / aspectRatioNumeric(ctx.content.aspectRatio));
+}
+
+function addMediaBlock(ctx: Context, op: Operation, kind: "image" | "video"): Record<string, unknown> {
+  const { id: assetId, info } = assetFor(ctx, op, kind);
+  const footprint = (op.position as Block["position"] | undefined) ?? { x: 20, y: 20, width: 60, height: 60 };
+  const position = op.fit === false ? footprint : fittedPosition(ctx, { ...footprint, rotation: footprint.rotation }, info);
+  const set: Record<string, unknown> = { assetId, position };
+  if (kind === "image" && typeof op.alt === "string") set.alt = op.alt;
+  if (kind === "video") {
+    for (const key of ["autoplay", "loop", "muted", "controls"] as const) if (typeof op[key] === "boolean") set[key] = op[key];
+  }
+  let blockId: string;
+  if (op.layout !== undefined) {
+    const layout = layoutId(ctx, op.layout);
+    blockId = actions.addBlockToLayout(layout, kind);
+    actions.updateLayoutBlock(layout, blockId, set as never);
+  } else {
+    const page = pageId(ctx, op.page);
+    if (ctx.content.pages[page].jump) fail("Auf eine Sprung-Folie lassen sich keine Blöcke legen.");
+    blockId = actions.addBlockToPage(page, kind);
+    actions.updateBlock(page, blockId, set as never);
+  }
+  remember(ctx, op, blockId);
+  return { block: blockId, asset: assetId, position, ...(info.warnings.length ? { warnings: info.warnings } : {}) };
 }
 
 function remember(ctx: Context, op: Operation, id: string): void {
@@ -434,6 +522,28 @@ const HANDLERS: Record<string, Handler> = {
     return { block: id };
   },
 
+  add_asset(ctx, op) {
+    const { id, info } = assetFor(ctx, op, undefined);
+    remember(ctx, op, id);
+    return { asset: id, fileName: info.fileName, mimeType: info.mimeType, kind: info.kind, size: info.size, ...(info.warnings.length ? { warnings: info.warnings } : {}) };
+  },
+  add_image(ctx, op) {
+    return addMediaBlock(ctx, op, "image");
+  },
+  add_video(ctx, op) {
+    return addMediaBlock(ctx, op, "video");
+  },
+  set_media(ctx, op) {
+    const { block, container } = findBlock(ctx, op.block);
+    if (block.kind !== "image" && block.kind !== "video") fail(`Der Block ${block.id} ist ${block.kind}, kein Bild oder Video.`);
+    const { id, info } = assetFor(ctx, op, block.kind);
+    const patch: Record<string, unknown> = { assetId: id };
+    if (op.fit !== false) patch.position = fittedPosition(ctx, block.position, info);
+    if (container.kind === "page") actions.updateBlock(container.id, block.id, patch as never);
+    else actions.updateLayoutBlock(container.id, block.id, patch as never);
+    return { block: block.id, asset: id, ...(info.warnings.length ? { warnings: info.warnings } : {}) };
+  },
+
   add_trigger(ctx, op) {
     const page = pageId(ctx, op.page);
     actions.addTrigger(page, eventId(ctx, op.from, "from"), eventId(ctx, op.to, "to"), typeof op.delayMs === "number" ? op.delayMs : 0, op.weiter === true);
@@ -452,8 +562,8 @@ const HANDLERS: Record<string, Handler> = {
 export const OPERATION_NAMES = Object.keys(HANDLERS).filter((name) => name !== "add_branch_page");
 
 /** Runs `operations` on `content` (changed in place). Throws at the first operation that fails: the caller works on a copy. */
-export function runOperations(content: WeftModule, operations: Operation[]): OperationResult[] {
-  const ctx: Context = { content, aliases: new Map() };
+export function runOperations(content: WeftModule, operations: Operation[]): { results: OperationResult[]; assets: PendingAsset[] } {
+  const ctx: Context = { content, aliases: new Map(), assets: [], media: new Map() };
   const results: OperationResult[] = [];
   setCurrentModule(content);
   try {
@@ -473,5 +583,5 @@ export function runOperations(content: WeftModule, operations: Operation[]): Ope
     setCurrentModule(null);
   }
   content.modifiedAt = new Date().toISOString();
-  return results;
+  return { results, assets: ctx.assets };
 }

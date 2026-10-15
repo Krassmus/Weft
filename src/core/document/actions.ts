@@ -1296,7 +1296,7 @@ function clampPercent(value: number, min: number, max: number): number {
  * renders edge-to-edge in its selection box instead of letterboxed inside an unrelated
  * rectangle. Duplicated in spirit from clampMove in features/editor/blocks/resizeMath.ts rather
  * than imported, so core/ doesn't reach into features/. */
-function fitToAspect(position: BlockPosition, percentRatio: number): BlockPosition {
+export function fitToAspect(position: BlockPosition, percentRatio: number): BlockPosition {
   const area = position.width * position.height;
   let width = Math.sqrt(area * percentRatio);
   let height = width / percentRatio;

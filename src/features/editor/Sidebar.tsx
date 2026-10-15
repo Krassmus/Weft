@@ -285,7 +285,7 @@ function LayoutList() {
             onClick={() => select({ type: "layout", layoutId: layout.id })}
           >
             <div className="weft-node-layout-body">
-              <SlideThumbnail blocks={orderedValues(layout.blocks)} />
+              <SlideThumbnail blocks={orderedValues(layout.blocks)} placeholderSlots />
               <span className="weft-node-title">{layout.name}</span>
             </div>
           </button>

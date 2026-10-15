@@ -84,6 +84,8 @@ import { OutgoingTriggersSection } from "./TriggerSections";
 import { pageChoices } from "./pageChoices";
 import { PageMiniature } from "../PageMiniature";
 import { buttonAppearanceOf } from "../../../core/document/buttonAppearance";
+import { placeholderOfText } from "../../../core/document/placeholders";
+import { resetPlaceholderFormatting } from "../../../core/document/actions";
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
@@ -126,6 +128,8 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
   const ownEffectNodeIds = new Set([blockEffectNodeId(block.id, "entrance"), blockEffectNodeId(block.id, "exit")]);
   const triggerEvents = page ? listPageTriggerEvents(page).filter((e) => !ownEffectNodeIds.has(e.id)) : [];
   const placeholderProblems = usePlaceholderProblems(block);
+  const content = useDocumentStore((s) => s.doc.content);
+  const fromPlaceholder = placeholderOfText(content, page, block) !== null;
   return (
     <>
       {placeholderProblems.length > 0 && (
@@ -138,8 +142,34 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
       {/* Same formatting toolbar for both - a quiz's question and options are rich text edited
           directly on the canvas exactly like a text block's own content, just several regions
           sharing one block instead of one filling it (see EditableRichText in BlockView.tsx). */}
-      {(block.kind === "text" || block.kind === "quiz" || block.kind === "list" || block.kind === "cloze" || block.kind === "button") && (
-        <TextEditor block={block.kind === "text" || block.kind === "button" ? block : undefined} onUpdate={onUpdate} />
+      {(block.kind === "text" ||
+        block.kind === "placeholder" ||
+        block.kind === "quiz" ||
+        block.kind === "list" ||
+        block.kind === "cloze" ||
+        block.kind === "button") && (
+        <TextEditor
+          block={block.kind === "text" || block.kind === "button" ? block : undefined}
+          onUpdate={onUpdate}
+          // A text a page has for a placeholder of its layout: its formatting can be brought back to the placeholder's.
+          onResetStyle={fromPlaceholder && page ? () => resetPlaceholderFormatting(page.id, block.id) : undefined}
+        />
+      )}
+      {block.kind === "placeholder" && (
+        <Collapsible title="Platzhalter">
+          <label className="weft-field">
+            <span>Name</span>
+            <input value={block.label} onChange={(e) => onUpdate({ label: e.target.value })} />
+          </label>
+          <p className="weft-hint">
+            Der Text hier ist nur ein Muster für die Formatierung: Auf den Folien, die dieses Layout benutzen, steht an dieser Stelle
+            ein Feld, in das man einen eigenen Text schreibt - zunächst so formatiert wie dieses Muster. Die Lage lässt sich dort nicht
+            ändern.
+          </p>
+        </Collapsible>
+      )}
+      {fromPlaceholder && (
+        <p className="weft-hint">Dieser Text gehört zu einem Platzhalter des Layouts - seine Lage kommt von dort.</p>
       )}
       {block.kind === "list" && <ListEditor block={block} page={page} onUpdate={onUpdate} onSetImage={onSetImage} />}
       {block.kind === "cloze" && <ClozeEditor block={block} page={page} onUpdate={onUpdate} />}
@@ -186,7 +216,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
       {/* Least important thing here, since it's rarely worth fiddling with numerically instead of
           just dragging the block on the canvas - always last regardless of block kind, rather
           than leading with a wall of coordinate fields before anything content-related. */}
-      <PositionCollapsible block={block} onUpdate={onUpdate} />
+      {!fromPlaceholder && <PositionCollapsible block={block} onUpdate={onUpdate} />}
     </>
   );
 }
@@ -400,7 +430,15 @@ function formatButtonClass(state: TriState): string {
  * handler checks to keep richText.ts's notion of "the active editor" alive across that focus hop
  * instead of tearing it down.
  */
-function TextEditor({ block, onUpdate }: { block?: TextBlock | ButtonBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
+function TextEditor({
+  block,
+  onUpdate,
+  onResetStyle,
+}: {
+  block?: TextBlock | ButtonBlock;
+  onUpdate: BlockPanelProps["onUpdate"];
+  onResetStyle?: () => void;
+}) {
   const snapshot = useFormatSnapshot();
   const [formatDialogOpen, setFormatDialogOpen] = useState(false);
   const customFonts = useDocumentStore((s) => s.doc.content.customFonts);
@@ -583,6 +621,11 @@ function TextEditor({ block, onUpdate }: { block?: TextBlock | ButtonBlock; onUp
         </div>
       </div>
       {formatDialogOpen && <TextFormatDialog onClose={() => setFormatDialogOpen(false)} />}
+      {onResetStyle && (
+        <button type="button" className="weft-ghost-button weft-full-width" onClick={onResetStyle}>
+          Formatierung der Vorlage wiederherstellen
+        </button>
+      )}
       {block && block.kind === "text" && (
         <>
           <label className="weft-field weft-field-inline">

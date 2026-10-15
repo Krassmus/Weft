@@ -123,6 +123,25 @@ export interface TextBlock extends BaseBlock {
    * and absent on every block saved before this existed, which therefore stay unscrollable: the
    * overflowing text is simply cut off at the block's edge. */
   scrollable?: boolean;
+  /** Set on a text a page has for a placeholder of its layout (see PlaceholderBlock): the id of that layout block. The text is the
+   * page's own - it can be edited and formatted like any text - but where it stands is the placeholder's, and "reset" brings back the
+   * placeholder's formatting. When the layout has no such placeholder any more (another layout was chosen, it was removed) it is a
+   * plain text. */
+  placeholderOf?: UUID;
+}
+
+/**
+ * A placeholder for a text on the pages that use a layout (only exists in a layout): it has no text of its own. What the author sets
+ * up is where it stands and how its text looks; the `html` is a sample that carries that formatting (font, size, colour,
+ * alignment, ...) - it is never shown on a page. On a page the slot can be clicked to type a text, which then starts out formatted
+ * like the sample (see core/document/placeholders.ts).
+ */
+export interface PlaceholderBlock extends BaseBlock {
+  kind: "placeholder";
+  /** What it is for ("Titel", "Untertitel", ...): shown in the slot on the pages. */
+  label: string;
+  /** A sample text that has the formatting (the author edits and formats it like any text). */
+  html: string;
 }
 
 /** What stands in front of the items of a ListBlock. */
@@ -535,7 +554,7 @@ export interface FilesBlock extends BaseBlock {
  * navigation button (or a shape, which carries no state at all) has nothing graded to exclude, so
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
-export type StaticBlock = TextBlock | ListBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock | ArrowBlock | FilesBlock;
+export type StaticBlock = TextBlock | PlaceholderBlock | ListBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock | ArrowBlock | FilesBlock;
 export type Block = StaticBlock | QuizBlock | ClozeBlock;
 
 /** A block as it's first made, before it has been put somewhere (and so given its `order`). */

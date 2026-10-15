@@ -176,6 +176,7 @@ const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
   arrow: "Pfeil",
   files: "Dateien",
   list: "Liste",
+  placeholder: "Platzhalter-Text",
 };
 
 /** Kept in sync by hand with player.runtime.js's own blockEffectEventId - see that file's header

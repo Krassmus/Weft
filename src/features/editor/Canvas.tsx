@@ -32,6 +32,8 @@ import type { VideoUploadReport } from "../../core/io/fileIO";
 import type { BlockGroup, BlockPosition, Layout, Page, WeftDocument } from "../../core/types";
 import type { ContextMenuItem } from "./ContextMenu";
 import { BlockView } from "./blocks/BlockView";
+import { PlaceholderSlot } from "./blocks/PlaceholderSlot";
+import { placeholderOfText } from "../../core/document/placeholders";
 import type { HandleId } from "./blocks/resizeMath";
 import { clampGroupMove, clampMove, groupBoundingBox, HANDLES, resizeFromHandle, round, scalePositionWithinBox } from "./blocks/resizeMath";
 import { Timeline } from "./Timeline";
@@ -167,6 +169,11 @@ function useArrowMove(doc: WeftDocument, selection: ReturnType<typeof useDocumen
           ? doc.content.pages[container.pageId]?.blocks[blockId]
           : doc.content.layouts[container.layoutId]?.blocks[blockId];
       if (!block) return;
+      // A text that stands where its placeholder says is not moved.
+      if (block.kind === "text" && block.placeholderOf && container.kind === "page") {
+        const page = doc.content.pages[container.pageId];
+        if (page && placeholderOfText(doc.content, page, block)) return;
+      }
 
       e.preventDefault();
       const step = e.shiftKey ? ARROW_STEP_PERCENT_FAST : ARROW_STEP_PERCENT;
@@ -956,7 +963,14 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                 )
               }
             >
-              {orderedValues(target.layout?.blocks ?? {}).map((block) => <BlockView key={block.id} block={block} selected={false} locked />)}
+              {orderedValues(target.layout?.blocks ?? {}).map((block) => {
+                // A placeholder of the layout is a slot to type into - until the page has its text for it, which then stands there.
+                if (block.kind === "placeholder") {
+                  const hasText = Object.values(target.page.blocks).some((b) => b.kind === "text" && b.placeholderOf === block.id);
+                  return hasText ? null : <PlaceholderSlot key={block.id} block={block} pageId={target.page.id} />;
+                }
+                return <BlockView key={block.id} block={block} selected={false} locked />;
+              })}
               {orderedValues(target.page.blocks).map((block) => {
                 const group = findGroupForBlock(target.page, block.id);
                 const isSoloSelected =
@@ -1018,6 +1032,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                   <BlockView
                     key={block.id}
                     block={block}
+                    fixedPosition={placeholderOfText(doc.content, target.page, block) !== null}
                     videoPreviewTime={videoPreview?.blockId === block.id ? videoPreview.time : null}
                     locked={false}
                     selected={isSoloSelected}

@@ -29,6 +29,7 @@ import { DEFAULT_CODE_THEME } from "../code/codeThemes";
 import { insertOrdered, moveOrdered, moveOrderedRun, orderedIdRecord, orderedKeys, orderedValues } from "./ordering";
 import { findChain, reorderedLinks } from "../eventGraph/chains";
 import { assignPatch, plain, removeWhere } from "./plain";
+import { applyPlaceholderStyle, plainParagraphs } from "./placeholders";
 import { branchPageIds } from "./sequence";
 import { DEFAULT_TRANSITION_DURATION_MS } from "./transitions";
 import { defaultLanguageOf, rotateDefaultLanguage } from "./translations";
@@ -221,7 +222,57 @@ export function removePage(pageId: string) {
 export function setPageLayout(pageId: string, layoutId: string | null) {
   edit("Layout zuweisen", (m) => {
     const page = m.pages[pageId];
-    if (page) page.layoutId = layoutId;
+    if (!page) return;
+    page.layoutId = layoutId;
+    // The texts the page had for placeholders of the layout it had are texts of their own now (they stay where they were),
+    // unless the new layout happens to be the one they belong to.
+    const placeholders = layoutId ? m.layouts[layoutId]?.blocks : undefined;
+    for (const block of Object.values(page.blocks)) {
+      if (block.kind === "text" && block.placeholderOf && placeholders?.[block.placeholderOf]?.kind !== "placeholder") {
+        delete block.placeholderOf;
+      }
+    }
+  });
+}
+
+/**
+ * The text a page has for placeholder `placeholderId` of its layout: a text block that stands where the placeholder stands and
+ * starts out formatted like it (empty - ready to be typed into). Returns the block's id (the existing one, if there is one).
+ */
+export function createPlaceholderText(pageId: string, placeholderId: string): string | null {
+  let result: string | null = null;
+  edit("Platzhalter-Text anlegen", (m) => {
+    const page = m.pages[pageId];
+    const placeholder = page?.layoutId ? m.layouts[page.layoutId]?.blocks[placeholderId] : undefined;
+    if (!page || !placeholder || placeholder.kind !== "placeholder") return;
+    const existing = Object.values(page.blocks).find((b) => b.kind === "text" && b.placeholderOf === placeholderId);
+    if (existing) {
+      result = existing.id;
+      return;
+    }
+    const block = defaultBlockFor("text") as NewBlock & { kind: "text" };
+    block.position = { ...placeholder.position };
+    block.html = applyPlaceholderStyle(placeholder.html, [""]);
+    block.placeholderOf = placeholderId;
+    insertOrdered(page.blocks, block.id, block);
+    syncPageTimelineEvents(page);
+    result = block.id;
+  });
+  return result;
+}
+
+/** Brings back the formatting of the placeholder on the text a page has for it: the words stay, everything else is the sample's. */
+export function resetPlaceholderFormatting(pageId: string, blockId: string) {
+  edit("Formatierung zurücksetzen", (m) => {
+    const page = m.pages[pageId];
+    const block = page?.blocks[blockId];
+    if (!page || !block || block.kind !== "text" || !block.placeholderOf || !page.layoutId) return;
+    const placeholder = m.layouts[page.layoutId]?.blocks[block.placeholderOf];
+    if (!placeholder || placeholder.kind !== "placeholder") return;
+    block.html = applyPlaceholderStyle(placeholder.html, plainParagraphs(block.html));
+    for (const translation of Object.values(block.translations ?? {})) {
+      if (translation.html !== undefined) translation.html = applyPlaceholderStyle(placeholder.html, plainParagraphs(translation.html));
+    }
   });
 }
 
@@ -503,6 +554,8 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
         onCorrect: [],
         onIncorrect: [],
       };
+    case "placeholder":
+      return { ...base, kind, position, label: "Platzhalter", html: "<p>Platzhaltertext</p>" };
     case "list":
       return {
         ...base,
@@ -1286,17 +1339,41 @@ export async function setBlockVideo(pageId: string, blockId: string, file: File)
   return { playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error, sizeBytes: resolved.file.size };
 }
 
+/** The texts of the pages that use `layoutId` that are the text for placeholder `blockId`. */
+function textsOfPlaceholder(m: WeftModule, layoutId: string, blockId: string) {
+  return Object.values(m.pages)
+    .filter((page) => page.layoutId === layoutId)
+    .flatMap((page) => Object.values(page.blocks).filter((b) => b.kind === "text" && b.placeholderOf === blockId));
+}
+
 export function updateLayoutBlock(layoutId: string, blockId: string, patch: Partial<Block>) {
   edit("Block bearbeiten", (m) => {
     const block = m.layouts[layoutId]?.blocks[blockId];
-    if (block) assignPatch(block, patch);
+    if (!block) return;
+    const oldHtml = block.kind === "placeholder" ? block.html : "";
+    assignPatch(block, patch);
+    if (block.kind !== "placeholder") return;
+    for (const text of textsOfPlaceholder(m, layoutId, blockId)) {
+      if (text.kind !== "text") continue;
+      // A text stands where its placeholder stands.
+      if ("position" in patch) text.position = plain({ ...block.position });
+      // A text that still has the formatting of the sample follows it when that changes - one the author formatted differently does not.
+      if ("html" in patch && text.html === applyPlaceholderStyle(oldHtml, plainParagraphs(text.html))) {
+        text.html = applyPlaceholderStyle(block.html, plainParagraphs(text.html));
+      }
+    }
   });
 }
 
 export function removeLayoutBlock(layoutId: string, blockId: string) {
   edit("Block entfernen", (m) => {
     const layout = m.layouts[layoutId];
-    if (layout) delete layout.blocks[blockId];
+    if (!layout) return;
+    // The texts of the pages for a placeholder that goes are texts of their own from now on.
+    for (const text of textsOfPlaceholder(m, layoutId, blockId)) {
+      if (text.kind === "text") delete text.placeholderOf;
+    }
+    delete layout.blocks[blockId];
   });
 }
 
@@ -1552,7 +1629,11 @@ export function pasteBlockInto(
   sourceBlock: Block,
 ): string | null {
   if (target.kind === "layout" && (sourceBlock.kind === "quiz" || sourceBlock.kind === "cloze")) return null;
+  // A placeholder only exists in a layout.
+  if (target.kind === "page" && sourceBlock.kind === "placeholder") return null;
   const newBlock = cloneBlockWithNewId(sourceBlock);
+  // A copy of a page's text for a placeholder is a text of its own (one placeholder has one text).
+  if (newBlock.kind === "text") delete newBlock.placeholderOf;
   newBlock.position = offsetPosition(newBlock.position);
 
   let inserted = false;

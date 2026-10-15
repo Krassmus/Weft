@@ -45,6 +45,7 @@ import { registerActiveEditable, registerWholeRegion, resolveInlineAssets, saveS
 import { ArrowHandles } from "./ArrowHandles";
 import { ArrowSvg } from "./ArrowSvg";
 import { useImageEdit } from "./imageEditStore";
+import { usePendingEdit } from "./pendingEditStore";
 import { ImageSvg } from "./ImageSvg";
 import { MaskHandles } from "./MaskHandles";
 import { FilesView } from "./FilesView";
@@ -104,6 +105,9 @@ function layerMenuItems(
 
 interface BlockViewProps {
   block: Block;
+  /** The block stands where it stands because a placeholder of the layout says so (a page's text for it): it can be selected and
+   * edited, but not moved or resized. */
+  fixedPosition?: boolean;
   /** For a video: the moment of it that an event selected in the graph is about (see videoPreviewFor) - shown as a still. */
   videoPreviewTime?: number | "end" | null;
   selected: boolean;
@@ -177,6 +181,7 @@ interface BlockViewProps {
 
 export function BlockView({
   block,
+  fixedPosition = false,
   videoPreviewTime = null,
   selected,
   locked,
@@ -208,6 +213,13 @@ export function BlockView({
   useEffect(() => {
     if (!selected || locked || groupSelected) setEditing(false);
   }, [selected, locked, groupSelected]);
+  // The text that has just been made for a placeholder is edited at once (see PlaceholderSlot).
+  const pendingEdit = usePendingEdit((s) => s.blockId);
+  useEffect(() => {
+    if (pendingEdit !== block.id || !selected || locked) return;
+    usePendingEdit.getState().clear();
+    setEditing(true);
+  }, [pendingEdit, block.id, selected, locked]);
   // Escape ends the editing: the block stays selected.
   useEffect(() => {
     if (!editing) return;
@@ -234,7 +246,12 @@ export function BlockView({
   // and moved from anywhere - including on the very first click, before it's even selected, see
   // handlePointerDownMove/handlePointerMoveHover below.
   const isTextLike =
-    block.kind === "text" || block.kind === "button" || block.kind === "cloze" || block.kind === "quiz" || block.kind === "list";
+    block.kind === "text" ||
+    block.kind === "placeholder" ||
+    block.kind === "button" ||
+    block.kind === "cloze" ||
+    block.kind === "quiz" ||
+    block.kind === "list";
   const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "language" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files";
   // Only an image or video has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
@@ -289,6 +306,8 @@ export function BlockView({
     // mean "move", not "select".
     if (!selected && !isFreelyMovableBlock) return;
     if (!isFreelyMovableBlock) {
+      // (A text that is fixed by its placeholder has no edge to grab: it is not moved from there.)
+      if (fixedPosition) return;
       const stage = stageRect();
       if (!stage || edgeDistancePx(e.clientX, e.clientY, position, stage) > edgeThreshold(position, stage)) return;
       // A finger on text that is marked: that is the handles of the selection (or the text being marked) - nothing to start
@@ -309,6 +328,7 @@ export function BlockView({
     const startClientX = e.clientX;
     const startClientY = e.clientY;
     let started = false;
+    let dragged = false;
     let committed = startPosition;
     // A click (no drag) on a text that was already selected puts the caret in it - see `editing`.
     // (Not from one of the block's own buttons - the checkbox of an option, the trash can of an item.)
@@ -317,6 +337,11 @@ export function BlockView({
     function handleMove(ev: PointerEvent) {
       if (!started) {
         if (Math.hypot(ev.clientX - startClientX, ev.clientY - startClientY) < DRAG_THRESHOLD_PX) return;
+        // A text fixed by its placeholder is not moved: a drag is no click either.
+        if (fixedPosition) {
+          dragged = true;
+          return;
+        }
         started = true;
         onSelect?.();
         document.body.classList.add("weft-dragging");
@@ -345,7 +370,7 @@ export function BlockView({
         onUpdate?.({ position: committed });
         // Moved by its edge while being edited: the block is selected, not edited, from now on.
         if (isTextLike) setEditing(false);
-      } else if (putsCaret && ev.type === "pointerup") {
+      } else if (putsCaret && !dragged && ev.type === "pointerup") {
         startEditing(ev.clientX, ev.clientY);
       }
       setLiveOverride(null);
@@ -407,6 +432,7 @@ export function BlockView({
 
   function handlePointerMoveHover(e: ReactPointerEvent) {
     if (locked) return;
+    if (fixedPosition) return;
     if (!selected && !isFreelyMovableBlock) return;
     if (isFreelyMovableBlock) {
       setNearEdge(true);
@@ -616,6 +642,7 @@ export function BlockView({
         {selected &&
           !locked &&
           !groupSelected &&
+          !fixedPosition &&
           (usesProportionalResize ? CORNER_HANDLES : HANDLES).map((h) => (
             <div
               key={h.id}
@@ -670,6 +697,21 @@ function BlockContent({
           frameSelect={frameSelect}
           onCommit={(html) => onUpdate?.(textHtmlPatch(block, lang, defaultLang, html))}
         />
+      );
+    case "placeholder":
+      // In the layout: the sample text carries the formatting of the texts the pages have for this placeholder.
+      return (
+        <div className="weft-edit-block-placeholder-box">
+          <span className="weft-edit-block-placeholder-label">{block.label || "Platzhalter"}</span>
+          <EditableRichText
+            className="weft-edit-block-text"
+            html={block.html}
+            editable={selected && editing}
+            wholeMode={selected && !editing}
+            frameSelect={frameSelect}
+            onCommit={(html) => onUpdate?.({ html })}
+          />
+        </div>
       );
     case "language":
       // What a learner will get: a drop-down showing the current language by its own name. Inert here

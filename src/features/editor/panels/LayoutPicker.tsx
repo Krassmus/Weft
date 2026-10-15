@@ -39,7 +39,7 @@ export function LayoutPicker({ page }: { page: Page }) {
           </button>
           {Object.values(layouts).map((layout) => (
             <button key={layout.id} type="button" className="weft-layout-grid-item" onClick={() => choose(layout.id)}>
-              <SlideThumbnail blocks={orderedValues(layout.blocks)} />
+              <SlideThumbnail blocks={orderedValues(layout.blocks)} placeholderSlots />
               <span>{layout.name}</span>
             </button>
           ))}

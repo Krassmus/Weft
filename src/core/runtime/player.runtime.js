@@ -2552,6 +2552,8 @@
     // blocks slide (see animateTransition).
     if (layout) {
       layout.blocks.forEach(function (b) {
+        // A placeholder (see PlaceholderBlock) is only a place and a style for the page's own text: nothing to show.
+        if (b.kind === "placeholder") return;
         var layoutBlock = renderBlock(b, page);
         layoutBlock.classList.add("weft-block-from-layout");
         stage.appendChild(layoutBlock);

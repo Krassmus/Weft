@@ -8,7 +8,8 @@ import { useDragReorder } from "../useDragReorder";
 import { LayoutPicker } from "./LayoutPicker";
 import { orderedValues } from "../../../core/document/ordering";
 
-const BLOCK_KINDS = Object.keys(BLOCK_KIND_KEYS) as Block["kind"][];
+// A placeholder text only exists in a layout.
+const BLOCK_KINDS = (Object.keys(BLOCK_KIND_KEYS) as Block["kind"][]).filter((kind) => kind !== "placeholder");
 
 export function PagePanel({ page }: { page: Page }) {
   const { t } = useTranslation();

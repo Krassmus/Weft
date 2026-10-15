@@ -44,8 +44,12 @@ export function SlideThumbnail({
   exportPxPerCqw,
   qrSvgs,
   imageUrls,
+  placeholderSlots = false,
 }: {
   blocks: Block[];
+  /** Show the placeholders of a layout (as their sample text in a dashed frame) - for the picture of a layout itself; on a page they
+   * are not part of what is shown. */
+  placeholderSlots?: boolean;
   exportPxPerCqw?: number;
   /** For the PDF: the QR code (as SVG) of an iframe block's address, by block id. */
   qrSvgs?: Record<string, string>;
@@ -70,14 +74,26 @@ export function SlideThumbnail({
     <div className="weft-thumb" style={{ aspectRatio: aspectRatioCss(aspectRatio), ...portraitCap }}>
       <div className="weft-thumb-stage" ref={stageRef}>
         {blocks.map((block) => (
-          <ThumbBlock key={block.id} block={block} exportPxPerCqw={exportPxPerCqw} qrSvg={qrSvgs?.[block.id]} imageUrl={imageUrls?.[block.id]} />
+          <ThumbBlock key={block.id} block={block} exportPxPerCqw={exportPxPerCqw} qrSvg={qrSvgs?.[block.id]} imageUrl={imageUrls?.[block.id]} placeholderSlots={placeholderSlots} />
         ))}
       </div>
     </div>
   );
 }
 
-function ThumbBlock({ block, exportPxPerCqw, qrSvg, imageUrl }: { block: Block; exportPxPerCqw?: number; qrSvg?: string; imageUrl?: string }) {
+function ThumbBlock({
+  block,
+  exportPxPerCqw,
+  qrSvg,
+  imageUrl,
+  placeholderSlots,
+}: {
+  block: Block;
+  exportPxPerCqw?: number;
+  qrSvg?: string;
+  imageUrl?: string;
+  placeholderSlots?: boolean;
+}) {
   const slideAspect = useDocumentStore((s) => aspectRatioNumeric(s.doc.content.aspectRatio));
   const { lang, defaultLang } = useEditingLanguage();
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
@@ -89,6 +105,15 @@ function ThumbBlock({ block, exportPxPerCqw, qrSvg, imageUrl }: { block: Block; 
     transform: block.position.rotation ? `rotate(${block.position.rotation}deg)` : undefined,
   };
 
+  if (block.kind === "placeholder") {
+    return placeholderSlots ? (
+      <div
+        className="weft-thumb-block weft-thumb-block-text weft-thumb-block-placeholder-slot"
+        style={style}
+        dangerouslySetInnerHTML={{ __html: block.html }}
+      />
+    ) : null;
+  }
   if (block.kind === "text") {
     return <div className="weft-thumb-block weft-thumb-block-text" style={style} dangerouslySetInnerHTML={{ __html: textHtml(block, lang, defaultLang) }} />;
   }

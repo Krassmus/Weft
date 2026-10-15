@@ -15,6 +15,12 @@ const BLOCK_TAGS = new Set(["P", "DIV", "H1", "H2", "H3", "H4", "H5", "H6", "LI"
 /** The words of some html as paragraphs (one string per paragraph, a line break splits too). */
 export function plainParagraphs(html: string): string[] {
   const root = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html").body;
+  // The <br> at the end of a paragraph is only what holds an empty paragraph open (or what a browser leaves behind): no line.
+  root.querySelectorAll(Array.from(BLOCK_TAGS).join(",")).forEach((block) => {
+    let last: Node | null = block.lastChild;
+    while (last && last.nodeType === Node.ELEMENT_NODE && (last as HTMLElement).tagName !== "BR") last = last.lastChild;
+    if (last && (last as HTMLElement).tagName === "BR") last.parentNode?.removeChild(last);
+  });
   root.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
   const paragraphs: string[] = [];
   let inline = "";
@@ -103,7 +109,8 @@ export function applyPlaceholderStyle(sampleHtml: string, paragraphs: string[]):
         }
       });
     }
-    out.push(clone.outerHTML);
+    // Every paragraph stands on its own: formatting that was only inline (no paragraph around it) gets one.
+    out.push(BLOCK_TAGS.has(clone.tagName) ? clone.outerHTML : `<p>${clone.outerHTML}</p>`);
   }
   return out.join("");
 }

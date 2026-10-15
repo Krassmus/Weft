@@ -12,6 +12,14 @@ function escapeHtml(text: string): string {
 
 const BLOCK_TAGS = new Set(["P", "DIV", "H1", "H2", "H3", "H4", "H5", "H6", "LI", "BLOCKQUOTE", "PRE"]);
 
+/** `lines` without the empty ones before and after the words (an empty text is one empty line). */
+function trimEmpty(lines: string[]): string[] {
+  let result = lines.length > 0 ? lines : [""];
+  while (result.length > 1 && result[0].trim() === "") result = result.slice(1);
+  while (result.length > 1 && result[result.length - 1].trim() === "") result = result.slice(0, -1);
+  return result;
+}
+
 /** The words of some html as paragraphs (one string per paragraph, a line break splits too). */
 export function plainParagraphs(html: string): string[] {
   const root = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html").body;
@@ -72,7 +80,7 @@ export function applyPlaceholderStyle(sampleHtml: string, paragraphs: string[]):
   }
   leaf ??= any;
   const plain = (text: string) => `<p>${text === "" ? "<br>" : escapeHtml(text)}</p>`;
-  if (!leaf) return (paragraphs.length > 0 ? paragraphs : [""]).map(plain).join("");
+  if (!leaf) return trimEmpty(paragraphs).map(plain).join("");
 
   // The element of the sample's top level that holds the first text, and the way down from it to that text.
   let top: Node = leaf;
@@ -81,8 +89,12 @@ export function applyPlaceholderStyle(sampleHtml: string, paragraphs: string[]):
   for (let n: Node = leaf; n !== top; n = n.parentNode!) path.unshift(Array.prototype.indexOf.call(n.parentNode!.childNodes, n));
   const topIsText = top === leaf;
 
+  // Empty paragraphs before and after the words are only space the text sits in (they push it down in its box, out of sight): left
+  // out. An empty text is one empty paragraph.
+  const lines = trimEmpty(paragraphs);
+
   const out: string[] = [];
-  for (const paragraph of paragraphs.length > 0 ? paragraphs : [""]) {
+  for (const paragraph of lines) {
     if (topIsText) {
       out.push(plain(paragraph));
       continue;

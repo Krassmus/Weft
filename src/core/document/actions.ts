@@ -1013,6 +1013,10 @@ export function updateBlockPositions(container: BlockContainerRef, positions: { 
     for (const { id, position } of positions) {
       const block = blocks[id];
       if (block) block.position = plain(position);
+      // The texts the pages have for a placeholder move with it (a layout's blocks moved together, with the marquee or as a group).
+      if (block?.kind === "placeholder" && container.kind === "layout") {
+        for (const text of textsOfPlaceholder(m, container.layoutId, id)) text.position = plain({ ...position });
+      }
     }
   });
 }

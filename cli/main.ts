@@ -1,9 +1,9 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { basename, dirname, extname, join } from "node:path";
 import { loadWeft, CliError } from "./load";
-import { exportTexts, importTexts } from "./texts";
+import { OPERATION_NAMES } from "./ops";
+import type { Operation } from "./ops";
+import { editFile, exportTextsOf, importTextsFile, newFile } from "./tools";
 import type { TextsFile } from "./texts";
-import { writeWeft } from "./write";
 import { buildOutline, outlineMarkdown } from "./inspect";
 import { definitionJson, describeDefinition, fullSchema, listDefinitions } from "./schema";
 import { validate } from "./validate";
@@ -24,6 +24,12 @@ Benutzung:
   weft text import <datei> <texte.json> [-o <ziel.weft>] [--dry-run] [--force]
       Schreibt die übersetzten Texte in ein NEUES Modul (nie in die Quelle): Standard
       <name>.<sprache>.weft neben der Datei. Fehlende Sprachen werden dem Modul hinzugefügt.
+  weft new <ziel.weft> [--title <text>] [--languages de_DE,fr_FR] [--demo] [--force]
+      Ein neues, leeres Modul (oder mit --demo das kleine Beispiel).
+  weft edit <datei> <operationen.json> [-o <ziel.weft>] [--dry-run] [--allow-errors]
+      Ändert das Modul mit einer Liste von Operationen (die Aktionen des Editors) in einer Arbeitskopie
+      <name>.ai.weft - die Quelle bleibt unverändert. Schreibt nur, wenn die Änderungen keine Fehler erzeugen.
+      Die Operationen: weft edit --ops
   weft schema [<name>] [--list] [--json] [--full]
       Das Dateiformat. Ohne Name: die Arten von Blöcken. <name>: eine Definition oder die Art
       eines Blocks (zum Beispiel "quiz", "ButtonBlock", "Page").
@@ -46,7 +52,7 @@ function parseArgs(argv: string[]): Args {
     if (arg.startsWith("--")) {
       const name = arg.slice(2);
       const next = argv[i + 1];
-      if (["page", "format", "to", "from", "output"].includes(name) && next !== undefined && !next.startsWith("--")) {
+      if (["page", "format", "to", "from", "output", "title", "languages"].includes(name) && next !== undefined && !next.startsWith("--")) {
         flags.set(name, next);
         i++;
       } else flags.set(name, true);
@@ -115,8 +121,7 @@ function main(argv: string[]): number {
         if (!file) throw new CliError("Welche Datei? weft text export <datei> --to fr_FR");
         const to = typeof flags.get("to") === "string" ? (flags.get("to") as string).split(",").map((s) => s.trim()).filter(Boolean) : [];
         const from = typeof flags.get("from") === "string" ? (flags.get("from") as string) : undefined;
-        const loaded = loadWeft(file);
-        const texts = exportTexts(loaded.content, { file: basename(file), from, to, onlyMissing: flags.has("missing") });
+        const texts = exportTextsOf(file, { from, to, onlyMissing: flags.has("missing") });
         const output = typeof flags.get("output") === "string" ? (flags.get("output") as string) : null;
         const text = JSON.stringify(texts, null, 2) + "\n";
         if (output) {
@@ -127,37 +132,58 @@ function main(argv: string[]): number {
       }
       if (what === "import") {
         if (!file || !extra) throw new CliError("weft text import <datei> <texte.json>");
-        const loaded = loadWeft(file);
         let texts: TextsFile;
         try {
           texts = JSON.parse(readFileSync(extra, "utf8")) as TextsFile;
         } catch (error) {
           throw new CliError(`Die Textdatei „${extra}" lässt sich nicht lesen: ${(error as Error).message}`);
         }
-        const report = importTexts(loaded.content, texts);
+        const output = typeof flags.get("output") === "string" ? (flags.get("output") as string) : undefined;
+        const { report, target, wrote } = importTextsFile(file, texts, { output, dryRun: flags.has("dry-run"), force: flags.has("force") });
         for (const problem of report.problems) {
           console.error(`${problem.severity === "error" ? "FEHLER " : "Warnung"} ${problem.key}: ${problem.message}`);
         }
-        const wantedLanguages = [...new Set(texts.items.flatMap((i) => Object.keys(i.translations ?? {})))];
-        const given = typeof flags.get("output") === "string" ? (flags.get("output") as string) : null;
-        const target = given ?? join(dirname(file), `${basename(file, extname(file))}.${wantedLanguages[0] ?? "texte"}${extname(file) || ".weft"}`);
         console.log(
           `${report.applied} Texte übernommen, ${report.unchanged} unverändert, ${report.skipped} übersprungen` +
             (report.addedLanguages.length > 0 ? `; Sprachen hinzugefügt: ${report.addedLanguages.join(", ")}` : "") +
             ".",
         );
-        if (flags.has("dry-run")) {
-          console.log("(Probelauf: es wurde nichts geschrieben.)");
-        } else if (report.applied === 0 && report.addedLanguages.length === 0) {
-          console.log("Nichts zu schreiben.");
-        } else {
-          loaded.json.content.modifiedAt = new Date().toISOString();
-          writeWeft(file, loaded.json, target, flags.has("force"));
-          console.log(`Geschrieben: ${target}`);
-        }
+        if (flags.has("dry-run")) console.log("(Probelauf: es wurde nichts geschrieben.)");
+        else if (!wrote) console.log("Nichts zu schreiben.");
+        else console.log(`Geschrieben: ${target}`);
         return report.problems.some((p) => p.severity === "error") ? 1 : 0;
       }
       throw new CliError("weft text export | import");
+    }
+    case "new": {
+      if (!rest[0]) throw new CliError("Wohin? weft new <ziel.weft>");
+      const languages = typeof flags.get("languages") === "string" ? (flags.get("languages") as string).split(",").map((l) => l.trim()).filter(Boolean) : undefined;
+      const title = typeof flags.get("title") === "string" ? (flags.get("title") as string) : undefined;
+      const { target } = newFile(rest[0], { title, languages, demo: flags.has("demo"), force: flags.has("force") });
+      console.log(`Angelegt: ${target}`);
+      return 0;
+    }
+    case "edit": {
+      if (flags.has("ops")) {
+        console.log(`Operationen: ${OPERATION_NAMES.join(", ")}\nBeschreibung mit Beispielen: docs/mcp.md (Werkzeug weft_operations).`);
+        return 0;
+      }
+      if (!rest[0] || !rest[1]) throw new CliError("weft edit <datei> <operationen.json>");
+      let operations: Operation[];
+      try {
+        const parsed = JSON.parse(readFileSync(rest[1], "utf8")) as Operation[] | { operations: Operation[] };
+        operations = Array.isArray(parsed) ? parsed : parsed.operations;
+      } catch (error) {
+        throw new CliError(`Die Operationen in „${rest[1]}" lassen sich nicht lesen: ${(error as Error).message}`);
+      }
+      if (!Array.isArray(operations)) throw new CliError("Die Datei enthält keine Liste von Operationen.");
+      const output = typeof flags.get("output") === "string" ? (flags.get("output") as string) : undefined;
+      const outcome = editFile(rest[0], operations, { output, dryRun: flags.has("dry-run"), allowErrors: flags.has("allow-errors"), force: flags.has("force") });
+      for (const r of outcome.results) console.log(`${r.index + 1}. ${r.op}: ${JSON.stringify(r.result)}`);
+      for (const f of outcome.introduced) console.log(`${f.severity === "error" ? "FEHLER " : f.severity === "warning" ? "Warnung" : "Hinweis"} [${f.code}] ${f.message}`);
+      if (outcome.wrote) console.log(`Geschrieben: ${outcome.target}`);
+      else console.log(outcome.refused ?? "Nichts geschrieben.");
+      return outcome.refused && !flags.has("dry-run") ? 1 : 0;
     }
     case "inspect": {
       if (!rest[0]) throw new CliError("Welche Datei? weft inspect <datei>");

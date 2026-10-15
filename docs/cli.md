@@ -83,6 +83,15 @@ npm run weft -- text import modul.weft texte.json -o modul.fr.weft
 - Jede Übersetzung wird geprüft, bevor sie übernommen wird: Tags müssen richtig geschachtelt sein; Skripte, `on…=`-Attribute und `iframe` sind verboten (dann wird der Text übersprungen); bei Lückentexten muss die Zahl der `[[Lücken]]` stimmen. Abweichende `{{Variablen}}` oder Tags sind Warnungen. Was übersprungen wurde, steht mit Schlüssel im Bericht, und der Statuscode ist dann `1`.
 - Der Editierverlauf (`weft.automerge`) und das Abspiel-HTML (`index.html`) werden nicht mitgenommen: sie beschrieben den alten Stand. Weft schreibt das beim nächsten Speichern neu.
 
+## Neu anlegen und ändern: `weft new` / `weft edit`
+
+```bash
+npm run weft -- new raum.weft --title "Escape Room" --languages de_DE
+npm run weft -- edit raum.weft operationen.json      # schreibt raum.ai.weft
+```
+
+`weft edit` führt eine Liste von Operationen aus (`set_title`, `add_page`, `add_block`, `update_block`, `add_variable`, `add_logic`, `add_jump_page`, `add_trigger`, `fill_placeholder` ...). Es sind die Aktionen des Editors, ausgeführt auf der Datei. Die Quelle bleibt unverändert, geschrieben wird in die Arbeitskopie `<name>.ai.weft` (oder mit `-o`). Es wird nichts geschrieben, wenn eine Operation fehlschlägt oder die Änderungen Fehler erzeugen (`--allow-errors`); `--dry-run` prüft nur. Die Operationen mit Beispielen stehen in [mcp.md](mcp.md); als MCP-Server sind alle Befehle ohne Kommandozeile für KI-Assistenten da.
+
 ## Wie eine KI damit arbeiten kann
 
 1. `weft inspect datei.weft` - einen Überblick holen, ohne die ganze Datei zu lesen.

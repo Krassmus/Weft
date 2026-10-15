@@ -6,6 +6,11 @@ import type { Block, Page, PlaceholderBlock, TextBlock, WeftModule } from "../ty
  * <p style="text-align:...">, <font face color>, <b>, <span style="font-size:...cqw"> - is what the texts of the pages start with.
  */
 
+/** The body of a document made of `html` (the same in a browser and in the command line tool, which has its own DOMParser). */
+function parseBody(html: string): HTMLElement {
+  return new DOMParser().parseFromString(`<!doctype html><html><body>${html}</body></html>`, "text/html").body;
+}
+
 function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -22,7 +27,7 @@ function trimEmpty(lines: string[]): string[] {
 
 /** The words of some html as paragraphs (one string per paragraph, a line break splits too). */
 export function plainParagraphs(html: string): string[] {
-  const root = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html").body;
+  const root = parseBody(html);
   // The <br> at the end of a paragraph is only what holds an empty paragraph open (or what a browser leaves behind): no line.
   root.querySelectorAll(Array.from(BLOCK_TAGS).join(",")).forEach((block) => {
     let last: Node | null = block.lastChild;
@@ -66,8 +71,8 @@ export function plainParagraphs(html: string): string[] {
  * whatever is typed into it.
  */
 export function applyPlaceholderStyle(sampleHtml: string, paragraphs: string[]): string {
-  const root = new DOMParser().parseFromString(`<body>${sampleHtml}</body>`, "text/html").body;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const root = parseBody(sampleHtml);
+  const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let leaf: Node | null = null;
   let any: Node | null = null;
   let node: Node | null;
@@ -103,13 +108,13 @@ export function applyPlaceholderStyle(sampleHtml: string, paragraphs: string[]):
     let target: Node = clone;
     for (const index of path) target = target.childNodes[index];
     // Other texts of the sample's paragraph (words in a different formatting) are not part of the style.
-    const walkerClone = document.createTreeWalker(clone, NodeFilter.SHOW_TEXT);
+    const walkerClone = root.ownerDocument.createTreeWalker(clone, NodeFilter.SHOW_TEXT);
     const others: Node[] = [];
     let text: Node | null;
     while ((text = walkerClone.nextNode())) if (text !== target) others.push(text);
     others.forEach((n) => n.parentNode?.removeChild(n));
     target.textContent = paragraph;
-    if (paragraph === "") target.parentNode?.insertBefore(document.createElement("br"), target.nextSibling);
+    if (paragraph === "") target.parentNode?.insertBefore(root.ownerDocument.createElement("br"), target.nextSibling);
     // Elements that were only there for the other texts.
     let removed = true;
     while (removed) {

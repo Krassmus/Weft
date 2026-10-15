@@ -18,7 +18,7 @@ export function writeWeft(source: string, json: WeftFileJson, target: string, fo
     throw new CliError(`Die Datei „${target}" gibt es schon. Anderen Namen mit -o wählen oder --force zum Überschreiben.`);
   }
   const files: Zippable = {};
-  if (!source.toLowerCase().endsWith(".json")) {
+  if (source !== "" && !source.toLowerCase().endsWith(".json")) {
     const all = unzipSync(new Uint8Array(readFileSync(source)));
     for (const [name, data] of Object.entries(all)) {
       if (name === "weft.json" || STALE.has(name)) continue;

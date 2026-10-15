@@ -1,0 +1,477 @@
+import "./domShim";
+import * as actions from "../src/core/document/actions";
+import { applyPlaceholderStyle, plainParagraphs } from "../src/core/document/placeholders";
+import { pageLabels } from "../src/core/document/pageLabels";
+import {
+  blockEffectNodeId,
+  buttonClickNodeId,
+  groupEffectNodeId,
+  listItemNodeId,
+  quizEndNodeId,
+  quizFillNodeId,
+  quizSubmitNodeId,
+  videoEndNodeId,
+  videoResumeNodeId,
+  videoStartNodeId,
+  videoStopNodeId,
+} from "../src/core/document/pageTimeline";
+import { branchPageIds, sequenceOf } from "../src/core/document/sequence";
+import type { Block, VariableCondition, VariableType, WeftModule } from "../src/core/types";
+import { CliError } from "./load";
+import { setCurrentModule } from "./storeStub";
+
+/**
+ * Changes to a module as a list of operations (weft edit, the MCP tool weft_edit). Every operation is one of the editor's own
+ * actions (core/document/actions.ts) run on the module - so what comes out is what the editor would have made: the page timeline
+ * kept in step, the order keys, the defaults of a new block.
+ *
+ * Things are named the way the overview names them: a page by its number ("3", "2.a.1") or its id, a layout by its name or id, a
+ * variable by its name or id, a block by its id. An operation can give what it creates a name of its own (`as`) that the operations
+ * after it can use as "$name".
+ */
+
+/** A plain text (lines = paragraphs) or html, formatted like the sample text of a placeholder. */
+function styledHtml(sampleHtml: string, text: string): string {
+  const paragraphs = text.includes("<") ? plainParagraphs(text) : text.split(/\r?\n/);
+  return applyPlaceholderStyle(sampleHtml, paragraphs);
+}
+
+export type Operation = { op: string; as?: string } & Record<string, unknown>;
+
+export interface OperationResult {
+  index: number;
+  op: string;
+  /** What the operation made or did, with ids. */
+  result: Record<string, unknown>;
+}
+
+const COMPARATORS = ["eq", "neq", "gt", "gte", "lt", "lte"] as const;
+
+interface Context {
+  content: WeftModule;
+  aliases: Map<string, string>;
+}
+
+function fail(message: string): never {
+  throw new CliError(message, 1);
+}
+
+function str(value: unknown, what: string): string {
+  if (typeof value !== "string" || value === "") fail(`„${what}" fehlt (oder ist kein Text).`);
+  return value;
+}
+
+function alias(ctx: Context, value: string): string {
+  if (!value.startsWith("$")) return value;
+  const id = ctx.aliases.get(value.slice(1));
+  if (!id) fail(`Der Name „${value}" ist noch nicht vergeben (mit "as" bei der Operation, die es anlegt).`);
+  return id;
+}
+
+function pageId(ctx: Context, ref: unknown, what = "page"): string {
+  const value = alias(ctx, str(ref, what));
+  if (ctx.content.pages[value]) return value;
+  const labels = pageLabels(ctx.content);
+  const found = Object.entries(labels).find(([, label]) => label === value);
+  if (found) return found[0];
+  return fail(`Es gibt keine Folie „${value}". Folien heißen wie in der Übersicht (3, 2.a.1) oder haben eine Id.`);
+}
+
+function layoutId(ctx: Context, ref: unknown, what = "layout"): string {
+  const value = alias(ctx, str(ref, what));
+  if (ctx.content.layouts[value]) return value;
+  const byName = Object.values(ctx.content.layouts).filter((l) => l.name === value);
+  if (byName.length === 1) return byName[0].id;
+  if (byName.length > 1) fail(`Es gibt mehrere Layouts „${value}" - die Id nehmen.`);
+  return fail(`Es gibt kein Layout „${value}".`);
+}
+
+function variableId(ctx: Context, ref: unknown): string {
+  const value = alias(ctx, str(ref, "variable"));
+  const byId = ctx.content.variables.find((v) => v.id === value);
+  if (byId) return byId.id;
+  const byName = ctx.content.variables.find((v) => v.name === value);
+  if (byName) return byName.id;
+  return fail(`Es gibt keine Variable „${value}". Mit {"op":"add_variable", ...} anlegen.`);
+}
+
+function logicId(ctx: Context, ref: unknown): string {
+  const value = alias(ctx, str(ref, "logic"));
+  if (ctx.content.logicBlocks[value]) return value;
+  const byName = Object.values(ctx.content.logicBlocks).filter((l) => l.name === value);
+  if (byName.length === 1) return byName[0].id;
+  return fail(`Es gibt keine Verzweigung „${value}"${byName.length > 1 ? " (mehrere gleichen Namens - die Id nehmen)" : ""}.`);
+}
+
+function branchId(ctx: Context, logic: string, ref: unknown): string {
+  const value = alias(ctx, str(ref, "branch"));
+  const branches = ctx.content.logicBlocks[logic].branches;
+  const found = branches.find((b) => b.id === value) ?? branches.find((b) => b.label === value);
+  return found ? found.id : fail(`Die Verzweigung hat keinen Zweig „${value}". Es gibt: ${branches.map((b) => b.label).join(", ")}.`);
+}
+
+function condition(ctx: Context, raw: unknown): VariableCondition {
+  const c = raw as { variable?: unknown; comparator?: unknown; value?: unknown } | undefined;
+  if (!c || typeof c !== "object") return fail('Eine Bedingung braucht {"variable": "name", "comparator": "gte", "value": 1}.');
+  const comparator = String(c.comparator ?? "eq");
+  if (!(COMPARATORS as readonly string[]).includes(comparator)) fail(`„${comparator}" ist kein Vergleich. Möglich: ${COMPARATORS.join(", ")}.`);
+  return { variableId: variableId(ctx, c.variable), comparator: comparator as VariableCondition["comparator"], value: c.value as VariableCondition["value"] };
+}
+
+/** Where a block is: a page, or a layout. */
+function findBlock(ctx: Context, ref: unknown): { block: Block; container: { kind: "page"; id: string } | { kind: "layout"; id: string } } {
+  const id = alias(ctx, str(ref, "block"));
+  for (const [pid, page] of Object.entries(ctx.content.pages)) {
+    if (page.blocks[id]) return { block: page.blocks[id], container: { kind: "page", id: pid } };
+  }
+  for (const [lid, layout] of Object.entries(ctx.content.layouts)) {
+    if (layout.blocks[id]) return { block: layout.blocks[id] as Block, container: { kind: "layout", id: lid } };
+  }
+  return fail(`Es gibt keinen Block mit der Id „${id}".`);
+}
+
+/** The node of an event graph named in a short way ("start", "end", "entrance:<block>", ...) or by its real id. */
+function eventId(ctx: Context, raw: unknown, what: string): string {
+  const value = alias(ctx, str(raw, what));
+  const colon = value.indexOf(":");
+  if (value === "start" || value === "end" || colon < 0) return value;
+  const kind = value.slice(0, colon);
+  const rest = value.slice(colon + 1);
+  const blockOf = () => findBlock(ctx, rest).block.id;
+  switch (kind) {
+    case "entrance":
+      return blockEffectNodeId(blockOf(), "entrance");
+    case "exit":
+      return blockEffectNodeId(blockOf(), "exit");
+    case "click":
+      return buttonClickNodeId(blockOf());
+    case "group-entrance":
+      return groupEffectNodeId(rest, "entrance");
+    case "group-exit":
+      return groupEffectNodeId(rest, "exit");
+    case "quiz-fill":
+      return quizFillNodeId(blockOf());
+    case "quiz-submit":
+      return quizSubmitNodeId(blockOf());
+    case "quiz-correct":
+      return quizSubmitNodeId(blockOf(), "richtig");
+    case "quiz-incorrect":
+      return quizSubmitNodeId(blockOf(), "falsch");
+    case "quiz-correct-end":
+      return quizEndNodeId(blockOf(), "richtig");
+    case "quiz-incorrect-end":
+      return quizEndNodeId(blockOf(), "falsch");
+    case "video-start":
+      return videoStartNodeId(blockOf());
+    case "video-end":
+      return videoEndNodeId(blockOf());
+    case "video-stop": {
+      const [block, point] = rest.split(":");
+      return videoStopNodeId(findBlock(ctx, block).block.id, point);
+    }
+    case "video-resume": {
+      const [block, point] = rest.split(":");
+      return videoResumeNodeId(findBlock(ctx, block).block.id, point);
+    }
+    case "list-item": {
+      const [block, item] = rest.split(":");
+      return listItemNodeId(findBlock(ctx, block).block.id, item);
+    }
+    default:
+      return value; // a real id with a colon in it ("block-entrance:<id>", "end:quiz:...")
+  }
+}
+
+/** Index in the main sequence after which a new entry goes. */
+function afterIndex(ctx: Context, after: unknown): number {
+  const entries = sequenceOf(ctx.content);
+  if (after === undefined || after === "end") return entries.length - 1;
+  if (after === "start") return -1;
+  const value = alias(ctx, str(after, "after"));
+  const labels = pageLabels(ctx.content);
+  // A logic block by its name or id: after the whole block.
+  const logic = Object.values(ctx.content.logicBlocks).find((l) => l.id === value || l.name === value);
+  const index = entries.findIndex((entry) =>
+    entry.kind === "logic" ? (logic ? entry.logicBlockId === logic.id : false) : entry.pageId === value || labels[entry.pageId] === value,
+  );
+  if (index < 0) fail(`„${value}" steht nicht in der Hauptfolge (nur Folien und Verzweigungen dort; in einem Zweig mit "branch" einfügen).`);
+  return index;
+}
+
+function plainBranchPages(ctx: Context, logic: string, branch: string): string[] {
+  const found = ctx.content.logicBlocks[logic].branches.find((b) => b.id === branch);
+  return found ? branchPageIds(found) : [];
+}
+
+/**
+ * The values of a "set" with the names of the operations resolved: "$name" is what was made under that name, a `variableId` may be
+ * the name of a variable, a `targetPageId` the number of a page ("2.a.1"). Anything else is left alone.
+ */
+function resolveSet(ctx: Context, value: unknown, key?: string): unknown {
+  if (typeof value === "string") {
+    if (value.startsWith("$") && ctx.aliases.has(value.slice(1))) return ctx.aliases.get(value.slice(1));
+    if (key === "variableId") {
+      const variable = ctx.content.variables.find((v) => v.id === value) ?? ctx.content.variables.find((v) => v.name === value);
+      return variable ? variable.id : value;
+    }
+    if (key === "targetPageId" || key === "defaultPageId") {
+      if (ctx.content.pages[value]) return value;
+      const found = Object.entries(pageLabels(ctx.content)).find(([, label]) => label === value);
+      return found ? found[0] : value;
+    }
+    return value;
+  }
+  if (Array.isArray(value)) return value.map((item) => resolveSet(ctx, item, key));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, resolveSet(ctx, v, k)]));
+  }
+  return value;
+}
+
+function remember(ctx: Context, op: Operation, id: string): void {
+  if (typeof op.as === "string" && op.as !== "") ctx.aliases.set(op.as.replace(/^\$/, ""), id);
+}
+
+// ---- the operations ------------------------------------------------------------------------------------------------------
+
+type Handler = (ctx: Context, op: Operation) => Record<string, unknown>;
+
+const HANDLERS: Record<string, Handler> = {
+  set_title(ctx, op) {
+    actions.setModuleTitle(str(op.title, "title"));
+    return { title: ctx.content.title };
+  },
+  set_languages(ctx, op) {
+    const languages = op.languages;
+    if (!Array.isArray(languages) || languages.some((l) => typeof l !== "string")) fail('"languages" ist eine Liste von Sprachcodes, zum Beispiel ["de_DE", "fr_FR"].');
+    actions.setLanguages(languages as string[]);
+    return { languages: ctx.content.languages };
+  },
+  set_aspect_ratio(ctx, op) {
+    actions.setAspectRatio(str(op.aspectRatio, "aspectRatio") as never);
+    return { aspectRatio: ctx.content.aspectRatio };
+  },
+  set_keyboard_navigation(_ctx, op) {
+    actions.setKeyboardNavigationEnabled(op.enabled !== false);
+    return { enabled: op.enabled !== false };
+  },
+
+  add_variable(ctx, op) {
+    const type = str(op.type ?? "number", "type") as VariableType;
+    const id = actions.addVariable(str(op.name, "name"), type);
+    if (op.initialValue !== undefined || op.expression !== undefined) {
+      actions.updateVariable(id, {
+        ...(op.initialValue !== undefined ? { initialValue: op.initialValue as never } : {}),
+        ...(op.expression !== undefined ? { expression: String(op.expression) } : {}),
+      });
+    }
+    remember(ctx, op, id);
+    return { variable: id, name: op.name };
+  },
+  update_variable(ctx, op) {
+    const id = variableId(ctx, op.variable);
+    actions.updateVariable(id, resolveSet(ctx, op.set ?? {}) as never);
+    return { variable: id };
+  },
+  remove_variable(ctx, op) {
+    const id = variableId(ctx, op.variable);
+    actions.removeVariable(id);
+    return { variable: id };
+  },
+
+  add_layout(ctx, op) {
+    const id = actions.addLayout(str(op.name, "name"));
+    remember(ctx, op, id);
+    return { layout: id };
+  },
+  rename_layout(ctx, op) {
+    const id = layoutId(ctx, op.layout);
+    actions.renameLayout(id, str(op.name, "name"));
+    return { layout: id };
+  },
+
+  add_page(ctx, op) {
+    const layout = op.layout !== undefined ? layoutId(ctx, op.layout) : (Object.keys(ctx.content.layouts)[0] ?? null);
+    let id: string;
+    if (op.branch !== undefined) {
+      const b = op.branch as { logic?: unknown; branch?: unknown; after?: unknown };
+      const logic = logicId(ctx, b.logic);
+      const branch = branchId(ctx, logic, b.branch);
+      const afterPage = b.after !== undefined ? pageId(ctx, b.after, "branch.after") : undefined;
+      id = actions.addPageToBranch(logic, branch, layout, afterPage);
+    } else {
+      id = actions.addPageToSequence(afterIndex(ctx, op.after), layout);
+    }
+    remember(ctx, op, id);
+    return { page: id, label: pageLabels(ctx.content)[id] };
+  },
+  add_jump_page(ctx, op) {
+    let id: string;
+    if (op.branch !== undefined) {
+      const b = op.branch as { logic?: unknown; branch?: unknown; after?: unknown };
+      const logic = logicId(ctx, b.logic);
+      const branch = branchId(ctx, logic, b.branch);
+      id = actions.addJumpToBranch(logic, branch, b.after !== undefined ? pageId(ctx, b.after, "branch.after") : undefined);
+    } else {
+      id = actions.addJumpToSequence(afterIndex(ctx, op.after));
+    }
+    for (const target of (op.targets as { page?: unknown; condition?: unknown }[] | undefined) ?? []) {
+      actions.addJumpTarget(id, pageId(ctx, target.page, "targets[].page"));
+      const jump = ctx.content.pages[id].jump!;
+      const created = jump.targets[jump.targets.length - 1];
+      actions.updateJumpTarget(id, created.id, { condition: condition(ctx, target.condition) });
+    }
+    if (op.default !== undefined) actions.setJumpDefault(id, op.default === null ? null : pageId(ctx, op.default, "default"));
+    remember(ctx, op, id);
+    return { page: id, label: pageLabels(ctx.content)[id] };
+  },
+  add_jump_target(ctx, op) {
+    const id = pageId(ctx, op.page);
+    actions.addJumpTarget(id, pageId(ctx, op.target, "target"));
+    const jump = ctx.content.pages[id].jump;
+    if (!jump) return fail(`Die Folie ${String(op.page)} ist keine Sprung-Folie.`);
+    const created = jump.targets[jump.targets.length - 1];
+    if (op.condition !== undefined) actions.updateJumpTarget(id, created.id, { condition: condition(ctx, op.condition) });
+    return { page: id, target: created.id };
+  },
+  add_logic(ctx, op) {
+    const layout = op.layout !== undefined ? layoutId(ctx, op.layout) : (Object.keys(ctx.content.layouts)[0] ?? null);
+    const specs = (op.branches as { label?: string; condition?: unknown }[] | undefined) ?? [{ label: "Zweig 1" }];
+    if (specs.length < 1) fail('"branches" braucht mindestens einen Zweig (der letzte ist das „sonst").');
+    const logic = actions.addLogicBlockToSequence(afterIndex(ctx, op.after), layout);
+    if (op.name !== undefined) actions.renameLogicBlock(logic, str(op.name, "name"));
+    // The block comes with one branch (the "sonst"); every further one goes in front of it.
+    for (let i = 1; i < specs.length; i++) actions.addBranch(logic, layout);
+    const branches = ctx.content.logicBlocks[logic].branches;
+    specs.forEach((spec, i) => {
+      const branch = branches[i];
+      actions.renameBranch(logic, branch.id, spec.label ?? `Zweig ${i + 1}`);
+      if (i < specs.length - 1) {
+        if (spec.condition === undefined) fail(`Der Zweig „${spec.label ?? i + 1}" braucht eine "condition" (nur der letzte ist das „sonst").`);
+        actions.updateBranchCondition(logic, branch.id, condition(ctx, spec.condition));
+      }
+    });
+    remember(ctx, op, logic);
+    const labels = pageLabels(ctx.content);
+    return {
+      logic,
+      branches: ctx.content.logicBlocks[logic].branches.map((b) => ({
+        id: b.id,
+        label: b.label,
+        pages: plainBranchPages(ctx, logic, b.id).map((p) => ({ page: p, label: labels[p] })),
+      })),
+    };
+  },
+  add_branch_page(ctx, op) {
+    return HANDLERS.add_page(ctx, op);
+  },
+  remove_page(ctx, op) {
+    const id = pageId(ctx, op.page);
+    actions.removePage(id);
+    return { page: id };
+  },
+  set_page_layout(ctx, op) {
+    const id = pageId(ctx, op.page);
+    actions.setPageLayout(id, op.layout === null ? null : layoutId(ctx, op.layout));
+    return { page: id };
+  },
+
+  add_block(ctx, op) {
+    const kind = str(op.kind, "kind") as Block["kind"];
+    let id: string;
+    if (op.layout !== undefined) {
+      const layout = layoutId(ctx, op.layout);
+      id = actions.addBlockToLayout(layout, kind as never);
+      if (op.set) actions.updateLayoutBlock(layout, id, resolveSet(ctx, op.set) as never);
+    } else {
+      const page = pageId(ctx, op.page);
+      if (ctx.content.pages[page].jump) fail("Auf eine Sprung-Folie lassen sich keine Blöcke legen.");
+      if (kind === "placeholder") fail("Ein Platzhalter-Text gehört in ein Layout (mit \"layout\"), nicht auf eine Folie.");
+      id = actions.addBlockToPage(page, kind);
+      if (op.set) actions.updateBlock(page, id, resolveSet(ctx, op.set) as never);
+    }
+    remember(ctx, op, id);
+    return { block: id };
+  },
+  update_block(ctx, op) {
+    const { block, container } = findBlock(ctx, op.block);
+    if (!op.set || typeof op.set !== "object") fail('"set" fehlt: die Felder, die der Block bekommen soll ({"html": "<p>…</p>"}).');
+    const patch = resolveSet(ctx, op.set) as never;
+    if (container.kind === "page") actions.updateBlock(container.id, block.id, patch);
+    else actions.updateLayoutBlock(container.id, block.id, patch);
+    return { block: block.id };
+  },
+  remove_block(ctx, op) {
+    const { block, container } = findBlock(ctx, op.block);
+    if (container.kind === "page") actions.removeBlock(container.id, block.id);
+    else actions.removeLayoutBlock(container.id, block.id);
+    return { block: block.id };
+  },
+
+  fill_placeholder(ctx, op) {
+    // The text a page has for a placeholder of its layout: made if it is not there, with the placeholder's formatting.
+    const page = pageId(ctx, op.page);
+    const layout = ctx.content.pages[page].layoutId ? ctx.content.layouts[ctx.content.pages[page].layoutId!] : undefined;
+    if (!layout) fail("Die Folie hat kein Layout - also auch keine Platzhalter.");
+    const ref = op.placeholder === undefined ? undefined : alias(ctx, str(op.placeholder, "placeholder"));
+    const placeholders = Object.values(layout.blocks).filter((b) => b.kind === "placeholder");
+    const placeholder =
+      ref === undefined
+        ? placeholders.length === 1
+          ? placeholders[0]
+          : undefined
+        : (placeholders.find((b) => b.id === ref) ?? placeholders.find((b) => (b as { label?: string }).label === ref));
+    if (!placeholder) {
+      fail(`Das Layout „${layout.name}" hat ${ref === undefined ? "mehrere oder keine Platzhalter - einen mit \"placeholder\" wählen" : `keinen Platzhalter „${ref}"`}. Es gibt: ${placeholders.map((b) => `${(b as { label?: string }).label} [${b.id}]`).join(", ") || "keine"}.`);
+    }
+    const id = actions.createPlaceholderText(page, placeholder.id);
+    if (!id) return fail("Der Text für den Platzhalter ließ sich nicht anlegen.");
+    const sample = (placeholder as { html: string }).html;
+    if (typeof op.html === "string") actions.updateBlock(page, id, { html: op.html } as never);
+    else if (typeof op.text === "string") actions.updateBlock(page, id, { html: styledHtml(sample, op.text) } as never);
+    else fail('"text" (reiner Text, Zeilen = Absätze) oder "html" fehlt.');
+    remember(ctx, op, id);
+    return { block: id };
+  },
+
+  add_trigger(ctx, op) {
+    const page = pageId(ctx, op.page);
+    actions.addTrigger(page, eventId(ctx, op.from, "from"), eventId(ctx, op.to, "to"), typeof op.delayMs === "number" ? op.delayMs : 0, op.weiter === true);
+    const triggers = Object.keys(ctx.content.pages[page].timeline.triggers);
+    return { page, trigger: triggers[triggers.length - 1] };
+  },
+  remove_trigger(ctx, op) {
+    const page = pageId(ctx, op.page);
+    const id = str(op.trigger, "trigger");
+    if (!ctx.content.pages[page].timeline.triggers[id]) fail(`Die Folie hat keinen Auslöser „${id}" (weft inspect --page zeigt sie).`);
+    actions.removeTrigger(page, id);
+    return { page, trigger: id };
+  },
+};
+
+export const OPERATION_NAMES = Object.keys(HANDLERS).filter((name) => name !== "add_branch_page");
+
+/** Runs `operations` on `content` (changed in place). Throws at the first operation that fails: the caller works on a copy. */
+export function runOperations(content: WeftModule, operations: Operation[]): OperationResult[] {
+  const ctx: Context = { content, aliases: new Map() };
+  const results: OperationResult[] = [];
+  setCurrentModule(content);
+  try {
+    operations.forEach((operation, index) => {
+      const handler = HANDLERS[String(operation?.op)];
+      if (!handler) {
+        throw new CliError(`Operation ${index + 1}: „${String(operation?.op)}" kennt das Werkzeug nicht. Möglich: ${OPERATION_NAMES.join(", ")}.`, 1);
+      }
+      try {
+        results.push({ index, op: operation.op, result: handler(ctx, operation) });
+      } catch (error) {
+        if (error instanceof CliError) throw new CliError(`Operation ${index + 1} (${operation.op}): ${error.message}`, 1);
+        throw new CliError(`Operation ${index + 1} (${operation.op}): ${(error as Error).message}`, 1);
+      }
+    });
+  } finally {
+    setCurrentModule(null);
+  }
+  content.modifiedAt = new Date().toISOString();
+  return results;
+}

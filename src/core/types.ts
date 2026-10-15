@@ -369,6 +369,8 @@ export interface ButtonBlock extends BaseBlock {
   /** For "goto": the page the click leads to, by id (so that the link survives pages being added, moved or removed). A page that is
    * not there any more: the click does nothing but being an event. The sequence goes on after that page, as after a jump page. */
   targetPageId?: string;
+  /** Changes to variables that every click makes, whatever the action is (set, add, append - like the effects of a quiz). */
+  onClick?: VariableEffect[];
 }
 
 /** The basic PowerPoint/Keynote-style shapes ShapeBlock supports - "polygon" is any regular n-gon

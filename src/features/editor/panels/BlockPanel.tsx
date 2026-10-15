@@ -1427,6 +1427,7 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
       : block.action === "goto"
         ? `goto:${block.targetPageId ?? ""}`
         : block.action;
+  const variables = useDocumentStore((s) => s.doc.content.variables);
   const look = buttonAppearanceOf(block);
   const setLook = (patch: Partial<ButtonAppearance>) => onUpdate({ appearance: { ...look, ...patch } });
 
@@ -1523,6 +1524,11 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
         )}
       </Collapsible>
       {block.action === "event" && page && clickNode && <OutgoingTriggersSection page={page} node={clickNode} />}
+      <Collapsible title="Variablen ändern" defaultOpen={(block.onClick ?? []).length > 0}>
+        <p className="weft-hint">Bei jedem Klick, zusätzlich zur Aktion - zuerst werden die Variablen geändert, dann geht die Aktion los.</p>
+        <EffectListEditor effects={block.onClick ?? []} variables={variables} onChange={(onClick) => onUpdate({ onClick })} />
+        {variables.length === 0 && <p className="weft-hint">Es gibt noch keine Variablen - sie legst du im Reiter „Variablen" an.</p>}
+      </Collapsible>
       <Collapsible title="Aussehen">
         <div className="weft-field">
           <span>Hintergrund</span>

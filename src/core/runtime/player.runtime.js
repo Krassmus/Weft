@@ -2166,6 +2166,7 @@
     if (block.action === "prev") {
       button.disabled = pos <= 0;
       button.addEventListener("click", function () {
+        (block.onClick || []).forEach(applyEffect);
         happened(clickEventId);
         goPrev();
       });
@@ -2177,6 +2178,7 @@
         }
         var shownBefore = pos;
         var lengthBefore = history.length;
+        (block.onClick || []).forEach(applyEffect);
         happened(clickEventId);
         // Whatever the click triggered may have left the page already (a trigger to "Nächste Folie"): then that is where it went.
         if (pos === shownBefore && history.length === lengthBefore) goToPage(block.targetPageId);
@@ -2189,6 +2191,7 @@
           restart();
           return;
         }
+        (block.onClick || []).forEach(applyEffect);
         happened(clickEventId);
         if (block.action === "advance") weiter();
       });

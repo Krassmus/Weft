@@ -3,6 +3,8 @@ import { CliError } from "./load";
 import { OPERATION_NAMES } from "./ops";
 import type { Operation } from "./ops";
 import { definitionJson, describeDefinition, fullSchema, listDefinitions } from "./schema";
+import { writeFileSync as writeFile } from "node:fs";
+import { renderPages } from "./render";
 import { editFile, exportTextsOf, importTextsFile, inspectFile, newFile, validateFile } from "./tools";
 import type { TextsFile } from "./texts";
 
@@ -21,7 +23,19 @@ interface Tool {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
-  run: (args: Record<string, unknown>) => unknown;
+  /** The result as text or data - or, for a tool that makes pictures, `{ mcpContent: [...] }` with the content blocks as they are. */
+  run: (args: Record<string, unknown>) => unknown | Promise<unknown>;
+}
+
+/** The first page of a module that can be drawn (not a jump page). */
+async function firstPlayablePage(file: string): Promise<string> {
+  const { loadWeft } = await import("./load");
+  const { pageLabels } = await import("../src/core/document/pageLabels");
+  const loaded = loadWeft(file);
+  const labels = pageLabels(loaded.content);
+  const first = Object.entries(labels).find(([id]) => loaded.content.pages[id] && !loaded.content.pages[id].jump);
+  if (!first) throw new CliError("Das Modul hat keine Folie, die sich zeichnen ließe.");
+  return first[1];
 }
 
 const FILE = { type: "string", description: "Pfad einer .weft-Datei (oder eines weft.json)." };
@@ -227,6 +241,44 @@ const TOOLS: Tool[] = [
     },
   },
   {
+    name: "weft_render",
+    description:
+      "Zeichnet Folien als Bild (PNG), so wie der Player sie zeigt - damit lässt sich prüfen, wie es wirklich aussieht: Text, der aus " +
+      "seinem Kasten läuft, Blöcke übereinander, ein Layout, das nicht passt. Standard: alles auf der Folie ist da (nichts wartet " +
+      "auf seinen Aufbau); mit state \"start\" so, wie die Folie beginnt. Braucht einen installierten Chrome/Chromium/Edge/Brave.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file: FILE,
+        pages: { type: "array", items: { type: "string" }, description: 'Folien-Nummern ("1", "2.a.1") oder Ids; höchstens 6. Ohne Angabe: die erste.' },
+        width: { type: "number", description: "Breite in Pixel (Standard 1280; die Höhe folgt aus dem Seitenverhältnis)." },
+        language: { type: "string", description: "Sprache, in der gezeichnet wird (eine des Moduls)." },
+        state: { type: "string", enum: ["all", "start"] },
+        output_dir: { type: "string", description: "Ordner, in den die PNG-Dateien zusätzlich geschrieben werden." },
+      },
+      required: ["file"],
+    },
+    run: async (args) => {
+      const pages = Array.isArray(args.pages) && args.pages.length > 0 ? args.pages.map(String) : [];
+      if (pages.length > 6) throw new CliError("Höchstens 6 Folien auf einmal.");
+      const file = arg(args, "file");
+      const refs = pages.length > 0 ? pages : [await firstPlayablePage(file)];
+      const images = await renderPages(file, refs, {
+        width: typeof args.width === "number" ? args.width : undefined,
+        language: optionalString(args, "language"),
+        state: args.state === "start" ? "start" : "all",
+      });
+      const outputDir = optionalString(args, "output_dir");
+      const content: unknown[] = [];
+      for (const image of images) {
+        if (outputDir) writeFile(`${outputDir}/folie-${image.label}.png`, image.png);
+        content.push({ type: "text", text: `Folie ${image.label} (${image.width}×${image.height})` });
+        content.push({ type: "image", data: Buffer.from(image.png).toString("base64"), mimeType: "image/png" });
+      }
+      return { mcpContent: content };
+    },
+  },
+  {
     name: "weft_operations",
     description: "Beschreibt die Operationen von weft_edit mit Parametern und je einem Beispiel.",
     inputSchema: { type: "object", properties: {} },
@@ -307,7 +359,8 @@ function handle(request: Request): void {
         serverInfo: SERVER,
         instructions:
           "Weft ist ein Programm für Präsentationen und Lernmodule (.weft-Dateien). Zuerst weft_inspect, vor dem Schreiben eines Blocks " +
-          "weft_schema, nach Änderungen weft_validate. Geändert wird nur in einer Arbeitskopie (<name>.ai.weft).",
+          "weft_schema, nach Änderungen weft_validate und weft_render (ansehen, wie es aussieht). Geändert wird nur in einer Arbeitskopie " +
+          "(<name>.ai.weft).",
       });
       return;
     }
@@ -325,12 +378,16 @@ function handle(request: Request): void {
         respondError(id, -32602, `Unbekanntes Werkzeug „${name}".`);
         return;
       }
-      try {
-        respond(id, { content: [{ type: "text", text: text(tool.run(args)) }] });
-      } catch (error) {
-        const message = error instanceof CliError ? error.message : `Interner Fehler: ${(error as Error).message}`;
-        respond(id, { content: [{ type: "text", text: message }], isError: true });
-      }
+      Promise.resolve()
+        .then(() => tool.run(args))
+        .then((result) => {
+          const raw = (result as { mcpContent?: unknown[] } | null)?.mcpContent;
+          respond(id, { content: Array.isArray(raw) ? raw : [{ type: "text", text: text(result) }] });
+        })
+        .catch((error) => {
+          const message = error instanceof CliError ? error.message : `Interner Fehler: ${(error as Error).message}`;
+          respond(id, { content: [{ type: "text", text: message }], isError: true });
+        });
       return;
     }
     default:

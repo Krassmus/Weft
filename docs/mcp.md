@@ -32,6 +32,7 @@ Der Server spricht MCP über Standard-Ein-/Ausgabe, braucht kein Netz und nichts
 | `weft_validate` | Prüfung mit Codes und Hinweisen (kaputte Verweise, Ereignisse die nie passieren, unbekannte Variablen ...) |
 | `weft_schema` | Das Dateiformat: Arten von Blöcken, die Felder einer Art oder Definition |
 | `weft_text_export` / `weft_text_import` | Texte als flache Liste zum Übersetzen und zurück in ein neues Modul |
+| `weft_render` | Folien als Bild (PNG), wie der Player sie zeigt - der Assistent sieht sein Ergebnis |
 | `weft_new` | Ein neues leeres Modul |
 | `weft_edit` | Änderungen als Liste von Operationen (alles oder nichts) |
 | `weft_operations` | Beschreibung der Operationen mit Beispiel |
@@ -50,6 +51,7 @@ Der Server spricht MCP über Standard-Ein-/Ausgabe, braucht kein Netz und nichts
 2. `weft_schema <Art>` - nachlesen, wie ein Block aussieht, bevor man einen schreibt.
 3. `weft_edit` mit einer Liste von Operationen.
 4. `weft_validate` auf der Arbeitskopie; Meldungen beheben (wieder mit `weft_edit`).
+5. `weft_render` auf den neuen Folien: ansehen, ob es so aussieht, wie gedacht, und nachbessern.
 
 Beispiel für „baue ein kleines Rätsel mit Schlüssel":
 
@@ -71,5 +73,6 @@ Wichtig zum Aufbau: Eine Sprung-Folie führt zu einer Folie, danach läuft die F
 ## Grenzen
 
 - Bilder und Videos kommen von der Festplatte (`add_image`, `add_video`, `add_asset`, `set_media` - nur Dateien dieser Arten, nichts anderes). Schriften lassen sich damit nicht hinzufügen (das geht im Editor). Videos werden nicht umgewandelt: Das Format muss für die Browser passen (H.264 in mp4, oder WebM); bei anderen Kodierungen (HEVC, ProRes ...) gibt es eine Warnung. Ist `ffprobe` installiert, wird die Größe des Videos gelesen; sonst gilt 16:9.
-- Es gibt keine Vorschau als Bild. Was auf einer Folie wirklich zu sehen ist, sagt `weft_validate` nur strukturell (außerhalb der Folie, überlappend ist nicht geprüft).
+- `weft_validate` prüft nur die Struktur (ob ein Block außerhalb der Folie liegt, ja; ob Text aus seinem Kasten läuft oder sich Blöcke überlappen, nein). Dafür gibt es `weft_render`: das Bild der Folie ansehen und danach `weft_edit`.
+- `weft_render` braucht einen installierten Chrome, Chromium, Edge oder Brave (sonst Pfad in `WEFT_CHROME`). Es zeichnet mit dem Player des Moduls; eingebettete Seiten (iframe) erscheinen, wenn sie erreichbar sind.
 - Der Server verändert nur Dateien, die man ihm nennt (Quelle lesen, Ziel schreiben); eine vorhandene Zieldatei überschreibt er nicht (außer der Arbeitskopie `….ai.weft`).

@@ -1,6 +1,10 @@
 import { readFileSync, writeFileSync } from "node:fs";
+import { pageLabels } from "../src/core/document/pageLabels";
 import { loadWeft, CliError } from "./load";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { OPERATION_NAMES } from "./ops";
+import { renderPages } from "./render";
 import type { Operation } from "./ops";
 import { editFile, exportTextsOf, importTextsFile, newFile } from "./tools";
 import type { TextsFile } from "./texts";
@@ -30,6 +34,10 @@ Benutzung:
       Ändert das Modul mit einer Liste von Operationen (die Aktionen des Editors) in einer Arbeitskopie
       <name>.ai.weft - die Quelle bleibt unverändert. Schreibt nur, wenn die Änderungen keine Fehler erzeugen.
       Die Operationen: weft edit --ops
+  weft render <datei> [--page <nummer>] [--all] [-o <bild.png | ordner>] [--width 1280] [--lang fr_FR] [--state all|start]
+      Zeichnet eine Folie als PNG - mit dem Player in einem Chrome (muss installiert sein; Pfad sonst in WEFT_CHROME).
+      Standard: die erste Folie, mit allem darauf (nichts wartet auf seinen Aufbau); --state start: so, wie sie beginnt.
+      --all zeichnet alle Folien in den Ordner -o.
   weft schema [<name>] [--list] [--json] [--full]
       Das Dateiformat. Ohne Name: die Arten von Blöcken. <name>: eine Definition oder die Art
       eines Blocks (zum Beispiel "quiz", "ButtonBlock", "Page").
@@ -52,7 +60,7 @@ function parseArgs(argv: string[]): Args {
     if (arg.startsWith("--")) {
       const name = arg.slice(2);
       const next = argv[i + 1];
-      if (["page", "format", "to", "from", "output", "title", "languages"].includes(name) && next !== undefined && !next.startsWith("--")) {
+      if (["page", "format", "to", "from", "output", "title", "languages", "width", "lang", "state", "chrome"].includes(name) && next !== undefined && !next.startsWith("--")) {
         flags.set(name, next);
         i++;
       } else flags.set(name, true);
@@ -90,7 +98,7 @@ function printFindings(findings: Finding[], file: string): void {
   }
 }
 
-function main(argv: string[]): number {
+async function main(argv: string[]): Promise<number> {
   const { positional, flags } = parseArgs(argv);
   const [command, ...rest] = positional;
   const json = flags.has("json") || flags.get("format") === "json";
@@ -185,6 +193,39 @@ function main(argv: string[]): number {
       else console.log(outcome.refused ?? "Nichts geschrieben.");
       return outcome.refused && !flags.has("dry-run") ? 1 : 0;
     }
+    case "render": {
+      if (!rest[0]) throw new CliError("Welche Datei? weft render <datei> [--page 2.a.1]");
+      const loaded = loadWeft(rest[0]);
+      const labels = pageLabels(loaded.content);
+      const playable = Object.entries(labels)
+        .filter(([id]) => loaded.content.pages[id] && !loaded.content.pages[id].jump)
+        .map(([, label]) => label);
+      const all = flags.has("all");
+      const page = typeof flags.get("page") === "string" ? (flags.get("page") as string) : undefined;
+      const refs = all ? playable : [page ?? playable[0]];
+      if (!refs[0]) throw new CliError("Das Modul hat keine Folie, die sich zeichnen ließe.");
+      const output = typeof flags.get("output") === "string" ? (flags.get("output") as string) : null;
+      const images = await renderPages(rest[0], refs, {
+        width: typeof flags.get("width") === "string" ? Number(flags.get("width")) : undefined,
+        language: typeof flags.get("lang") === "string" ? (flags.get("lang") as string) : undefined,
+        state: flags.get("state") === "start" ? "start" : "all",
+        chrome: typeof flags.get("chrome") === "string" ? (flags.get("chrome") as string) : undefined,
+      });
+      if (all) {
+        const folder = output ?? "weft-folien";
+        mkdirSync(folder, { recursive: true });
+        for (const image of images) {
+          const target = join(folder, `folie-${image.label}.png`);
+          writeFileSync(target, image.png);
+          console.log(target);
+        }
+      } else {
+        const target = output ?? `folie-${images[0].label}.png`;
+        writeFileSync(target, images[0].png);
+        console.log(`${target} (${images[0].width}×${images[0].height}, Folie ${images[0].label})`);
+      }
+      return 0;
+    }
     case "inspect": {
       if (!rest[0]) throw new CliError("Welche Datei? weft inspect <datei>");
       const loaded = loadWeft(rest[0]);
@@ -211,13 +252,16 @@ function main(argv: string[]): number {
   }
 }
 
-try {
-  process.exitCode = main(process.argv.slice(2));
-} catch (error) {
-  if (error instanceof CliError) {
-    console.error(error.message);
-    process.exitCode = error.exitCode;
-  } else {
-    throw error;
-  }
-}
+main(process.argv.slice(2)).then(
+  (code) => {
+    process.exitCode = code;
+  },
+  (error) => {
+    if (error instanceof CliError) {
+      console.error(error.message);
+      process.exitCode = error.exitCode;
+    } else {
+      throw error;
+    }
+  },
+);

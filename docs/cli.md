@@ -83,6 +83,19 @@ npm run weft -- text import modul.weft texte.json -o modul.fr.weft
 - Jede Übersetzung wird geprüft, bevor sie übernommen wird: Tags müssen richtig geschachtelt sein; Skripte, `on…=`-Attribute und `iframe` sind verboten (dann wird der Text übersprungen); bei Lückentexten muss die Zahl der `[[Lücken]]` stimmen. Abweichende `{{Variablen}}` oder Tags sind Warnungen. Was übersprungen wurde, steht mit Schlüssel im Bericht, und der Statuscode ist dann `1`.
 - Der Editierverlauf (`weft.automerge`) und das Abspiel-HTML (`index.html`) werden nicht mitgenommen: sie beschrieben den alten Stand. Weft schreibt das beim nächsten Speichern neu.
 
+## Folien zeichnen: `weft render`
+
+```bash
+npm run weft -- render modul.weft --page 2.a.1 -o folie.png
+npm run weft -- render modul.weft --all -o bilder/        # alle Folien, eine PNG je Folie
+```
+
+Zeichnet eine Folie als PNG mit dem Player des Moduls in einem headless Chrome (Chrome, Chromium, Edge oder Brave muss installiert sein; sonst den Pfad in `WEFT_CHROME` oder mit `--chrome` angeben). Schriften, Bilder und Videos (erstes Bild) stammen aus dem Modul.
+
+- Standard: alles, was auf der Folie steht, ist da (nichts wartet auf seinen Aufbau, nichts geht von selbst weiter); `--state start` zeigt die Folie, wie sie beginnt.
+- `--width 1280` (Standard; die Höhe folgt aus dem Seitenverhältnis), `--lang fr_FR` für eine Sprache des Moduls.
+- Sprung-Folien werden nie gezeigt und lassen sich nicht zeichnen.
+
 ## Neu anlegen und ändern: `weft new` / `weft edit`
 
 ```bash

@@ -39,6 +39,12 @@
   var texHtmlEl = document.getElementById("weft-tex-html");
   var texHtml = texHtmlEl ? JSON.parse(texHtmlEl.textContent || "{}") : {};
 
+  // A picture of a page for somebody who does not play it (cli/render.ts: weft render, the MCP tool weft_render): { all: true } shows
+  // the page with everything on it - no Aufbau/Abbau waits for its event - and keeps it from going on by itself.
+  var renderModeEl = document.getElementById("weft-render-mode");
+  var renderMode = renderModeEl ? JSON.parse(renderModeEl.textContent || "null") : null;
+  var renderAll = !!(renderMode && renderMode.all);
+
   var startPageIdEl = document.getElementById("weft-start-page");
   var startPageId = startPageIdEl ? JSON.parse(startPageIdEl.textContent || "null") : null;
 
@@ -609,6 +615,8 @@
   var nextTransition = null;
 
   function goNextPage() {
+    // (A picture of the page: it stays where it is.)
+    if (renderAll && pos >= 0) return;
     // Captured before `pos` moves - this is the page being left, whose own transition (see
     // TransitionPanel.tsx) animates the swap to whatever renders next, in every branch below.
     // Still correct for pos === -1 (no page shown yet, e.g. the very first goNext() call at
@@ -1356,6 +1364,8 @@
    * starts, the page that is left.
    */
   function applyBlockEffects(wrap, block, page) {
+    // (A picture of the page: every block just stands there.)
+    if (renderAll) return;
     var entrance = block.entranceEffect || { type: "none", durationMs: 500 };
     var exit = block.exitEffect || { type: "none", durationMs: 500 };
     var entranceId = blockEffectEventId(block.id, "entrance");

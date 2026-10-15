@@ -168,8 +168,17 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
           </p>
         </Collapsible>
       )}
-      {fromPlaceholder && (
-        <p className="weft-hint">Dieser Text gehört zu einem Platzhalter des Layouts - seine Lage kommt von dort.</p>
+      {fromPlaceholder && page?.layoutId && (
+        <Collapsible title="Element · Textplatzhalter" defaultOpen>
+          <p className="weft-hint">Die Position wird auf der Template-Folie definiert und ist hier nicht änderbar.</p>
+          <button
+            type="button"
+            className="weft-ghost-button weft-full-width"
+            onClick={() => useDocumentStore.getState().select({ type: "layout", layoutId: page.layoutId! })}
+          >
+            Template-Folie bearbeiten
+          </button>
+        </Collapsible>
       )}
       {block.kind === "list" && <ListEditor block={block} page={page} onUpdate={onUpdate} onSetImage={onSetImage} />}
       {block.kind === "cloze" && <ClozeEditor block={block} page={page} onUpdate={onUpdate} />}

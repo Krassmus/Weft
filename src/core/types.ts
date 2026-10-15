@@ -927,6 +927,15 @@ export interface WeftModule {
  */
 export const CURRENT_FORMAT_VERSION = 5;
 
+/**
+ * What weft.json in a .weft file holds, and what docs/weft.schema.json describes (generated from this type: `npm run schema`).
+ * Other tools - the command line tool in cli/, or a program that builds a module - read and write exactly this.
+ */
+export interface WeftFileJson {
+  formatVersion: number;
+  content: WeftModule;
+}
+
 export interface WeftDocument {
   formatVersion: number;
   content: WeftModule;

@@ -1,0 +1,2440 @@
+{
+  "$ref": "#/definitions/WeftFileJson",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "ArrowBlock": {
+      "additionalProperties": false,
+      "description": "An arrow: a curve through its waypoints (two or more; the first and last are its ends), with an arrowhead at either end if wanted. The block's box is the box around the waypoints (the editor keeps them in step - see core/document/arrow.ts), so moving, rotating, scaling and the entrance/exit effects work on it like on any other block. Drawn by runtime/arrowGeometry.js, the same code in the editor and the player.",
+      "properties": {
+        "arrowStyle": {
+          "$ref": "#/definitions/ArrowStyle"
+        },
+        "color": {
+          "type": "string"
+        },
+        "endHead": {
+          "type": "boolean"
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "arrow",
+          "type": "string"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "points": {
+          "items": {
+            "$ref": "#/definitions/ArrowPoint"
+          },
+          "type": "array"
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "startHead": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Line thickness in cqw (percent of the slide's width).",
+          "type": "number"
+        }
+      },
+      "required": [
+        "arrowStyle",
+        "color",
+        "endHead",
+        "entranceEffect",
+        "exitEffect",
+        "id",
+        "kind",
+        "order",
+        "points",
+        "position",
+        "startHead",
+        "width"
+      ],
+      "type": "object"
+    },
+    "ArrowPoint": {
+      "additionalProperties": false,
+      "description": "One waypoint of an arrow, in percent of the arrow block's own box (0,0 = its top left corner) - not necessarily within it while the arrow is being edited.",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "ArrowStyle": {
+      "description": "How an arrow is drawn: a plain line, as if drawn by hand, or in the curls of Art Nouveau.",
+      "enum": [
+        "plain",
+        "sketch",
+        "ornate"
+      ],
+      "type": "string"
+    },
+    "AspectRatio": {
+      "description": "\"W:H\" - one of the presets in core/aspectRatio.ts (\"16:9\", \"9:16\", ...) or any custom pair of positive numbers, e.g. \"21:9\" or \"1.85:1\".",
+      "type": "string"
+    },
+    "AssetMeta": {
+      "additionalProperties": false,
+      "properties": {
+        "fileName": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "mimeType": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "fileName",
+        "mimeType"
+      ],
+      "type": "object"
+    },
+    "Block": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/StaticBlock"
+        },
+        {
+          "$ref": "#/definitions/QuizBlock"
+        },
+        {
+          "$ref": "#/definitions/ClozeBlock"
+        }
+      ]
+    },
+    "BlockEffect": {
+      "additionalProperties": false,
+      "description": "A block's own Aufbau or Abbau (see BaseBlock.entranceEffect/exitEffect below, and BlockEffectEditor in features/editor/panels/BlockPanel.tsx) - independent of the page-level Transition (core/types.ts's own Transition/TransitionType), which animates the whole slide on the way to the *next* one, not one block's own appearance within the current slide. Only the animation itself lives here - which event triggers it, and after what delay, is recorded as a TimelineEdge in PageTimeline.triggerEdges instead (see getBlockEntranceTrigger/ getBlockExitTrigger in document/pageTimeline.ts), the same single mechanism every other kind of trigger on the page uses - so this type doesn't need its own separate notion of \"which event\" alongside it, except for \"off\" (see BlockEffectType's own doc comment), which bypasses that mechanism entirely regardless of whatever trigger edge might still be stored (switching back to \"none\"/\"fade\"/\"move\" later picks it back up unchanged).",
+      "properties": {
+        "direction": {
+          "$ref": "#/definitions/TransitionDirection",
+          "description": "\"wipe\" only: the way the wipe travels (an Aufbau \"Nach rechts\" uncovers the block from its left edge towards the right one, an Abbau covers it up the same way). Absent = \"right\" - optional so a module saved before it existed still loads."
+        },
+        "durationMs": {
+          "description": "Only meaningful when `type` isn't \"none\" (which always shows/hides instantly).",
+          "type": "number"
+        },
+        "type": {
+          "$ref": "#/definitions/BlockEffectType"
+        }
+      },
+      "required": [
+        "type",
+        "durationMs"
+      ],
+      "type": "object"
+    },
+    "BlockEffectType": {
+      "description": "(\"shatter\" - \"Zersplittern\" - only exists as an Abbau: the block breaks into shards that fly off the slide, see shatterBlock in player.runtime.js. A video breaks as the frame it shows; an embedded page, which can't be copied, fades instead.)",
+      "enum": [
+        "off",
+        "none",
+        "fade",
+        "move",
+        "iris",
+        "wipe",
+        "anvil",
+        "blur",
+        "shatter"
+      ],
+      "type": "string"
+    },
+    "BlockGroup": {
+      "additionalProperties": false,
+      "description": "Several of a page's own blocks, bundled so they move (and resize, together, proportionally) as one unit on the canvas, same as a Keynote/PowerPoint group - see groupBlocks in document/actions.ts. Deliberately thin: no position/rotation/effect fields of its own. A group's own bounding box is always derived from its members' current positions (see resizeMath.ts's groupBoundingBox), and its \"shared\" Aufbau/Abbau (see GroupPanel.tsx) is UI sugar that writes the same entranceEffect/exitEffect/trigger to every member's own existing fields rather than a new, separate concept the timeline graph or the exported player need to know about - grouping is purely an editor/authoring convenience, invisible to player.runtime.js and to the data a member block carries on its own.\n\n`blockIds` are always kept contiguous, in this exact order, within the owning Page's own block stacking order (see groupBlocks) - what lets the sidebar (PagePanel.tsx) render a clean indented bracket under one group header, and keeps \"the group's own stacking position\" (see bringGroupToFront/sendGroupToBack) well-defined even though there's no explicit z-index anywhere in this app (the blocks' `order` keys already double as that, see ordering.ts). Groups are page-only - a Layout has no timeline/graded state and nothing about grouping needs either, so there was no reason to extend Layout the same way.",
+      "properties": {
+        "blockIds": {
+          "items": {
+            "$ref": "#/definitions/UUID"
+          },
+          "type": "array"
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "The Aufbau/Abbau of the group as a whole: an event of its own in the page's graph (`group-entrance:<id>`, `group-exit:<id>`), which triggers the Aufbau/Abbau of the members (explicit triggers the graph shows as one line). The members carry the same effect themselves, so the player needs nothing of the group. Absent (or \"off\"): the group has no effect of its own - its members are in the graph one by one."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        }
+      },
+      "required": [
+        "id",
+        "blockIds"
+      ],
+      "type": "object"
+    },
+    "BlockPosition": {
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "type": "number"
+        },
+        "rotation": {
+          "description": "Degrees, 0-360. Optional (rather than defaulting to 0 in every object literal that builds a BlockPosition) since a module saved before this field existed won't have it in its JSON either way - readers fall back to `?? 0`, so there's no real difference between \"optional\" and \"required with a default\" here, just less churn at every construction site that doesn't care about rotation.",
+          "type": "number"
+        },
+        "width": {
+          "type": "number"
+        },
+        "x": {
+          "description": "Percent of the slide (0-100). Percent, not pixels, so the block stays put across the module's fixed aspect ratio at any render size.",
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "type": "object"
+    },
+    "BlockTranslation": {
+      "additionalProperties": false,
+      "description": "What one block says in a language OTHER than the module's default one (see WeftModule.languages) - only the fields that have been translated; anything missing is shown in the default language's wording instead. The block's own plain fields (html, questionHtml, text, ...) ARE the default language's wording, so a module that never uses languages has none of this at all.",
+      "properties": {
+        "html": {
+          "description": "TextBlock, ButtonBlock (its formatted label).",
+          "type": "string"
+        },
+        "items": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "ListBlock: each item's html by item id.",
+          "type": "object"
+        },
+        "options": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "QuizBlock: each option's html by option id.",
+          "type": "object"
+        },
+        "questionHtml": {
+          "description": "QuizBlock.",
+          "type": "string"
+        },
+        "text": {
+          "description": "ButtonBlock: the label as plain text (what `html` says, without the formatting).",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "Branch": {
+      "additionalProperties": false,
+      "description": "A Branch only ever holds Page ids, never a LogicBlock. This is what keeps branching one level deep by construction: you cannot nest a logic block inside a branch, so the learner is always funneled back to the single main sequence after a branch ends.",
+      "properties": {
+        "condition": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/VariableCondition"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Evaluated like if/else-if/else in array order (see LogicBlock.branches): every branch but the last must carry a condition, and only the last branch may be null - it is always the unconditional \"sonst\" fallback taken when none of the earlier conditions matched."
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "label": {
+          "type": "string"
+        },
+        "pages": {
+          "additionalProperties": {
+            "additionalProperties": false,
+            "properties": {
+              "order": {
+                "$ref": "#/definitions/OrderKey"
+              }
+            },
+            "required": [
+              "order"
+            ],
+            "type": "object"
+          },
+          "description": "The pages of this branch, by page id; the order they're played in is each entry's own `order` (see ordering.ts) - not an array so that moving a page is a change of one field.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "condition",
+        "pages"
+      ],
+      "type": "object"
+    },
+    "ButtonAppearance": {
+      "additionalProperties": false,
+      "description": "How a button looks (ButtonBlock.appearance). Lengths are cqw (percent of the slide's width); a button without it has the defaults of DEFAULT_BUTTON_APPEARANCE (core/document/buttonAppearance.ts). The colour of the letters is part of the label.",
+      "properties": {
+        "background": {
+          "description": "null: no background.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "borderColor": {
+          "type": "string"
+        },
+        "borderWidth": {
+          "description": "0: no border.",
+          "type": "number"
+        },
+        "radius": {
+          "description": "How round the corners are.",
+          "type": "number"
+        }
+      },
+      "required": [
+        "background",
+        "borderColor",
+        "borderWidth",
+        "radius"
+      ],
+      "type": "object"
+    },
+    "ButtonBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "description": "What a click does besides being an event of the page's graph (\"Button geklickt\", see TimelineEventType): \"advance\" presses Weiter, exactly like Space/→ - everything that waits for Weiter arrives. \"prev\" goes back one slide (disabled on the first one). \"event\" does nothing of its own: what follows the click is what the graph says - by default a trigger to \"Nächste Folie\", which the author can change or take away (a button that only starts an animation). Once the module has ended, \"advance\" and \"event\" restart it instead. Format 4 and older had \"next\" here (jump to the next slide): see migrateButtonActions in io/unpack.ts.",
+          "enum": [
+            "event",
+            "prev",
+            "advance",
+            "goto"
+          ],
+          "type": "string"
+        },
+        "appearance": {
+          "$ref": "#/definitions/ButtonAppearance"
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "html": {
+          "description": "The label with its formatting (edited on the canvas like a text). Absent on a button that has never been formatted: `text` is its label then.",
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "button",
+          "type": "string"
+        },
+        "onClick": {
+          "description": "Changes to variables that every click makes, whatever the action is (set, add, append - like the effects of a quiz).",
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "targetPageId": {
+          "description": "For \"goto\": the page the click leads to, by id (so that the link survives pages being added, moved or removed). A page that is not there any more: the click does nothing but being an event. The sequence goes on after that page, as after a jump page.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The label as plain text - always what `html` says without its formatting, so that everything that only needs the words (the graph, a search) has them.",
+          "type": "string"
+        },
+        "translations": {
+          "additionalProperties": {
+            "$ref": "#/definitions/BlockTranslation"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "action",
+        "entranceEffect",
+        "exitEffect",
+        "id",
+        "kind",
+        "order",
+        "position",
+        "text"
+      ],
+      "type": "object"
+    },
+    "ClozeBlock": {
+      "additionalProperties": false,
+      "description": "A gap text: a rich text in which `[[Berlin]]` is a blank (an input field in the player) whose right answer is \"Berlin\" (see core/document/cloze.ts), with a \"Abschicken\" button under it that marks which answers were right. Like a quiz it is graded, so it lives on pages only (not in a layout), and it has the same events in the page's graph (the first answer typed, submitted - plain, and right/wrong).",
+      "properties": {
+        "answerEffects": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/VariableEffect"
+            },
+            "type": "array"
+          },
+          "description": "What happens, in addition, for a blank whose answer is this one (keyed by what stands in the brackets).",
+          "type": "object"
+        },
+        "caseSensitive": {
+          "description": "Whether capital and small letters have to be as written (default: they don't).",
+          "type": "boolean"
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "html": {
+          "description": "Rich HTML, as TextBlock.html, with the blanks written as [[answer]].",
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "cloze",
+          "type": "string"
+        },
+        "onCorrect": {
+          "description": "What happens once all blanks were answered right / not all were.",
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        },
+        "onEachCorrect": {
+          "description": "What happens for every blank that was answered right.",
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        },
+        "onIncorrect": {
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "tolerance": {
+          "description": "How many characters of an answer may be wrong (Levenshtein distance, 0-2; default 0). Very short answers are always exact.",
+          "type": "number"
+        },
+        "translations": {
+          "additionalProperties": {
+            "$ref": "#/definitions/BlockTranslation"
+          },
+          "description": "Other languages' wording (`html`), by locale - see BlockTranslation.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "entranceEffect",
+        "exitEffect",
+        "html",
+        "id",
+        "kind",
+        "onCorrect",
+        "onEachCorrect",
+        "onIncorrect",
+        "order",
+        "position"
+      ],
+      "type": "object"
+    },
+    "CodeBlock": {
+      "additionalProperties": false,
+      "description": "Program code with syntax highlighting (highlight.js) - works like a text block (typed straight into the block on the slide, scrolls if it doesn't fit) but is plain text: no formatting other than what the highlighter itself colors.",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "fontSize": {
+          "description": "In px on a 960px-wide slide, like a text block's sizes - stored (and rendered) as a share of the slide's width (cqw), so it scales with the slide.",
+          "type": "number"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "code",
+          "type": "string"
+        },
+        "language": {
+          "description": "A highlight.js language id (see CODE_LANGUAGES in core/code/highlight.ts), or \"auto\" to let the highlighter guess.",
+          "type": "string"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "theme": {
+          "description": "One of CODE_THEMES' ids (core/code/codeThemes.ts).",
+          "type": "string"
+        },
+        "transparentBackground": {
+          "description": "Drops the theme's background color (the text colors stay) so the slide shows through. Optional only so a block saved before this field existed still loads - absent means false.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "entranceEffect",
+        "exitEffect",
+        "fontSize",
+        "id",
+        "kind",
+        "language",
+        "order",
+        "position",
+        "theme"
+      ],
+      "type": "object"
+    },
+    "CustomFont": {
+      "additionalProperties": false,
+      "description": "A font file the user uploaded (see core/fonts/), stored as a blob keyed by `id` exactly like an AssetMeta - unlike the curated set in core/fonts/curatedFonts.ts, which ships with the app and isn't a per-document asset at all. `family` is what block HTML's font-face/font-family actually references, so renaming here would silently detach it from any text already using it.",
+      "properties": {
+        "family": {
+          "type": "string"
+        },
+        "fileName": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "mimeType": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "family",
+        "fileName",
+        "mimeType"
+      ],
+      "type": "object"
+    },
+    "FileEntry": {
+      "additionalProperties": false,
+      "description": "One file offered for download by a FilesBlock. The bytes are an asset (`id`, see AssetMeta) - encrypted ones if the block is protected. The rest is plain data about the original file, and stays readable in the module whether or not there is a password.",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "name": {
+          "description": "The file's name for the download.",
+          "type": "string"
+        },
+        "size": {
+          "description": "Size of the original file in bytes.",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "mimeType",
+        "size"
+      ],
+      "type": "object"
+    },
+    "FilesBlock": {
+      "additionalProperties": false,
+      "description": "Files the learners can download. With a password, the files in the archive are really encrypted (AES-256-GCM) and the learner sees them only after entering it; names, types and sizes (`files`) stay readable.",
+      "properties": {
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "files": {
+          "items": {
+            "$ref": "#/definitions/FileEntry"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "files",
+          "type": "string"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "protection": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/FilesProtection"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": {
+          "description": "The heading of the box; empty: the player's own default (\"Dateien\").",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entranceEffect",
+        "exitEffect",
+        "files",
+        "id",
+        "kind",
+        "order",
+        "position",
+        "protection",
+        "title"
+      ],
+      "type": "object"
+    },
+    "FilesProtection": {
+      "additionalProperties": false,
+      "description": "What a password-protected FilesBlock keeps to check a password and derive the key (see runtime/filesCrypto.js) - never the password itself.",
+      "properties": {
+        "iterations": {
+          "description": "PBKDF2 iterations.",
+          "type": "number"
+        },
+        "salt": {
+          "description": "Random salt of the key derivation (base64).",
+          "type": "string"
+        },
+        "verifier": {
+          "description": "A known text, encrypted with the key (base64): decrypting it is how a password is checked.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "salt",
+        "iterations",
+        "verifier"
+      ],
+      "type": "object"
+    },
+    "IframeBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "allow": {
+          "type": "string"
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "forcedViewportWidth": {
+          "description": "The embedded page is always given exactly this CSS-pixel width as its viewport (e.g. to force its mobile layout) rather than whatever the block happens to render at - height isn't separately configurable, it's derived from the block's own on-slide aspect ratio, so the scaled result always fills the block exactly with no letterboxing. Optional only so a module saved before this field existed still loads - readers fall back to DEFAULT_VIEWPORT_WIDTH (see BlockPanel.tsx).",
+          "type": "number"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "iframe",
+          "type": "string"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "presentationUrl": {
+          "description": "Optional: once revealed, show this URL instead of `url` - e.g. `url` is a live survey people join by scanning the code on their phone, this is the results view shown on screen. Falls back to `url` when empty.",
+          "type": "string"
+        },
+        "qrCode": {
+          "description": "When true, the block shows a scannable QR code for `url` plus the plain address instead of embedding the iframe right away; clicking the address reveals the iframe, like a gate.",
+          "type": "boolean"
+        },
+        "sandbox": {
+          "description": "e.g. [\"allow-scripts\", \"allow-same-origin\"] - kept explicit per block, never \"allow everything\" by default.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "entranceEffect",
+        "exitEffect",
+        "id",
+        "kind",
+        "order",
+        "position",
+        "qrCode",
+        "sandbox",
+        "url"
+      ],
+      "type": "object"
+    },
+    "ImageBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "alt": {
+          "type": "string"
+        },
+        "assetId": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UUID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "effect": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ImageEffect"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Step two: border, shadow, reflection, paper edge or glow. null/absent: none."
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "image",
+          "type": "string"
+        },
+        "mask": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ImageMask"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Step one of editing: only the part inside the mask is shown. null/absent: the whole picture."
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        }
+      },
+      "required": [
+        "alt",
+        "assetId",
+        "entranceEffect",
+        "exitEffect",
+        "id",
+        "kind",
+        "order",
+        "position"
+      ],
+      "type": "object"
+    },
+    "ImageEffect": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "color": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "border",
+              "type": "string"
+            },
+            "opacity": {
+              "type": "number"
+            },
+            "width": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "color",
+            "width",
+            "opacity"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "blur": {
+              "type": "number"
+            },
+            "color": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "shadow",
+              "type": "string"
+            },
+            "offsetX": {
+              "type": "number"
+            },
+            "offsetY": {
+              "type": "number"
+            },
+            "opacity": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "color",
+            "opacity",
+            "offsetX",
+            "offsetY",
+            "blur"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "gap": {
+              "type": "number"
+            },
+            "height": {
+              "type": "number"
+            },
+            "kind": {
+              "const": "reflection",
+              "type": "string"
+            },
+            "opacity": {
+              "type": "number"
+            },
+            "skew": {
+              "type": "number"
+            },
+            "squash": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "opacity",
+            "height",
+            "squash",
+            "skew",
+            "gap"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "color": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "paper",
+              "type": "string"
+            },
+            "roughness": {
+              "type": "number"
+            },
+            "width": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "color",
+            "width",
+            "roughness"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "color": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "glow",
+              "type": "string"
+            },
+            "size": {
+              "type": "number"
+            },
+            "strength": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "color",
+            "size",
+            "strength"
+          ],
+          "type": "object"
+        }
+      ],
+      "description": "An effect of an image (one at a time). Lengths are in cqw (percent of the slide's width)."
+    },
+    "ImageMask": {
+      "additionalProperties": false,
+      "description": "What of an image is shown: only what is inside this closed curve (see core/runtime/imageGeometry.js). The shape it began as is only a starting point - the points can be moved, added and removed.",
+      "properties": {
+        "points": {
+          "description": "Three or more.",
+          "items": {
+            "$ref": "#/definitions/ImageMaskPoint"
+          },
+          "type": "array"
+        },
+        "shape": {
+          "$ref": "#/definitions/ImageMaskShape"
+        }
+      },
+      "required": [
+        "shape",
+        "points"
+      ],
+      "type": "object"
+    },
+    "ImageMaskPoint": {
+      "additionalProperties": false,
+      "description": "One point of an image's mask (a closed curve), in percent of the image block's box (0,0 = its top left corner).",
+      "properties": {
+        "radius": {
+          "description": "A corner is rounded by this much: the radius of the arc, in percent of the box's width. Only for a corner.",
+          "type": "number"
+        },
+        "smooth": {
+          "description": "The curve runs smoothly through the point (else it has a corner there).",
+          "type": "boolean"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "ImageMaskShape": {
+      "enum": [
+        "rectangle",
+        "rounded",
+        "circle",
+        "ellipse",
+        "triangle",
+        "star"
+      ],
+      "type": "string"
+    },
+    "JumpTarget": {
+      "additionalProperties": false,
+      "description": "One way out of a jump page: where to go if `condition` holds.",
+      "properties": {
+        "condition": {
+          "$ref": "#/definitions/VariableCondition"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "pageId": {
+          "$ref": "#/definitions/UUID",
+          "description": "The page to go to (by id - the page may have been deleted since: then this way is skipped)."
+        }
+      },
+      "required": [
+        "id",
+        "pageId",
+        "condition"
+      ],
+      "type": "object"
+    },
+    "LanguageBlock": {
+      "additionalProperties": false,
+      "description": "A drop-down with which a learner picks the language of the module (it sets `userlanguage`) - addable only while the module offers more than one language.",
+      "properties": {
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "language",
+          "type": "string"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        }
+      },
+      "required": [
+        "entranceEffect",
+        "exitEffect",
+        "id",
+        "kind",
+        "order",
+        "position"
+      ],
+      "type": "object"
+    },
+    "Layout": {
+      "additionalProperties": false,
+      "properties": {
+        "blocks": {
+          "additionalProperties": {
+            "$ref": "#/definitions/StaticBlock"
+          },
+          "description": "By block id; the stacking order is each block's own `order` (see ordering.ts's orderedValues). Not an array so that moving a block is a change of one field.",
+          "type": "object"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "blocks"
+      ],
+      "type": "object"
+    },
+    "ListBlock": {
+      "additionalProperties": false,
+      "description": "A list of texts. Each item is rich text edited in place on the slide, like the options of a quiz. Its Aufbau is either the list's as a whole (the block's own `entranceEffect`, an event of the block) or - with `itemEntrance` - the same effect for every item one by one, each an event of its own in the page's graph (`list-item:<blockId>:<itemId>`, see listItemNodeId in document/pageTimeline.ts), by default one after the other on Weiter. The Abbau is always the list's as a whole.",
+      "properties": {
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "itemEntrance": {
+          "description": "The Aufbau is made by each item on its own, one event per item. Only on a page (a layout has no events to trigger them).",
+          "type": "boolean"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/definitions/ListItem"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "list",
+          "type": "string"
+        },
+        "marker": {
+          "$ref": "#/definitions/ListMarkerKind"
+        },
+        "markerAssetId": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UUID"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "marker \"image\": the picture in front of every item."
+        },
+        "markerSize": {
+          "description": "marker \"image\": the height of the picture, in em of the text (default 1.2).",
+          "type": "number"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "spacing": {
+          "description": "The space between two items, in cqw (percent of the slide's width - it scales with the slide, like the text does).",
+          "type": "number"
+        },
+        "translations": {
+          "additionalProperties": {
+            "$ref": "#/definitions/BlockTranslation"
+          },
+          "description": "Other languages' wording, by locale - see BlockTranslation.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "entranceEffect",
+        "exitEffect",
+        "id",
+        "items",
+        "kind",
+        "marker",
+        "order",
+        "position",
+        "spacing"
+      ],
+      "type": "object"
+    },
+    "ListItem": {
+      "additionalProperties": false,
+      "description": "One item of a list: rich HTML, like TextBlock.html.",
+      "properties": {
+        "html": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        }
+      },
+      "required": [
+        "id",
+        "html"
+      ],
+      "type": "object"
+    },
+    "ListMarkerKind": {
+      "description": "What stands in front of the items of a ListBlock.",
+      "enum": [
+        "dot",
+        "dash",
+        "number",
+        "image"
+      ],
+      "type": "string"
+    },
+    "LogicBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "branches": {
+          "description": "Order matters - see Branch.condition for the if/else-if/else evaluation rule.",
+          "items": {
+            "$ref": "#/definitions/Branch"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "branches"
+      ],
+      "type": "object"
+    },
+    "OrderKey": {
+      "description": "Position among the siblings of an ordered collection (a page's blocks, the page sequence, a branch's pages) - a fractional key, see core/document/ordering.ts.",
+      "type": "string"
+    },
+    "Page": {
+      "additionalProperties": false,
+      "properties": {
+        "blocks": {
+          "additionalProperties": {
+            "$ref": "#/definitions/Block"
+          },
+          "description": "By block id - see Layout.blocks.",
+          "type": "object"
+        },
+        "groups": {
+          "description": "This page's own groups (see BlockGroup) - empty for the vast majority of pages, which never group anything.",
+          "items": {
+            "$ref": "#/definitions/BlockGroup"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "jump": {
+          "$ref": "#/definitions/PageJump",
+          "description": "Set for a jump page (see PageJump): then the page has no blocks and is not shown."
+        },
+        "layoutId": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UUID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timeline": {
+          "$ref": "#/definitions/PageTimeline",
+          "description": "This page's timeline graph - see PageTimeline."
+        }
+      },
+      "required": [
+        "id",
+        "layoutId",
+        "blocks",
+        "groups",
+        "timeline"
+      ],
+      "type": "object"
+    },
+    "PageEnd": {
+      "additionalProperties": false,
+      "description": "A \"Nächste Folie\" event of a page: leaving it, with `transition` (how the slide goes away - see Transition).",
+      "properties": {
+        "transition": {
+          "$ref": "#/definitions/Transition"
+        }
+      },
+      "required": [
+        "transition"
+      ],
+      "type": "object"
+    },
+    "PageJump": {
+      "additionalProperties": false,
+      "description": "What makes a page a jump page: it is never shown. The moment the learner gets there he is sent on to another page - the first of `targets` whose condition holds (in this order, like the branches of a logic block), else `defaultPageId` (the \"sonst\"). Without a default and with nothing that holds, the jump page is just passed over. The sequence goes on after the page that was jumped to, as if the learner had got there the normal way.",
+      "properties": {
+        "defaultPageId": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UUID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "targets": {
+          "items": {
+            "$ref": "#/definitions/JumpTarget"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "targets",
+        "defaultPageId"
+      ],
+      "type": "object"
+    },
+    "PageTimeline": {
+      "additionalProperties": false,
+      "description": "What a page's event graph stores (see docs/event-graph.md): only what does not follow from its blocks. The events themselves\n- an element's Aufbau/Abbau, a video's start and stop points, what a quiz does - are derived (getPageLanes in document/pageTimeline.ts) and have stable ids made of the block's id; what is chosen by the author is here:\n\n- `triggers`: every line of the graph, by trigger id. Keyed so that two people changing different triggers of the same page never   overwrite each other (a list that is replaced whole would). A trigger whose event or source no longer exists is pruned by   syncPageTimelineEvents.\n- `ends`: the \"Nächste Folie\" events, by id: \"end\" is the page's own and always there; a quiz that goes on to the next page   after its feedback has `end:quiz:<blockId>:<richtig|falsch>`. Each has the transition of its own.\n\nThere are no implicit triggers: an Aufbau that waits for Weiter at the end of the chain has a trigger of its own, put there when the effect was chosen (see syncPageTimelineEvents), and so has \"Nächste Folie\". Deliberately NOT stored: the rows of the graph the editor draws (TimelineLane) - they follow entirely from the blocks and these triggers, so they are computed.",
+      "properties": {
+        "ends": {
+          "additionalProperties": {
+            "$ref": "#/definitions/PageEnd"
+          },
+          "type": "object"
+        },
+        "titles": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "A title the author gave an event instead of its standard one, by event id. Absent: the standard titles.",
+          "type": "object"
+        },
+        "triggers": {
+          "additionalProperties": {
+            "$ref": "#/definitions/PageTrigger"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "triggers",
+        "ends"
+      ],
+      "type": "object"
+    },
+    "PageTrigger": {
+      "additionalProperties": false,
+      "description": "One trigger of a page (see PageTimeline.triggers): when the event `from` has happened, the event `to` happens `delayMs` later - if `weiter`, only once the learner has pressed Weiter after `from` (then `delayMs` runs from that press). The ids are those of the page's events (see core/eventGraph and docs/event-graph.md): \"start\", \"end\" or one of document/pageTimeline.ts's `*NodeId`. An event can have several incoming triggers; any one of them is enough to make it happen.",
+      "properties": {
+        "delayMs": {
+          "type": "number"
+        },
+        "from": {
+          "type": "string"
+        },
+        "hideOnResume": {
+          "description": "Legacy, from before \"Video läuft weiter\" was an event of its own: such a trigger (from a time mark that stops the video, to an Aufbau) is turned into the Abbau of that block, triggered by the video going on, by syncPageTimelineEvents - and the flag removed. Never written any more.",
+          "type": "boolean"
+        },
+        "to": {
+          "type": "string"
+        },
+        "weiter": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "delayMs",
+        "weiter"
+      ],
+      "type": "object"
+    },
+    "PlaceholderBlock": {
+      "additionalProperties": false,
+      "description": "A placeholder for a text on the pages that use a layout (only exists in a layout): it has no text of its own. What the author sets up is where it stands and how its text looks; the `html` is a sample that carries that formatting (font, size, colour, alignment, ...) - it is never shown on a page. On a page the slot can be clicked to type a text, which then starts out formatted like the sample (see core/document/placeholders.ts).",
+      "properties": {
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "html": {
+          "description": "A sample text that has the formatting (the author edits and formats it like any text).",
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "placeholder",
+          "type": "string"
+        },
+        "label": {
+          "description": "What it is for (\"Titel\", \"Untertitel\", ...): shown in the slot on the pages.",
+          "type": "string"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        }
+      },
+      "required": [
+        "entranceEffect",
+        "exitEffect",
+        "html",
+        "id",
+        "kind",
+        "label",
+        "order",
+        "position"
+      ],
+      "type": "object"
+    },
+    "QuizBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "correctOptionIds": {
+          "items": {
+            "$ref": "#/definitions/UUID"
+          },
+          "type": "array"
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "quiz",
+          "type": "string"
+        },
+        "onCorrect": {
+          "description": "What happens once the quiz as a whole was answered right / wrong (all options as they should be / not).",
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        },
+        "onIncorrect": {
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        },
+        "open": {
+          "description": "An open question rather than a test: nothing is right or wrong. Submitting it is thanked (\"Danke!\") instead of judged, correctOptionIds and onIncorrect are ignored, onCorrect is what happens on submitting (and it counts as \"richtig\" for the page's graph), and an answer's own effects are by whether it is ticked (onRight) or not (onWrong). Optional: a module saved before this is a test.",
+          "type": "boolean"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/definitions/QuizOption"
+          },
+          "type": "array"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "questionHtml": {
+          "description": "Rich HTML, exactly like TextBlock.html - edited in place on the canvas with the same bold/italic/underline/font/size/color toolbar (see EditableText/TextEditor). A module saved before this held HTML is migrated on load (see unpack.ts) by escaping its old plain text into an equivalent paragraph, so every reader can assume this is always already-safe HTML.",
+          "type": "string"
+        },
+        "translations": {
+          "additionalProperties": {
+            "$ref": "#/definitions/BlockTranslation"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "correctOptionIds",
+        "entranceEffect",
+        "exitEffect",
+        "id",
+        "kind",
+        "onCorrect",
+        "onIncorrect",
+        "options",
+        "order",
+        "position",
+        "questionHtml"
+      ],
+      "type": "object"
+    },
+    "QuizOption": {
+      "additionalProperties": false,
+      "description": "One answer of a quiz. An option is \"handled right\" when it is ticked if it is a correct one and left alone if it isn't (so even knowing that an answer is wrong earns something); \"handled wrong\" is the opposite. Each case can have effects of its own (points of one kind or another, minus points ...), independent of the quiz as a whole being right. Optional so that a module saved before they existed loads as it is: no effects.",
+      "properties": {
+        "html": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "onRight": {
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        },
+        "onWrong": {
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "html"
+      ],
+      "type": "object"
+    },
+    "SequenceEntry": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "page",
+              "type": "string"
+            },
+            "order": {
+              "$ref": "#/definitions/OrderKey"
+            },
+            "pageId": {
+              "$ref": "#/definitions/UUID"
+            }
+          },
+          "required": [
+            "kind",
+            "order",
+            "pageId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "logic",
+              "type": "string"
+            },
+            "logicBlockId": {
+              "$ref": "#/definitions/UUID"
+            },
+            "order": {
+              "$ref": "#/definitions/OrderKey"
+            }
+          },
+          "required": [
+            "kind",
+            "logicBlockId",
+            "order"
+          ],
+          "type": "object"
+        }
+      ],
+      "description": "One entry of WeftModule.sequence: a node plus its position in the main sequence."
+    },
+    "ShapeBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "cornerRadii": {
+          "$ref": "#/definitions/ShapeCornerRadii",
+          "description": "Only meaningful for \"rectangle\"."
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "fill": {
+          "$ref": "#/definitions/ShapeFill"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "shape",
+          "type": "string"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "shadow": {
+          "$ref": "#/definitions/ShapeShadow"
+        },
+        "shapeKind": {
+          "$ref": "#/definitions/ShapeKind"
+        },
+        "sides": {
+          "description": "Only meaningful for \"polygon\" - 3-20.",
+          "type": "number"
+        },
+        "starInnerRadius": {
+          "description": "Only meaningful for \"star\" - how far in the star's inner vertices sit, 0-100 percent of the outer radius; 100 would collapse it into a regular (starPoints*2)-gon.",
+          "type": "number"
+        },
+        "starPoints": {
+          "description": "Only meaningful for \"star\" - 3-20.",
+          "type": "number"
+        },
+        "stroke": {
+          "$ref": "#/definitions/ShapeStroke"
+        }
+      },
+      "required": [
+        "cornerRadii",
+        "entranceEffect",
+        "exitEffect",
+        "fill",
+        "id",
+        "kind",
+        "order",
+        "position",
+        "shadow",
+        "shapeKind",
+        "sides",
+        "starInnerRadius",
+        "starPoints",
+        "stroke"
+      ],
+      "type": "object"
+    },
+    "ShapeCornerRadii": {
+      "additionalProperties": false,
+      "description": "One rounding value per corner of a \"rectangle\" ShapeBlock - each 0 (sharp) to 50 (fully rounded/pill-shaped at that corner), as a percent of the block's own shorter *true* on-slide side (its actual rendered width vs height, accounting for both the slide's own aspect ratio and the block's own on-slide width/height - see ShapeSvg.tsx's roundedRectPath) - not of the abstract 0-100 square every shape is drawn in before being stretched to the block's own shape. That distinction is what keeps a corner a true circular arc rather than turning elliptical the moment the block itself isn't square, matching what \"rounded rectangle\" means in PowerPoint/ Keynote (which only ever expose one shared radius via a single handle - ShapeEditor in panels/BlockPanel.tsx additionally lets all four be set independently).",
+      "properties": {
+        "bottomLeft": {
+          "type": "number"
+        },
+        "bottomRight": {
+          "type": "number"
+        },
+        "topLeft": {
+          "type": "number"
+        },
+        "topRight": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "topLeft",
+        "topRight",
+        "bottomRight",
+        "bottomLeft"
+      ],
+      "type": "object"
+    },
+    "ShapeFill": {
+      "additionalProperties": false,
+      "description": "A shape's own fill - \"none\" (see-through, stroke-only), a flat color, or a gradient. Only the fields matching `type` are actually read when rendering; the others still round-trip in the document so switching the fill type back and forth in the editor never loses whatever was last configured on the side that isn't currently showing.",
+      "properties": {
+        "color": {
+          "description": "Only meaningful for \"solid\".",
+          "type": "string"
+        },
+        "gradient": {
+          "$ref": "#/definitions/ShapeGradient",
+          "description": "Only meaningful for \"gradient\"."
+        },
+        "opacity": {
+          "type": "number"
+        },
+        "type": {
+          "$ref": "#/definitions/ShapeFillType"
+        }
+      },
+      "required": [
+        "type",
+        "color",
+        "opacity",
+        "gradient"
+      ],
+      "type": "object"
+    },
+    "ShapeFillType": {
+      "enum": [
+        "none",
+        "solid",
+        "gradient"
+      ],
+      "type": "string"
+    },
+    "ShapeGradient": {
+      "additionalProperties": false,
+      "properties": {
+        "angle": {
+          "description": "Degrees, only meaningful for \"linear\" - 0 points right, 90 points down, matching BlockPosition.rotation's own clockwise-from-horizontal convention.",
+          "type": "number"
+        },
+        "kind": {
+          "$ref": "#/definitions/ShapeGradientKind"
+        },
+        "stops": {
+          "description": "At least two - see GradientStopsEditor in panels/BlockPanel.tsx, which never lets the count drop below that (a one-stop gradient isn't a gradient). Not required to be sorted by offset; SVG/CSS both render stops in list order regardless of their own offset values.",
+          "items": {
+            "$ref": "#/definitions/ShapeGradientStop"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "angle",
+        "stops"
+      ],
+      "type": "object"
+    },
+    "ShapeGradientKind": {
+      "enum": [
+        "linear",
+        "radial"
+      ],
+      "type": "string"
+    },
+    "ShapeGradientStop": {
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "offset": {
+          "description": "Percent along the gradient, 0-100.",
+          "type": "number"
+        },
+        "opacity": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "offset",
+        "color",
+        "opacity"
+      ],
+      "type": "object"
+    },
+    "ShapeKind": {
+      "description": "The basic PowerPoint/Keynote-style shapes ShapeBlock supports - \"polygon\" is any regular n-gon (ShapeBlock.sides picks n), not a free-form outline; there's no path editor.",
+      "enum": [
+        "rectangle",
+        "ellipse",
+        "polygon",
+        "star"
+      ],
+      "type": "string"
+    },
+    "ShapeShadow": {
+      "additionalProperties": false,
+      "properties": {
+        "blur": {
+          "description": "cqw, all three - see ShapeStroke.width's own doc comment for why.",
+          "type": "number"
+        },
+        "color": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "offsetX": {
+          "type": "number"
+        },
+        "offsetY": {
+          "type": "number"
+        },
+        "opacity": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "enabled",
+        "color",
+        "opacity",
+        "blur",
+        "offsetX",
+        "offsetY"
+      ],
+      "type": "object"
+    },
+    "ShapeStroke": {
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "opacity": {
+          "type": "number"
+        },
+        "style": {
+          "$ref": "#/definitions/ShapeStrokeStyle"
+        },
+        "width": {
+          "description": "cqw (percent of the slide's own rendered width - the same unit block text is sized in, see App.css's .weft-edit-block) rather than a plain pixel count, so a stroke's visual weight stays constant when this particular shape is resized (matching how a PowerPoint line weight doesn't stretch along with the shape) while still scaling along with everything else when the whole slide is displayed larger or smaller (e.g. presenting on a projector).",
+          "type": "number"
+        }
+      },
+      "required": [
+        "enabled",
+        "color",
+        "width",
+        "style",
+        "opacity"
+      ],
+      "type": "object"
+    },
+    "ShapeStrokeStyle": {
+      "enum": [
+        "solid",
+        "dashed",
+        "dotted"
+      ],
+      "type": "string"
+    },
+    "StaticBlock": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/TextBlock"
+        },
+        {
+          "$ref": "#/definitions/PlaceholderBlock"
+        },
+        {
+          "$ref": "#/definitions/ListBlock"
+        },
+        {
+          "$ref": "#/definitions/LanguageBlock"
+        },
+        {
+          "$ref": "#/definitions/CodeBlock"
+        },
+        {
+          "$ref": "#/definitions/TexBlock"
+        },
+        {
+          "$ref": "#/definitions/ImageBlock"
+        },
+        {
+          "$ref": "#/definitions/VideoBlock"
+        },
+        {
+          "$ref": "#/definitions/IframeBlock"
+        },
+        {
+          "$ref": "#/definitions/ButtonBlock"
+        },
+        {
+          "$ref": "#/definitions/ShapeBlock"
+        },
+        {
+          "$ref": "#/definitions/ArrowBlock"
+        },
+        {
+          "$ref": "#/definitions/FilesBlock"
+        }
+      ],
+      "description": "Blocks a Layout may contain. Quiz (or any future graded/interactive block) is deliberately excluded here: a Layout is a page template, and templates must not carry graded state. A navigation button (or a shape, which carries no state at all) has nothing graded to exclude, so\n- unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent background shape or \"Weiter\" button into every slide of that layout."
+    },
+    "TexBlock": {
+      "additionalProperties": false,
+      "description": "A TeX formula (rendered with KaTeX in display mode, so it may span several lines via a double backslash). Behaves like an image on the slide: it is scaled to fit its box (contain), so resizing the box resizes the formula. Formatting is deliberately limited to the block as a whole (`color`) plus whatever TeX commands the author writes into `tex` itself (e.g. a color command around part of it).",
+      "properties": {
+        "color": {
+          "description": "CSS color for the whole formula; \"\" = inherit the slide's own text color.",
+          "type": "string"
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "tex",
+          "type": "string"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "tex": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "color",
+        "entranceEffect",
+        "exitEffect",
+        "id",
+        "kind",
+        "order",
+        "position",
+        "tex"
+      ],
+      "type": "object"
+    },
+    "TextBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "html": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "text",
+          "type": "string"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "placeholderOf": {
+          "$ref": "#/definitions/UUID",
+          "description": "Set on a text a page has for a placeholder of its layout (see PlaceholderBlock): the id of that layout block. The text is the page's own - it can be edited and formatted like any text - but where it stands is the placeholder's, and \"reset\" brings back the placeholder's formatting. When the layout has no such placeholder any more (another layout was chosen, it was removed) it is a plain text."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "scrollable": {
+          "description": "Text longer than the block can be scrolled vertically (never horizontally). Off by default - and absent on every block saved before this existed, which therefore stay unscrollable: the overflowing text is simply cut off at the block's edge.",
+          "type": "boolean"
+        },
+        "translations": {
+          "additionalProperties": {
+            "$ref": "#/definitions/BlockTranslation"
+          },
+          "description": "Other languages' wording, by locale (\"fr_FR\") - see BlockTranslation.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "entranceEffect",
+        "exitEffect",
+        "html",
+        "id",
+        "kind",
+        "order",
+        "position"
+      ],
+      "type": "object"
+    },
+    "Transition": {
+      "additionalProperties": false,
+      "properties": {
+        "contentOnly": {
+          "description": "\"move\" only: slide just the page's own content while the slide itself (background and the layout's blocks) stays put - possible only when the next slide uses the same layout, otherwise the whole slide moves regardless (with the content trailing it by a few ms).",
+          "type": "boolean"
+        },
+        "direction": {
+          "$ref": "#/definitions/TransitionDirection",
+          "description": "\"move\" and \"cube\" only. Absent = that type's default (see defaultDirection in document/transitions.ts) - every option below is optional so a module saved before it existed still loads."
+        },
+        "durationMs": {
+          "description": "Only meaningful when type isn't \"none\" - how long the animation takes, in milliseconds. Defaults to 500 (see setPageTransition/setPageTransitionDuration in document/actions.ts).",
+          "type": "number"
+        },
+        "hardEdge": {
+          "description": "\"iris\" only: a hard-edged circle instead of the default soft one.",
+          "type": "boolean"
+        },
+        "irisCenter": {
+          "additionalProperties": false,
+          "description": "\"iris\" only: where the circle opens from, in percent of the slide. Absent = the middle.",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y"
+          ],
+          "type": "object"
+        },
+        "type": {
+          "$ref": "#/definitions/TransitionType"
+        }
+      },
+      "required": [
+        "type",
+        "durationMs"
+      ],
+      "type": "object"
+    },
+    "TransitionDirection": {
+      "description": "Which way the OUTGOING slide travels (a Move slides it off that way, a Cube turns that way) - the incoming one arrives from the opposite side.",
+      "enum": [
+        "left",
+        "right",
+        "up",
+        "down"
+      ],
+      "type": "string"
+    },
+    "TransitionType": {
+      "description": "Every kind of transition Weft knows how to animate the move to the *next* node with - \"none\" is an instant cut, all others are animated (see player.runtime.js's animateTransition). Kept as its own type rather than inlined into Transition so the player and the editor's own options list (see document/transitions.ts) can both reference just this.",
+      "enum": [
+        "none",
+        "fade",
+        "move",
+        "iris",
+        "cube",
+        "blur",
+        "horror"
+      ],
+      "type": "string"
+    },
+    "UUID": {
+      "type": "string"
+    },
+    "VariableCondition": {
+      "additionalProperties": false,
+      "properties": {
+        "comparator": {
+          "enum": [
+            "eq",
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte"
+          ],
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/definitions/VariableValue"
+        },
+        "variableId": {
+          "$ref": "#/definitions/UUID"
+        }
+      },
+      "required": [
+        "variableId",
+        "comparator",
+        "value"
+      ],
+      "type": "object"
+    },
+    "VariableDef": {
+      "additionalProperties": false,
+      "properties": {
+        "expression": {
+          "description": "The formula of a \"computed\" variable; absent on every other type.",
+          "type": "string"
+        },
+        "fixed": {
+          "description": "A built-in variable (`success`): always present, never renamed or removed, and a Ja/Nein either way - its type can only be switched between \"boolean\" (set by hand/quiz effects) and \"computed\" (a formula, whose result is read as Ja/Nein). See ensureBuiltinVariables in core/document/variables.ts.",
+          "type": "boolean"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "initialValue": {
+          "$ref": "#/definitions/VariableValue"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/VariableType"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "type",
+        "initialValue"
+      ],
+      "type": "object"
+    },
+    "VariableEffect": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "const": "set",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/definitions/VariableValue"
+            },
+            "variableId": {
+              "$ref": "#/definitions/UUID"
+            }
+          },
+          "required": [
+            "variableId",
+            "op",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "const": "add",
+              "type": "string"
+            },
+            "value": {
+              "type": "number"
+            },
+            "variableId": {
+              "$ref": "#/definitions/UUID"
+            }
+          },
+          "required": [
+            "variableId",
+            "op",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "const": "append",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            },
+            "variableId": {
+              "$ref": "#/definitions/UUID"
+            }
+          },
+          "required": [
+            "variableId",
+            "op",
+            "value"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "VariableType": {
+      "description": "\"computed\" is a variable whose value is never stored: it is worked out from other variables by its `expression` every time it is read (see core/document/expressions.ts for the language).",
+      "enum": [
+        "number",
+        "string",
+        "boolean",
+        "computed"
+      ],
+      "type": "string"
+    },
+    "VariableValue": {
+      "type": [
+        "number",
+        "string",
+        "boolean"
+      ]
+    },
+    "VideoBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "assetId": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UUID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "autoplay": {
+          "type": "boolean"
+        },
+        "controls": {
+          "type": "boolean"
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "video",
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        },
+        "muted": {
+          "description": "Autoplay only ever actually starts when this is true too (every browser's autoplay policy requires it) - BlockPanel.tsx keeps the two in sync in the UI so that's never a silent trap.",
+          "type": "boolean"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "stopPoints": {
+          "description": "Always kept sorted by timeSeconds (see VideoStopPointDialog) - so both the dialog's own mini-timeline and any future reader can assume ascending order rather than re-sorting.",
+          "items": {
+            "$ref": "#/definitions/VideoStopPoint"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "assetId",
+        "autoplay",
+        "controls",
+        "entranceEffect",
+        "exitEffect",
+        "id",
+        "kind",
+        "loop",
+        "muted",
+        "order",
+        "position",
+        "stopPoints"
+      ],
+      "type": "object"
+    },
+    "VideoStopPoint": {
+      "additionalProperties": false,
+      "description": "A point on a video's own timeline - an event and a trigger at once (see VideoStopPointDialog in panels/BlockPanel.tsx): something is meant to happen once playback reaches it, though what isn't modeled yet beyond stopsVideo.",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "stopsVideo": {
+          "description": "Whether reaching this point actually pauses the video (the \"Video hier stoppen\" checkbox in VideoStopPointDialog) - off just marks the moment without interrupting playback. Defaults to true, since pausing is the only thing a stop point can actually do today.",
+          "type": "boolean"
+        },
+        "timeSeconds": {
+          "description": "Seconds into the video's own playback.",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "timeSeconds",
+        "stopsVideo"
+      ],
+      "type": "object"
+    },
+    "WeftFileJson": {
+      "additionalProperties": false,
+      "description": "What weft.json in a .weft file holds, and what docs/weft.schema.json describes (generated from this type: `npm run schema`). Other tools - the command line tool in cli/, or a program that builds a module - read and write exactly this.",
+      "properties": {
+        "content": {
+          "$ref": "#/definitions/WeftModule"
+        },
+        "formatVersion": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "formatVersion",
+        "content"
+      ],
+      "type": "object"
+    },
+    "WeftModule": {
+      "additionalProperties": false,
+      "properties": {
+        "aspectRatio": {
+          "$ref": "#/definitions/AspectRatio"
+        },
+        "assets": {
+          "items": {
+            "$ref": "#/definitions/AssetMeta"
+          },
+          "type": "array"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "customFonts": {
+          "items": {
+            "$ref": "#/definitions/CustomFont"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID",
+          "description": "Set once with crypto.randomUUID() at creation and never reused, so an LMS can key progress on it forever."
+        },
+        "keyboardNavigationEnabled": {
+          "description": "On by default (matches every module saved before this existed - see unpack.ts's migration). Switched off, the player ignores Space/←/→ entirely - only an author-placed button block or a quiz's own onCorrect/onIncorrect effects can move the learner forward or back. The main reason to turn it off: without it, nothing stops a learner from pressing ← to back up past a quiz they've already answered and retake it.",
+          "type": "boolean"
+        },
+        "languages": {
+          "description": "The languages this module is offered in, as locales (\"de_DE\", \"en_US\" - see core/i18n/languages.ts), the first being the default one. Empty (the default) means a single-language module: no `userlanguage` variable, no language switchers, nothing translated.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "layouts": {
+          "additionalProperties": {
+            "$ref": "#/definitions/Layout"
+          },
+          "type": "object"
+        },
+        "logicBlocks": {
+          "additionalProperties": {
+            "$ref": "#/definitions/LogicBlock"
+          },
+          "type": "object"
+        },
+        "modifiedAt": {
+          "type": "string"
+        },
+        "pages": {
+          "additionalProperties": {
+            "$ref": "#/definitions/Page"
+          },
+          "type": "object"
+        },
+        "sequence": {
+          "additionalProperties": {
+            "$ref": "#/definitions/SequenceEntry"
+          },
+          "description": "The main sequence, by the id of the page / logic block each entry stands for; played in each entry's own `order` (see ordering.ts's orderedValues, and sequenceOf in document/sequence.ts).",
+          "type": "object"
+        },
+        "title": {
+          "type": "string"
+        },
+        "variables": {
+          "items": {
+            "$ref": "#/definitions/VariableDef"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "aspectRatio",
+        "createdAt",
+        "modifiedAt",
+        "variables",
+        "layouts",
+        "pages",
+        "logicBlocks",
+        "sequence",
+        "assets",
+        "customFonts",
+        "languages",
+        "keyboardNavigationEnabled"
+      ],
+      "type": "object"
+    }
+  }
+}

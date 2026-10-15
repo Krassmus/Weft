@@ -1,0 +1,492 @@
+import Ajv from "ajv";
+import type { ErrorObject } from "ajv";
+import schema from "../docs/weft.schema.json";
+import { buildGraphModel } from "../src/features/editor/eventGraph/model";
+import { orderedValues } from "../src/core/document/ordering";
+import { pageLabels } from "../src/core/document/pageLabels";
+import { branchPageIds, sequenceOf } from "../src/core/document/sequence";
+import { isTranslated, plainTextOfHtml } from "../src/core/document/translations";
+import { placeholderSources } from "../src/core/document/variablePlaceholders";
+import { virtualVariablesFor } from "../src/core/document/virtualVariables";
+import { listAllNodes } from "../src/core/document/pageTimeline";
+import { CURRENT_FORMAT_VERSION } from "../src/core/types";
+import type { Block, Page, TimelineNode, VariableEffect, WeftModule } from "../src/core/types";
+import type { LoadedWeft } from "./load";
+import { blockSummary } from "./text";
+
+export type Severity = "error" | "warning" | "info";
+
+export interface Finding {
+  severity: Severity;
+  /** A short stable name of the kind of finding ("button-target-missing"): what a program can act on. */
+  code: string;
+  message: string;
+  /** What to do about it, where there is something obvious. */
+  hint?: string;
+  /** Where: a page by its number in the sidebar ("2.a.1") and id, a block by its id. */
+  page?: { label: string; id: string };
+  layout?: { name: string; id: string };
+  blockId?: string;
+}
+
+const MAX_SCHEMA_FINDINGS = 25;
+
+// ---- the schema ---------------------------------------------------------------------------------------------------------------
+
+/** The schema with every kind of block opened up to "any object": the blocks are checked one by one against the definition of their
+ * own kind (a union of seventeen kinds says only "none of them matches", which tells nobody what is wrong). */
+function moduleSchema() {
+  const copy = JSON.parse(JSON.stringify(schema)) as { definitions: Record<string, unknown> };
+  copy.definitions.Block = { type: "object" };
+  copy.definitions.StaticBlock = { type: "object" };
+  return copy;
+}
+
+const KIND_DEFINITIONS: Record<string, string> = {
+  text: "TextBlock",
+  placeholder: "PlaceholderBlock",
+  language: "LanguageBlock",
+  code: "CodeBlock",
+  tex: "TexBlock",
+  image: "ImageBlock",
+  video: "VideoBlock",
+  iframe: "IframeBlock",
+  button: "ButtonBlock",
+  quiz: "QuizBlock",
+  cloze: "ClozeBlock",
+  shape: "ShapeBlock",
+  arrow: "ArrowBlock",
+  files: "FilesBlock",
+  list: "ListBlock",
+};
+
+function describe(error: ErrorObject): string {
+  const where = error.instancePath || "(Wurzel)";
+  if (error.keyword === "additionalProperties") return `${where}: unbekanntes Feld „${(error.params as { additionalProperty: string }).additionalProperty}"`;
+  if (error.keyword === "required") return `${where}: Feld „${(error.params as { missingProperty: string }).missingProperty}" fehlt`;
+  if (error.keyword === "enum") return `${where}: ${error.message} (${((error.params as { allowedValues: unknown[] }).allowedValues ?? []).join(", ")})`;
+  return `${where}: ${error.message}`;
+}
+
+function schemaFindings(loaded: LoadedWeft, labels: Record<string, string>): Finding[] {
+  const ajv = new Ajv({ allErrors: true, strict: false });
+  const whole = ajv.compile(moduleSchema());
+  const findings: Finding[] = [];
+  const add = (message: string, extra: Partial<Finding> = {}) => findings.push({ severity: "error", code: "schema", message, ...extra });
+  // A field the format does not know is harmless (Weft ignores it) - a wrong or missing one is not.
+  const addError = (error: ErrorObject, extra: Partial<Finding> = {}, prefix = "") => {
+    if (error.keyword === "additionalProperties") {
+      findings.push({ severity: "warning", code: "schema-unknown-field", message: prefix + describe(error), hint: "Das Feld entfernen.", ...extra });
+    } else {
+      add(prefix + describe(error), extra);
+    }
+  };
+
+  if (!whole(loaded.json)) {
+    for (const error of whole.errors ?? []) addError(error);
+  }
+
+  // Every block against the definition of its own kind.
+  const validators = new Map<string, ReturnType<typeof ajv.compile>>();
+  const validatorFor = (kind: string) => {
+    const name = KIND_DEFINITIONS[kind];
+    if (!name) return null;
+    let validator = validators.get(kind);
+    if (!validator) {
+      validator = ajv.compile({ ...(schema as object), $ref: `#/definitions/${name}` } as object);
+      validators.set(kind, validator);
+    }
+    return validator;
+  };
+  const checkBlocks = (blocks: Record<string, Block> | undefined, where: Partial<Finding>) => {
+    for (const [key, block] of Object.entries(blocks ?? {})) {
+      if (!block || typeof block !== "object") {
+        add(`Block „${key}" ist kein Objekt.`, where);
+        continue;
+      }
+      const loose = block as { kind?: string; id?: string };
+      const validator = validatorFor(loose.kind ?? "");
+      if (!validator) {
+        add(`Block „${key}" hat die unbekannte Art „${String(loose.kind)}“.`, { ...where, blockId: loose.id ?? key });
+        continue;
+      }
+      if (!validator(block)) {
+        for (const error of validator.errors ?? []) {
+          addError(error, { ...where, blockId: loose.id ?? key }, `Block ${loose.kind}: `);
+        }
+      }
+    }
+  };
+  for (const [pageId, page] of Object.entries(loaded.content.pages ?? {})) {
+    // (A page that has no place in the overview is a deleted one - see validate.)
+    if (!labels[pageId]) continue;
+    checkBlocks(page?.blocks, { page: { label: labels[pageId], id: pageId } });
+  }
+  for (const [layoutId, layout] of Object.entries(loaded.content.layouts ?? {})) {
+    checkBlocks(layout?.blocks, { layout: { name: layout?.name ?? "?", id: layoutId } });
+  }
+
+  if (findings.length > MAX_SCHEMA_FINDINGS) {
+    const rest = findings.length - MAX_SCHEMA_FINDINGS;
+    findings.length = MAX_SCHEMA_FINDINGS;
+    findings.push({ severity: "warning", code: "schema", message: `… und ${rest} weitere Abweichungen vom Schema.` });
+  }
+  return findings;
+}
+
+// ---- helpers --------------------------------------------------------------------------------------------------------------------
+
+const NAME_IN_NODE = /\{\{([^{}<>]*)\}\}/g;
+const NAME_IN_TEXT = /\{\{([^{}]*)\}\}/g;
+
+/** What is wrong with the {{placeholders}} in some html (as findPlaceholderProblems in core/document/variablePlaceholders.ts says it,
+ * which needs a DOM): a name that is no variable, or a name with formatting in the middle. */
+function placeholderProblems(html: string, names: ReadonlySet<string>): string[] {
+  if (!html.includes("{{")) return [];
+  const problems: string[] = [];
+  const recognised = [...html.matchAll(NAME_IN_NODE)].map((m) => m[0]);
+  for (const raw of recognised) {
+    const name = raw.slice(2, -2).trim();
+    if (!names.has(name)) problems.push(`Die Variable „${name}" gibt es nicht.`);
+  }
+  const remaining = [...recognised];
+  const text = html.replace(/<[^>]*>/g, "");
+  for (const match of text.matchAll(NAME_IN_TEXT)) {
+    const index = remaining.indexOf(match[0]);
+    if (index >= 0) remaining.splice(index, 1);
+    else problems.push(`${match[0]} hat Formatierung mitten im Namen und kann nicht ausgewertet werden.`);
+  }
+  return problems;
+}
+
+function effectsOf(block: Block): { effects: VariableEffect[]; what: string }[] {
+  const groups: { effects: VariableEffect[]; what: string }[] = [];
+  if (block.kind === "quiz") {
+    groups.push({ effects: block.onCorrect ?? [], what: "bei richtiger Antwort" }, { effects: block.onIncorrect ?? [], what: "bei falscher Antwort" });
+    for (const option of block.options ?? []) {
+      groups.push({ effects: option.onRight ?? [], what: "bei richtig behandelter Option" }, { effects: option.onWrong ?? [], what: "bei falsch behandelter Option" });
+    }
+  } else if (block.kind === "cloze") {
+    groups.push({ effects: block.onCorrect ?? [], what: "wenn alles richtig ist" }, { effects: block.onIncorrect ?? [], what: "wenn etwas falsch ist" });
+    groups.push({ effects: block.onEachCorrect ?? [], what: "bei jeder richtigen Lücke" });
+    for (const effects of Object.values(block.answerEffects ?? {})) groups.push({ effects, what: "bei einer bestimmten Antwort" });
+  } else if (block.kind === "button") {
+    groups.push({ effects: block.onClick ?? [], what: "beim Klick" });
+  }
+  return groups;
+}
+
+/** Where a node of a page's event graph is in words (for a message). */
+export function eventLabel(page: Page, node: TimelineNode, content: WeftModule, labels: Record<string, string>): string {
+  const custom = page.timeline?.titles?.[node.id]?.trim();
+  if (custom) return `„${custom}"`;
+  if (node.kind === "start") return "Start der Folie";
+  if (node.kind === "end") return "Nächste Folie";
+  const block = node.sourceBlockId ? (page.blocks[node.sourceBlockId] ?? undefined) : undefined;
+  const summary = block ? blockSummary(block, content, labels) : "";
+  const what = block ? ` (${summary.length > 40 ? `${summary.slice(0, 39)}…` : summary})` : "";
+  const names: Record<string, string> = {
+    "block-entrance": "Aufbau",
+    "block-exit": "Abbau",
+    "group-entrance": "Aufbau einer Gruppe",
+    "group-exit": "Abbau einer Gruppe",
+    "list-item-entrance": "Aufbau eines Listenpunkts",
+    "button-click": "Button geklickt",
+    "quiz-fill-start": "Quiz: erste Antwort gewählt",
+    "quiz-submit": "Quiz abgeschickt",
+    "quiz-submit-correct": "Quiz richtig abgeschickt",
+    "quiz-submit-incorrect": "Quiz falsch abgeschickt",
+    "video-start-auto": "Video startet",
+    "video-start-manual": "Video wird gestartet",
+    "video-stop-point": "Zeitmarke des Videos erreicht",
+    "video-resume": "Video läuft weiter",
+    "video-end-loop": "Video (Schleife)",
+    "video-end-stop": "Video zu Ende",
+  };
+  return `${names[node.eventType ?? ""] ?? node.eventType ?? node.id}${what}`;
+}
+
+// ---- the checks -----------------------------------------------------------------------------------------------------------------
+
+export function validate(loaded: LoadedWeft): Finding[] {
+  const { content } = loaded;
+  const findings: Finding[] = [];
+  const add = (severity: Severity, code: string, message: string, extra: Partial<Finding> = {}) =>
+    findings.push({ severity, code, message, ...extra });
+
+  // Format version.
+  if (loaded.json.formatVersion > CURRENT_FORMAT_VERSION) {
+    add("error", "format-version", `Die Datei hat das Format ${loaded.json.formatVersion}, dieses Weft kennt bis ${CURRENT_FORMAT_VERSION}.`, {
+      hint: "Mit einer neueren Weft-Version öffnen.",
+    });
+  } else if (loaded.json.formatVersion < CURRENT_FORMAT_VERSION) {
+    add("warning", "format-version", `Die Datei hat das ältere Format ${loaded.json.formatVersion} (aktuell ${CURRENT_FORMAT_VERSION}). Weitere Prüfungen können Meldungen erzeugen, die es nach dem Öffnen nicht mehr gibt.`, {
+      hint: "In Weft öffnen und einmal speichern - dabei wird die Datei auf das aktuelle Format gebracht.",
+    });
+  }
+
+  // Shape - everything else relies on it being there.
+  const collections = ["pages", "layouts", "logicBlocks", "sequence"] as const;
+  const broken = collections.filter((name) => !content[name] || typeof content[name] !== "object");
+  if (broken.length > 0 || !Array.isArray(content.variables) || !Array.isArray(content.assets)) {
+    add("error", "schema", `Es fehlen Teile von „content": ${[...broken, ...(Array.isArray(content.variables) ? [] : ["variables"]), ...(Array.isArray(content.assets) ? [] : ["assets"])].join(", ")}.`);
+    return findings;
+  }
+
+  const labels = pageLabels(content);
+  const pageRef = (pageId: string) => ({ label: labels[pageId] ?? `(nicht eingeordnet) ${pageId.slice(0, 8)}`, id: pageId });
+
+  findings.push(...schemaFindings(loaded, labels));
+
+  const variableIds = new Set(content.variables.map((v) => v.id));
+  const variableNames = new Set([...content.variables.map((v) => v.name), ...virtualVariablesFor(content.languages ?? []).map((v) => v.name)]);
+
+  // Variables.
+  const seenNames = new Map<string, number>();
+  for (const variable of content.variables) seenNames.set(variable.name, (seenNames.get(variable.name) ?? 0) + 1);
+  for (const [name, count] of seenNames) {
+    if (count > 1) add("warning", "variable-duplicate", `Es gibt ${count} Variablen mit dem Namen „${name}".`, { hint: "Namen müssen eindeutig sein, sonst bleibt unklar, welche in {{ }} gemeint ist." });
+  }
+
+  // The sequence: every page of the module is in it, once.
+  const placed = new Set<string>();
+  /** The pages in the order they are played (messages follow it). */
+  const playOrder: string[] = [];
+  for (const entry of sequenceOf(content)) {
+    if (entry.kind === "page") {
+      if (!content.pages[entry.pageId]) add("error", "sequence-page-missing", `Die Folienübersicht verweist auf die Folie ${entry.pageId}, die es nicht gibt.`);
+      placed.add(entry.pageId);
+      playOrder.push(entry.pageId);
+    } else {
+      const logic = content.logicBlocks[entry.logicBlockId];
+      if (!logic) {
+        add("error", "sequence-logic-missing", `Die Folienübersicht verweist auf den Verzweigungsblock ${entry.logicBlockId}, den es nicht gibt.`);
+        continue;
+      }
+      for (const branch of logic.branches ?? []) {
+        for (const pageId of branchPageIds(branch)) {
+          if (!content.pages[pageId]) add("error", "branch-page-missing", `Ein Zweig von „${logic.name}" verweist auf die Folie ${pageId}, die es nicht gibt.`);
+          placed.add(pageId);
+          playOrder.push(pageId);
+        }
+        if (branch.condition && !variableIds.has(branch.condition.variableId)) {
+          add("error", "condition-variable-missing", `Die Bedingung des Zweigs „${branch.label}" in „${logic.name}" benutzt eine Variable, die es nicht gibt.`);
+        }
+      }
+    }
+  }
+
+  const pages = [
+    ...playOrder.filter((id) => content.pages[id]).map((id) => [id, content.pages[id]] as const),
+    ...Object.entries(content.pages).filter(([id]) => !placed.has(id)),
+  ];
+  const deleted = pages.filter(([id]) => !placed.has(id)).length;
+  if (deleted > 0) {
+    add("info", "page-deleted", `${deleted} gelöschte Folie(n) stecken noch in der Datei (beim Löschen verschwindet nur der Platz in der Folienübersicht). Weft ignoriert sie.`);
+  }
+  for (const [pageId, page] of pages) {
+    const ref = pageRef(pageId);
+    // A page that was deleted stays in the file (deleting removes only its place in the overview, so that edits made at the same
+    // time by somebody else still find it): nothing in it matters.
+    if (!placed.has(pageId)) continue;
+    if (page.layoutId && !content.layouts[page.layoutId]) {
+      add("error", "layout-missing", `Das Layout ${page.layoutId} der Folie gibt es nicht.`, { page: ref, hint: "Der Folie ein vorhandenes Layout zuweisen (layoutId) oder null." });
+    }
+    // A jump page.
+    if (page.jump) {
+      const known = (id: string | null | undefined) => !id || (content.pages[id] && !content.pages[id].jump);
+      for (const target of page.jump.targets ?? []) {
+        if (!content.pages[target.pageId]) add("error", "jump-target-missing", `Ein Sprungziel der Sprung-Folie ${ref.label} gibt es nicht mehr.`, { page: ref });
+        else if (content.pages[target.pageId].jump) add("warning", "jump-target-is-jump", `Ein Sprungziel der Sprung-Folie ${ref.label} ist selbst eine Sprung-Folie.`, { page: ref });
+        if (!variableIds.has(target.condition?.variableId)) add("error", "condition-variable-missing", `Eine Bedingung der Sprung-Folie ${ref.label} benutzt eine Variable, die es nicht gibt.`, { page: ref });
+      }
+      if (!known(page.jump.defaultPageId)) add("error", "jump-target-missing", `Das Standardziel der Sprung-Folie ${ref.label} gibt es nicht.`, { page: ref });
+      continue;
+    }
+    // Groups.
+    for (const group of page.groups ?? []) {
+      for (const blockId of group.blockIds) {
+        if (!page.blocks[blockId]) add("warning", "group-block-missing", `Eine Gruppe der Folie ${ref.label} enthält einen Block, den es nicht gibt.`, { page: ref, blockId });
+      }
+    }
+  }
+
+  // Blocks.
+  const languages = content.languages ?? [];
+  const defaultLanguage = languages[0] ?? null;
+  const untranslated = new Map<string, { page?: Finding["page"]; layout?: Finding["layout"]; language: string; blockIds: string[] }>();
+
+  const checkBlock = (block: Block, where: { page?: Finding["page"]; layout?: Finding["layout"] }) => {
+    const here = { ...where, blockId: block.id };
+    const isLayout = !!where.layout;
+
+    // Position.
+    const p = block.position;
+    if (p && (p.x < -0.5 || p.y < -0.5 || p.x + p.width > 100.5 || p.y + p.height > 100.5)) {
+      add("warning", "block-off-slide", `${block.kind}-Block liegt (teilweise) außerhalb der Folie.`, { ...here, hint: "position so setzen, dass x+width und y+height höchstens 100 sind." });
+    }
+    if (p && (p.width <= 0 || p.height <= 0)) add("error", "block-no-size", `${block.kind}-Block hat keine Größe.`, here);
+
+    // Placeholders.
+    if (block.kind === "placeholder" && !isLayout) {
+      add("error", "placeholder-on-page", "Ein Platzhalter-Text kann nur in einem Layout stehen.", { ...here, hint: "Den Block in ein Layout verschieben oder in einen Text-Block umwandeln." });
+    }
+    if (block.kind === "text" && block.placeholderOf) {
+      const layout = where.page ? content.layouts[content.pages[where.page.id].layoutId ?? ""] : undefined;
+      const target = layout?.blocks[block.placeholderOf];
+      if (!target || target.kind !== "placeholder") {
+        add("warning", "placeholder-link-broken", "Der Text gehört zu einem Platzhalter, den das Layout der Folie nicht hat - er verhält sich wie ein gewöhnlicher Text.", { ...here, hint: "placeholderOf entfernen." });
+      }
+    }
+
+    // Media.
+    if ((block.kind === "image" || block.kind === "video") && block.assetId) {
+      const meta = content.assets.find((a) => a.id === block.assetId);
+      if (!meta) add("error", "asset-missing", `${block.kind}-Block verweist auf die Datei ${block.assetId}, die nicht in der Liste der Dateien steht.`, here);
+      else if (loaded.archive && !loaded.files.has(`assets/${meta.id}_${meta.fileName}`)) {
+        add("error", "asset-file-missing", `Die Datei „${meta.fileName}" fehlt im Archiv.`, { ...here, hint: "Das Bild/Video neu einfügen." });
+      }
+    }
+    if ((block.kind === "image" || block.kind === "video") && !block.assetId) {
+      add("warning", "media-empty", `${block.kind}-Block hat noch keine Datei.`, here);
+    }
+    if (block.kind === "image" && block.assetId && !block.alt?.trim()) {
+      add("info", "image-no-alt", "Bild ohne Alternativtext.", here);
+    }
+
+    // Variables in effects.
+    for (const { effects, what } of effectsOf(block)) {
+      for (const effect of effects) {
+        if (!variableIds.has(effect.variableId)) {
+          add("error", "effect-variable-missing", `${block.kind}-Block ändert ${what} eine Variable, die es nicht gibt.`, here);
+        }
+      }
+    }
+
+    // Button.
+    if (block.kind === "button") {
+      if (block.action === "goto") {
+        if (!block.targetPageId) add("warning", "button-target-empty", "Button springt zu einer Folie, hat aber kein Ziel.", { ...here, hint: "targetPageId setzen." });
+        else if (!content.pages[block.targetPageId]) add("error", "button-target-missing", "Button springt zu einer Folie, die es nicht mehr gibt.", { ...here, hint: "Ein vorhandenes Ziel (targetPageId) wählen." });
+      }
+      if (!plainTextOfHtml(block.html ?? block.text).trim()) add("info", "button-no-text", "Button ohne Text (der Player zeigt „Weiter“).", here);
+    }
+
+    // Quiz.
+    if (block.kind === "quiz") {
+      const ids = new Set(block.options.map((o) => o.id));
+      for (const id of block.correctOptionIds) {
+        if (!ids.has(id)) add("error", "quiz-correct-missing", "Das Quiz nennt eine richtige Option, die es nicht gibt.", { ...here, hint: "correctOptionIds auf vorhandene Option-Ids beschränken." });
+      }
+      if (!block.open && block.correctOptionIds.length === 0) add("warning", "quiz-no-correct", "Das Quiz hat keine richtige Option und ist nicht offen.", { ...here, hint: "Mindestens eine Option in correctOptionIds eintragen (oder open: true setzen)." });
+      if (block.options.length < 2 && !block.open) add("info", "quiz-few-options", "Das Quiz hat weniger als zwei Optionen.", here);
+    }
+
+    // Gap text.
+    if (block.kind === "cloze" && !/\[\[[^\]]+\]\]/.test(block.html)) {
+      add("warning", "cloze-no-blanks", "Der Lückentext hat keine Lücke (Antworten stehen als [[Antwort]] im Text).", here);
+    }
+
+    // {{placeholders}}.
+    const problems = [...new Set(placeholderSources(block).flatMap((html) => placeholderProblems(html, variableNames)))];
+    for (const problem of problems) add("warning", "placeholder-variable", problem, here);
+
+    // Translations.
+    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
+      const hasWords =
+        block.kind === "quiz"
+          ? plainTextOfHtml(block.questionHtml).trim() !== ""
+          : block.kind === "list"
+            ? block.items.length > 0
+            : block.kind === "button"
+              ? block.text.trim() !== ""
+              : plainTextOfHtml(block.html).trim() !== "";
+      // A text that stands for a placeholder of the layout is the page's own, and has its words in each language like any other.
+      if (hasWords) {
+        for (const language of languages) {
+          if (language === defaultLanguage) continue;
+          if (!isTranslated(block as never, language, defaultLanguage)) {
+            const key = `${where.page?.id ?? where.layout?.id}:${language}`;
+            const entry = untranslated.get(key) ?? { page: where.page, layout: where.layout, language, blockIds: [] };
+            entry.blockIds.push(block.id);
+            untranslated.set(key, entry);
+          }
+        }
+      }
+    }
+  };
+
+  for (const [pageId, page] of pages) {
+    if (page.jump || !placed.has(pageId)) continue;
+    for (const block of orderedValues(page.blocks ?? {})) checkBlock(block, { page: pageRef(pageId) });
+  }
+  for (const [layoutId, layout] of Object.entries(content.layouts)) {
+    for (const block of orderedValues(layout.blocks ?? {})) checkBlock(block as Block, { layout: { name: layout.name, id: layoutId } });
+  }
+  for (const entry of untranslated.values()) {
+    add("warning", "translation-missing", `${entry.blockIds.length} Text(e) ohne Übersetzung nach ${entry.language}.`, {
+      page: entry.page,
+      layout: entry.layout,
+      hint: "Mit den Übersetzungen (translations[Sprache]) der Blöcke füllen; bis dahin zeigt Weft den Text der Standardsprache.",
+    });
+  }
+
+  // Event graphs: triggers between events that exist, and events that nothing makes happen.
+  for (const [pageId, page] of pages) {
+    if (page.jump || !placed.has(pageId)) continue;
+    const ref = pageRef(pageId);
+    try {
+      const nodeIds = new Set(listAllNodes(page).map((n) => n.id));
+      for (const [triggerId, trigger] of Object.entries(page.timeline?.triggers ?? {})) {
+        if (!nodeIds.has(trigger.from) || !nodeIds.has(trigger.to)) {
+          add("warning", "trigger-dangling", `Ein Auslöser (${triggerId}) verbindet ein Ereignis, das es nicht (mehr) gibt: ${trigger.from} → ${trigger.to}.`, {
+            page: ref,
+            hint: "Der Auslöser wird beim nächsten Bearbeiten in Weft entfernt; sonst aus page.timeline.triggers löschen.",
+          });
+        }
+      }
+      const model = buildGraphModel(page);
+      for (const node of model.nodes.flatMap((n) => [n, ...n.companions])) {
+        if (!node.unreachable) continue;
+        const label = eventLabel(page, node.node, content, labels);
+        if (node.node.kind === "end") {
+          add("warning", "page-no-exit", `Auf Folie ${ref.label} ist „Nächste Folie" nicht erreichbar: die Folie lässt sich nur auf anderem Weg verlassen (zum Beispiel mit einem Button).`, {
+            page: ref,
+            hint: "Einen Auslöser zu „Nächste Folie“ setzen (page.timeline.triggers).",
+          });
+        } else {
+          add("warning", "event-unreachable", `Das Ereignis „${label}" passiert nie: nichts löst es aus.`, {
+            page: ref,
+            blockId: node.node.sourceBlockId,
+            hint: "Einen Auslöser dazu anlegen (page.timeline.triggers: von „start“ oder einem anderen Ereignis).",
+          });
+        }
+      }
+    } catch (error) {
+      add("warning", "event-graph-error", `Der Ereignis-Graph der Folie ließ sich nicht auswerten: ${(error as Error).message}`, { page: ref });
+    }
+  }
+
+  // Variables that nothing uses.
+  const used = new Set<string>();
+  const markCondition = (c?: { variableId?: string } | null) => c?.variableId && used.add(c.variableId);
+  for (const logic of Object.values(content.logicBlocks)) for (const branch of logic.branches ?? []) markCondition(branch.condition);
+  for (const [pageId, page] of Object.entries(content.pages)) {
+    if (!placed.has(pageId)) continue;
+    for (const target of page.jump?.targets ?? []) markCondition(target.condition);
+    for (const block of Object.values(page.blocks ?? {})) {
+      for (const { effects } of effectsOf(block)) for (const effect of effects) used.add(effect.variableId);
+      for (const html of placeholderSources(block)) for (const m of html.matchAll(NAME_IN_NODE)) used.add(m[1].trim());
+    }
+  }
+  for (const layout of Object.values(content.layouts)) {
+    for (const block of Object.values(layout.blocks ?? {})) for (const html of placeholderSources(block as Block)) for (const m of html.matchAll(NAME_IN_NODE)) used.add(m[1].trim());
+  }
+  for (const variable of content.variables) {
+    if (variable.fixed) continue;
+    if (!used.has(variable.id) && !used.has(variable.name) && !content.variables.some((v) => v.expression?.includes(variable.name))) {
+      add("info", "variable-unused", `Die Variable „${variable.name}" wird nirgends benutzt.`);
+    }
+  }
+  return findings;
+}

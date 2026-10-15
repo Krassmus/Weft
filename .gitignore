@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# the command line tool's build (npm run weft)
+cli/dist/

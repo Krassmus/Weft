@@ -1417,7 +1417,7 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
     : [];
   // The pages a click can lead to, named by their place in the sidebar ("4.a.1") - the block stores the id of the page.
   const content = useDocumentStore((s) => s.doc.content);
-  const pages = pageChoices(content);
+  const pages = pageChoices(content, false);
   const targetKnown = !!block.targetPageId && pages.some((p) => p.pageId === block.targetPageId);
   const value =
     block.action === "event"

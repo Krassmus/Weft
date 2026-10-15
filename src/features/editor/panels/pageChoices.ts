@@ -14,13 +14,14 @@ function pageTitle(page: Page): string {
   return "";
 }
 
-/** The pages a jump can lead to (every page that is not a jump page itself), in the order of the sidebar. */
-export function pageChoices(content: WeftModule): { pageId: string; label: string }[] {
+/** The pages a jump can lead to (every page that is not a jump page itself), in the order of the sidebar. With `withTitle` the
+ * first words of the page's text follow its number. */
+export function pageChoices(content: WeftModule, withTitle = true): { pageId: string; label: string }[] {
   const labels = pageLabels(content);
   return Object.entries(labels)
     .filter(([pageId]) => content.pages[pageId] && !content.pages[pageId].jump)
     .map(([pageId, label]) => {
-      const title = pageTitle(content.pages[pageId]);
+      const title = withTitle ? pageTitle(content.pages[pageId]) : "";
       return { pageId, label: title ? `${label} · ${title}` : label };
     });
 }

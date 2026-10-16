@@ -1947,6 +1947,11 @@ button.weft-timeline-node-icon:hover {
   overflow: hidden;
 }
 
+/* Light letters: the sample is on black (TextFormatDialog.tsx). */
+.weft-text-format-preview.is-dark {
+  background: #000000;
+}
+
 .weft-text-format-preview {
   flex-direction: column;
   justify-content: center;

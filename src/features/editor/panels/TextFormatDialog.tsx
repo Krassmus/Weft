@@ -32,6 +32,32 @@ const sampleText = () => [tr("ui.sample_text_1"), tr("ui.sample_text_2")];
  * sample text on top that shows what the options make of a text. "Übernehmen" applies all of it to what is selected in the text
  * being edited (no selection: the whole text of the block). The panel's own controls stay as they are.
  */
+/** From this brightness (0-1) on, a text colour counts as light. */
+const LIGHT_TEXT_BRIGHTNESS = 0.51;
+
+/** How bright a colour looks, 0 (black) to 1 (white) - weighted by how much the eye takes from red, green and blue - or null if it is not
+ * a colour written as #rgb, #rrggbb or rgb(...). */
+function brightness(color: string): number | null {
+  const text = color.trim().toLowerCase();
+  let r: number, g: number, b: number;
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.exec(text);
+  if (hex) {
+    const digits = hex[1].length === 3 ? hex[1].replace(/./g, (c) => c + c) : hex[1];
+    [r, g, b] = [0, 2, 4].map((i) => parseInt(digits.slice(i, i + 2), 16));
+  } else {
+    const rgb = /^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/.exec(text);
+    if (!rgb) return null;
+    [r, g, b] = [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
+  }
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
+function mixBrightness(a: string, b: string): number | null {
+  const first = brightness(a);
+  const second = brightness(b);
+  return first === null || second === null ? null : (first + second) / 2;
+}
+
 export function TextFormatDialog({ onClose }: { onClose: () => void }) {
   const snapshot = useMemo(() => useFormatSnapshot.getState(), []);
   const extended = useMemo(() => readExtendedFormat(), []);
@@ -99,6 +125,10 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
   ];
 
   const imageUrl = assetId ? getObjectUrl(assetId) : undefined;
+  // Light letters would vanish on the white of the sample: from this brightness on, the sample sits on black. (A gradient: the middle
+  // of its two colours. A picture in the letters says nothing about it, so it stays on white.)
+  const shownColor = backgroundKind === "gradient" ? mixBrightness(from, to) : backgroundKind === "image" && imageUrl ? null : brightness(color);
+  const darkPreview = shownColor !== null && shownColor >= LIGHT_TEXT_BRIGHTNESS;
   const previewStyle: CSSProperties = {
     fontFamily: `"${family}", sans-serif`,
     // (The size of the text on the slide depends on the slide's width: the sample is shown larger than the number says.)
@@ -160,7 +190,7 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <div className="weft-text-format-preview" aria-label={tr("ui.preview")}>
+        <div className={"weft-text-format-preview" + (darkPreview ? " is-dark" : "")} aria-label={tr("ui.preview")}>
           {sampleText().map((text) => (
             <p key={text} style={previewStyle}>
               {text}

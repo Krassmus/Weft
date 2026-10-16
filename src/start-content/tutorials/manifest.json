@@ -1,0 +1,37 @@
+[
+  {
+    "file": "grundlagen.weft",
+    "title": { "de": "Die erste Präsentation", "en": "Your first presentation" },
+    "description": { "de": "Erstelle Folien, füge Texte und Bilder hinzu und gestalte Übergänge.", "en": "Create slides, add text and images and design transitions." },
+    "tag": { "de": "Grundlagen", "en": "Basics" },
+    "minutes": 6
+  },
+  {
+    "file": "animationen.weft",
+    "title": { "de": "Animationen und Ereignisse", "en": "Animations and events" },
+    "description": { "de": "Lass Objekte erscheinen, verschwinden und auf Benutzereingaben reagieren.", "en": "Make objects appear, disappear and react to what the learner does." },
+    "tag": { "de": "Animationen", "en": "Animations" },
+    "minutes": 7
+  },
+  {
+    "file": "interaktionen.weft",
+    "title": { "de": "Ein interaktives Video erstellen", "en": "Create an interactive video" },
+    "description": { "de": "Kombiniere Videostopppunkte mit Texten, Bildern und Quizfragen.", "en": "Combine video stop points with texts, images and quiz questions." },
+    "tag": { "de": "Interaktionen", "en": "Interactions" },
+    "minutes": 9
+  },
+  {
+    "file": "quiz-verzweigungen.weft",
+    "title": { "de": "Ein Quiz mit Verzweigungen bauen", "en": "Build a quiz with branches" },
+    "description": { "de": "Reagiere auf Antworten und führe Lernende auf unterschiedliche Wege.", "en": "React to answers and lead learners along different paths." },
+    "tag": { "de": "Quiz & Verzweigungen", "en": "Quiz & branches" },
+    "minutes": 8
+  },
+  {
+    "file": "escape-room.weft",
+    "title": { "de": "Ein kleiner Escape-Room", "en": "A small escape room" },
+    "description": { "de": "Erstelle Rätsel, versteckte Hinweise und eine abschließende Lösung.", "en": "Create puzzles, hidden clues and a final solution." },
+    "tag": { "de": "Spiele & Adventures", "en": "Games & adventures" },
+    "minutes": 10
+  }
+]

@@ -4248,7 +4248,16 @@ button.weft-timeline-node-icon:hover {
 
 /* The File menu in the black border of a player file. */
 .weft-player-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-right: auto;
+}
+
+.weft-player-back {
+  width: auto;
+  padding: 0 12px;
+  font-size: 13px;
 }
 
 .weft-player-menu .weft-filemenu-button {

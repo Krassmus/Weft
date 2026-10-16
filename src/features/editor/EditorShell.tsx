@@ -5,7 +5,7 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { createEmptyDocument } from "../../core/document/createEmptyDocument";
+import { createBlankDocument } from "../../core/document/createEmptyDocument";
 import { plain } from "../../core/document/plain";
 import { useDocumentStore } from "../../core/document/store";
 import { createId } from "../../core/id";
@@ -43,7 +43,11 @@ import { useCollabDialog } from "./collabDialogStore";
 import { Inspector } from "./Inspector";
 import { PresentationView } from "./PresentationView";
 import { hasNativeMenu, libraryMode } from "../../core/platform";
-import { createLibraryFile, fromStoredPath, toStoredPath } from "../../core/io/library";
+import { loadPlayerFile } from "../../core/io/playerFile";
+import { unpackDocument } from "../../core/io/unpack";
+import { StartScreen } from "../start/StartScreen";
+import { useStartStore } from "../start/startStore";
+import { createLibraryFile } from "../../core/io/library";
 import { packDocument } from "../../core/io/pack";
 import { PlayerShell } from "../player/PlayerShell";
 import { Sidebar } from "./Sidebar";
@@ -57,38 +61,6 @@ const SIDEBAR_WIDTH_DEFAULT = 260;
 const RESIZER_WIDTH = 6;
 const INSPECTOR_WIDTH = 300;
 
-// Which module to silently re-open on the next launch - just a path string, so plain
-// localStorage rather than anything in the document/undo model itself; it's a UI convenience,
-// not part of any module's own content. Wrapped in try/catch everywhere it's touched since
-// localStorage can throw in a locked-down webview context (private mode et al elsewhere), and
-// "can't remember the last file" should never be why the app fails to start.
-const LAST_PATH_KEY = "weft:lastOpenedPath";
-
-function rememberLastPath(path: string | null) {
-  try {
-    if (path) localStorage.setItem(LAST_PATH_KEY, toStoredPath(path));
-  } catch {
-    // Not fatal - just means next launch starts on a blank document instead.
-  }
-}
-
-function forgetLastPath() {
-  try {
-    localStorage.removeItem(LAST_PATH_KEY);
-  } catch {
-    // Already unreadable/unwritable, so there's nothing to clear anyway.
-  }
-}
-
-function readLastPath(): string | null {
-  try {
-    const stored = localStorage.getItem(LAST_PATH_KEY);
-    return stored ? fromStoredPath(stored) : null;
-  } catch {
-    return null;
-  }
-}
-
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
@@ -100,11 +72,22 @@ export function EditorShell() {
   const filePath = useDocumentStore((s) => s.filePath);
   const undo = useDocumentStore((s) => s.undo);
   const redo = useDocumentStore((s) => s.redo);
-  const loadDocument = useDocumentStore((s) => s.loadDocument);
+  const storeLoadDocument = useDocumentStore((s) => s.loadDocument);
+  // (Leaves the start screen at once, not only when the document key has changed a render later: what follows a load - the
+  // library's file for the new module - already asks which of the two is on screen.)
+  const loadDocument: typeof storeLoadDocument = (next, path) => {
+    storeLoadDocument(next, path);
+    useStartStore.getState().setPhase("editor");
+  };
   const documentKey = useDocumentStore((s) => s.documentKey);
   // A player file Weft is playing instead of showing the editor (see features/player/): while it is, nothing
   // here may act on the module that is open underneath.
   const player = usePlayerStore((s) => s.player);
+  // The start screen is what the app opens with (see core of the launch below); `phaseRef` for the handlers that are subscribed once.
+  const phase = useStartStore((s) => s.phase);
+  const setPhase = useStartStore((s) => s.setPhase);
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
   const openPlayer = usePlayerStore((s) => s.open);
   const playerRef = useRef(player);
   playerRef.current = player;
@@ -229,8 +212,8 @@ export function EditorShell() {
 
   // Disabled while presenting: there's no selection UI to copy/paste against there, and the
   // listener would otherwise silently act on whatever was selected before presenting started.
-  useCopyPaste(!presenting && !player);
-  useDeleteSelection(!presenting && !player);
+  useCopyPaste(!presenting && !player && phase === "editor");
+  useDeleteSelection(!presenting && !player && phase === "editor");
   useCustomFontRegistration();
 
   // Keeps the native title bar (next to the traffic-light buttons) showing which module is
@@ -239,7 +222,7 @@ export function EditorShell() {
   // fights over the title with anything else.
   useEffect(() => {
     if (!isTauri()) return;
-    const title = (player ? player.title : doc.content.title).trim();
+    const title = (player ? player.title : phase === "editor" ? doc.content.title : "").trim();
     // Needs its own explicit "core:window:allow-set-title" capability grant (see
     // src-tauri/capabilities/default.json) - Tauri 2's default core permissions don't include
     // it, so without that this call is silently denied and the title bar just never updates,
@@ -248,56 +231,46 @@ export function EditorShell() {
     getCurrentWindow()
       .setTitle(title ? `Weft - ${title}` : "Weft")
       .catch((err: unknown) => console.error("Failed to update window title:", err));
-  }, [doc.content.title, player]);
+  }, [doc.content.title, player, phase]);
 
-  // Whichever file Öffnen/Speichern most recently pointed at - not "Exportieren", which never
-  // touches filePath at all, matching that an export is a delivery artifact, not "the module
-  // you're working on". Re-saving the same reference on every render would be harmless but
-  // pointless, so this only fires when filePath itself actually changes.
-  // (A player file counts as the file open, too: that is what the next launch comes back to.)
+  // The file that is open - a player file counts, too (see below: it goes to the top of "Zuletzt geöffnet").
   const currentPath = player ? player.path : filePath;
-  useEffect(() => rememberLastPath(currentPath), [currentPath]);
   // The same file goes to the top of "Datei > Zuletzt geöffnet" (also once on launch, which is what
   // fills the native menu with the list of the last session).
   useEffect(() => syncRecentMenu(rememberRecentFile(currentPath)), [currentPath]);
-  // Any module that gets loaded takes the window back from the player.
-  useEffect(() => usePlayerStore.getState().close(), [documentKey]);
-  // The menu items that act on the module being edited are greyed out while a player file is shown.
+  // Any module that gets loaded takes the window back from the player - and from the start screen (the key of the launch is not a load).
+  const seenKeyRef = useRef(documentKey);
   useEffect(() => {
-    if (isTauri()) void invoke("set_player_mode", { active: player !== null }).catch(() => undefined);
-  }, [player !== null]);
+    usePlayerStore.getState().close();
+    if (seenKeyRef.current !== documentKey) {
+      seenKeyRef.current = documentKey;
+      setPhase("editor");
+    }
+  }, [documentKey]);
+  // The menu items that act on the module being edited are greyed out while a player file or the start screen is shown.
+  useEffect(() => {
+    if (isTauri()) void invoke("set_player_mode", { active: player !== null || phase !== "editor" }).catch(() => undefined);
+  }, [player !== null, phase !== "editor"]);
 
-  // Silently re-opens whatever was last open, once, on launch - only in Tauri (see
-  // openDocumentAtPath) and only if nothing has already loaded a real document in the meantime
-  // (the empty check guards against the - currently impossible, but cheap to guard anyway -
-  // case of a user managing to open something else before this async read resolves). A path
-  // that's since been moved/renamed/deleted just falls back to the normal blank document rather
-  // than greeting a returning user with an error dialog for something that isn't their fault
-  // right now; it also forgets that path so this doesn't keep silently failing every launch.
+  // The launch. The app opens on the start screen (see features/start/) - with one exception: a module that was never saved but
+  // worked on has its recovery copy (see core/io/fileIO.ts), and that is picked up where it left off rather than left behind a
+  // screen that does not mention it. (A module that was only just created and never touched is not worth keeping: it is dropped.)
   const restoredRef = useRef<Promise<unknown>>(Promise.resolve());
   const ensureLibraryDocumentRef = useRef<() => Promise<void>>(async () => {});
   const ensuringRef = useRef<Promise<void> | null>(null);
   useEffect(() => {
-    const lastPath = readLastPath();
-    if (!lastPath) {
-      // Nothing was ever saved to a file - but a module that was being worked on may have been
-      // autosaved to the recovery copy (see core/io/fileIO.ts), so pick up where it left off.
-      restoredRef.current = readRecoveryCopy()
-        .then((doc) => {
-          if (doc && useDocumentStore.getState().filePath === null) loadDocument(doc, null);
-        })
-        .catch(() => undefined)
-        .then(() => ensureLibraryDocumentRef.current());
-      return;
-    }
-    restoredRef.current = openDocumentAtPath(lastPath)
-      .then((opened) => {
-        if (!opened || useDocumentStore.getState().filePath !== null) return;
-        if (opened.kind === "player") openPlayer(opened.player, lastPath);
-        else return loadFromFile(opened.doc, lastPath);
+    restoredRef.current = readRecoveryCopy()
+      .then(async (recovered) => {
+        if (!recovered || useDocumentStore.getState().filePath !== null) return;
+        if (recovered.content.modifiedAt === recovered.content.createdAt) return clearRecoveryCopy();
+        loadDocument(recovered, null);
+        setPhase("editor");
+        await ensureLibraryDocumentRef.current();
       })
-      .catch(() => forgetLastPath())
-      .then(() => ensureLibraryDocumentRef.current());
+      .catch(() => undefined)
+      .then(() => {
+        if (useStartStore.getState().phase === "launching") setPhase("start");
+      });
   }, []);
 
   // A tablet may end the app any time after it goes to the background: what is unsaved is written right then.
@@ -372,6 +345,7 @@ export function EditorShell() {
   const handleExportPdfRef = useRef<() => void>(() => {});
   const handleOpenRef = useRef<() => void>(() => {});
   const handleNewRef = useRef<() => void>(() => {});
+  const showStartRef = useRef<() => void>(() => {});
   const handleDuplicateRef = useRef<() => void>(() => {});
   const handleOpenRecentRef = useRef<(path: string) => void>(() => {});
   const presentingRef = useRef(presenting);
@@ -385,10 +359,10 @@ export function EditorShell() {
   useEffect(() => {
     if (!isTauri()) return;
     const unlistenUndo = listen("weft://menu-undo", () => {
-      if (!presentingRef.current && !playerRef.current) undo();
+      if (!presentingRef.current && !playerRef.current && phaseRef.current === "editor") undo();
     });
     const unlistenRedo = listen("weft://menu-redo", () => {
-      if (!presentingRef.current && !playerRef.current) redo();
+      if (!presentingRef.current && !playerRef.current && phaseRef.current === "editor") redo();
     });
     return () => {
       void unlistenUndo.then((fn) => fn());
@@ -400,7 +374,7 @@ export function EditorShell() {
     if (!isTauri()) return;
     // (The items that act on the module being edited are greyed out while a player file is shown - see
     // set_player_mode - and ignored here as well, in case a shortcut still gets through.)
-    const idle = () => presentingRef.current || playerRef.current !== null;
+    const idle = () => presentingRef.current || playerRef.current !== null || phaseRef.current !== "editor";
     const unlistenSave = listen("weft://menu-save", () => {
       if (!idle()) handleSaveRef.current();
     });
@@ -418,6 +392,9 @@ export function EditorShell() {
     });
     const unlistenOpen = listen("weft://menu-open", () => {
       if (!presentingRef.current) handleOpenRef.current();
+    });
+    const unlistenStart = listen("weft://menu-start", () => {
+      if (!presentingRef.current) showStartRef.current();
     });
     const unlistenNew = listen("weft://menu-new", () => {
       if (!presentingRef.current) handleNewRef.current();
@@ -441,6 +418,7 @@ export function EditorShell() {
       void unlistenExportPlayer.then((fn) => fn());
       void unlistenExportPdf.then((fn) => fn());
       void unlistenOpen.then((fn) => fn());
+      void unlistenStart.then((fn) => fn());
       void unlistenNew.then((fn) => fn());
       void unlistenDuplicate.then((fn) => fn());
       void unlistenOpenRecent.then((fn) => fn());
@@ -453,8 +431,10 @@ export function EditorShell() {
   // with a keyboard, from the usual shortcuts.
   const inAppMenu = !hasNativeMenu();
   function runCommand(command: MenuCommand) {
-    const editing = !presentingRef.current && playerRef.current === null;
+    const editing = !presentingRef.current && playerRef.current === null && phaseRef.current === "editor";
     switch (command) {
+      case "start":
+        return void showStartRef.current();
       case "new":
         return void handleNewRef.current();
       case "open":
@@ -492,7 +472,7 @@ export function EditorShell() {
       if (command) {
         e.preventDefault();
         runCommandRef.current(command);
-      } else if ((key === "z" || key === "y") && !typing && playerRef.current === null) {
+      } else if ((key === "z" || key === "y") && !typing && playerRef.current === null && phaseRef.current === "editor") {
         e.preventDefault();
         if (key === "y" || e.shiftKey) redo();
         else undo();
@@ -543,7 +523,7 @@ export function EditorShell() {
     if (!libraryMode()) return Promise.resolve();
     ensuringRef.current ??= (async () => {
       const { filePath: path, doc: current } = useDocumentStore.getState();
-      if (path !== null || usePlayerStore.getState().player) return;
+      if (path !== null || usePlayerStore.getState().player || useStartStore.getState().phase !== "editor") return;
       const created = await createLibraryFile(current.content.title, await packDocument(current));
       useDocumentStore.setState({ filePath: created });
       useDocumentStore.getState().markSaved(current.content);
@@ -646,7 +626,6 @@ export function EditorShell() {
       await ensureLibraryDocument();
       return;
     }
-    forgetLastPath();
     try {
       const { doc: loaded } = useDocumentStore.getState();
       await saveRecoveryCopy(loaded);
@@ -657,9 +636,37 @@ export function EditorShell() {
 
   async function handleNew() {
     if (!(await confirmLeave())) return;
-    await startUnsavedDocument(createEmptyDocument());
+    await startUnsavedDocument(createBlankDocument());
   }
   handleNewRef.current = handleNew;
+
+  // A module that comes with Weft (a template, an example - see features/start/) becomes a module of its own: a copy under a new id and
+  // with an editing history of its own, not yet saved anywhere.
+  async function handleUseModule(bytes: Uint8Array) {
+    try {
+      if (!(await confirmLeave())) return;
+      const opened = unpackDocument(bytes);
+      const now = new Date().toISOString();
+      await startUnsavedDocument({ formatVersion: opened.formatVersion, content: { ...plain(opened.content), id: createId(), createdAt: now, modifiedAt: now } });
+    } catch (err) {
+      alert(`${t("toolbar.openFailed")}\n${errorMessage(err)}`);
+    }
+  }
+
+  // A tutorial is only played (nothing of the module that is open is touched: the start screen comes back with "Start").
+  async function handlePlayModule(bytes: Uint8Array) {
+    try {
+      openPlayer(await loadPlayerFile(bytes), null);
+    } catch (err) {
+      alert(`${t("toolbar.openFailed")}\n${errorMessage(err)}`);
+    }
+  }
+
+  function showStart() {
+    usePlayerStore.getState().close();
+    setPhase("start");
+  }
+  showStartRef.current = showStart;
 
   // A copy of the open module under a new id - and a document of its own, with a new editing history: it has
   // no tie to the original any more (no live connection, no shared folder, no merging of the two).
@@ -731,7 +738,30 @@ export function EditorShell() {
       <div className="weft-shell">
         <PlayerShell
           file={player}
+          onStart={showStart}
           menu={inAppMenu ? <FileMenu onCommand={runCommand} onOpenRecent={(path) => void handleOpenRecentRef.current(path)} playerShown /> : undefined}
+        />
+        <CollabDialogs />
+        <LibraryDialogs onOpen={(path) => void handleOpenRecentRef.current(path)} currentPath={currentPath} />
+      </div>
+    );
+  }
+
+  if (phase === "launching") return <div className="weft-shell" />;
+
+  if (phase === "start") {
+    return (
+      <div className="weft-shell">
+        <StartScreen
+          actions={{
+            onNew: () => void handleNewRef.current(),
+            onOpenFile: () => void handleOpenRef.current(),
+            onOpenPath: (path) => void handleOpenRecentRef.current(path),
+            onUseModule: (bytes) => void handleUseModule(bytes),
+            onPlay: (bytes) => void handlePlayModule(bytes),
+            // (The desktop app has the settings in a window of their own, see show_settings_window in src-tauri/src/lib.rs.)
+            onSettings: () => (hasNativeMenu() ? void invoke("open_settings_window").catch(() => undefined) : useCollabDialog.getState().show("settings")),
+          }}
         />
         <CollabDialogs />
         <LibraryDialogs onOpen={(path) => void handleOpenRecentRef.current(path)} currentPath={currentPath} />

@@ -12,7 +12,7 @@ import { tr } from "../../core/i18n/tr";
  * module on its first page in a wide black frame, and a button in the black border for full screen. The
  * file's page plays exactly as it does in a browser. The window's menu is still there, for opening another file.
  */
-export function PlayerShell({ file, menu }: { file: PlayerFile; menu?: ReactNode }) {
+export function PlayerShell({ file, menu, onStart }: { file: PlayerFile; menu?: ReactNode; onStart?: () => void }) {
   const [fullscreen, setFullscreen] = useState(false);
   const fullscreenRef = useRef(false);
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -50,7 +50,14 @@ export function PlayerShell({ file, menu }: { file: PlayerFile; menu?: ReactNode
     <div className={"weft-player-shell" + (fullscreen ? " is-fullscreen" : "")}>
       <div className="weft-player-bar">
         {/* Where there is no menu bar (a tablet) the File menu sits in the black border. */}
-        <div className="weft-player-menu">{menu}</div>
+        <div className="weft-player-menu">
+          {onStart && (
+            <button type="button" className="weft-player-fullscreen weft-player-back" onClick={onStart}>
+              ‹ {tr("ui.start_home")}
+            </button>
+          )}
+          {menu}
+        </div>
         {!isTouchDevice() && (
         <button type="button" className="weft-player-fullscreen" onClick={() => void toggleFullscreen()} title={fullscreen ? tr("ui.exit_full_screen_esc") : tr("ui.full_screen")}>
           {fullscreen ? "⤡" : "⤢"}

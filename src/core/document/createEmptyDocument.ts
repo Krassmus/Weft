@@ -184,3 +184,34 @@ export function createEmptyDocument(): WeftDocument {
     content,
   };
 }
+
+/**
+ * A new learning module with one white slide and nothing on it (the "Neues Lernmodul" of the start screen and File > New): a
+ * layout without elements, one page, one entry in the sequence. The demo module `createEmptyDocument` builds is
+ * what the command line tool starts from.
+ */
+export function createBlankDocument(): WeftDocument {
+  const now = new Date().toISOString();
+  const layout: Layout = { id: createId(), name: tr("ui.default"), blocks: {} };
+  const page: Page = { id: createId(), layoutId: layout.id, blocks: {}, groups: [], timeline: createDefaultPageTimeline() };
+  const sequence = orderedRecordBy<SequenceNodeRef>([{ kind: "page", pageId: page.id }], sequenceKey) as Record<string, SequenceEntry>;
+  const content: WeftModule = {
+    id: createId(),
+    title: tr("ui.new_learning_module"),
+    aspectRatio: "16:9",
+    createdAt: now,
+    modifiedAt: now,
+    variables: [],
+    layouts: { [layout.id]: layout },
+    pages: { [page.id]: page },
+    logicBlocks: {},
+    sequence,
+    assets: [],
+    customFonts: [],
+    colorPalette: [],
+    languages: [],
+    keyboardNavigationEnabled: true,
+  };
+  ensureBuiltinVariables(content.variables);
+  return { formatVersion: CURRENT_FORMAT_VERSION, content };
+}

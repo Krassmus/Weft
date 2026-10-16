@@ -68,6 +68,7 @@ fn cancel_exit() {
 #[cfg(desktop)]
 struct MenuStrings {
     file: &'static str,
+    start: &'static str,
     new: &'static str,
     duplicate: &'static str,
     open: &'static str,
@@ -91,6 +92,7 @@ fn menu_strings(lang: &str) -> MenuStrings {
     if lang == "de" {
         MenuStrings {
             file: "Datei",
+            start: "Startbildschirm",
             new: "Neu",
             duplicate: "Duplizieren",
             open: "Öffnen…",
@@ -111,6 +113,7 @@ fn menu_strings(lang: &str) -> MenuStrings {
     } else {
         MenuStrings {
             file: "File",
+            start: "Start Screen",
             new: "New",
             duplicate: "Duplicate",
             open: "Open…",
@@ -191,6 +194,7 @@ fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String], player: boo
     let edit_menu = edit_menu.expect("Menu::default() always includes an Edit submenu on this platform");
 
     file_menu.set_text(strings.file)?;
+    let start_item = MenuItem::with_id(app_handle, "weft-start", strings.start, true, None::<&str>)?;
     let new_item = MenuItem::with_id(app_handle, "weft-new", strings.new, true, Some("CmdOrCtrl+N"))?;
     let editing = !player;
     let duplicate_item = MenuItem::with_id(app_handle, "weft-duplicate", strings.duplicate, editing, None::<&str>)?;
@@ -217,6 +221,8 @@ fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String], player: boo
     let export_pdf_item = MenuItem::with_id(app_handle, "weft-export-pdf", strings.export_pdf, editing, None::<&str>)?;
     let export_player_item = MenuItem::with_id(app_handle, "weft-export-player", strings.export_player, editing, None::<&str>)?;
     file_menu.prepend_items(&[
+        &start_item,
+        &PredefinedMenuItem::separator(app_handle)?,
         &new_item,
         &duplicate_item,
         &open_item,
@@ -355,6 +361,13 @@ fn read_clipboard_file_paths() -> Vec<String> {
     }
 }
 
+/// The gear of the start screen (src/features/start/): the settings window, as the menu's "Einstellungen…" opens it.
+#[tauri::command]
+fn open_settings_window(#[cfg_attr(not(desktop), allow(unused_variables))] app: AppHandle) {
+    #[cfg(desktop)]
+    show_settings_window(&app);
+}
+
 /// Shows the settings window, creating it the first time and just focusing it on every
 /// subsequent "Einstellungen…"/"Settings…" click - a second window would be confusing (which one
 /// reflects reality?), and there's nothing here that needs more than one instance anyway. It's
@@ -430,6 +443,7 @@ pub fn run() {
             set_menu_language,
             set_recent_files,
             set_player_mode,
+            open_settings_window,
             open_files::take_pending_open_files,
             read_clipboard_file_paths,
             color_sampler::screen_color_picker_available,
@@ -492,6 +506,9 @@ pub fn run() {
                 _app.set_menu(menu)?;
 
                 _app.on_menu_event(|app_handle, event| match event.id().as_ref() {
+                    "weft-start" => {
+                        let _ = app_handle.emit("weft://menu-start", ());
+                    }
                     "weft-new" => {
                         let _ = app_handle.emit("weft://menu-new", ());
                     }

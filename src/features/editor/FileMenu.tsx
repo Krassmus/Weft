@@ -6,6 +6,7 @@ import { useDocumentStore } from "../../core/document/store";
 import { tr } from "../../core/i18n/tr";
 
 export type MenuCommand =
+  | "start"
   | "new"
   | "duplicate"
   | "open"
@@ -34,6 +35,8 @@ const EDITING_COMMANDS: MenuCommand[] = [
 function items(): ({ command: MenuCommand; label: string } | "separator")[] {
   const library = libraryMode();
   return [
+    { command: "start", label: tr("ui.start_home") },
+    "separator",
     { command: "new", label: tr("ui.new") },
     { command: "duplicate", label: tr("ui.duplicate") },
     "separator",

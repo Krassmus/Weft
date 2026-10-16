@@ -167,9 +167,6 @@ function LanguagesField() {
   return (
     <div className="weft-field">
       <span>{tr("ui.languages")}</span>
-      <p className="weft-hint">
-        {tr("ui.without_a_selection_the_learning_module")}
-      </p>
       {languages.length > 0 && (
         <ul className="weft-language-list">
           {languages.map((locale, index) => {
@@ -235,6 +232,9 @@ function LanguagesField() {
           {tr("ui.add_language")}
         </button>
       )}
+      <p className="weft-hint">
+        {tr("ui.without_a_selection_the_learning_module")}
+      </p>
     </div>
   );
 }
@@ -385,9 +385,6 @@ function FolderSyncField() {
   return (
     <div className="weft-field">
       <span>{tr("ui.folder_sync")}</span>
-      <p className="weft-hint">
-        {tr("ui.sync_with_a_folder_that_a")}
-      </p>
       {sync.active ? (
         <>
           <p className="weft-hint">
@@ -425,6 +422,9 @@ function FolderSyncField() {
         </div>
       )}
       {error && <p className="weft-placeholder-warning">{error}</p>}
+      <p className="weft-hint">
+        {tr("ui.sync_with_a_folder_that_a")}
+      </p>
     </div>
   );
 }
@@ -635,9 +635,6 @@ export function SettingsTab() {
 
       <div className="weft-field">
         <span>{tr("ui.own_fonts")}</span>
-        <p className="weft-hint">
-          {tr("ui.uploaded_fonts_are_available_in_the")}
-        </p>
         {content.customFonts.length > 0 && (
           <div className="weft-custom-font-list">
             {content.customFonts.map((font) => (
@@ -674,6 +671,9 @@ export function SettingsTab() {
         >
           {tr("ui.upload_your_own_font_2")}
         </button>
+        <p className="weft-hint">
+          {tr("ui.uploaded_fonts_are_available_in_the")}
+        </p>
       </div>
     </div>
   );

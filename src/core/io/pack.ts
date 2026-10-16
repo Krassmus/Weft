@@ -55,13 +55,33 @@ export function customFontZipPath(fontId: string, fileName: string): string {
 // so they're stored as-is (level 0). Video is by far the biggest of these.
 const ALREADY_COMPRESSED = /\.(mp4|m4v|mov|webm|mkv|avi|mp3|m4a|aac|ogg|wav|jpe?g|png|gif|webp|avif|heic|woff2?|zip|enc)$/i;
 
-/** Zips in a Web Worker (fflate's async API) so a big module never freezes the editor while it's
- * being saved - the synchronous zipSync used to block the main thread for as long as the
- * compression took (seconds, with a few videos in it). Buffers are handed over to the worker
- * without copying, which is safe here: every one of them is a fresh copy made just for this zip. */
+/** Zips in a Web Worker of our own (zipWorker.ts), so that a big module never freezes the editor while it is being saved: not the
+ * compression, and not the checksum of every file either (which fflate's own asynchronous zip leaves to the calling thread - most of
+ * a second for a module with a large video). Buffers are handed over to the worker without copying, which is safe here: every one of
+ * them is a fresh copy made just for this zip. Where there are no workers, fflate's asynchronous zip does it. */
 function zipInWorker(files: AsyncZippable): Promise<Uint8Array> {
+  if (typeof Worker === "undefined") {
+    return new Promise((resolve, reject) => {
+      zip(files, { level: 6, consume: true }, (err, data) => (err ? reject(err) : resolve(data)));
+    });
+  }
   return new Promise((resolve, reject) => {
-    zip(files, { level: 6, consume: true }, (err, data) => (err ? reject(err) : resolve(data)));
+    const worker = new Worker(new URL("./zipWorker.ts", import.meta.url), { type: "module" });
+    const transfer: ArrayBuffer[] = [];
+    for (const entry of Object.values(files)) {
+      const data = Array.isArray(entry) ? entry[0] : entry;
+      if (data instanceof Uint8Array && data.buffer instanceof ArrayBuffer && !transfer.includes(data.buffer)) transfer.push(data.buffer);
+    }
+    worker.onmessage = (event: MessageEvent<{ bytes?: Uint8Array; error?: string }>) => {
+      worker.terminate();
+      if (event.data.bytes) resolve(event.data.bytes);
+      else reject(new Error(event.data.error ?? "zip failed"));
+    };
+    worker.onerror = (event) => {
+      worker.terminate();
+      reject(new Error(event.message || "zip failed"));
+    };
+    worker.postMessage({ files }, transfer);
   });
 }
 

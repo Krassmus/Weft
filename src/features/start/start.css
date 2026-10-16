@@ -525,3 +525,7 @@
     opacity: 0.4;
   }
 }
+
+.weft-start-legal a {
+  color: var(--weft-accent-hover);
+}

@@ -1,16 +1,20 @@
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { tr } from "../../core/i18n/tr";
+import { runsInTauri } from "../../core/platform";
 import { useTranslation } from "../../core/i18n/useTranslation";
 
 /**
  * "Datenschutz und Impressum": what Weft does and does not do with data, and who is behind it. The texts are written in both
- * languages (not through the string table: they are pages, not labels). The data of the person responsible for the app
- * (IMPRESSUM) is to be filled in before the app is handed on.
+ * languages (not through the string table: they are pages, not labels).
  */
-const IMPRESSUM: string[] = ["[Name]", "[Straße und Hausnummer]", "[PLZ Ort]", "[E-Mail-Adresse]"];
+const IMPRESSUM: string[] = ["Rasmus Fuhse", "Pastor-Sander-Bogen 45", "37083 Göttingen"];
+const EMAIL = "krassmus@gmail.com";
+const DISCORD_URL = "https://discord.gg/qvYT9q6grg";
 
 type Section = { title: string; paragraphs: string[] };
+type Texts = { privacy: string; sections: Section[]; legalTitle: string; legalIntro: string; legalOutro: string; supportTitle: string; supportText: string; supportLink: string; supportNote: string };
 
-const DE: { privacy: string; sections: Section[]; legalTitle: string; legalIntro: string; legalOutro: string } = {
+const DE: Texts = {
   privacy: "Datenschutz",
   sections: [
     {
@@ -48,9 +52,13 @@ const DE: { privacy: string; sections: Section[]; legalTitle: string; legalIntro
   legalTitle: "Impressum",
   legalIntro: "Verantwortlich für Weft:",
   legalOutro: "Fragen zum Datenschutz richtest du an dieselbe Adresse.",
+  supportTitle: "Support",
+  supportText: "Support gibt es über einen Discord-Server: Fragen stellen, Fehler melden, Ideen besprechen.",
+  supportLink: "Zum Discord-Server",
+  supportNote: "Der Link führt zu Discord, einem Dienst eines Drittanbieters - dort gelten dessen Nutzungs- und Datenschutzbestimmungen. Weft selbst verbindet sich nicht mit Discord.",
 };
 
-const EN: typeof DE = {
+const EN: Texts = {
   privacy: "Privacy",
   sections: [
     {
@@ -88,7 +96,29 @@ const EN: typeof DE = {
   legalTitle: "Legal notice",
   legalIntro: "Responsible for Weft:",
   legalOutro: "Questions about privacy go to the same address.",
+  supportTitle: "Support",
+  supportText: "Support is provided through a Discord server: ask questions, report problems, discuss ideas.",
+  supportLink: "Go to the Discord server",
+  supportNote: "The link leads to Discord, a third-party service - its terms and privacy policy apply there. Weft itself does not connect to Discord.",
 };
+
+/** A link out of the app: in the desktop app through the system (a web view would open it inside itself or not at all). */
+function ExternalLink({ href, children }: { href: string; children: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer noopener"
+      onClick={(e) => {
+        if (!runsInTauri()) return;
+        e.preventDefault();
+        void openUrl(href).catch(() => undefined);
+      }}
+    >
+      {children}
+    </a>
+  );
+}
 
 export function PrivacyPage({ onBack }: { onBack: () => void }) {
   const { lang } = useTranslation();
@@ -116,8 +146,19 @@ export function PrivacyPage({ onBack }: { onBack: () => void }) {
           {IMPRESSUM.map((line) => (
             <div key={line}>{line}</div>
           ))}
+          <div>
+            <ExternalLink href={`mailto:${EMAIL}`}>{EMAIL}</ExternalLink>
+          </div>
         </address>
         <p>{text.legalOutro}</p>
+      </section>
+      <section>
+        <h2>{text.supportTitle}</h2>
+        <p>{text.supportText}</p>
+        <p>
+          <ExternalLink href={DISCORD_URL}>{text.supportLink}</ExternalLink> ({DISCORD_URL})
+        </p>
+        <p>{text.supportNote}</p>
       </section>
     </article>
   );

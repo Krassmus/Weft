@@ -1,4 +1,5 @@
 import { reorderBlock, removeLayoutBlock, renameLayout } from "../../../core/document/actions";
+import { confirmDestructive } from "../../../core/io/fileIO";
 import { useDocumentStore } from "../../../core/document/store";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
@@ -57,14 +58,17 @@ export function LayoutPanel({ layout }: { layout: Layout }) {
                   type="button"
                   className="weft-icon-button"
                   onClick={() => {
-                    removeLayoutBlock(layout.id, block.id);
-                    if (
-                      selection?.type === "block" &&
-                      selection.container.kind === "layout" &&
-                      selection.blockId === block.id
-                    ) {
-                      select({ type: "layout", layoutId: layout.id });
-                    }
+                    void confirmDestructive(tr("ui.really_delete_element"), tr("ui.delete_element")).then((ok) => {
+                      if (!ok) return;
+                      removeLayoutBlock(layout.id, block.id);
+                      if (
+                        selection?.type === "block" &&
+                        selection.container.kind === "layout" &&
+                        selection.blockId === block.id
+                      ) {
+                        select({ type: "layout", layoutId: layout.id });
+                      }
+                    });
                   }}
                   title={t("panel.remove")}
                 >

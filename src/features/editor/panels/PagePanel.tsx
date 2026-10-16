@@ -1,4 +1,5 @@
 import { reorderBlock, removeBlock, removeGroup } from "../../../core/document/actions";
+import { confirmDestructive } from "../../../core/io/fileIO";
 import { useDocumentStore } from "../../../core/document/store";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
@@ -54,8 +55,11 @@ export function PagePanel({ page }: { page: Page }) {
                       type="button"
                       className="weft-icon-button"
                       onClick={() => {
-                        removeGroup(page.id, group.id);
-                        if (isGroupActive) select({ type: "page", pageId: page.id });
+                        void confirmDestructive(tr("ui.really_delete_group", { n: group.blockIds.length }), tr("ui.delete_group")).then((ok) => {
+                          if (!ok) return;
+                          removeGroup(page.id, group.id);
+                          if (isGroupActive) select({ type: "page", pageId: page.id });
+                        });
                       }}
                       title={t("panel.remove")}
                     >
@@ -83,8 +87,11 @@ export function PagePanel({ page }: { page: Page }) {
                             type="button"
                             className="weft-icon-button"
                             onClick={() => {
-                              removeBlock(page.id, memberId);
-                              if (isMemberActive) select({ type: "page", pageId: page.id });
+                              void confirmDestructive(tr("ui.really_delete_element"), tr("ui.delete_element")).then((ok) => {
+                                if (!ok) return;
+                                removeBlock(page.id, memberId);
+                                if (isMemberActive) select({ type: "page", pageId: page.id });
+                              });
                             }}
                             title={t("panel.remove")}
                           >
@@ -121,14 +128,17 @@ export function PagePanel({ page }: { page: Page }) {
                   type="button"
                   className="weft-icon-button"
                   onClick={() => {
-                    removeBlock(page.id, block.id);
-                    // Otherwise selection keeps pointing at this now-gone block - harmless here
-                    // (Canvas.tsx still resolves the same page from selection.container.pageId
-                    // alone), but the Inspector would show its empty state until something else
-                    // gets clicked, instead of immediately falling back to the page itself.
-                    if (selection?.type === "block" && selection.blockId === block.id) {
-                      select({ type: "page", pageId: page.id });
-                    }
+                    void confirmDestructive(tr("ui.really_delete_element"), tr("ui.delete_element")).then((ok) => {
+                      if (!ok) return;
+                      removeBlock(page.id, block.id);
+                      // Otherwise selection keeps pointing at this now-gone block - harmless here
+                      // (Canvas.tsx still resolves the same page from selection.container.pageId
+                      // alone), but the Inspector would show its empty state until something else
+                      // gets clicked, instead of immediately falling back to the page itself.
+                      if (selection?.type === "block" && selection.blockId === block.id) {
+                        select({ type: "page", pageId: page.id });
+                      }
+                    });
                   }}
                   title={t("panel.remove")}
                 >

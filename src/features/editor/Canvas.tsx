@@ -44,6 +44,7 @@ import { PresenceBar } from "./PresenceBar";
 import { branchPageIds, sequenceOf } from "../../core/document/sequence";
 import { tr } from "../../core/i18n/tr";
 import { AddElementMenu } from "./AddElementMenu";
+import { useListHover } from "./listHover";
 
 const ARROW_STEP_PERCENT = 1;
 const ARROW_STEP_PERCENT_FAST = 5;
@@ -540,6 +541,8 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
   const doc = useDocumentStore((s) => s.doc);
   const selection = useDocumentStore((s) => s.selection);
   const select = useDocumentStore((s) => s.select);
+  // The elements the mouse is over in the sidebar's list (see listHover.ts) are marked like hovered ones.
+  const listHoverIds = useListHover((s) => s.ids);
   const [dragOver, setDragOver] = useState(false);
   // Not state - updating it must never itself trigger a render, only ever be read by the next
   // one (see resolveEditTarget's own fallbackPageId parameter).
@@ -923,6 +926,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                   key={block.id}
                   block={block}
                   locked={false}
+                  eventHover={listHoverIds.includes(block.id)}
                   selected={
                     selection?.type === "block" &&
                     selection.container.kind === "layout" &&
@@ -1041,7 +1045,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                     selected={isSoloSelected}
                     groupSelected={groupSelected}
                     marqueeHover={marqueeHoverIds?.includes(block.id) ?? false}
-                    eventHover={eventBlockId === block.id}
+                    eventHover={eventBlockId === block.id || listHoverIds.includes(block.id)}
                     isPartOfCurrentSelection={isPartOfCurrentSelection}
                     livePositionOverride={groupLiveOverrides?.find((p) => p.id === block.id)?.position ?? null}
                     onSelect={() => {

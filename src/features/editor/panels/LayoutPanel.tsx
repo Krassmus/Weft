@@ -4,6 +4,7 @@ import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
 import type { Layout } from "../../../core/types";
 import { BlockKindIcon } from "../BlockKindIcon";
+import { listHoverProps, useClearListHoverOnUnmount } from "../listHover";
 import { Collapsible } from "../Collapsible";
 import { useDragReorder } from "../useDragReorder";
 import { orderedValues } from "../../../core/document/ordering";
@@ -13,6 +14,7 @@ export function LayoutPanel({ layout }: { layout: Layout }) {
   const { t } = useTranslation();
   const selection = useDocumentStore((s) => s.selection);
   const select = useDocumentStore((s) => s.select);
+  useClearListHoverOnUnmount();
   const { bind } = useDragReorder();
 
   return (
@@ -45,6 +47,7 @@ export function LayoutPanel({ layout }: { layout: Layout }) {
                       : "") + dragClassName
                   }
                   onClick={() => select({ type: "block", container: { kind: "layout", layoutId: layout.id }, blockId: block.id })}
+                  {...listHoverProps([block.id])}
                   {...dragAttrs}
                 >
                   <BlockKindIcon kind={block.kind} size={16} />

@@ -4,6 +4,7 @@ import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
 import type { Page } from "../../../core/types";
 import { BlockKindIcon } from "../BlockKindIcon";
+import { listHoverProps, useClearListHoverOnUnmount } from "../listHover";
 import { Collapsible } from "../Collapsible";
 import { useDragReorder } from "../useDragReorder";
 import { LayoutPicker } from "./LayoutPicker";
@@ -14,6 +15,7 @@ export function PagePanel({ page }: { page: Page }) {
   const { t } = useTranslation();
   const selection = useDocumentStore((s) => s.selection);
   const select = useDocumentStore((s) => s.select);
+  useClearListHoverOnUnmount();
   const { bind } = useDragReorder();
 
   // A group's members are always contiguous in page.blocks (see BlockGroup's own doc comment in
@@ -44,6 +46,7 @@ export function PagePanel({ page }: { page: Page }) {
                       type="button"
                       className={isGroupActive ? "is-active" : ""}
                       onClick={() => select({ type: "group", pageId: page.id, groupId: group.id })}
+                      {...listHoverProps(group.blockIds)}
                     >
                       Gruppe ({group.blockIds.length})
                     </button>
@@ -71,6 +74,7 @@ export function PagePanel({ page }: { page: Page }) {
                             type="button"
                             className={isMemberActive ? "is-active" : ""}
                             onClick={() => select({ type: "block", container: { kind: "page", pageId: page.id }, blockId: memberId })}
+                            {...listHoverProps([memberId])}
                           >
                             <BlockKindIcon kind={memberBlock.kind} size={16} />
                             {t(BLOCK_KIND_KEYS[memberBlock.kind])}
@@ -107,6 +111,7 @@ export function PagePanel({ page }: { page: Page }) {
                       : "") + dragClassName
                   }
                   onClick={() => select({ type: "block", container: { kind: "page", pageId: page.id }, blockId: block.id })}
+                  {...listHoverProps([block.id])}
                   {...dragAttrs}
                 >
                   <BlockKindIcon kind={block.kind} size={16} />

@@ -15,6 +15,8 @@ import type { BundledModule } from "./content";
 import { ModuleThumb } from "./ModuleThumb";
 import { summarizeModule } from "./moduleSummary";
 import type { ModuleSummary } from "./moduleSummary";
+import { LoadBar, useOpenProgress } from "./openProgress";
+import type { OpenProgress } from "./openProgress";
 import { PrivacyPage } from "./PrivacyPage";
 import "./start.css";
 
@@ -24,11 +26,11 @@ export interface StartActions {
   onNew: () => void;
   /** The file dialog (on a tablet: the library). */
   onOpenFile: () => void;
-  onOpenPath: (path: string) => void;
+  onOpenPath: (path: string) => Promise<void>;
   /** A template or an example: a module of its own, made from a copy of the file. */
-  onUseModule: (bytes: Uint8Array) => void;
+  onUseModule: (bytes: Uint8Array) => Promise<void>;
   /** A tutorial: played in the player, not editable. */
-  onPlay: (bytes: Uint8Array) => void;
+  onPlay: (bytes: Uint8Array) => Promise<void>;
   onSettings: () => void;
 }
 
@@ -105,6 +107,7 @@ interface Project {
   /** file name without its extension */
   name: string;
   modified: number;
+  size: number;
   folder: string;
 }
 
@@ -124,7 +127,7 @@ function stripExtension(name: string): string {
 /** The modules this computer opened or saved last (the tablet: the ones in its library), newest first. A file that is gone is left out. */
 async function listProjects(): Promise<Project[]> {
   if (libraryMode()) {
-    return (await listLibrary()).map((entry) => ({ path: entry.path, name: entry.name, modified: entry.modified, folder: "" }));
+    return (await listLibrary()).map((entry) => ({ path: entry.path, name: entry.name, modified: entry.modified, size: entry.size, folder: "" }));
   }
   if (!runsInTauri()) return [];
   const projects: Project[] = [];
@@ -132,7 +135,7 @@ async function listProjects(): Promise<Project[]> {
     try {
       const info = await stat(path);
       if (!info.isFile) continue;
-      projects.push({ path, name: stripExtension(baseName(path)), modified: info.mtime ? info.mtime.getTime() : 0, folder: folderName(path) });
+      projects.push({ path, name: stripExtension(baseName(path)), modified: info.mtime ? info.mtime.getTime() : 0, size: info.size, folder: folderName(path) });
     } catch {
       // gone, or out of reach
     }
@@ -180,6 +183,16 @@ function useProjects(): { projects: Project[] | null; summaries: Record<string, 
 
 // ---- The screen -----------------------------------------------------------------------------------------------------------
 
+/** How big a bundled module is (to know whether opening it takes a while): what the server says, null when it does not. */
+async function bundledSize(module: BundledModule): Promise<number | null> {
+  try {
+    const length = (await fetch(module.url, { method: "HEAD" })).headers.get("content-length");
+    return length ? Number(length) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function StartScreen({ actions }: { actions: StartActions }) {
   const [view, setView] = useState<"home" | "privacy">("home");
   return (
@@ -209,9 +222,14 @@ function Home({ actions }: { actions: StartActions }) {
   const examples = useMemo(() => bundledModules("examples"), []);
   const tutorials = useMemo(() => bundledModules("tutorials"), []);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const progress = useOpenProgress();
+
+  async function play(module: BundledModule) {
+    await progress.run(module.url, await bundledSize(module), async () => actions.onPlay(await loadBundledBytes(module)));
+  }
 
   async function use(module: BundledModule) {
-    actions.onUseModule(await loadBundledBytes(module));
+    await progress.run(module.url, await bundledSize(module), async () => actions.onUseModule(await loadBundledBytes(module)));
   }
 
   return (
@@ -259,19 +277,17 @@ function Home({ actions }: { actions: StartActions }) {
         />
       </section>
 
-      <ProjectsSection actions={actions} />
+      <ProjectsSection actions={actions} progress={progress} />
 
-      {tutorials.length > 0 && <TutorialsSection tutorials={tutorials} lang={lang} onPlay={async (module) => actions.onPlay(await loadBundledBytes(module))} />}
+      {tutorials.length > 0 && <TutorialsSection tutorials={tutorials} lang={lang} progress={progress} onPlay={play} />}
 
       {templatesOpen && (
         <TemplatesDialog
           templates={templates}
           lang={lang}
+          progress={progress}
           onClose={() => setTemplatesOpen(false)}
-          onUse={(module) => {
-            setTemplatesOpen(false);
-            void use(module);
-          }}
+          onUse={(module) => void use(module)}
         />
       )}
     </>
@@ -334,13 +350,14 @@ function SectionHead({ icon: iconName, title, hint, children }: { icon: keyof ty
   );
 }
 
-function ProjectsSection({ actions }: { actions: StartActions }) {
+function ProjectsSection({ actions, progress }: { actions: StartActions; progress: OpenProgress }) {
   const { lang } = useTranslation();
   const { projects, summaries, remove } = useProjects();
   const [all, setAll] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const shown = projects ? (all ? projects : projects.slice(0, PROJECTS_SHOWN)) : [];
   const canManage = runsInTauri() && !libraryMode();
+  const open = (project: Project) => progress.run(project.path, project.size, () => actions.onOpenPath(project.path));
 
   useEffect(() => {
     if (menuFor === null) return;
@@ -374,10 +391,11 @@ function ProjectsSection({ actions }: { actions: StartActions }) {
                 className="weft-start-card"
                 role="button"
                 tabIndex={0}
-                onClick={() => actions.onOpenPath(project.path)}
-                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), actions.onOpenPath(project.path))}
+                onClick={() => void open(project)}
+                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), void open(project))}
               >
                 <ModuleThumb summary={summary} />
+                {progress.active?.key === project.path && <LoadBar seconds={progress.active.seconds} />}
                 <div className="weft-start-card-body">
                   <h3 title={title}>{title}</h3>
                   <p>{tr("ui.start_last_edited", { date: project.modified ? new Date(project.modified).toLocaleDateString(lang === "de" ? "de-DE" : "en-GB") : "-" })}</p>
@@ -434,7 +452,7 @@ function ProjectsSection({ actions }: { actions: StartActions }) {
   );
 }
 
-function TutorialsSection({ tutorials, lang, onPlay }: { tutorials: BundledModule[]; lang: "de" | "en"; onPlay: (module: BundledModule) => Promise<void> }) {
+function TutorialsSection({ tutorials, lang, progress, onPlay }: { tutorials: BundledModule[]; lang: "de" | "en"; progress: OpenProgress; onPlay: (module: BundledModule) => Promise<void> }) {
   const [all, setAll] = useState(false);
   const summaries = useBundledSummaries(tutorials);
   const shown = all ? tutorials : tutorials.slice(0, TUTORIALS_SHOWN);
@@ -462,6 +480,7 @@ function TutorialsSection({ tutorials, lang, onPlay }: { tutorials: BundledModul
             >
               <div className="weft-start-card-picture">
                 <ModuleThumb summary={summaries[module.url]} />
+                {progress.active?.key === module.url && <LoadBar seconds={progress.active.seconds} />}
                 {tag && <span className="weft-start-tag">{tag}</span>}
               </div>
               <div className="weft-start-card-body">
@@ -487,7 +506,7 @@ function TutorialsSection({ tutorials, lang, onPlay }: { tutorials: BundledModul
   );
 }
 
-function TemplatesDialog({ templates, lang, onClose, onUse }: { templates: BundledModule[]; lang: "de" | "en"; onClose: () => void; onUse: (module: BundledModule) => void }) {
+function TemplatesDialog({ templates, lang, progress, onClose, onUse }: { templates: BundledModule[]; lang: "de" | "en"; progress: OpenProgress; onClose: () => void; onUse: (module: BundledModule) => void }) {
   const summaries = useBundledSummaries(templates);
   const firstRef = useRef<HTMLDivElement>(null);
   useEffect(() => firstRef.current?.focus(), []);
@@ -508,6 +527,7 @@ function TemplatesDialog({ templates, lang, onClose, onUse }: { templates: Bundl
               onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onUse(module))}
             >
               <ModuleThumb summary={summaries[module.url]} />
+              {progress.active?.key === module.url && <LoadBar seconds={progress.active.seconds} />}
               <div className="weft-start-card-body">
                 <h3>{localized(module.title, lang)}</h3>
                 <p>{localized(module.description, lang)}</p>

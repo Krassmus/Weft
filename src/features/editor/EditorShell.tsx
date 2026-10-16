@@ -347,7 +347,7 @@ export function EditorShell() {
   const handleNewRef = useRef<() => void>(() => {});
   const showStartRef = useRef<() => void>(() => {});
   const handleDuplicateRef = useRef<() => void>(() => {});
-  const handleOpenRecentRef = useRef<(path: string) => void>(() => {});
+  const handleOpenRecentRef = useRef<(path: string) => Promise<void> | void>(() => {});
   const presentingRef = useRef(presenting);
   presentingRef.current = presenting;
   // "Undo"/"Redo" in the native "Edit" menu (see src-tauri/src/lib.rs, which owns the
@@ -756,9 +756,9 @@ export function EditorShell() {
           actions={{
             onNew: () => void handleNewRef.current(),
             onOpenFile: () => void handleOpenRef.current(),
-            onOpenPath: (path) => void handleOpenRecentRef.current(path),
-            onUseModule: (bytes) => void handleUseModule(bytes),
-            onPlay: (bytes) => void handlePlayModule(bytes),
+            onOpenPath: async (path) => void (await handleOpenRecentRef.current(path)),
+            onUseModule: (bytes) => handleUseModule(bytes),
+            onPlay: (bytes) => handlePlayModule(bytes),
             // (The desktop app has the settings in a window of their own, see show_settings_window in src-tauri/src/lib.rs.)
             onSettings: () => (hasNativeMenu() ? void invoke("open_settings_window").catch(() => undefined) : useCollabDialog.getState().show("settings")),
           }}

@@ -492,3 +492,36 @@
   margin: 0 0 10px;
   font-style: normal;
 }
+
+/* The bar on a card while its module opens (openProgress.tsx): full after --load-seconds, then it pulses. */
+.weft-start-loadbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  animation: weft-load-pulse 1.2s ease-in-out var(--load-seconds) infinite;
+}
+
+.weft-start-loadbar i {
+  display: block;
+  height: 100%;
+  background: var(--weft-accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: weft-load-fill var(--load-seconds) cubic-bezier(0.25, 0.1, 0.4, 1) forwards;
+}
+
+@keyframes weft-load-fill {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes weft-load-pulse {
+  50% {
+    opacity: 0.4;
+  }
+}

@@ -491,7 +491,8 @@ function HistoryField() {
 
 const DIRECT_STATUS_TEXT = {
   off: "",
-  searching: "Direktverbindung: suche die anderen …",
+  // (While it is looking for the others nothing is said - only when it has found them or has not.)
+  searching: "",
   get connected() { return tr("ui.direct_connection_established"); },
   get failed() { return tr("ui.direct_connection_failed"); },
 } as const;
@@ -526,10 +527,6 @@ function CollaborationField() {
   return (
     <div className="weft-field">
       <span>{tr("ui.collaboration")}</span>
-      <p className="weft-hint">
-        {tr("ui.join_an_invitation_and_take_over")}
-      </p>
-      <p className="weft-hint">{tr("ui.live_work_together_on_the_same")}</p>
       <label className="weft-field weft-field-inline">
         <input
           type="checkbox"
@@ -539,9 +536,6 @@ function CollaborationField() {
         />
         <span>{tr("ui.work_on_the_file_together")}</span>
       </label>
-      <p className="weft-hint">
-        {tr("ui.everybody_with_the_file_or_the")}
-      </p>
       {live && (
         <>
           <input readOnly value={invitationLink() ?? ""} onFocus={(e) => e.currentTarget.select()} title={tr("ui.pass_this_link_on_to_others")} />
@@ -560,7 +554,7 @@ function CollaborationField() {
       )}
       {!webRtcAvailable && <p className="weft-placeholder-warning">{tr("ui.this_system_does_not_support_direct")}</p>}
       {error && <p className="weft-placeholder-warning">{error}</p>}
-      {connection.state !== "off" && (
+      {(connection.state === "connected" || connection.state === "failed" || connection.error) && (
         <p className={connection.state === "failed" ? "weft-placeholder-warning" : "weft-hint"}>
           {DIRECT_STATUS_TEXT[connection.state]}
           {connection.state === "connected" && ` (${connection.peers} ${connection.peers === 1 ? tr("ui.person") : tr("ui.people")})`}

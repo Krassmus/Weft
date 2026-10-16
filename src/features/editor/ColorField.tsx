@@ -26,11 +26,14 @@ export function ColorField({
   onChange,
   title,
   ariaLabel,
+  hideScheme = false,
 }: {
   value: string;
   onChange: (color: string) => void;
   title?: string;
   ariaLabel?: string;
+  /** Without the colour scheme (and "Add to color scheme"): for the one place that edits the scheme itself. */
+  hideScheme?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
@@ -111,8 +114,8 @@ export function ColorField({
               if (!(e.target instanceof HTMLInputElement)) e.preventDefault();
             }}
           >
-            <span className="weft-color-popover-label">{tr("ui.colour_scheme")}</span>
-            {palette.length === 0 ? (
+            {!hideScheme && <span className="weft-color-popover-label">{tr("ui.colour_scheme")}</span>}
+            {hideScheme ? null : palette.length === 0 ? (
               <p className="weft-hint">{tr("ui.colour_scheme_empty")}</p>
             ) : (
               <div className="weft-color-grid">
@@ -147,15 +150,17 @@ export function ColorField({
                 <span>{tr("ui.other_colour")}</span>
               </label>
             </div>
-            <button
-              type="button"
-              className="weft-ghost-button weft-full-width"
-              disabled={inPalette}
-              title={inPalette ? tr("ui.already_in_colour_scheme") : undefined}
-              onClick={() => addPaletteColor(value)}
-            >
-              {tr("ui.add_to_colour_scheme")}
-            </button>
+            {!hideScheme && (
+              <button
+                type="button"
+                className="weft-ghost-button weft-full-width"
+                disabled={inPalette}
+                title={inPalette ? tr("ui.already_in_colour_scheme") : undefined}
+                onClick={() => addPaletteColor(value)}
+              >
+                {tr("ui.add_to_colour_scheme")}
+              </button>
+            )}
           </div>,
           document.body,
         )}

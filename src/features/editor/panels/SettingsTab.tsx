@@ -115,7 +115,7 @@ function ColorSchemeDialog({ onClose }: { onClose: () => void }) {
             {palette.map((entry, index) => (
               <tr key={entry.id}>
                 <td>
-                  <ColorField value={entry.color} ariaLabel={tr("ui.colour")} onChange={(color) => setPaletteColor(entry.id, color)} />
+                  <ColorField value={entry.color} ariaLabel={tr("ui.colour")} hideScheme onChange={(color) => setPaletteColor(entry.id, color)} />
                 </td>
                 <td className="weft-color-table-count">{usage[index]}</td>
                 <td>
@@ -124,7 +124,11 @@ function ColorSchemeDialog({ onClose }: { onClose: () => void }) {
                     className="weft-icon-button weft-trash-button"
                     title={tr("ui.remove_colour")}
                     aria-label={tr("ui.remove_colour")}
-                    onClick={() => removePaletteColor(entry.id)}
+                    onClick={() => {
+                      void confirmDestructive(tr("ui.really_delete_colour"), tr("ui.delete_colour")).then((ok) => {
+                        if (ok) removePaletteColor(entry.id);
+                      });
+                    }}
                     dangerouslySetInnerHTML={{ __html: trashIconSvg }}
                   />
                 </td>

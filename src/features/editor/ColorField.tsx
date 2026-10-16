@@ -14,6 +14,8 @@ function parseHex(text: string): string | null {
   return null;
 }
 
+/** At most this often a colour dragged in the system's picker becomes an edit. */
+const NATIVE_INTERVAL_MS = 150;
 const POPOVER_WIDTH = 224;
 const GAP = 6;
 const MARGIN = 8;
@@ -53,6 +55,50 @@ export function ColorField({
   // What is typed in the hex field while it is being typed (null: it shows the colour as it is).
   const [draft, setDraft] = useState<string | null>(null);
   const inPalette = palette.some((c) => c.color.toLowerCase() === hex);
+
+  // The system's picker ("Andere Farbe …") reports every step of a drag - dozens a second, and each of them would be an edit of the
+  // whole module. What the person sees at once is the picker's own (`nativeShown`); the module gets at most one colour per
+  // NATIVE_INTERVAL_MS, and the last one when the picker is done (its "change" event).
+  const [nativeShown, setNativeShown] = useState<string | null>(null);
+  const nativeRef = useRef<HTMLInputElement>(null);
+  const pendingRef = useRef<string | null>(null);
+  const sentAtRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  function flushNative() {
+    if (timerRef.current !== null) clearTimeout(timerRef.current);
+    timerRef.current = null;
+    const color = pendingRef.current;
+    pendingRef.current = null;
+    if (color !== null) {
+      sentAtRef.current = performance.now();
+      onChangeRef.current(color);
+    }
+  }
+
+  function pushNative(color: string) {
+    setNativeShown(color);
+    pendingRef.current = color;
+    if (timerRef.current === null) {
+      timerRef.current = setTimeout(flushNative, Math.max(0, NATIVE_INTERVAL_MS - (performance.now() - sentAtRef.current)));
+    }
+  }
+
+  // The picker is done: the last colour is set, and the little window goes.
+  useEffect(() => {
+    const input = nativeRef.current;
+    if (!open || !input) return;
+    const done = () => {
+      flushNative();
+      setNativeShown(null);
+      setOpen(false);
+    };
+    input.addEventListener("change", done);
+    return () => input.removeEventListener("change", done);
+  }, [open]);
+  useEffect(() => () => flushNative(), []);
 
   useEffect(() => {
     if (!open) setDraft(null);
@@ -101,11 +147,15 @@ export function ColorField({
     const parsed = draft === null ? null : parseHex(draft);
     if (parsed && parsed !== hex) onChange(parsed);
     setDraft(null);
+    if (parsed) setOpen(false);
   }
 
   async function eyedrop() {
     const picked = await pickScreenColor();
-    if (picked) onChange(picked);
+    if (picked) {
+      onChange(picked);
+      setOpen(false);
+    }
   }
 
   return (
@@ -173,7 +223,10 @@ export function ColorField({
                 // A complete value counts right away (shorthand like "abc" only when the field is left: "abcdef" may follow).
                 const digits = e.target.value.trim().replace(/^#/, "");
                 const parsed = digits.length === 6 ? parseHex(e.target.value) : null;
-                if (parsed && parsed !== hex) onChange(parsed);
+                if (parsed) {
+                  if (parsed !== hex) onChange(parsed);
+                  setOpen(false);
+                }
               }}
               onBlur={commitDraft}
               onKeyDown={(e) => {
@@ -194,7 +247,7 @@ export function ColorField({
                 </button>
               )}
               <label className="weft-color-other" title={tr("ui.other_colour")}>
-                <input type="color" value={value} onChange={(e) => onChange(e.target.value)} />
+                <input ref={nativeRef} type="color" value={nativeShown ?? value} onChange={(e) => pushNative(e.target.value)} />
                 <span>{tr("ui.other_colour")}</span>
               </label>
             </div>

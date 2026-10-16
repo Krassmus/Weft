@@ -17,6 +17,9 @@ export function LayoutPanel({ layout }: { layout: Layout }) {
   const select = useDocumentStore((s) => s.select);
   useClearListHoverOnUnmount();
   const { bind } = useDragReorder();
+  // The topmost element (the one in front) is the first row: the list is the stacking order turned around.
+  const stacked = orderedValues(layout.blocks);
+  const shownBlocks = [...stacked].reverse();
 
   return (
     <>
@@ -29,11 +32,11 @@ export function LayoutPanel({ layout }: { layout: Layout }) {
       </Collapsible>
 
       <Collapsible title={`${t("panel.elements")} (${Object.keys(layout.blocks).length})`}>
-        {Object.keys(layout.blocks).length > 1 && <p className="weft-hint">{tr("ui.drag_to_sort_further_down_is")}</p>}
+        {Object.keys(layout.blocks).length > 1 && <p className="weft-hint">{tr("ui.drag_to_sort_further_up_is")}</p>}
         <ul className="weft-block-list">
-          {orderedValues(layout.blocks).map((block, index) => {
+          {shownBlocks.map((block, index) => {
             const { dragClassName, ...dragAttrs } = bind("block", layout.id, index, (_containerId, toIndex) =>
-              reorderBlock({ kind: "layout", layoutId: layout.id }, block.id, toIndex),
+              reorderBlock({ kind: "layout", layoutId: layout.id }, block.id, stacked.length - 1 - toIndex),
             );
             return (
               <li key={block.id}>

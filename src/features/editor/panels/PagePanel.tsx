@@ -24,6 +24,9 @@ export function PagePanel({ page }: { page: Page }) {
   // members) in one go, and every later member of that same group is just skipped, rather than
   // re-checking page.groups on every single row.
   const renderedGroupIds = new Set<string>();
+  // The topmost element (the one in front) is the first row, as in other programs: the list is the stacking order turned around.
+  const stacked = orderedValues(page.blocks);
+  const shownBlocks = [...stacked].reverse();
 
   return (
     <>
@@ -32,9 +35,9 @@ export function PagePanel({ page }: { page: Page }) {
       </Collapsible>
 
       <Collapsible title={`${t("panel.elements")} (${Object.keys(page.blocks).length})`}>
-        {Object.keys(page.blocks).length > 1 && <p className="weft-hint">{tr("ui.drag_to_sort_further_down_is")}</p>}
+        {Object.keys(page.blocks).length > 1 && <p className="weft-hint">{tr("ui.drag_to_sort_further_up_is")}</p>}
         <ul className="weft-block-list">
-          {orderedValues(page.blocks).map((block, index) => {
+          {shownBlocks.map((block, index) => {
             const group = page.groups.find((g) => g.blockIds.includes(block.id));
             if (group) {
               if (renderedGroupIds.has(group.id)) return null;
@@ -67,7 +70,7 @@ export function PagePanel({ page }: { page: Page }) {
                     </button>
                   </div>
                   <ul className="weft-block-group-members">
-                    {group.blockIds.map((memberId) => {
+                    {shownBlocks.filter((b) => group.blockIds.includes(b.id)).map(({ id: memberId }) => {
                       const memberBlock = page.blocks[memberId];
                       if (!memberBlock) return null;
                       const isMemberActive =
@@ -106,7 +109,7 @@ export function PagePanel({ page }: { page: Page }) {
             }
 
             const { dragClassName, ...dragAttrs } = bind("block", page.id, index, (_containerId, toIndex) =>
-              reorderBlock({ kind: "page", pageId: page.id }, block.id, toIndex),
+              reorderBlock({ kind: "page", pageId: page.id }, block.id, stacked.length - 1 - toIndex),
             );
             return (
               <li key={block.id}>

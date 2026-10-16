@@ -11,6 +11,7 @@ import {
 import {
   addCustomFont,
   addPaletteColor,
+  movePaletteColor,
   removeCustomFont,
   removePaletteColor,
   setPaletteColor,
@@ -94,13 +95,14 @@ function ColorSchemeField() {
 /** Where the colours of the scheme are changed, removed and added: a small table - the colour, how often the slides use it, and the
  * way to remove it. */
 function ColorSchemeDialog({ onClose }: { onClose: () => void }) {
+  const { bind } = useDragReorder();
   const palette = useDocumentStore((s) => s.doc.content.colorPalette) ?? [];
   const pages = useDocumentStore((s) => s.doc.content.pages);
   const layouts = useDocumentStore((s) => s.doc.content.layouts);
   const colorKey = palette.map((c) => c.color).join(",");
   const usage = useMemo(() => countColorUsage({ pages, layouts }, palette.map((c) => c.color)), [pages, layouts, colorKey]);
   return (
-    <DialogFrame title={tr("ui.colour_scheme")} onClose={onClose}>
+    <DialogFrame title={tr("ui.colour_scheme")} onClose={onClose} floating>
       <p className="weft-hint">{tr("ui.colour_scheme_hint")}</p>
       {palette.length > 0 && (
         <table className="weft-color-table">
@@ -112,28 +114,31 @@ function ColorSchemeDialog({ onClose }: { onClose: () => void }) {
             </tr>
           </thead>
           <tbody>
-            {palette.map((entry, index) => (
-              <tr key={entry.id}>
-                <td>
-                  <ColorField value={entry.color} ariaLabel={tr("ui.colour")} hideScheme onChange={(color) => setPaletteColor(entry.id, color)} />
-                </td>
-                <td className="weft-color-table-count">{usage[index]}</td>
-                <td>
-                  <button
-                    type="button"
-                    className="weft-icon-button weft-trash-button"
-                    title={tr("ui.remove_colour")}
-                    aria-label={tr("ui.remove_colour")}
-                    onClick={() => {
-                      void confirmDestructive(tr("ui.really_delete_colour"), tr("ui.delete_colour")).then((ok) => {
-                        if (ok) removePaletteColor(entry.id);
-                      });
-                    }}
-                    dangerouslySetInnerHTML={{ __html: trashIconSvg }}
-                  />
-                </td>
-              </tr>
-            ))}
+            {palette.map((entry, index) => {
+              const { dragClassName, ...dragAttrs } = bind("color", COLOR_LIST_ID, index, (_container, to) => movePaletteColor(entry.id, to));
+              return (
+                <tr key={entry.id} className={dragClassName} {...dragAttrs}>
+                  <td>
+                    <ColorField value={entry.color} ariaLabel={tr("ui.colour")} hideScheme onChange={(color) => setPaletteColor(entry.id, color)} />
+                  </td>
+                  <td className="weft-color-table-count">{usage[index]}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="weft-icon-button weft-trash-button"
+                      title={tr("ui.remove_colour")}
+                      aria-label={tr("ui.remove_colour")}
+                      onClick={() => {
+                        void confirmDestructive(tr("ui.really_delete_colour"), tr("ui.delete_colour")).then((ok) => {
+                          if (ok) removePaletteColor(entry.id);
+                        });
+                      }}
+                      dangerouslySetInnerHTML={{ __html: trashIconSvg }}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
@@ -162,6 +167,7 @@ function unusedPaletteColor(taken: string[]): string {
 }
 
 const LANGUAGE_LIST_ID = "languages";
+const COLOR_LIST_ID = "colors";
 
 /**
  * The languages the module is offered in. None by default (a single-language module); the list is

@@ -1717,6 +1717,20 @@ export function setPaletteColor(id: string, color: string) {
   });
 }
 
+/** Moves a colour of the scheme to position `toIndex` of the list without it (as the drag reordering of the lists works, see useDragReorder). */
+export function movePaletteColor(id: string, toIndex: number) {
+  edit("Farbe im Farbschema verschieben", (m) => {
+    const list = m.colorPalette;
+    if (!list) return;
+    const from = list.findIndex((c) => c.id === id);
+    if (from < 0) return;
+    // (A list entry of the document can't be put in again as it is: it is made anew.)
+    const moved = { id: list[from].id, color: list[from].color };
+    list.splice(from, 1);
+    list.splice(Math.min(Math.max(toIndex, 0), list.length), 0, moved);
+  });
+}
+
 export function removePaletteColor(id: string) {
   edit("Farbe aus dem Farbschema entfernen", (m) => {
     if (m.colorPalette) removeWhere(m.colorPalette, (c) => c.id === id);

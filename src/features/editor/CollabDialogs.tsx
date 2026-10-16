@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { mergeDocumentFile } from "../../core/collab/merge";
 import type { MergeResult } from "../../core/collab/merge";
@@ -12,8 +12,10 @@ import { PersonAvatar } from "./PersonAvatar";
 import { useCollabDialog } from "./collabDialogStore";
 import { tr } from "../../core/i18n/tr";
 
-/** The frame of both dialogs: a small window over the editor that closes with Esc or a click beside it. */
-export function DialogFrame({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+/** The frame of the dialogs: a small window over the editor that closes with Esc or a click beside it.
+ * `floating`: a window that does not dim or block what is behind it - the editor stays usable (and visible in its true colours, which is
+ * what the colour scheme's dialog is for: picking colours off the slide), and it is moved by its heading. It closes with Esc or its x only. */
+export function DialogFrame({ title, onClose, children, floating = false }: { title: string; onClose: () => void; children: ReactNode; floating?: boolean }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -22,15 +24,62 @@ export function DialogFrame({ title, onClose, children }: { title: string; onClo
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Where a floating window stands (null until it is measured: at first at the right, under the toolbar).
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
+  const windowRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (!floating || !windowRef.current) return;
+    setPosition({ left: Math.max(8, window.innerWidth - windowRef.current.offsetWidth - 16), top: 64 });
+  }, [floating]);
+
+  function startMove(e: ReactPointerEvent) {
+    if (!floating || !position || !windowRef.current || (e.target as HTMLElement).closest("button")) return;
+    e.preventDefault();
+    const box = windowRef.current.getBoundingClientRect();
+    const grabX = e.clientX - box.left;
+    const grabY = e.clientY - box.top;
+    const move = (ev: PointerEvent) =>
+      setPosition({
+        left: Math.min(Math.max(0, ev.clientX - grabX), window.innerWidth - 80),
+        top: Math.min(Math.max(0, ev.clientY - grabY), window.innerHeight - 40),
+      });
+    const end = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+  }
+
+  const header = (
+    <div className="weft-modal-header" onPointerDown={startMove}>
+      <h3>{title}</h3>
+      <button type="button" className="weft-icon-button" title={tr("ui.close")} onClick={onClose}>
+        ×
+      </button>
+    </div>
+  );
+
+  if (floating) {
+    return createPortal(
+      <div
+        ref={windowRef}
+        className="weft-modal weft-collab-dialog weft-floating-dialog"
+        style={{ left: position?.left ?? 0, top: position?.top ?? 0, visibility: position ? "visible" : "hidden" }}
+      >
+        {header}
+        {children}
+      </div>,
+      document.body,
+    );
+  }
+
   return createPortal(
     <div className="weft-modal-backdrop" onClick={onClose}>
       <div className="weft-modal weft-collab-dialog" onClick={(e) => e.stopPropagation()}>
-        <div className="weft-modal-header">
-          <h3>{title}</h3>
-          <button type="button" className="weft-icon-button" title={tr("ui.close")} onClick={onClose}>
-            ×
-          </button>
-        </div>
+        {header}
         {children}
       </div>
     </div>,

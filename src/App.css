@@ -5191,3 +5191,33 @@ button.weft-timeline-node-icon.is-red:hover,
   border-color: var(--weft-accent);
   outline: none;
 }
+
+/* A dialog that stands over the editor without dimming or blocking it (DialogFrame's `floating`). */
+.weft-floating-dialog {
+  position: fixed;
+  z-index: 1000;
+  max-height: calc(100vh - 80px);
+}
+
+.weft-floating-dialog .weft-modal-header {
+  cursor: grab;
+  touch-action: none;
+}
+
+/* Sorting the colours of the scheme by dragging their rows. */
+.weft-color-table tbody tr {
+  cursor: grab;
+  touch-action: none;
+}
+
+.weft-color-table tbody tr.is-dragging {
+  opacity: 0.4;
+}
+
+.weft-color-table tbody tr.is-drop-before td {
+  border-top-color: var(--weft-accent);
+}
+
+.weft-color-table tbody tr.is-drop-after td {
+  box-shadow: inset 0 -1px 0 var(--weft-accent);
+}

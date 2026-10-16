@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
-/** ("language" rows - the module's language list in the Einstellungen - behave like "block" rows:
- * reordering within their one list.)
+/** ("language" rows - the module's language list in the Einstellungen - and "color" rows - the colour scheme's table - behave like "block"
+ * rows: reordering within their one list.)
  *
  * "page" rows can be dropped into any container (the top-level sequence or any branch) - "logic"
  * rows (a logic block itself, never held by a branch - see Branch's own comment in types.ts) and
@@ -10,7 +10,7 @@ import type { PointerEvent as ReactPointerEvent } from "react";
  * LayoutPanel.tsx) stay restricted to reordering within their own container: "top" is the only one
  * a logic block ever has, and a block's container (its own page or layout id) is never a valid
  * drop target for a block from a *different* page/layout anyway. */
-type DragKind = "page" | "logic" | "block" | "language";
+type DragKind = "page" | "logic" | "block" | "language" | "color";
 
 interface DragOverState {
   sourceContainerId: string;

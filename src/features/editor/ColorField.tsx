@@ -129,6 +129,8 @@ export function ColorField({
           <div
             ref={popoverRef}
             className="weft-color-popover"
+            // (Not for the row or window it was opened from: a press in here is not a press on them - e.g. the start of a drag.)
+            onPointerDown={(e) => e.stopPropagation()}
             style={{ left: position?.left ?? 0, top: position?.top ?? 0, width: POPOVER_WIDTH, visibility: position ? "visible" : "hidden" }}
             // A click on a button here must not take the focus from the text being edited; the system's picker needs its own.
             onMouseDown={(e) => {

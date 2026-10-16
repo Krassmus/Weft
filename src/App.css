@@ -5239,3 +5239,67 @@ button.weft-timeline-node-icon.is-red:hover,
   width: 100%;
   min-width: 0;
 }
+
+/* ---- Sliders: dark, to go with the rest of the app (the browsers' own are light grey) ---- */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]:focus {
+  outline: none;
+}
+
+input[type="range"]:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--weft-text) 16%, var(--weft-input-bg));
+}
+
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--weft-text) 16%, var(--weft-input-bg));
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: 2px solid var(--weft-panel-raised);
+  border-radius: 50%;
+  background: var(--weft-accent);
+  box-shadow: 0 0 0 1px var(--weft-accent);
+}
+
+input[type="range"]::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--weft-panel-raised);
+  border-radius: 50%;
+  background: var(--weft-accent);
+  box-shadow: 0 0 0 1px var(--weft-accent);
+}
+
+input[type="range"]:hover::-webkit-slider-thumb,
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  background: var(--weft-accent-hover);
+  box-shadow: 0 0 0 1px var(--weft-accent-hover);
+}
+
+input[type="range"]:hover::-moz-range-thumb,
+input[type="range"]:focus-visible::-moz-range-thumb {
+  background: var(--weft-accent-hover);
+  box-shadow: 0 0 0 1px var(--weft-accent-hover);
+}

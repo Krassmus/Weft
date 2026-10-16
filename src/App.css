@@ -5130,3 +5130,47 @@ button.weft-timeline-node-icon.is-red:hover,
   flex: none;
   color: var(--weft-accent-hover);
 }
+
+/* The colour scheme as a table (ColorSchemeDialog in panels/SettingsTab.tsx). */
+.weft-color-table {
+  width: 100%;
+  margin: 4px 0 8px;
+  border-collapse: collapse;
+}
+
+.weft-color-table th {
+  padding: 4px 8px;
+  color: var(--weft-text-faint);
+  font-size: 11px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.weft-color-table td {
+  padding: 5px 8px;
+  border-top: 1px solid var(--weft-border-subtle);
+}
+
+.weft-color-table th:last-child,
+.weft-color-table td:last-child {
+  width: 40px;
+  text-align: right;
+}
+
+.weft-color-table-count {
+  color: var(--weft-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.weft-trash-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.weft-trash-button svg * {
+  fill: currentColor;
+}
+
+.weft-trash-button:hover {
+  color: var(--weft-danger);
+}

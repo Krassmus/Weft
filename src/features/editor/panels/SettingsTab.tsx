@@ -47,6 +47,8 @@ import {
   invitationLink,
 } from "../../../core/collab/session";
 import { useDragReorder } from "../useDragReorder";
+import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
+import { countColorUsage } from "../../../core/colors/usage";
 import { ColorField } from "../ColorField";
 import { DialogFrame } from "../CollabDialogs";
 import { tr } from "../../../core/i18n/tr";
@@ -89,23 +91,47 @@ function ColorSchemeField() {
   );
 }
 
-/** Where the colours of the scheme are changed, removed and added. */
+/** Where the colours of the scheme are changed, removed and added: a small table - the colour, how often the slides use it, and the
+ * way to remove it. */
 function ColorSchemeDialog({ onClose }: { onClose: () => void }) {
   const palette = useDocumentStore((s) => s.doc.content.colorPalette) ?? [];
+  const pages = useDocumentStore((s) => s.doc.content.pages);
+  const layouts = useDocumentStore((s) => s.doc.content.layouts);
+  const colorKey = palette.map((c) => c.color).join(",");
+  const usage = useMemo(() => countColorUsage({ pages, layouts }, palette.map((c) => c.color)), [pages, layouts, colorKey]);
   return (
     <DialogFrame title={tr("ui.colour_scheme")} onClose={onClose}>
       <p className="weft-hint">{tr("ui.colour_scheme_hint")}</p>
       {palette.length > 0 && (
-        <div className="weft-color-palette-row">
-          {palette.map((entry) => (
-            <span key={entry.id} className="weft-color-palette-item">
-              <ColorField value={entry.color} ariaLabel={tr("ui.colour")} onChange={(color) => setPaletteColor(entry.id, color)} />
-              <button type="button" className="weft-icon-button" title={tr("ui.remove_colour")} aria-label={tr("ui.remove_colour")} onClick={() => removePaletteColor(entry.id)}>
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
+        <table className="weft-color-table">
+          <thead>
+            <tr>
+              <th>{tr("ui.colour")}</th>
+              <th>{tr("ui.colour_used")}</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {palette.map((entry, index) => (
+              <tr key={entry.id}>
+                <td>
+                  <ColorField value={entry.color} ariaLabel={tr("ui.colour")} onChange={(color) => setPaletteColor(entry.id, color)} />
+                </td>
+                <td className="weft-color-table-count">{usage[index]}</td>
+                <td>
+                  <button
+                    type="button"
+                    className="weft-icon-button weft-trash-button"
+                    title={tr("ui.remove_colour")}
+                    aria-label={tr("ui.remove_colour")}
+                    onClick={() => removePaletteColor(entry.id)}
+                    dangerouslySetInnerHTML={{ __html: trashIconSvg }}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
       <div className="weft-modal-actions">
         <button type="button" className="weft-ghost-button" onClick={() => addPaletteColor(unusedPaletteColor(palette.map((c) => c.color)))}>

@@ -48,6 +48,7 @@ import {
 } from "../../../core/collab/session";
 import { useDragReorder } from "../useDragReorder";
 import { ColorField } from "../ColorField";
+import { DialogFrame } from "../CollabDialogs";
 import { tr } from "../../../core/i18n/tr";
 
 const CUSTOM_VALUE = "custom";
@@ -55,13 +56,44 @@ const CUSTOM_VALUE = "custom";
 /** What new scheme colours start as, in this order (the person changes them right away). */
 const NEW_PALETTE_COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f5b83d", "#a66cff", "#111827", "#ffffff"];
 
-/** The module's colour scheme (WeftModule.colorPalette): colours every colour picker offers. A colour can also be added from a
- * picker itself ("Add to color scheme"). */
+/** The module's colour scheme (WeftModule.colorPalette): colours every colour picker offers. Here only shown - the colours, and
+ * the dialog to change them (ColorSchemeDialog) behind a click on them. A colour can also be added from a picker itself ("Add to
+ * color scheme"). */
 function ColorSchemeField() {
   const palette = useDocumentStore((s) => s.doc.content.colorPalette) ?? [];
+  const [open, setOpen] = useState(false);
   return (
     <div className="weft-field">
       <span>{tr("ui.colour_scheme")}</span>
+      {palette.length === 0 ? (
+        <button type="button" className="weft-ghost-button weft-full-width" onClick={() => setOpen(true)}>
+          {tr("ui.configure_colour_scheme")}
+        </button>
+      ) : (
+        <div className="weft-color-palette-row">
+          {palette.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              className="weft-color-cell"
+              style={{ ["--swatch" as string]: entry.color }}
+              title={tr("ui.configure_colour_scheme")}
+              aria-label={tr("ui.configure_colour_scheme")}
+              onClick={() => setOpen(true)}
+            />
+          ))}
+        </div>
+      )}
+      {open && <ColorSchemeDialog onClose={() => setOpen(false)} />}
+    </div>
+  );
+}
+
+/** Where the colours of the scheme are changed, removed and added. */
+function ColorSchemeDialog({ onClose }: { onClose: () => void }) {
+  const palette = useDocumentStore((s) => s.doc.content.colorPalette) ?? [];
+  return (
+    <DialogFrame title={tr("ui.colour_scheme")} onClose={onClose}>
       <p className="weft-hint">{tr("ui.colour_scheme_hint")}</p>
       {palette.length > 0 && (
         <div className="weft-color-palette-row">
@@ -75,10 +107,15 @@ function ColorSchemeField() {
           ))}
         </div>
       )}
-      <button type="button" className="weft-ghost-button weft-full-width" onClick={() => addPaletteColor(unusedPaletteColor(palette.map((c) => c.color)))}>
-        {tr("ui.add_colour")}
-      </button>
-    </div>
+      <div className="weft-modal-actions">
+        <button type="button" className="weft-ghost-button" onClick={() => addPaletteColor(unusedPaletteColor(palette.map((c) => c.color)))}>
+          {tr("ui.add_colour")}
+        </button>
+        <button type="button" className="weft-ghost-button" onClick={onClose}>
+          {tr("ui.close")}
+        </button>
+      </div>
+    </DialogFrame>
   );
 }
 

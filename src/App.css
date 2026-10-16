@@ -5067,3 +5067,71 @@ button.weft-timeline-node-icon.is-red:hover,
   align-items: center;
   gap: 2px;
 }
+
+/* The "+" over the slide and its menu of element types (features/editor/AddElementMenu.tsx). */
+.weft-canvas-toolbar .weft-canvas-add-button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  border-color: var(--weft-border);
+  color: var(--weft-text);
+}
+
+.weft-add-elements {
+  position: fixed;
+  z-index: 2000;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: var(--weft-panel-raised);
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius);
+  box-shadow: var(--weft-shadow);
+}
+
+.weft-add-elements-column {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.weft-add-elements-column + .weft-add-elements-column {
+  padding-left: 8px;
+  border-left: 1px solid var(--weft-border-subtle);
+}
+
+.weft-add-elements-title {
+  padding: 4px 8px 6px;
+  color: var(--weft-text-faint);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.weft-add-elements-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: var(--weft-radius-sm);
+  background: none;
+  color: var(--weft-text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.weft-add-elements-item svg {
+  flex: none;
+  color: var(--weft-accent-hover);
+}
+
+.weft-add-elements-item:hover {
+  background: var(--weft-accent-soft);
+}

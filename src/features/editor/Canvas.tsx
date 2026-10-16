@@ -43,6 +43,7 @@ import { orderedValues } from "../../core/document/ordering";
 import { PresenceBar } from "./PresenceBar";
 import { branchPageIds, sequenceOf } from "../../core/document/sequence";
 import { tr } from "../../core/i18n/tr";
+import { AddElementMenu } from "./AddElementMenu";
 
 const ARROW_STEP_PERCENT = 1;
 const ARROW_STEP_PERCENT_FAST = 5;
@@ -842,6 +843,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
             {tr("ui.play")}
           </button>
         )}
+        {target && <AddElementMenu container={target.kind === "layout" ? { kind: "layout", layoutId: target.layout.id } : { kind: "page", pageId: target.page.id }} />}
         {target?.kind === "layout" && <span className="weft-canvas-context">{tr("ui.layout")} {target.layout.name}</span>}
         {zoom !== 1 && (
           <button type="button" className="weft-canvas-zoom-reset" onClick={resetZoom} title={tr("ui.reset_zoom")}>

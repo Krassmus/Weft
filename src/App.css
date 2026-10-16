@@ -5221,3 +5221,21 @@ button.weft-timeline-node-icon.is-red:hover,
 .weft-color-table tbody tr.is-drop-after td {
   box-shadow: inset 0 -1px 0 var(--weft-accent);
 }
+
+/* The four corner sliders of a rectangle, placed like the corners (BlockPanel.tsx's ShapeCornerRadiiEditor). */
+.weft-corner-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px 14px;
+}
+
+.weft-corner-grid .weft-field span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.weft-corner-grid input[type="range"] {
+  width: 100%;
+  min-width: 0;
+}

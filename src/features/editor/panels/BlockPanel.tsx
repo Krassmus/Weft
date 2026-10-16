@@ -1907,13 +1907,8 @@ function ShapeEditor({ block, onUpdate }: { block: ShapeBlock; onUpdate: BlockPa
   );
 }
 
-// Reading order (top-left, top-right, bottom-left, bottom-right), not the .weft-field-grid 2x2
-// layout order this used to be rendered in - that grid fills row-major (left-to-right then down),
-// so position 3 (bottomRight) landed in the grid's bottom-*left* cell and position 4 (bottomLeft)
-// in its bottom-*right* cell, i.e. visually swapped from what their own labels said. Rendered as
-// plain stacked .weft-field rows now instead (see ShapeCornerRadiiEditor below), so this order is
-// just for a sensible reading sequence, not a grid position - but keeping bottomLeft before
-// bottomRight here still matters for that reason.
+// Reading order (top-left, top-right, bottom-left, bottom-right): rendered row by row in a two-column grid (.weft-corner-grid), so the
+// four sliders stand where their corners are in the rectangle.
 const CORNER_FIELDS: { key: keyof ShapeCornerRadii; label: string }[] = [
   { key: "topLeft", get label() { return tr("ui.top_left"); } },
   { key: "topRight", get label() { return tr("ui.top_right"); } },
@@ -1948,14 +1943,8 @@ function ShapeCornerRadiiEditor({
         <span>{tr("ui.set_corners_individually")}</span>
       </label>
       {individual ? (
-        // Plain stacked .weft-field rows, not .weft-field-grid - that grid's narrow 2-column
-        // cells (built for a 2-3 digit x/y/width/height number, see its own comment in App.css)
-        // left each range input only a sliver of a track, too short to land on anything but
-        // roughly "0" or "near the end" with a mouse - exactly the "can only turn it off, can't
-        // fine-tune, can't get it back off 0" behavior this was reported as. A full-width track,
-        // like every other slider in this panel (Deckkraft, Winkel, the uniform Eckenradius
-        // below, ...) already gets, is draggable precisely the same way those are.
-        <>
+        // Two by two, like the corners of the rectangle: top left | top right, then bottom left | bottom right.
+        <div className="weft-corner-grid">
           {CORNER_FIELDS.map(({ key, label }) => (
             <label key={key} className="weft-field">
               <span>
@@ -1970,7 +1959,7 @@ function ShapeCornerRadiiEditor({
               />
             </label>
           ))}
-        </>
+        </div>
       ) : (
         <label className="weft-field">
           <span>Eckenradius ({Math.round(cornerRadii.topLeft)})</span>

@@ -1,20 +1,17 @@
-import { addBlockToLayout, reorderBlock, removeLayoutBlock, renameLayout } from "../../../core/document/actions";
+import { reorderBlock, removeLayoutBlock, renameLayout } from "../../../core/document/actions";
 import { useDocumentStore } from "../../../core/document/store";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
-import type { Layout, StaticBlock } from "../../../core/types";
+import type { Layout } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
 import { useDragReorder } from "../useDragReorder";
 import { orderedValues } from "../../../core/document/ordering";
 import { tr } from "../../../core/i18n/tr";
 
-const STATIC_BLOCK_KINDS = Object.keys(BLOCK_KIND_KEYS).filter((kind) => kind !== "quiz" && kind !== "cloze") as StaticBlock["kind"][];
-
 export function LayoutPanel({ layout }: { layout: Layout }) {
   const { t } = useTranslation();
   const selection = useDocumentStore((s) => s.selection);
   const select = useDocumentStore((s) => s.select);
-  const languageCount = useDocumentStore((s) => s.doc.content.languages.length);
   const { bind } = useDragReorder();
 
   return (
@@ -72,13 +69,6 @@ export function LayoutPanel({ layout }: { layout: Layout }) {
             );
           })}
         </ul>
-        <div className="weft-add-block-row">
-          {STATIC_BLOCK_KINDS.filter((kind) => kind !== "language" || languageCount > 1).map((kind) => (
-            <button key={kind} type="button" onClick={() => addBlockToLayout(layout.id, kind)}>
-              + {t(BLOCK_KIND_KEYS[kind])}
-            </button>
-          ))}
-        </div>
       </Collapsible>
     </>
   );

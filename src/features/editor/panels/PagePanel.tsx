@@ -1,22 +1,17 @@
-import { addBlockToPage, reorderBlock, removeBlock, removeGroup } from "../../../core/document/actions";
+import { reorderBlock, removeBlock, removeGroup } from "../../../core/document/actions";
 import { useDocumentStore } from "../../../core/document/store";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
-import type { Block, Page } from "../../../core/types";
+import type { Page } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
 import { useDragReorder } from "../useDragReorder";
 import { LayoutPicker } from "./LayoutPicker";
 import { orderedValues } from "../../../core/document/ordering";
 import { tr } from "../../../core/i18n/tr";
 
-// A placeholder text only exists in a layout.
-const BLOCK_KINDS = (Object.keys(BLOCK_KIND_KEYS) as Block["kind"][]).filter((kind) => kind !== "placeholder");
-
 export function PagePanel({ page }: { page: Page }) {
   const { t } = useTranslation();
   const selection = useDocumentStore((s) => s.selection);
-  // A language switch only makes sense in a module that offers more than one language.
-  const languageCount = useDocumentStore((s) => s.doc.content.languages.length);
   const select = useDocumentStore((s) => s.select);
   const { bind } = useDragReorder();
 
@@ -135,13 +130,6 @@ export function PagePanel({ page }: { page: Page }) {
             );
           })}
         </ul>
-        <div className="weft-add-block-row">
-          {BLOCK_KINDS.filter((kind) => kind !== "language" || languageCount > 1).map((kind) => (
-            <button key={kind} type="button" onClick={() => addBlockToPage(page.id, kind)}>
-              + {t(BLOCK_KIND_KEYS[kind])}
-            </button>
-          ))}
-        </div>
       </Collapsible>
     </>
   );

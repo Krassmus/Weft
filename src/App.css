@@ -3162,27 +3162,6 @@ button.weft-timeline-node-icon:hover {
   background: var(--weft-accent-soft);
 }
 
-.weft-add-block-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.weft-add-block-row button {
-  font-size: 11px;
-  padding: 4px 8px;
-  border: 1px dashed var(--weft-border);
-  border-radius: var(--weft-radius-sm);
-  background: transparent;
-  color: var(--weft-text-muted);
-  cursor: pointer;
-}
-
-.weft-add-block-row button:hover {
-  border-color: var(--weft-accent);
-  color: var(--weft-accent);
-}
-
 .weft-field-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

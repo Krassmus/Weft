@@ -5148,7 +5148,7 @@ button.weft-timeline-node-icon.is-red:hover,
 
 .weft-color-table td {
   padding: 5px 8px;
-  border-top: 1px solid var(--weft-border-subtle);
+  border-top: 1px solid color-mix(in srgb, var(--weft-text) 16%, transparent);
 }
 
 .weft-color-table th:last-child,

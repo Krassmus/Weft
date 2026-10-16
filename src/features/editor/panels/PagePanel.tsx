@@ -3,6 +3,7 @@ import { useDocumentStore } from "../../../core/document/store";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
 import type { Page } from "../../../core/types";
+import { BlockKindIcon } from "../BlockKindIcon";
 import { Collapsible } from "../Collapsible";
 import { useDragReorder } from "../useDragReorder";
 import { LayoutPicker } from "./LayoutPicker";
@@ -71,6 +72,7 @@ export function PagePanel({ page }: { page: Page }) {
                             className={isMemberActive ? "is-active" : ""}
                             onClick={() => select({ type: "block", container: { kind: "page", pageId: page.id }, blockId: memberId })}
                           >
+                            <BlockKindIcon kind={memberBlock.kind} size={16} />
                             {t(BLOCK_KIND_KEYS[memberBlock.kind])}
                           </button>
                           <button
@@ -107,6 +109,7 @@ export function PagePanel({ page }: { page: Page }) {
                   onClick={() => select({ type: "block", container: { kind: "page", pageId: page.id }, blockId: block.id })}
                   {...dragAttrs}
                 >
+                  <BlockKindIcon kind={block.kind} size={16} />
                   {t(BLOCK_KIND_KEYS[block.kind])}
                 </button>
                 <button

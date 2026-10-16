@@ -3,6 +3,7 @@ import { useDocumentStore } from "../../../core/document/store";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
 import type { Layout } from "../../../core/types";
+import { BlockKindIcon } from "../BlockKindIcon";
 import { Collapsible } from "../Collapsible";
 import { useDragReorder } from "../useDragReorder";
 import { orderedValues } from "../../../core/document/ordering";
@@ -46,6 +47,7 @@ export function LayoutPanel({ layout }: { layout: Layout }) {
                   onClick={() => select({ type: "block", container: { kind: "layout", layoutId: layout.id }, blockId: block.id })}
                   {...dragAttrs}
                 >
+                  <BlockKindIcon kind={block.kind} size={16} />
                   {t(BLOCK_KIND_KEYS[block.kind])}
                 </button>
                 <button

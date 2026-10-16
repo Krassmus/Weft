@@ -3064,6 +3064,9 @@ button.weft-timeline-node-icon:hover {
 }
 
 .weft-block-list li button:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex: 1;
   text-align: left;
   padding: 6px 9px;
@@ -3147,6 +3150,9 @@ button.weft-timeline-node-icon:hover {
 }
 
 .weft-block-group-members li button:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex: 1;
   text-align: left;
   padding: 6px 9px;
@@ -5113,4 +5119,9 @@ button.weft-timeline-node-icon.is-red:hover,
 
 .weft-add-elements-item:hover {
   background: var(--weft-accent-soft);
+}
+
+.weft-kind-icon {
+  flex: none;
+  color: var(--weft-accent-hover);
 }

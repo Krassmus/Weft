@@ -6,6 +6,14 @@ import { pickScreenColor, screenColorRoute } from "../../core/colors/screenColor
 import type { ScreenColorRoute } from "../../core/colors/screenColor";
 import { tr } from "../../core/i18n/tr";
 
+/** "#rrggbb" from what was typed: with or without the "#", three or six digits - or null. */
+function parseHex(text: string): string | null {
+  const digits = text.trim().replace(/^#/, "").toLowerCase();
+  if (/^[0-9a-f]{3}$/.test(digits)) return "#" + digits.replace(/./g, (c) => c + c);
+  if (/^[0-9a-f]{6}$/.test(digits)) return "#" + digits;
+  return null;
+}
+
 const POPOVER_WIDTH = 224;
 const GAP = 6;
 const MARGIN = 8;
@@ -42,7 +50,13 @@ export function ColorField({
   const popoverRef = useRef<HTMLDivElement>(null);
   const palette = useDocumentStore((s) => s.doc.content.colorPalette) ?? [];
   const hex = value.toLowerCase();
+  // What is typed in the hex field while it is being typed (null: it shows the colour as it is).
+  const [draft, setDraft] = useState<string | null>(null);
   const inPalette = palette.some((c) => c.color.toLowerCase() === hex);
+
+  useEffect(() => {
+    if (!open) setDraft(null);
+  }, [open]);
 
   useEffect(() => {
     let alive = true;
@@ -81,6 +95,13 @@ export function ColorField({
       window.removeEventListener("resize", close);
     };
   }, [open]);
+
+  /** Takes what is in the hex field as the colour - or, if it is no colour, goes back to showing the current one. */
+  function commitDraft() {
+    const parsed = draft === null ? null : parseHex(draft);
+    if (parsed && parsed !== hex) onChange(parsed);
+    setDraft(null);
+  }
 
   async function eyedrop() {
     const picked = await pickScreenColor();
@@ -135,6 +156,31 @@ export function ColorField({
                 ))}
               </div>
             )}
+            <input
+              className="weft-color-hex"
+              type="text"
+              spellCheck={false}
+              autoComplete="off"
+              maxLength={7}
+              placeholder="#rrggbb"
+              aria-label={tr("ui.hex_colour_value")}
+              title={tr("ui.hex_colour_value")}
+              value={draft ?? hex}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                // A complete value counts right away (shorthand like "abc" only when the field is left: "abcdef" may follow).
+                const digits = e.target.value.trim().replace(/^#/, "");
+                const parsed = digits.length === 6 ? parseHex(e.target.value) : null;
+                if (parsed && parsed !== hex) onChange(parsed);
+              }}
+              onBlur={commitDraft}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commitDraft();
+                }
+              }}
+            />
             <div className="weft-color-actions">
               {route && (
                 <button type="button" className="weft-ghost-button" title={tr("ui.pick_colour_from_screen")} aria-label={tr("ui.pick_colour_from_screen")} onClick={() => void eyedrop()}>

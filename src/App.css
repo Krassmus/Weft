@@ -5174,3 +5174,20 @@ button.weft-timeline-node-icon.is-red:hover,
 .weft-trash-button:hover {
   color: var(--weft-danger);
 }
+
+.weft-color-hex {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-input-bg);
+  color: var(--weft-text);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+}
+
+.weft-color-hex:focus {
+  border-color: var(--weft-accent);
+  outline: none;
+}

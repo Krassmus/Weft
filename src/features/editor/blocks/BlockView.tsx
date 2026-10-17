@@ -1299,7 +1299,7 @@ function EditableRichText({
     return registerWholeRegion({
       el,
       commit: (next) => {
-        const stored = storeableHtml(next);
+        const stored = storeableHtml(next, el);
         if (stored === lastKnownHtml.current) return;
         lastKnownHtml.current = stored;
         onCommitRef.current(stored);
@@ -1314,7 +1314,7 @@ function EditableRichText({
     // out without typing, would commit identical content as a spurious extra undo step - which
     // then falls in front of the real edit being undone, making Undo look like it did nothing.
     // (What a picture behind letters is shown by in this session is not stored with the text.)
-    const stored = storeableHtml(nextHtml);
+    const stored = storeableHtml(nextHtml, ref.current);
     if (stored === lastKnownHtml.current) return;
     lastKnownHtml.current = stored;
     onCommit(stored);

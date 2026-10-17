@@ -666,13 +666,32 @@ export function resolveInlineAssets(root: HTMLElement, urlFor: (assetId: string)
   });
 }
 
-/** The html as it is stored: the address a picture is shown by in this session is not part of it. */
-export function storeableHtml(html: string): string {
-  if (!html.includes("data-weft-bg-asset")) return html;
+/**
+ * The html as it is stored: the address a picture is shown by in this session is not part of it - and no font size in px. A browser that
+ * replaces selected text by new text keeps the look of the old by writing its size as it is on the screen right now (`font-size: 15.92px`)
+ * into the new text: a size that does not scale with the slide, so that the text is as large in the thumbnail (and in a module played in
+ * a window of another size) as on the stage. Every size of that kind is turned into the cqw the sizes of a slide are (see applyFontSize),
+ * with the width of the stage `el` is on.
+ */
+export function storeableHtml(html: string, el?: HTMLElement | null): string {
+  const hasPicture = html.includes("data-weft-bg-asset");
+  const hasPixelSize = /font-size:\s*[\d.]+px/i.test(html);
+  if (!hasPicture && !hasPixelSize) return html;
   const body = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html").body;
-  body.querySelectorAll<HTMLElement>("[data-weft-bg-asset]").forEach((el) => {
-    el.style.backgroundImage = "";
-    if (el.getAttribute("style")?.trim() === "") el.removeAttribute("style");
-  });
+  if (hasPicture) {
+    body.querySelectorAll<HTMLElement>("[data-weft-bg-asset]").forEach((node) => {
+      node.style.backgroundImage = "";
+      if (node.getAttribute("style")?.trim() === "") node.removeAttribute("style");
+    });
+  }
+  if (hasPixelSize) {
+    const widthPx = el ? stageWidthPx(el) : null;
+    if (widthPx) {
+      body.querySelectorAll<HTMLElement>("[style]").forEach((node) => {
+        const size = node.style.fontSize;
+        if (size.endsWith("px")) node.style.fontSize = `${(parseFloat(size) / widthPx) * 100}cqw`;
+      });
+    }
+  }
   return body.innerHTML;
 }

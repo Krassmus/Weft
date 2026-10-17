@@ -5303,3 +5303,11 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   background: var(--weft-accent-hover);
   box-shadow: 0 0 0 1px var(--weft-accent-hover);
 }
+
+/* The other people with a copy of the module in the shared folder (SettingsTab.tsx's FolderPeers). */
+.weft-folder-peers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}

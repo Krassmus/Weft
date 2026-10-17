@@ -34,6 +34,11 @@ import { tr } from "../../i18n/tr";
  */
 export const META_FILE = "weft-folder.json";
 const PEER_FILE = /^peer-([A-Za-z0-9_-]+)\.automerge$/;
+// Next to each copy's history (peer-<id>.automerge) lies peer-<id>.profile.json: the name and avatar of the person that copy belongs to, so
+// that the others can see who they are working with. Written by that copy only, read by the others; a copy without one (an older version)
+// is just anonymous.
+/** An avatar larger than this (as a data URL) is not read - it would only slow down the folder. */
+const MAX_AVATAR_CHARS = 200_000;
 const ASSETS_DIR = "assets";
 
 /** Where the images, videos and fonts of the open module are kept - the app's asset store. */
@@ -43,11 +48,20 @@ export interface AssetStorage {
   set(id: string, blob: Blob): void;
 }
 
+/** Another copy of the module in the folder: whose it is. `id` tells the copies apart (it is the installation that wrote it). */
+export interface FolderPeer {
+  id: string;
+  name: string;
+  avatar: string | null;
+}
+
 export interface FolderSyncStatus {
   /** When the folder was last looked at (ms). */
   lastSyncAt: number | null;
   /** How many other people's files are in the folder. */
   peerFiles: number;
+  /** Who they are, as far as they have told (peer-<id>.profile.json): one entry for each of those files. */
+  peers: FolderPeer[];
   /** Images, videos and fonts the module uses that have not arrived yet. */
   missingMedia: number;
   /** What is wrong, if something is. */
@@ -62,6 +76,8 @@ export interface FolderSyncOptions {
   assets: AssetStorage;
   /** Tells this copy from every other person's (and every other computer's) - names our file. */
   installId: string;
+  /** Who is syncing: written for the others to see (peer-<id>.profile.json). */
+  profile?: () => { name: string; avatar: string | null };
   pollMs?: number;
   writeDebounceMs?: number;
   onStatus?: (status: Partial<FolderSyncStatus>) => void;
@@ -138,6 +154,10 @@ export class FolderSync {
   /** Files that can't be merged, and why - kept for as long as the file is there and unchanged. */
   private readonly problemFiles = new Map<string, string>();
   private writtenHeads: string | null = null;
+  private writtenProfile: string | null = null;
+  /** The profiles read so far, by installation, and the "size:mtime" of the file each came from. */
+  private readonly profiles = new Map<string, { name: string; avatar: string | null }>();
+  private readonly profileSeen = new Map<string, string>();
   private timer: ReturnType<typeof setInterval> | null = null;
   private writeTimer: ReturnType<typeof setTimeout> | null = null;
   /** How many rounds in a row found the module's directory missing (a sync client may take a moment to rename or move one). */
@@ -259,8 +279,33 @@ export class FolderSync {
       // "unreadable": probably incomplete - tried again next round.
     }
     await this.pullAssets();
-    this.o.onStatus?.({ peerFiles: peerFiles.length });
+    const peers: FolderPeer[] = [];
+    for (const file of peerFiles) {
+      const id = PEER_FILE.exec(file.name)![1];
+      await this.readProfile(entries, id);
+      const profile = this.profiles.get(id);
+      peers.push({ id, name: profile?.name ?? "", avatar: profile?.avatar ?? null });
+    }
+    this.o.onStatus?.({ peerFiles: peerFiles.length, peers });
     return [...this.problemFiles.values()];
+  }
+
+  /** Reads the profile of copy `id` if it has one and it has changed. */
+  private async readProfile(entries: { name: string; isDirectory: boolean }[], id: string): Promise<void> {
+    const name = `peer-${id}.profile.json`;
+    if (!entries.some((e) => e.name === name)) return;
+    const info = await this.o.fs.stat([this.o.dir, name]);
+    if (!info || this.profileSeen.get(name) === fingerprint(info)) return;
+    try {
+      const data = JSON.parse(new TextDecoder().decode(await this.o.fs.read([this.o.dir, name]))) as { name?: unknown; avatar?: unknown };
+      this.profiles.set(id, {
+        name: typeof data.name === "string" ? data.name.slice(0, 80) : "",
+        avatar: typeof data.avatar === "string" && data.avatar.startsWith("data:image/") && data.avatar.length <= MAX_AVATAR_CHARS ? data.avatar : null,
+      });
+      this.profileSeen.set(name, fingerprint(info));
+    } catch {
+      // not readable yet (still arriving) - next round
+    }
   }
 
   /** Every file the module uses: images and videos still referenced, and the custom fonts. */
@@ -302,6 +347,14 @@ export class FolderSync {
     if (heads !== this.writtenHeads) {
       await fs.write([dir, this.ownFile], Automerge.save(doc as Automerge.Doc<WeftModule>));
       this.writtenHeads = heads;
+    }
+    const profile = this.o.profile?.();
+    if (profile) {
+      const text = JSON.stringify({ name: profile.name, avatar: profile.avatar });
+      if (text !== this.writtenProfile) {
+        await fs.write([dir, `peer-${this.o.installId}.profile.json`], new TextEncoder().encode(text));
+        this.writtenProfile = text;
+      }
     }
     const present = new Set((await fs.list([dir, ASSETS_DIR])).map((e) => e.name));
     for (const asset of this.neededAssets()) {

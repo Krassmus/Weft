@@ -34,6 +34,7 @@ import {
   stopFolderSync,
   useFolderSync,
 } from "../../../core/collab/folder/folderSession";
+import type { FolderPeer } from "../../../core/collab/folder/folderSync";
 import { presenceColor, usePresence } from "../../../core/collab/presence";
 import { PersonAvatar } from "../PersonAvatar";
 import { useDirectConnection } from "../../../core/collab/webrtcAdapter";
@@ -370,6 +371,33 @@ function AspectRatioSketch({ aspect }: { aspect: number }) {
  * module's changes into the folder and merges in what the others have written there - nobody has to be
  * online at the same time, and no server is involved. See core/collab/folder/folderSync.ts.
  */
+/** The other people with a copy of the module in the folder, as avatars (their names show on hovering). A person with several computers is one. */
+function FolderPeers({ peers }: { peers: FolderPeer[] }) {
+  const seen = new Set<string>();
+  const people = peers
+    .filter((peer) => {
+      const key = peer.name ? `name:${peer.name}` : `id:${peer.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return (
+    <div className="weft-folder-peers">
+      {people.length === 0 ? (
+        <span className="weft-hint">{tr("ui.folder_nobody_else")}</span>
+      ) : (
+        <>
+          <span className="weft-hint">{tr("ui.folder_working_with")}</span>
+          {people.map((peer) => (
+            <PersonAvatar key={peer.id} name={peer.name || tr("ui.unknown_person")} color={presenceColor(peer.id)} avatar={peer.avatar} size={26} />
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
 function FolderSyncField() {
   const sync = useFolderSync();
   const [error, setError] = useState("");
@@ -407,10 +435,11 @@ function FolderSyncField() {
             {tr("ui.folder_sync_state_on", { path })}
             <br />
             {status.lastSyncAt
-              ? tr("ui.last_synced", { time: new Date(status.lastSyncAt).toLocaleTimeString(), count: status.peerFiles, copies: tr(status.peerFiles === 1 ? "ui.other_copy" : "ui.other_copies") })
+              ? tr("ui.last_synced_at", { time: new Date(status.lastSyncAt).toLocaleTimeString() })
               : tr("ui.syncing")}
             {status.missingMedia > 0 && ` - ${tr("ui.media_missing_still", { count: status.missingMedia, what: tr(status.missingMedia === 1 ? "ui.image_video_missing_one" : "ui.image_video_missing_many") })}`}
           </p>
+          <FolderPeers peers={status.peers} />
           <button type="button" className="weft-ghost-button weft-full-width" onClick={disconnect}>
             {tr("ui.stop_syncing")}
           </button>

@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { useAssetStore } from "../../assets/assetStore";
 import { currentHandle } from "../../document/store";
 import { isTauri } from "../../io/fileIO";
+import { useProfileStore } from "../../profile/profileStore";
 import { CURRENT_FORMAT_VERSION } from "../../types";
 import type { WeftDocument, WeftModule } from "../../types";
 import { Automerge } from "../automerge";
@@ -20,7 +21,7 @@ import { tr } from "../../i18n/tr";
 const CONFIG_KEY = "weft:folderSync";
 const INSTALL_KEY = "weft:installId";
 
-const EMPTY_STATUS: FolderSyncStatus = { lastSyncAt: null, peerFiles: 0, missingMedia: 0, error: null };
+const EMPTY_STATUS: FolderSyncStatus = { lastSyncAt: null, peerFiles: 0, peers: [], missingMedia: 0, error: null };
 
 /** Why a module that is meant to be synced with a folder is not: the shared folder is not there (a drive that is not connected, or it was
  * moved or renamed), or it is, but the module's own directory in it is gone (moved, renamed, deleted). Nothing is touched then - least
@@ -143,6 +144,10 @@ export async function startFolderSync(root: string, remembered = false): Promise
       dir,
       assets: assetStorage,
       installId: installId(),
+      profile: () => {
+        const { name, avatar } = useProfileStore.getState();
+        return { name, avatar };
+      },
       onStatus: (status) => useFolderSync.setState((s) => ({ status: { ...s.status, ...status } })),
       onLost: () => {
         // The directory went while the module was open: the same as finding it gone at the start.

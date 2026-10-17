@@ -57,14 +57,14 @@ export function TransitionPanel({ page, endId }: { page: Page; endId: string }) 
         </div>
       )}
 
-      {(type === "move" || type === "cube") && (
+      {(type === "move" || type === "cube" || type === "wheel") && (
         <label className="weft-field">
           <span>{tr("ui.direction")}</span>
           <select
             value={transitionDirection(transition)}
             onChange={(e) => updateEndTransition(page.id, endId, { direction: e.target.value as TransitionDirection })}
           >
-            {DIRECTIONS.map((direction) => (
+            {DIRECTIONS.filter((direction) => type !== "wheel" || direction === "left" || direction === "right").map((direction) => (
               <option key={direction} value={direction}>
                 {DIRECTION_LABELS[direction]}
               </option>

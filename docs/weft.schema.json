@@ -2042,7 +2042,7 @@
         },
         "direction": {
           "$ref": "#/definitions/TransitionDirection",
-          "description": "\"move\" and \"cube\" only. Absent = that type's default (see defaultDirection in document/transitions.ts) - every option below is optional so a module saved before it existed still loads."
+          "description": "\"move\", \"cube\" and \"wheel\" (left or right only) only. Absent = that type's default (see defaultDirection in document/transitions.ts) - every option below is optional so a module saved before it existed still loads."
         },
         "durationMs": {
           "description": "Only meaningful when type isn't \"none\" - how long the animation takes, in milliseconds. Defaults to 500 (see setPageTransition/setPageTransitionDuration in document/actions.ts).",
@@ -2098,7 +2098,8 @@
         "iris",
         "cube",
         "blur",
-        "horror"
+        "horror",
+        "wheel"
       ],
       "type": "string"
     },

@@ -2,7 +2,7 @@ import type { Transition, TransitionDirection, TransitionType } from "../types";
 import { tr } from "../i18n/tr";
 
 /** The order the transition <select> lists them in (TransitionPanel.tsx). */
-export const TRANSITION_TYPES: TransitionType[] = ["none", "fade", "move", "iris", "cube", "blur", "horror"];
+export const TRANSITION_TYPES: TransitionType[] = ["none", "fade", "move", "iris", "cube", "blur", "wheel", "horror"];
 
 export const TRANSITION_LABELS: Record<TransitionType, string> = {
   get none() { return tr("ui.no_animation"); },
@@ -11,6 +11,7 @@ export const TRANSITION_LABELS: Record<TransitionType, string> = {
   iris: "Iris-Blende",
   get cube() { return tr("ui.cube"); },
   get blur() { return tr("ui.blur_dissolve"); },
+  wheel: "Wheel",
   horror: "Horror",
 };
 
@@ -24,6 +25,7 @@ export const DEFAULT_TRANSITION_DURATION_MS: Record<TransitionType, number> = {
   iris: 900,
   cube: 900,
   blur: 1200,
+  wheel: 1600,
   horror: 2000,
 };
 

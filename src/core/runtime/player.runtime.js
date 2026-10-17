@@ -2616,6 +2616,9 @@
   //  - cube: both are faces of a cube that turns towards `direction`.
   //  - blur: the outgoing one blurs, then dissolves into the (also blurred) incoming one, which
   //    sharpens.
+  //  - wheel: the slides hang on a wheel whose hub is above the slide: the outgoing one swings away to the left (or right), the next one
+  //    swings in from the other side. The page's own blocks (not the layout's) are fixed at their middle and wobble by their inertia -
+  //    small ones more, large ones hardly - and come to rest before the end (see wheelTransition).
   //  - horror: the outgoing one flickers between grayscale and color four times, then the incoming
   //    one appears - in grayscale first, then color.
   var CONTENT_LAG_MS = 50;
@@ -2656,6 +2659,58 @@
     return page ? page.layoutId || null : undefined;
   }
 
+  // ---- wheel ----
+  // The wheel turns over the first WHEEL_TURN_SHARE of the duration (smoothly: smootherstep, whose acceleration is continuous), the rest
+  // is for the blocks to settle. Every block of the page is a damped spring in rotation, driven by the wheel's angular acceleration - the
+  // inertia that pushes it against the turn when the wheel starts, and again when it stops: it swings, and calms down. Its largest swing is
+  // WHEEL_MAX_WOBBLE_DEG for a tiny block and falls off with the share of the slide the block covers: a large block hardly moves.
+  var WHEEL_TURN_SHARE = 0.7;
+  var WHEEL_MAX_WOBBLE_DEG = 20;
+  var WHEEL_MIN_WOBBLE_DEG = 0.4;
+  var WHEEL_SETTLE_SHARE = 0.18;
+
+  function smootherstep(x) {
+    x = Math.min(1, Math.max(0, x));
+    return x * x * x * (x * (x * 6 - 15) + 10);
+  }
+
+  // Its second derivative: the angular acceleration of the wheel, in units of 1 / (turn time)^2.
+  function smootherstepAcceleration(x) {
+    if (x <= 0 || x >= 1) return 0;
+    return 60 * x * (2 * x - 1) * (x - 1);
+  }
+
+  /** How the rotation of one block moves, in degrees: a sampled series for `frames` + 1 moments of the transition. */
+  function wheelWobble(peakDeg, durationMs, frames) {
+    var seconds = durationMs / 1000;
+    var turnSeconds = seconds * WHEEL_TURN_SHARE;
+    // Smaller blocks swing faster, too (a short pendulum).
+    var frequency = 1.6 + 1.6 * (peakDeg / WHEEL_MAX_WOBBLE_DEG);
+    var omega = 2 * Math.PI * frequency;
+    var damping = 5;
+    var steps = frames * 8;
+    var dt = seconds / steps;
+    var position = 0;
+    var velocity = 0;
+    var samples = [];
+    var peak = 0;
+    for (var i = 0; i <= steps; i++) {
+      var t = i * dt;
+      var drive = smootherstepAcceleration(t / turnSeconds) / (turnSeconds * turnSeconds);
+      velocity += (drive - 2 * damping * velocity - omega * omega * position) * dt;
+      position += velocity * dt;
+      if (i % 8 === 0) {
+        samples.push(position);
+        peak = Math.max(peak, Math.abs(position));
+      }
+    }
+    // Against the turn (negative), at most peakDeg - and none at all at the very end.
+    return samples.map(function (value, index) {
+      var rest = Math.min(1, (1 - index / frames) / WHEEL_SETTLE_SHARE);
+      return peak > 0 ? (-value / peak) * peakDeg * smootherstep(rest) : 0;
+    });
+  }
+
   function animateTransition(root, oldWrap, newWrap, transition) {
     var duration = transition.durationMs || 500;
     var type = transition.type;
@@ -2681,6 +2736,7 @@
       root.style.perspective = "";
       root.style.transformStyle = "";
       root.style.overflow = "";
+      newWrap.style.background = "";
     }
     // A new page change during a running transition completes it on the spot (see render()).
     finishActiveTransition = finish;
@@ -2881,6 +2937,84 @@
         ],
         { easing: "linear" }
       ).onfinish = finish;
+    } else if (type === "wheel") {
+      // The wraps are transparent for the turn: it is the slides that turn, not the black around them.
+      oldWrap.style.background = "transparent";
+      newWrap.style.background = "transparent";
+      oldWrap.style.zIndex = "1";
+      newWrap.style.zIndex = "2";
+      var oldStage = oldWrap.querySelector(".weft-stage");
+      var newStage = newWrap.querySelector(".weft-stage");
+      if (!oldStage || !newStage) {
+        finish();
+        return;
+      }
+      var wheelSign = transitionDirectionOf(transition) === "right" ? -1 : 1;
+      var stageBox = newStage.getBoundingClientRect();
+      var wheelRoot = root.getBoundingClientRect();
+      var stageLeft = stageBox.left - wheelRoot.left;
+      var stageTop = stageBox.top - wheelRoot.top;
+      var stageW = stageBox.width;
+      var stageH = stageBox.height;
+      // The hub: above the middle of the slide, one slide height above its top edge.
+      var hubX = stageLeft + stageW / 2;
+      var hubY = stageTop - stageH;
+      var corners = [
+        [stageLeft, stageTop],
+        [stageLeft + stageW, stageTop],
+        [stageLeft, stageTop + stageH],
+        [stageLeft + stageW, stageTop + stageH],
+      ];
+      // How far the wheel has to turn before the slide is out of the window, on the way out to one side and (the same turn) in from the other.
+      var turnDeg = 100;
+      for (var deg = 10; deg <= 100; deg += 1) {
+        var rad = (deg * Math.PI) / 180;
+        var farthest = -Infinity;
+        var nearest = Infinity;
+        corners.forEach(function (corner) {
+          var vx = corner[0] - hubX;
+          var vy = corner[1] - hubY;
+          var x = hubX + vx * Math.cos(rad) - vy * Math.sin(rad);
+          var mirrored = hubX + vx * Math.cos(rad) + vy * Math.sin(rad);
+          farthest = Math.max(farthest, x); // clockwise: carries the slide to the left
+          nearest = Math.min(nearest, mirrored); // counter-clockwise: to the right
+        });
+        if (farthest <= 0 && nearest >= wheelRoot.width) {
+          turnDeg = deg;
+          break;
+        }
+      }
+      var frames = Math.max(30, Math.ceil(duration / 16));
+      var turnFrames = function (angleAt) {
+        var list = [];
+        for (var f = 0; f <= frames; f++) {
+          var progress = smootherstep(f / frames / WHEEL_TURN_SHARE);
+          list.push({ rotate: wheelSign * angleAt(progress) + "deg", offset: f / frames });
+        }
+        return list;
+      };
+      var hubOrigin = "50% " + -stageH + "px";
+      oldStage.style.transformOrigin = hubOrigin;
+      newStage.style.transformOrigin = hubOrigin;
+      run(oldStage, turnFrames(function (progress) { return turnDeg * progress; }), { easing: "linear" });
+      run(newStage, turnFrames(function (progress) { return turnDeg * (progress - 1); }), { easing: "linear" }).onfinish = finish;
+      // The blocks of the page (the layout's belong to the slide and just turn with it) wobble by their inertia, in the direction against the turn.
+      [oldStage, newStage].forEach(function (stageElement) {
+        var stageArea = stageElement.offsetWidth * stageElement.offsetHeight;
+        Array.prototype.slice.call(stageElement.querySelectorAll(".weft-block:not(.weft-block-from-layout)")).forEach(function (block) {
+          var share = stageArea > 0 ? (block.offsetWidth * block.offsetHeight) / stageArea : 1;
+          var peakDeg = WHEEL_MAX_WOBBLE_DEG * Math.exp(-share / 0.12);
+          if (peakDeg < WHEEL_MIN_WOBBLE_DEG) return;
+          var wobble = wheelWobble(peakDeg, duration, frames);
+          run(
+            block,
+            wobble.map(function (degrees, index) {
+              return { rotate: wheelSign * degrees + "deg", offset: index / frames };
+            }),
+            { easing: "linear" }
+          );
+        });
+      });
     } else {
       finish(); // an unrecognized/future type - fall back to an instant cut rather than getting stuck mid-transition
     }

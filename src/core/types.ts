@@ -573,7 +573,7 @@ export interface Layout {
  * is an instant cut, all others are animated (see player.runtime.js's animateTransition). Kept as
  * its own type rather than inlined into Transition so the player and the editor's own options
  * list (see document/transitions.ts) can both reference just this. */
-export type TransitionType = "none" | "fade" | "move" | "iris" | "cube" | "blur" | "horror";
+export type TransitionType = "none" | "fade" | "move" | "iris" | "cube" | "blur" | "horror" | "wheel";
 
 /** Which way the OUTGOING slide travels (a Move slides it off that way, a Cube turns that way) -
  * the incoming one arrives from the opposite side. */
@@ -584,7 +584,7 @@ export interface Transition {
   /** Only meaningful when type isn't "none" - how long the animation takes, in milliseconds.
    * Defaults to 500 (see setPageTransition/setPageTransitionDuration in document/actions.ts). */
   durationMs: number;
-  /** "move" and "cube" only. Absent = that type's default (see defaultDirection in
+  /** "move", "cube" and "wheel" (left or right only) only. Absent = that type's default (see defaultDirection in
    * document/transitions.ts) - every option below is optional so a module saved before it existed
    * still loads. */
   direction?: TransitionDirection;

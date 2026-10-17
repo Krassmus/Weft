@@ -1813,9 +1813,10 @@
         listBox.appendChild(row);
         listItemElements[item.id] = row;
       });
-      // The mark of every item is as large as the item's first character (known once the list is laid out in the page).
+      // The mark of every item is as large as the item's first character (known once the list is laid out in the page) - except the
+      // author's own pictures: those are all the same size, whatever the first character of their item looks like.
       var fitListMarkers = function () {
-        if (!listBox.isConnected) return;
+        if (!listBox.isConnected || block.marker === "image") return;
         listTexts.forEach(function (entry) {
           var base = parseFloat(getComputedStyle(entry.element).fontSize);
           var walker = document.createTreeWalker(entry.element, NodeFilter.SHOW_TEXT);

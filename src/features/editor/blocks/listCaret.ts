@@ -175,12 +175,18 @@ export function markerScaleFor(textElement: HTMLElement): number {
   return 1;
 }
 
-/** Sets the size of every mark of the list `root` (rows of `.weft-list-marker` + `textSelector`) to that of its item's first character. */
+/** Sets the size of every mark of the list `root` (rows of `.weft-list-marker` + `textSelector`) to that of its item's first character
+ * - except the author's own pictures: those are all the same size (the list's `markerSize`, in em of the list's text), whatever the first
+ * character of their item looks like. */
 export function fitListMarkers(root: HTMLElement, rowSelector: string, textSelector: string): void {
   for (const row of Array.from(root.querySelectorAll<HTMLElement>(rowSelector))) {
     const text = row.querySelector<HTMLElement>(textSelector);
     const marker = row.querySelector<HTMLElement>(".weft-list-marker");
     if (!text || !marker) continue;
+    if (marker.classList.contains("is-image")) {
+      marker.style.fontSize = "";
+      continue;
+    }
     const scale = markerScaleFor(text);
     marker.style.fontSize = scale === 1 ? "" : `${scale}em`;
   }

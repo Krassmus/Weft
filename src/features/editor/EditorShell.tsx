@@ -17,6 +17,7 @@ import { startDeepLinks } from "../../core/deepLink";
 import { startOpenFiles } from "../../core/openFiles";
 import { flushAutosave, startAutosave } from "../../core/io/autosave";
 import {
+  chooseModuleSavePath,
   clearRecoveryCopy,
   confirmDestructive,
   exportAsHtmlModule,
@@ -31,7 +32,9 @@ import {
   saveRecoveryCopy,
 } from "../../core/io/fileIO";
 import { forgetRecentFile, rememberRecentFile, syncRecentMenu } from "../../core/io/recentFiles";
-import { reconcileOpenedDocument } from "../../core/io/documentLocations";
+import { knownLocalCopy, reconcileOpenedDocument, rememberSavedLocation } from "../../core/io/documentLocations";
+import { moduleOfLink, readModuleFromFolder, rememberSyncFolder, startFolderSync } from "../../core/collab/folder/folderSession";
+import type { FolderLink } from "../../core/collab/folder/folderSync";
 import type { WeftDocument } from "../../core/types";
 import { enterFullscreenPreview, watchFullscreenExit } from "../../core/window/fullscreen";
 import { Canvas } from "./Canvas";
@@ -712,6 +715,7 @@ export function EditorShell() {
       const result = await openDocument();
       if (!result) return;
       if (result.kind === "player") openPlayer(result.player, result.path);
+      else if (result.kind === "folder") await openFromSharedFolder(result.link, result.path);
       else await loadFromFile(result.doc, result.path);
     } catch (err) {
       alert(`${t("toolbar.openFailed")}\n${errorMessage(err)}`);
@@ -719,12 +723,49 @@ export function EditorShell() {
   }
   handleOpenRef.current = handleOpen;
 
+  /**
+   * A link file ("<title>.weft" in a module's directory of a shared folder, see FolderLink) was opened. If this computer has a copy of the
+   * module already, that one is opened - and goes on syncing with the folder. If not, the person is asked where to keep a copy; it is made
+   * from the folder (everybody's work merged), saved there and synced with the folder from then on.
+   */
+  async function openFromSharedFolder(link: FolderLink, linkPath: string | null) {
+    if (!linkPath) throw new Error(tr("ui.this_folder_does_not_hold_a"));
+    const { root, module } = moduleOfLink(link, linkPath);
+    const local = await knownLocalCopy(module.moduleId);
+    if (local) {
+      rememberSyncFolder(module.moduleId, root);
+      const opened = await openDocumentAtPath(local);
+      if (opened?.kind === "document") await loadFromFile(opened.doc, local);
+      return;
+    }
+    let target: string | null = null;
+    if (!libraryMode()) {
+      if (!(await confirmDestructive(tr("ui.folder_module_new_copy"), tr("ui.folder_module_title")))) return;
+      target = await chooseModuleSavePath(module.title);
+      if (!target) return;
+    }
+    const opened = await readModuleFromFolder(root, module);
+    loadDocument(opened, null);
+    await startFolderSync(root);
+    if (target) {
+      const { doc: loaded } = useDocumentStore.getState();
+      await saveDocumentToPath(loaded, target);
+      useDocumentStore.setState({ filePath: target });
+      useDocumentStore.getState().markSaved(loaded.content);
+      await rememberSavedLocation(loaded.content.id, target).catch(() => undefined);
+      void clearRecoveryCopy();
+    } else {
+      await ensureLibraryDocument();
+    }
+  }
+
   async function handleOpenRecent(path: string) {
     try {
       if (!(await confirmLeave())) return;
       const opened = await openDocumentAtPath(path);
       if (!opened) return;
       if (opened.kind === "player") openPlayer(opened.player, path);
+      else if (opened.kind === "folder") await openFromSharedFolder(opened.link, path);
       else await loadFromFile(opened.doc, path);
     } catch (err) {
       syncRecentMenu(forgetRecentFile(path));

@@ -225,3 +225,11 @@ export async function rememberSavedLocation(moduleId: string, path: string): Pro
   locations[moduleId] = path;
   writeLocations(locations);
 }
+
+/** The file of module `moduleId` on this computer, if it is known and still there (see the comment at the top: where a module's file was last seen). */
+export async function knownLocalCopy(moduleId: string): Promise<string | null> {
+  if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window) || libraryMode()) return null;
+  const known = readLocations()[moduleId];
+  if (!known) return null;
+  return (await probe(known, moduleId)).kind === "same" ? known : null;
+}

@@ -29,14 +29,11 @@ import { COMPACT_KEEP_BYTES, COMPACT_OFFER_BYTES, compactHistory, historyStats }
 import type { HistoryStats } from "../../../core/collab/compact";
 import {
   chooseSyncFolder,
-  listModulesInFolder,
   folderSyncAvailable,
-  openModuleFromFolder,
   startFolderSync,
   stopFolderSync,
   useFolderSync,
 } from "../../../core/collab/folder/folderSession";
-import type { FolderModule } from "../../../core/collab/folder/folderSync";
 import { presenceColor, usePresence } from "../../../core/collab/presence";
 import { PersonAvatar } from "../PersonAvatar";
 import { useDirectConnection } from "../../../core/collab/webrtcAdapter";
@@ -375,8 +372,6 @@ function AspectRatioSketch({ aspect }: { aspect: number }) {
 function FolderSyncField() {
   const sync = useFolderSync();
   const [error, setError] = useState("");
-  const [pickedFolder, setPickedFolder] = useState<string | null>(null);
-  const [modules, setModules] = useState<FolderModule[] | null>(null);
 
   if (!folderSyncAvailable()) {
     return (
@@ -393,74 +388,43 @@ function FolderSyncField() {
     if (folder) await startFolderSync(folder);
   }
 
-  async function browse() {
-    setError("");
-    setModules(null);
-    const folder = await chooseSyncFolder();
-    if (!folder) return;
-    try {
-      setModules(await listModulesInFolder(folder));
-      setPickedFolder(folder);
-    } catch (err) {
-      setError(tr("ui.the_folder_cannot_be_read", { n0: err instanceof Error ? err.message : String(err) }));
-    }
-  }
-
-  async function openModule(module: FolderModule) {
-    if (!pickedFolder) return;
-    setError("");
-    try {
-      await openModuleFromFolder(pickedFolder, module);
-      setModules(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
+  function disconnect() {
+    void confirmDestructive(tr("ui.really_stop_folder_sync"), tr("ui.disconnect_folder")).then((ok) => {
+      if (ok) stopFolderSync(true);
+    });
   }
 
   const { status } = sync;
+  // (The module's own directory in the shared folder: that is what is synced with.)
+  const path = sync.folder && sync.dir ? `${sync.folder.replace(/[\\/]+$/, "")}/${sync.dir}` : (sync.folder ?? "");
   return (
     <div className="weft-field">
       <span>{tr("ui.folder_sync")}</span>
       {sync.active ? (
         <>
-          <p className="weft-hint">
-            {tr("ui.folder")} {sync.folder}
+          <p className="weft-hint weft-folder-sync-state">
+            {tr("ui.folder_sync_state_on", { path })}
             <br />
             {status.lastSyncAt
               ? tr("ui.last_synced", { time: new Date(status.lastSyncAt).toLocaleTimeString(), count: status.peerFiles, copies: tr(status.peerFiles === 1 ? "ui.other_copy" : "ui.other_copies") })
               : tr("ui.syncing")}
             {status.missingMedia > 0 && ` - ${tr("ui.media_missing_still", { count: status.missingMedia, what: tr(status.missingMedia === 1 ? "ui.image_video_missing_one" : "ui.image_video_missing_many") })}`}
           </p>
-          <button type="button" className="weft-ghost-button weft-full-width" onClick={() => stopFolderSync(true)}>
+          <button type="button" className="weft-ghost-button weft-full-width" onClick={disconnect}>
             {tr("ui.stop_syncing")}
           </button>
         </>
       ) : (
-        <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void chooseAndStart()}>
-          {tr("ui.choose_folder_and_sync")}
-        </button>
+        <>
+          <p className="weft-hint weft-folder-sync-state">{tr("ui.folder_sync_state_off")}</p>
+          <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void chooseAndStart()}>
+            {tr("ui.choose_folder_and_sync")}
+          </button>
+        </>
       )}
       {status.error && <p className="weft-placeholder-warning">{status.error}</p>}
-      <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void browse()}>
-        {tr("ui.open_learning_module_from_a_folder")}
-      </button>
-      {modules && (
-        <div className="weft-folder-modules">
-          {modules.length === 0 ? (
-            <p className="weft-hint">{tr("ui.there_is_no_synchronised_learning_module")}</p>
-          ) : (
-            modules.map((module) => (
-              <button key={module.dir} type="button" className="weft-ghost-button weft-full-width" onClick={() => void openModule(module)}>
-                {module.title} ({module.peerFiles} {module.peerFiles === 1 ? tr("ui.copy_2") : tr("ui.copies")})
-              </button>
-            ))
-          )}
-        </div>
-      )}
       {error && <p className="weft-placeholder-warning">{error}</p>}
-      <p className="weft-hint">
-        {tr("ui.sync_with_a_folder_that_a")}
-      </p>
+      <p className="weft-hint">{tr("ui.sync_with_a_folder_that_a")}</p>
     </div>
   );
 }

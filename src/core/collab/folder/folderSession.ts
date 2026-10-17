@@ -1,13 +1,13 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { create } from "zustand";
 import { useAssetStore } from "../../assets/assetStore";
-import { currentHandle, useDocumentStore } from "../../document/store";
+import { currentHandle } from "../../document/store";
 import { isTauri } from "../../io/fileIO";
 import { CURRENT_FORMAT_VERSION } from "../../types";
-import type { WeftModule } from "../../types";
+import type { WeftDocument, WeftModule } from "../../types";
 import { Automerge } from "../automerge";
-import { FolderSync, findModuleFolder, listFolderModules, moduleFolderName, readFolderModule } from "./folderSync";
-import type { AssetStorage, FolderModule, FolderSyncStatus } from "./folderSync";
+import { FolderSync, findModuleFolder, moduleFolderName, readFolderModule } from "./folderSync";
+import type { AssetStorage, FolderLink, FolderModule, FolderSyncStatus } from "./folderSync";
 import { TauriSyncFs } from "./syncFs";
 import type { SyncFs } from "./syncFs";
 import { tr } from "../../i18n/tr";
@@ -148,15 +148,30 @@ export async function syncFolderForCurrentDocument(): Promise<void> {
   if (root) await startFolderSync(root);
 }
 
-/** The modules in a shared folder. */
-export async function listModulesInFolder(root: string): Promise<FolderModule[]> {
-  return listFolderModules(makeFs(root));
+/** Where a link file lies: the folder of the module it opens (its own directory) and the shared folder around that. */
+function splitLinkPath(linkPath: string): { root: string; dir: string } {
+  const parts = linkPath.split(/[\\/]/);
+  const separator = linkPath.includes("\\") && !linkPath.includes("/") ? "\\" : "/";
+  if (parts.length < 3) throw new Error(tr("ui.this_folder_does_not_hold_a"));
+  const dir = parts[parts.length - 2];
+  const root = parts.slice(0, -2).join(separator) || separator;
+  return { root, dir };
 }
 
-/** Opens a module from a shared folder (everybody's work merged), and goes on syncing it with that folder. */
-export async function openModuleFromFolder(root: string, module: FolderModule): Promise<void> {
+/** The module a link file ("<title>.weft" in a module's directory of a shared folder, see FolderLink) stands for, and the shared folder it is in. */
+export function moduleOfLink(link: FolderLink, linkPath: string): { root: string; module: FolderModule } {
+  const { root, dir } = splitLinkPath(linkPath);
+  return { root, module: { dir, moduleId: link.moduleId, documentId: link.documentId, title: link.title || dir, peerFiles: 0 } };
+}
+
+/** Makes the module `moduleId` one that is synced with the shared folder `root` whenever it is opened on this computer. */
+export function rememberSyncFolder(moduleId: string, root: string): void {
+  saveConfig(moduleId, root);
+}
+
+/** The module in a module's directory of a shared folder as everybody's work stands (nothing synced yet: that is startFolderSync). */
+export async function readModuleFromFolder(root: string, module: FolderModule): Promise<WeftDocument> {
   const { history, documentId } = await readFolderModule(makeFs(root), module);
   const content = Automerge.load<WeftModule>(history) as WeftModule;
-  useDocumentStore.getState().loadDocument({ formatVersion: CURRENT_FORMAT_VERSION, content, history, documentId }, null);
-  await startFolderSync(root);
+  return { formatVersion: CURRENT_FORMAT_VERSION, content, history, documentId };
 }

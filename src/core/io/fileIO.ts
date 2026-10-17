@@ -14,6 +14,8 @@ import { baseName, readLibraryFile, writeExport, writeLibraryFile } from "./libr
 import { isPlayerArchive, loadPlayerFile } from "./playerFile";
 import type { PlayerFile } from "./playerFile";
 import { unpackDocument } from "./unpack";
+import { parseFolderLink } from "../collab/folder/folderSync";
+import type { FolderLink } from "../collab/folder/folderSync";
 import { tr } from "../i18n/tr";
 
 export function isTauri(): boolean {
@@ -107,6 +109,17 @@ export async function saveDocumentAs(doc: WeftDocument): Promise<string | null> 
   // Where the module is now (see documentLocations.ts) - unless the file it was before is still there.
   if (path) await rememberSavedLocation(doc.content.id, path).catch(() => undefined);
   return path;
+}
+
+/** Asks where a module is to be saved (the file dialog of "Speichern unter"), without writing anything: the path, or null if the person
+ * cancelled. */
+export async function chooseModuleSavePath(title: string): Promise<string | null> {
+  if (!isTauri()) return null;
+  return save({
+    title: tr("ui.save_learning_module"),
+    defaultPath: suggestedFileName(title, SAVE_EXTENSION),
+    filters: [{ name: tr("ui.weft_learning_module"), extensions: [SAVE_EXTENSION] }],
+  });
 }
 
 /** Overwrites a known path directly, no dialog - "Speichern" once a document already has one
@@ -276,9 +289,15 @@ export async function pickDocumentFile(title = tr("ui.open_learning_module")): P
 }
 
 /** What a .weft file turned out to be: a module to edit, or a player file (see exportPlayerFile) to play. */
-export type OpenedFile = { kind: "document"; doc: WeftDocument; path: string | null } | { kind: "player"; player: PlayerFile; path: string | null };
+export type OpenedFile =
+  | { kind: "document"; doc: WeftDocument; path: string | null }
+  | { kind: "player"; player: PlayerFile; path: string | null }
+  /** The link file of a module that is worked on in a shared folder (see FolderLink): not a module itself - `path` is where it lies. */
+  | { kind: "folder"; link: FolderLink; path: string | null };
 
 async function openBytes(bytes: Uint8Array, path: string | null): Promise<OpenedFile> {
+  const link = parseFolderLink(bytes);
+  if (link) return { kind: "folder", link, path };
   if (isPlayerArchive(bytes)) return { kind: "player", player: await loadPlayerFile(bytes), path };
   return { kind: "document", doc: unpackDocument(bytes), path };
 }

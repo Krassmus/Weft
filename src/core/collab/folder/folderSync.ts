@@ -16,6 +16,8 @@ import { tr } from "../../i18n/tr";
  * In that folder every module has a directory of its own, and in it:
  *
  *   weft-folder.json        which module (and Automerge document) this is, and its title
+ *   <title>.weft            a link: opened in Weft (a double click, "Öffnen"), it opens this module from the folder - what
+ *                           shows other people in the file browser (a Nextcloud's, say) that there is something to open here
  *   peer-<install>.automerge  the editing history of one person's copy - written ONLY by that person
  *   assets/<id>_<name>        the module's images, videos and fonts, one file each, written once
  *
@@ -93,6 +95,30 @@ function safeFileName(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, "_");
 }
 
+/** The file inside a module's directory that opens the module from there (see LinkFile below). */
+export const LINK_EXTENSION = ".weft";
+
+/** What the link file holds: not a module (it is JSON, a module is a zip), only which one is meant - the folder it lies in is the rest. */
+export interface FolderLink {
+  weftFolderLink: 1;
+  moduleId: string;
+  documentId: string;
+  title: string;
+}
+
+/** The link in a file's bytes, or null if the file is something else (a module, in particular: that is a zip). */
+export function parseFolderLink(bytes: Uint8Array): FolderLink | null {
+  if (bytes.length === 0 || bytes.length > 64 * 1024 || bytes[0] !== 0x7b) return null;
+  try {
+    const link = JSON.parse(new TextDecoder().decode(bytes)) as Partial<FolderLink>;
+    return link.weftFolderLink === 1 && typeof link.moduleId === "string" && typeof link.documentId === "string"
+      ? { weftFolderLink: 1, moduleId: link.moduleId, documentId: link.documentId, title: typeof link.title === "string" ? link.title : "" }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function fingerprint(info: { size: number; mtime: number }): string {
   return `${info.size}:${info.mtime}`;
 }
@@ -127,6 +153,14 @@ export class FolderSync {
       const content = handle.doc() as WeftModule;
       const meta: FolderMeta = { moduleId: content.id, documentId: handle.documentId, title: content.title };
       await fs.write([dir, META_FILE], new TextEncoder().encode(JSON.stringify(meta, null, 2)));
+    }
+    // The link that lets others open the module from the folder - also in folders made before there was one.
+    const entries = await fs.list([dir]);
+    if (!entries.some((e) => !e.isDirectory && e.name.toLowerCase().endsWith(LINK_EXTENSION))) {
+      const content = handle.doc() as WeftModule;
+      const link: FolderLink = { weftFolderLink: 1, moduleId: content.id, documentId: handle.documentId, title: content.title };
+      const name = safeFileName(content.title).replace(/^[.\s]+|[.\s]+$/g, "").slice(0, 80) || "lernmodul";
+      await fs.write([dir, name + LINK_EXTENSION], new TextEncoder().encode(JSON.stringify(link, null, 2)));
     }
     handle.on("change", this.onChange);
     this.timer = setInterval(() => void this.syncNow(), this.pollMs);
@@ -274,22 +308,6 @@ export interface FolderModule {
   title: string;
   /** How many people's files are in it. */
   peerFiles: number;
-}
-
-/** The modules that live in a shared folder. */
-export async function listFolderModules(fs: SyncFs): Promise<FolderModule[]> {
-  const modules: FolderModule[] = [];
-  for (const entry of await fs.list([])) {
-    if (!entry.isDirectory) continue;
-    try {
-      const meta = JSON.parse(new TextDecoder().decode(await fs.read([entry.name, META_FILE]))) as FolderMeta;
-      const peerFiles = (await fs.list([entry.name])).filter((e) => PEER_FILE.test(e.name)).length;
-      if (meta.moduleId && meta.documentId) modules.push({ dir: entry.name, moduleId: meta.moduleId, documentId: meta.documentId, title: meta.title ?? entry.name, peerFiles });
-    } catch {
-      // not a module directory
-    }
-  }
-  return modules;
 }
 
 /** The module in a directory of the shared folder as everybody's work stands: the histories of all the

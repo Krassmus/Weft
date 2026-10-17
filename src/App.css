@@ -5311,3 +5311,49 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   align-items: center;
   gap: 6px;
 }
+
+/* Who is working right now: lit with a green ring; the others greyed. */
+.weft-person-avatar.weft-folder-peer {
+  transition: opacity 0.3s;
+}
+
+.weft-person-avatar.weft-folder-peer.is-active {
+  box-shadow: 0 0 0 2px var(--weft-panel), 0 0 0 4px #22c55e;
+}
+
+.weft-person-avatar.weft-folder-peer.is-idle {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+/* The module's file, the shared folder and the sync between them (SettingsTab.tsx's FolderLinkGraphic). */
+.weft-folder-link-graphic {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 6px;
+  color: var(--weft-text-muted);
+}
+
+.weft-folder-link-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+}
+
+.weft-folder-link-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.weft-folder-link-icon svg * {
+  fill: currentColor !important;
+}
+
+.weft-folder-link-line {
+  flex: 1;
+  height: 0;
+  border-top: 2px dashed color-mix(in srgb, var(--weft-accent) 70%, transparent);
+}

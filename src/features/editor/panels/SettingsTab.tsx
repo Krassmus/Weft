@@ -46,6 +46,8 @@ import {
   invitationLink,
 } from "../../../core/collab/session";
 import { useDragReorder } from "../useDragReorder";
+import fileIconSvg from "../../../../mockups/icons/file.svg?raw";
+import folderCloudIconSvg from "../../../../mockups/icons/folder-cloud.svg?raw";
 import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
 import { countColorUsage } from "../../../core/colors/usage";
 import { ColorField } from "../ColorField";
@@ -371,29 +373,59 @@ function AspectRatioSketch({ aspect }: { aspect: number }) {
  * module's changes into the folder and merges in what the others have written there - nobody has to be
  * online at the same time, and no server is involved. See core/collab/folder/folderSync.ts.
  */
-/** The other people with a copy of the module in the folder, as avatars (their names show on hovering). A person with several computers is one. */
+/** A person who has changed the module within this long (ms) counts as working on it right now. */
+const ACTIVE_WITHIN_MS = 3 * 60 * 1000;
+
+/** The other people with a copy of the module in the folder, as avatars (their names show on hovering). A person with several computers is
+ * one. Those who changed the module in the last three minutes are lit, the others are greyed. */
 function FolderPeers({ peers }: { peers: FolderPeer[] }) {
-  const seen = new Set<string>();
-  const people = peers
-    .filter((peer) => {
-      const key = peer.name ? `name:${peer.name}` : `id:${peer.id}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
+  // (Re-drawn from time to time: somebody stops being "active" without anything happening.)
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(timer);
+  }, []);
+  const people = new Map<string, { peer: FolderPeer; active: boolean }>();
+  for (const peer of peers) {
+    const key = peer.name ? `name:${peer.name}` : `id:${peer.id}`;
+    const active = peer.editedAt !== null && now - peer.editedAt <= ACTIVE_WITHIN_MS;
+    const earlier = people.get(key);
+    people.set(key, { peer: earlier?.peer ?? peer, active: (earlier?.active ?? false) || active });
+  }
+  const list = [...people.values()].sort((a, b) => a.peer.name.localeCompare(b.peer.name));
   return (
     <div className="weft-folder-peers">
-      {people.length === 0 ? (
+      {list.length === 0 ? (
         <span className="weft-hint">{tr("ui.folder_nobody_else")}</span>
       ) : (
         <>
           <span className="weft-hint">{tr("ui.folder_working_with")}</span>
-          {people.map((peer) => (
-            <PersonAvatar key={peer.id} name={peer.name || tr("ui.unknown_person")} color={presenceColor(peer.id)} avatar={peer.avatar} size={26} />
-          ))}
+          {list.map(({ peer, active }) => {
+            const name = peer.name || tr("ui.unknown_person");
+            return (
+              <PersonAvatar
+                key={peer.id}
+                name={active ? tr("ui.folder_peer_active", { name }) : name}
+                color={presenceColor(peer.id)}
+                avatar={peer.avatar}
+                size={26}
+                className={active ? "weft-folder-peer is-active" : "weft-folder-peer is-idle"}
+              />
+            );
+          })}
         </>
       )}
+    </div>
+  );
+}
+
+/** File and folder are two things: the picture above the folder's state - this module's file, the shared folder, and the sync between them. */
+function FolderLinkGraphic() {
+  return (
+    <div className="weft-folder-link-graphic" aria-hidden="true">
+      <span className="weft-folder-link-icon" title={tr("ui.folder_graphic_file")} dangerouslySetInnerHTML={{ __html: fileIconSvg }} />
+      <span className="weft-folder-link-line" />
+      <span className="weft-folder-link-icon" title={tr("ui.folder_graphic_folder")} dangerouslySetInnerHTML={{ __html: folderCloudIconSvg }} />
     </div>
   );
 }
@@ -431,6 +463,7 @@ function FolderSyncField() {
       <span>{tr("ui.folder_sync")}</span>
       {sync.active ? (
         <>
+          <FolderLinkGraphic />
           <p className="weft-hint weft-folder-sync-state">
             {tr("ui.folder_sync_state_on", { path })}
             <br />

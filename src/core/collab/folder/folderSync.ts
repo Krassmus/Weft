@@ -53,6 +53,8 @@ export interface FolderPeer {
   id: string;
   name: string;
   avatar: string | null;
+  /** When that copy last had a change made to it by its person (ms; their clock), as far as it has told - null if it never did. */
+  editedAt: number | null;
 }
 
 export interface FolderSyncStatus {
@@ -78,6 +80,8 @@ export interface FolderSyncOptions {
   installId: string;
   /** Who is syncing: written for the others to see (peer-<id>.profile.json). */
   profile?: () => { name: string; avatar: string | null };
+  /** When the person last changed the module here (ms), or null: written for the others, so that they can tell who is working right now. */
+  activity?: () => number | null;
   pollMs?: number;
   writeDebounceMs?: number;
   onStatus?: (status: Partial<FolderSyncStatus>) => void;
@@ -144,6 +148,9 @@ function fingerprint(info: { size: number; mtime: number }): string {
 /** A module directory that is missing in this many rounds in a row (about ten seconds) counts as gone. */
 const LOST_AFTER_ROUNDS = 2;
 
+/** How often at most a copy says that its person is working (ms). */
+const ACTIVITY_WRITE_MS = 30_000;
+
 export class FolderSync {
   private readonly ownFile: string;
   private readonly pollMs: number;
@@ -155,6 +162,10 @@ export class FolderSync {
   private readonly problemFiles = new Map<string, string>();
   private writtenHeads: string | null = null;
   private writtenProfile: string | null = null;
+  private writtenActivity: number | null = null;
+  private activityWrittenAt = 0;
+  private readonly activities = new Map<string, number | null>();
+  private readonly activitySeen = new Map<string, string>();
   /** The profiles read so far, by installation, and the "size:mtime" of the file each came from. */
   private readonly profiles = new Map<string, { name: string; avatar: string | null }>();
   private readonly profileSeen = new Map<string, string>();
@@ -284,7 +295,8 @@ export class FolderSync {
       const id = PEER_FILE.exec(file.name)![1];
       await this.readProfile(entries, id);
       const profile = this.profiles.get(id);
-      peers.push({ id, name: profile?.name ?? "", avatar: profile?.avatar ?? null });
+      await this.readActivity(entries, id);
+      peers.push({ id, name: profile?.name ?? "", avatar: profile?.avatar ?? null, editedAt: this.activities.get(id) ?? null });
     }
     this.o.onStatus?.({ peerFiles: peerFiles.length, peers });
     return [...this.problemFiles.values()];
@@ -305,6 +317,21 @@ export class FolderSync {
       this.profileSeen.set(name, fingerprint(info));
     } catch {
       // not readable yet (still arriving) - next round
+    }
+  }
+
+  /** Reads when copy `id` was last changed by its person, if it has said and it has changed. */
+  private async readActivity(entries: { name: string; isDirectory: boolean }[], id: string): Promise<void> {
+    const name = `peer-${id}.activity.json`;
+    if (!entries.some((e) => e.name === name)) return;
+    const info = await this.o.fs.stat([this.o.dir, name]);
+    if (!info || this.activitySeen.get(name) === fingerprint(info)) return;
+    try {
+      const data = JSON.parse(new TextDecoder().decode(await this.o.fs.read([this.o.dir, name]))) as { editedAt?: unknown };
+      this.activities.set(id, typeof data.editedAt === "number" ? data.editedAt : null);
+      this.activitySeen.set(name, fingerprint(info));
+    } catch {
+      // not readable yet - next round
     }
   }
 
@@ -355,6 +382,13 @@ export class FolderSync {
         await fs.write([dir, `peer-${this.o.installId}.profile.json`], new TextEncoder().encode(text));
         this.writtenProfile = text;
       }
+    }
+    // When the person last made a change here: at most every ACTIVITY_WRITE_MS (the file travels through the sync service).
+    const editedAt = this.o.activity?.() ?? null;
+    if (editedAt !== null && editedAt !== this.writtenActivity && Date.now() - this.activityWrittenAt >= ACTIVITY_WRITE_MS) {
+      await fs.write([dir, `peer-${this.o.installId}.activity.json`], new TextEncoder().encode(JSON.stringify({ editedAt })));
+      this.writtenActivity = editedAt;
+      this.activityWrittenAt = Date.now();
     }
     const present = new Set((await fs.list([dir, ASSETS_DIR])).map((e) => e.name));
     for (const asset of this.neededAssets()) {

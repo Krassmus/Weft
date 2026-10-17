@@ -1,7 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { create } from "zustand";
 import { useAssetStore } from "../../assets/assetStore";
-import { currentHandle } from "../../document/store";
+import { currentHandle, useDocumentStore } from "../../document/store";
 import { isTauri } from "../../io/fileIO";
 import { useProfileStore } from "../../profile/profileStore";
 import { CURRENT_FORMAT_VERSION } from "../../types";
@@ -84,7 +84,7 @@ const assetStorage: AssetStorage = {
   set: (id, blob) => useAssetStore.getState().setAsset(id, blob),
 };
 
-let current: { sync: FolderSync; handle: unknown } | null = null;
+let current: { sync: FolderSync; handle: unknown; stopActivity: () => void } | null = null;
 
 let makeFs: (root: string) => SyncFs = (root) => new TauriSyncFs(root);
 let fsReplaced = false;
@@ -115,6 +115,7 @@ export function stopFolderSync(forget = true): void {
     return;
   }
   current.sync.stop();
+  current.stopActivity();
   current = null;
   useFolderSync.setState({ active: false, folder: null, dir: null, status: EMPTY_STATUS, lost: null });
 }
@@ -138,12 +139,19 @@ export async function startFolderSync(root: string, remembered = false): Promise
       return;
     }
     dir ??= moduleFolderName(content);
+    // When the person last changed the module here: any edit, undo or redo (not what other people's changes make of the document).
+    let editedAt: number | null = null;
+    const stopActivity = useDocumentStore.subscribe((state, previous) => {
+      if (state.documentKey !== previous.documentKey) return;
+      if (state.undoHistory !== previous.undoHistory || state.undoIndex !== previous.undoIndex) editedAt = Date.now();
+    });
     const sync = new FolderSync({
       handle,
       fs,
       dir,
       assets: assetStorage,
       installId: installId(),
+      activity: () => editedAt,
       profile: () => {
         const { name, avatar } = useProfileStore.getState();
         return { name, avatar };
@@ -151,16 +159,18 @@ export async function startFolderSync(root: string, remembered = false): Promise
       onStatus: (status) => useFolderSync.setState((s) => ({ status: { ...s.status, ...status } })),
       onLost: () => {
         // The directory went while the module was open: the same as finding it gone at the start.
+        stopActivity();
         if (current?.sync === sync) current = null;
         useFolderSync.setState({ active: false, folder: root, dir: null, status: EMPTY_STATUS, lost: { folder: root, reason: "dir" } });
       },
     });
-    current = { sync, handle };
+    current = { sync, handle, stopActivity };
     saveConfig(content.id, root);
     useFolderSync.setState({ active: true, folder: root, dir, status: EMPTY_STATUS, lost: null });
     await sync.start();
   } catch (error) {
     current?.sync.stop();
+    current?.stopActivity();
     current = null;
     useFolderSync.setState({
       active: false,

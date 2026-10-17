@@ -682,30 +682,6 @@ export function SettingsTab() {
 
       <div className="weft-divider" />
 
-      <FolderSyncField />
-
-      <div className="weft-divider" />
-
-      <CollaborationField />
-
-      <HistoryField />
-
-      <div className="weft-divider" />
-
-      <label className="weft-field weft-field-inline">
-        <input
-          type="checkbox"
-          checked={content.keyboardNavigationEnabled}
-          onChange={(e) => setKeyboardNavigationEnabled(e.target.checked)}
-        />
-        <span>{tr("ui.navigation_with_keyboard_and_tapping_space")}</span>
-      </label>
-      <p className="weft-hint">
-        {tr("ui.space_and_the_arrow_keys_go")}
-      </p>
-
-      <div className="weft-divider" />
-
       <ColorSchemeField />
 
       <div className="weft-divider" />
@@ -752,6 +728,30 @@ export function SettingsTab() {
           {tr("ui.uploaded_fonts_are_available_in_the")}
         </p>
       </div>
+
+      <div className="weft-divider" />
+
+      <label className="weft-field weft-field-inline">
+        <input
+          type="checkbox"
+          checked={content.keyboardNavigationEnabled}
+          onChange={(e) => setKeyboardNavigationEnabled(e.target.checked)}
+        />
+        <span>{tr("ui.navigation_with_keyboard_and_tapping_space")}</span>
+      </label>
+      <p className="weft-hint">
+        {tr("ui.space_and_the_arrow_keys_go")}
+      </p>
+
+      <div className="weft-divider" />
+
+      <CollaborationField />
+
+      <HistoryField />
+
+      <div className="weft-divider" />
+
+      <FolderSyncField />
     </div>
   );
 }

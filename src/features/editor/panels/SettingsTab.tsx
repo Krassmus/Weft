@@ -500,7 +500,8 @@ function FolderSyncField() {
       )}
       {status.error && <p className="weft-placeholder-warning">{status.error}</p>}
       {error && <p className="weft-placeholder-warning">{error}</p>}
-      <p className="weft-hint">{tr("ui.sync_with_a_folder_that_a")}</p>
+      {/* (Said while there is no folder yet - once there is one, the state above is all that is needed.) */}
+      {!sync.active && <p className="weft-hint">{tr("ui.sync_with_a_folder_that_a")}</p>}
     </div>
   );
 }

@@ -38,7 +38,8 @@ const DE: Texts = {
     {
       title: "Wann Weft das Netz benutzt",
       paragraphs: [
-        "Nur wenn du es willst: Bei der Live-Zusammenarbeit verbindet sich Weft mit den anderen Personen, die denselben Einladungslink geöffnet haben - direkt oder über einen Server bzw. ein Relais, das du in den Einstellungen selbst einträgst. Dabei sehen die Beteiligten die Änderungen am Modul sowie den Namen und das Bild, die du dafür gewählt hast. Ohne diese Einstellungen verbindet sich Weft mit keinem Server.",
+        "Nur wenn du es willst: Bei der Live-Zusammenarbeit verbindet sich Weft mit den anderen Personen, die denselben Einladungslink geöffnet haben. Die Inhalte des Moduls gehen dabei von Gerät zu Gerät (WebRTC); nur wenn du in den Einstellungen einen TURN- oder Sync-Server einträgst, können sie über diesen laufen. Dabei sehen die Beteiligten die Änderungen am Modul sowie den Namen und das Bild, die du dafür gewählt hast.",
+        "Damit die Geräte sich finden, nutzt Weft für die Live-Zusammenarbeit öffentliche Hilfsdienste, solange du nichts anderes einträgst: Nostr-Relays, über die sich die Geräte verabreden (dort liegen nur verschlüsselte Verbindungsangaben, keine Modulinhalte), und öffentliche STUN-Server von Google und Cloudflare, bei denen ein Gerät erfährt, unter welcher Adresse es im Internet erreichbar ist. Diese Dienste sehen die IP-Adresse deines Geräts. Die Relais kannst du in den Einstellungen durch eigene ersetzen. Ohne Live-Zusammenarbeit verbindet sich Weft mit keinem dieser Dienste.",
         "Die Synchronisation über einen gemeinsamen Ordner (zum Beispiel in einer Nextcloud) übernimmt das Betriebssystem bzw. dessen Synchronisations-Programm; Weft selbst schreibt dort nur Dateien.",
       ],
     },
@@ -82,7 +83,8 @@ const EN: Texts = {
     {
       title: "When Weft uses the network",
       paragraphs: [
-        "Only when you want it to: with live collaboration, Weft connects to the other people who opened the same invitation link - directly, or through a server or relay that you enter in the settings yourself. The people taking part see the changes to the module and the name and picture you chose for it. Without these settings, Weft connects to no server.",
+        "Only when you want it to: with live collaboration, Weft connects to the other people who opened the same invitation link. The contents of the module go from device to device (WebRTC); only if you enter a TURN or sync server in the settings can they go through that. The people taking part see the changes to the module and the name and picture you chose for it.",
+        "So that the devices can find each other, Weft uses public helper services for live collaboration unless you enter others: Nostr relays through which the devices arrange to meet (only encrypted connection details are stored there, no contents of the module), and public STUN servers from Google and Cloudflare, where a device learns at which address it can be reached on the internet. These services see your device's IP address. You can replace the relays with your own in the settings. Without live collaboration, Weft connects to none of these services.",
         "Synchronization through a shared folder (in a Nextcloud, for example) is done by the operating system or its sync program; Weft itself only writes files there.",
       ],
     },

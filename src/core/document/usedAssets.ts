@@ -40,6 +40,11 @@ export function usedAssetIds(module: WeftModule): Set<string> {
     for (const block of Object.values(page.blocks)) {
       for (const id of assetIdsOf(block)) ids.add(id);
     }
+    // The picture behind a wheel transition.
+    for (const end of Object.values(page.timeline?.ends ?? {})) {
+      const background = end.transition?.background;
+      if (background?.kind === "image") ids.add(background.assetId);
+    }
   }
   for (const layout of Object.values(module.layouts)) {
     for (const block of Object.values(layout.blocks)) {

@@ -2668,6 +2668,8 @@
   var WHEEL_MAX_WOBBLE_DEG = 20;
   var WHEEL_MIN_WOBBLE_DEG = 0.4;
   var WHEEL_SETTLE_SHARE = 0.18;
+  // How far above the slide the hub is, in slide heights (above its top edge).
+  var WHEEL_HUB_DISTANCE = 1.5;
 
   function smootherstep(x) {
     x = Math.min(1, Math.max(0, x));
@@ -2717,6 +2719,8 @@
     var width = root.clientWidth;
     var height = root.clientHeight;
     var cancelled = false;
+    // The picture or colour behind a wheel (made below), taken away with the transition.
+    var wheelBackdrop = null;
     oldWrap.classList.add("is-transition-old");
     newWrap.classList.add("is-transition-new");
     root.appendChild(newWrap);
@@ -2737,6 +2741,7 @@
       root.style.transformStyle = "";
       root.style.overflow = "";
       newWrap.style.background = "";
+      if (wheelBackdrop && wheelBackdrop.parentNode) wheelBackdrop.parentNode.removeChild(wheelBackdrop);
     }
     // A new page change during a running transition completes it on the spot (see render()).
     finishActiveTransition = finish;
@@ -2956,9 +2961,10 @@
       var stageTop = stageBox.top - wheelRoot.top;
       var stageW = stageBox.width;
       var stageH = stageBox.height;
-      // The hub: above the middle of the slide, one slide height above its top edge.
+      // The hub: above the middle of the slide.
       var hubX = stageLeft + stageW / 2;
-      var hubY = stageTop - stageH;
+      var hubDistance = stageH * WHEEL_HUB_DISTANCE;
+      var hubY = stageTop - hubDistance;
       var corners = [
         [stageLeft, stageTop],
         [stageLeft + stageW, stageTop],
@@ -2984,6 +2990,27 @@
           break;
         }
       }
+      // What is behind the slides: a colour or a picture - taken away softly at the end (the plain background comes back).
+      var wheelBackground = transition.background;
+      if (wheelBackground && ((wheelBackground.kind === "color" && wheelBackground.color) || (wheelBackground.kind === "image" && wheelBackground.assetId))) {
+        wheelBackdrop = document.createElement("div");
+        wheelBackdrop.style.cssText = "position:absolute;inset:0;z-index:0;";
+        if (wheelBackground.kind === "color") wheelBackdrop.style.background = wheelBackground.color;
+        else {
+          wheelBackdrop.style.backgroundImage = 'url("' + assetSrc(wheelBackground.assetId) + '")';
+          wheelBackdrop.style.backgroundSize = "cover";
+          wheelBackdrop.style.backgroundPosition = "center";
+        }
+        root.insertBefore(wheelBackdrop, root.firstChild);
+        wheelBackdrop.animate(
+          [
+            { opacity: 1, offset: 0 },
+            { opacity: 1, offset: 0.8 },
+            { opacity: 0, offset: 1 },
+          ],
+          { duration: duration, easing: "linear", fill: "both" }
+        );
+      }
       var frames = Math.max(30, Math.ceil(duration / 16));
       var turnFrames = function (angleAt) {
         var list = [];
@@ -2993,7 +3020,7 @@
         }
         return list;
       };
-      var hubOrigin = "50% " + -stageH + "px";
+      var hubOrigin = "50% " + -hubDistance + "px";
       oldStage.style.transformOrigin = hubOrigin;
       newStage.style.transformOrigin = hubOrigin;
       run(oldStage, turnFrames(function (progress) { return turnDeg * progress; }), { easing: "linear" });

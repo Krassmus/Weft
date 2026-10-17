@@ -1,4 +1,7 @@
-import { setEndTransitionDuration, setEndTransitionType, updateEndTransition } from "../../../core/document/actions";
+import { addAssetFromFile, setEndTransitionDuration, setEndTransitionType, updateEndTransition } from "../../../core/document/actions";
+import { pickFilesFromDisk } from "../../../core/io/fileIO";
+import { useDocumentStore } from "../../../core/document/store";
+import { ColorField } from "../ColorField";
 import {
   DEFAULT_IRIS_CENTER,
   DIRECTION_LABELS,
@@ -24,10 +27,22 @@ const DIRECTIONS: TransitionDirection[] = ["left", "right", "up", "down"];
  */
 export function TransitionPanel({ page, endId }: { page: Page; endId: string }) {
   const transition = page.timeline.ends[endId]?.transition;
+  const assets = useDocumentStore((s) => s.doc.content.assets);
   if (!transition) return null;
   const { type, durationMs } = transition;
   const irisCenter = transition.irisCenter ?? DEFAULT_IRIS_CENTER;
   const irisCentered = irisCenter.x === DEFAULT_IRIS_CENTER.x && irisCenter.y === DEFAULT_IRIS_CENTER.y;
+
+  const backgroundImageName =
+    transition.background?.kind === "image" ? (assets.find((a) => a.id === (transition.background as { assetId: string }).assetId)?.fileName ?? "") : "";
+
+  /** Picks the picture behind a wheel (a file from the computer, kept in the module like any picture). Nothing changes if none is picked. */
+  async function chooseBackgroundImage() {
+    const files = (await pickFilesFromDisk(tr("ui.transition_background_choose"))).filter((file) => file.type.startsWith("image/"));
+    if (files.length === 0) return;
+    const assetId = addAssetFromFile(files[0]);
+    updateEndTransition(page.id, endId, { background: { kind: "image", assetId } });
+  }
 
   return (
     <Collapsible title={tr("ui.transition_to_the_next_slide")}>
@@ -71,6 +86,46 @@ export function TransitionPanel({ page, endId }: { page: Page; endId: string }) 
             ))}
           </select>
         </label>
+      )}
+
+      {type === "wheel" && (
+        <>
+          <label className="weft-field">
+            <span>{tr("ui.background")}</span>
+            <select
+              value={transition.background?.kind ?? "default"}
+              onChange={(e) => {
+                const kind = e.target.value;
+                if (kind === "color") updateEndTransition(page.id, endId, { background: { kind: "color", color: "#111827" } });
+                else if (kind === "image") void chooseBackgroundImage();
+                else updateEndTransition(page.id, endId, { background: undefined });
+              }}
+            >
+              <option value="default">{tr("ui.transition_background_default")}</option>
+              <option value="color">{tr("ui.colour")}</option>
+              <option value="image">{tr("ui.image")}</option>
+            </select>
+          </label>
+          {transition.background?.kind === "color" && (
+            <div className="weft-field">
+              <span>{tr("ui.colour")}</span>
+              <ColorField
+                value={transition.background.color}
+                ariaLabel={tr("ui.background_colour")}
+                onChange={(color) => updateEndTransition(page.id, endId, { background: { kind: "color", color } })}
+              />
+            </div>
+          )}
+          {transition.background?.kind === "image" && (
+            <>
+              <p className="weft-hint">{backgroundImageName}</p>
+              <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void chooseBackgroundImage()}>
+                {tr("ui.transition_background_change")}
+              </button>
+            </>
+          )}
+          <p className="weft-hint">{tr("ui.transition_background_hint")}</p>
+        </>
       )}
 
       {type === "move" && (

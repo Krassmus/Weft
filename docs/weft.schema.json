@@ -2036,6 +2036,10 @@
     "Transition": {
       "additionalProperties": false,
       "properties": {
+        "background": {
+          "$ref": "#/definitions/TransitionBackground",
+          "description": "\"wheel\" only: what is behind the swinging slides. Absent = the plain background of the player (black)."
+        },
         "contentOnly": {
           "description": "\"move\" only: slide just the page's own content while the slide itself (background and the layout's blocks) stays put - possible only when the next slide uses the same layout, otherwise the whole slide moves regardless (with the content trailing it by a few ms).",
           "type": "boolean"
@@ -2078,6 +2082,45 @@
         "durationMs"
       ],
       "type": "object"
+    },
+    "TransitionBackground": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "color": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "color",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "color"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "assetId": {
+              "$ref": "#/definitions/UUID"
+            },
+            "kind": {
+              "const": "image",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "assetId"
+          ],
+          "type": "object"
+        }
+      ],
+      "description": "What is behind the slides while a \"wheel\" turns: a colour or a picture (an asset of the module)."
     },
     "TransitionDirection": {
       "description": "Which way the OUTGOING slide travels (a Move slides it off that way, a Cube turns that way) - the incoming one arrives from the opposite side.",

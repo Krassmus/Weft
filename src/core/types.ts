@@ -579,6 +579,9 @@ export type TransitionType = "none" | "fade" | "move" | "iris" | "cube" | "blur"
  * the incoming one arrives from the opposite side. */
 export type TransitionDirection = "left" | "right" | "up" | "down";
 
+/** What is behind the slides while a "wheel" turns: a colour or a picture (an asset of the module). */
+export type TransitionBackground = { kind: "color"; color: string } | { kind: "image"; assetId: UUID };
+
 export interface Transition {
   type: TransitionType;
   /** Only meaningful when type isn't "none" - how long the animation takes, in milliseconds.
@@ -592,6 +595,8 @@ export interface Transition {
    * layout's blocks) stays put - possible only when the next slide uses the same layout, otherwise
    * the whole slide moves regardless (with the content trailing it by a few ms). */
   contentOnly?: boolean;
+  /** "wheel" only: what is behind the swinging slides. Absent = the plain background of the player (black). */
+  background?: TransitionBackground;
   /** "iris" only: a hard-edged circle instead of the default soft one. */
   hardEdge?: boolean;
   /** "iris" only: where the circle opens from, in percent of the slide. Absent = the middle. */

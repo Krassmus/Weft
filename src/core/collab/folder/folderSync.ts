@@ -65,6 +65,8 @@ export interface FolderSyncOptions {
   pollMs?: number;
   writeDebounceMs?: number;
   onStatus?: (status: Partial<FolderSyncStatus>) => void;
+  /** The module's directory is gone from the shared folder (moved, renamed, deleted) - syncing has stopped. */
+  onLost?: () => void;
 }
 
 interface FolderMeta {
@@ -123,6 +125,9 @@ function fingerprint(info: { size: number; mtime: number }): string {
   return `${info.size}:${info.mtime}`;
 }
 
+/** A module directory that is missing in this many rounds in a row (about ten seconds) counts as gone. */
+const LOST_AFTER_ROUNDS = 2;
+
 export class FolderSync {
   private readonly ownFile: string;
   private readonly pollMs: number;
@@ -135,6 +140,8 @@ export class FolderSync {
   private writtenHeads: string | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private writeTimer: ReturnType<typeof setTimeout> | null = null;
+  /** How many rounds in a row found the module's directory missing (a sync client may take a moment to rename or move one). */
+  private missingRounds = 0;
   private running = false;
   private again = false;
   private stopped = false;
@@ -195,6 +202,14 @@ export class FolderSync {
     try {
       do {
         this.again = false;
+        if (!(await this.o.fs.isDirectory([this.o.dir]))) {
+          if (++this.missingRounds >= LOST_AFTER_ROUNDS) {
+            this.stop();
+            this.o.onLost?.();
+          }
+          return;
+        }
+        this.missingRounds = 0;
         const problems = await this.pull();
         await this.push();
         const missing = this.missingAssetIds().length;

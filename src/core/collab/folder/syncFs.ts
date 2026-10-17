@@ -8,6 +8,8 @@ import { tr } from "../../i18n/tr";
  * The desktop app implements it on the real file system (TauriSyncFs); tests on memory (MemorySyncFs).
  */
 export interface SyncFs {
+  /** Whether the directory is there (`[]` is the shared folder itself). */
+  isDirectory(path: string[]): Promise<boolean>;
   /** The entries of a directory (empty if it doesn't exist). */
   list(dir: string[]): Promise<{ name: string; isDirectory: boolean }[]>;
   /** Size and modification time (ms) of a file, or null if there is none. */
@@ -26,6 +28,14 @@ export class TauriSyncFs implements SyncFs {
 
   private path(segments: string[]): Promise<string> {
     return join(this.root, ...segments);
+  }
+
+  async isDirectory(path: string[]): Promise<boolean> {
+    try {
+      return await exists(await this.path(path));
+    } catch {
+      return false;
+    }
   }
 
   async list(dir: string[]): Promise<{ name: string; isDirectory: boolean }[]> {
@@ -75,6 +85,10 @@ export class MemorySyncFs implements SyncFs {
 
   private key(path: string[]): string {
     return path.join("/");
+  }
+
+  async isDirectory(path: string[]): Promise<boolean> {
+    return path.length === 0 || this.dirs.has(this.key(path));
   }
 
   async list(dir: string[]): Promise<{ name: string; isDirectory: boolean }[]> {

@@ -41,6 +41,7 @@ import { Canvas } from "./Canvas";
 import { AppBar, FileMenu } from "./FileMenu";
 import type { MenuCommand } from "./FileMenu";
 import { CollabDialogs } from "./CollabDialogs";
+import { FolderLostDialog } from "./FolderLostDialog";
 import { LibraryDialogs } from "./LibraryDialogs";
 import { useCollabDialog } from "./collabDialogStore";
 import { Inspector } from "./Inspector";
@@ -856,6 +857,7 @@ export function EditorShell() {
         </div>
       )}
       <CollabDialogs />
+      <FolderLostDialog />
       <LibraryDialogs onOpen={(path) => void handleOpenRecentRef.current(path)} currentPath={currentPath} />
     </div>
   );

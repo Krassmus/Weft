@@ -49,6 +49,7 @@ import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
 import { countColorUsage } from "../../../core/colors/usage";
 import { ColorField } from "../ColorField";
 import { DialogFrame } from "../CollabDialogs";
+import { folderLostText } from "../FolderLostDialog";
 import { tr } from "../../../core/i18n/tr";
 
 const CUSTOM_VALUE = "custom";
@@ -415,12 +416,25 @@ function FolderSyncField() {
           </button>
         </>
       ) : (
-        <>
-          <p className="weft-hint weft-folder-sync-state">{tr("ui.folder_sync_state_off")}</p>
-          <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void chooseAndStart()}>
-            {tr("ui.choose_folder_and_sync")}
-          </button>
-        </>
+        sync.lost ? (
+          <>
+            <p className="weft-placeholder-warning">{folderLostText(sync.lost)}</p>
+            <p className="weft-hint">{tr("ui.folder_lost_explain")}</p>
+            <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void chooseAndStart()}>
+              {tr("ui.folder_lost_choose")}
+            </button>
+            <button type="button" className="weft-ghost-button weft-full-width" onClick={disconnect}>
+              {tr("ui.disconnect_folder")}
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="weft-hint weft-folder-sync-state">{tr("ui.folder_sync_state_off")}</p>
+            <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void chooseAndStart()}>
+              {tr("ui.choose_folder_and_sync")}
+            </button>
+          </>
+        )
       )}
       {status.error && <p className="weft-placeholder-warning">{status.error}</p>}
       {error && <p className="weft-placeholder-warning">{error}</p>}

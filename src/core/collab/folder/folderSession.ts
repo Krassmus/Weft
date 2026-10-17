@@ -22,12 +22,21 @@ const INSTALL_KEY = "weft:installId";
 
 const EMPTY_STATUS: FolderSyncStatus = { lastSyncAt: null, peerFiles: 0, missingMedia: 0, error: null };
 
+/** Why a module that is meant to be synced with a folder is not: the shared folder is not there (a drive that is not connected, or it was
+ * moved or renamed), or it is, but the module's own directory in it is gone (moved, renamed, deleted). Nothing is touched then - least
+ * of all is a new directory made in a place that is no longer where it was. */
+export interface FolderLost {
+  folder: string;
+  reason: "folder" | "dir";
+}
+
 /** For the UI. */
-export const useFolderSync = create<{ active: boolean; folder: string | null; dir: string | null; status: FolderSyncStatus }>(() => ({
+export const useFolderSync = create<{ active: boolean; folder: string | null; dir: string | null; status: FolderSyncStatus; lost: FolderLost | null }>(() => ({
   active: false,
   folder: null,
   dir: null,
   status: EMPTY_STATUS,
+  lost: null,
 }));
 
 function loadConfig(): Record<string, string> {
@@ -100,20 +109,34 @@ export async function chooseSyncFolder(): Promise<string | null> {
  * it isn't picked up again next time. */
 export function stopFolderSync(forget = true): void {
   if (forget) saveConfig((currentHandle().doc() as WeftModule).id, null);
-  if (!current) return;
+  if (!current) {
+    if (forget) useFolderSync.setState({ active: false, folder: null, dir: null, status: EMPTY_STATUS, lost: null });
+    return;
+  }
   current.sync.stop();
   current = null;
-  useFolderSync.setState({ active: false, folder: null, dir: null, status: EMPTY_STATUS });
+  useFolderSync.setState({ active: false, folder: null, dir: null, status: EMPTY_STATUS, lost: null });
 }
 
-/** Starts syncing the open module with the shared folder `root`. */
-export async function startFolderSync(root: string): Promise<void> {
+/**
+ * Starts syncing the open module with the shared folder `root`. A folder the person has just chosen (`remembered` false) gets a directory for
+ * the module if it has none yet. A folder the module was synced with before (`remembered` true: it is picked up again when the module is
+ * opened) must still be there, with the module's directory in it - if it is not, nothing is synced and nothing is made, and `lost` says why
+ * (see FolderLost).
+ */
+export async function startFolderSync(root: string, remembered = false): Promise<void> {
   stopFolderSync(false);
   const handle = currentHandle();
   const content = handle.doc() as WeftModule;
   const fs = makeFs(root);
   try {
-    const dir = (await findModuleFolder(fs, content.id)) ?? moduleFolderName(content);
+    let dir = await findModuleFolder(fs, content.id);
+    if (remembered && !dir) {
+      const reason = (await fs.isDirectory([])) ? "dir" : "folder";
+      useFolderSync.setState({ active: false, folder: root, dir: null, status: EMPTY_STATUS, lost: { folder: root, reason } });
+      return;
+    }
+    dir ??= moduleFolderName(content);
     const sync = new FolderSync({
       handle,
       fs,
@@ -121,10 +144,15 @@ export async function startFolderSync(root: string): Promise<void> {
       assets: assetStorage,
       installId: installId(),
       onStatus: (status) => useFolderSync.setState((s) => ({ status: { ...s.status, ...status } })),
+      onLost: () => {
+        // The directory went while the module was open: the same as finding it gone at the start.
+        if (current?.sync === sync) current = null;
+        useFolderSync.setState({ active: false, folder: root, dir: null, status: EMPTY_STATUS, lost: { folder: root, reason: "dir" } });
+      },
     });
     current = { sync, handle };
     saveConfig(content.id, root);
-    useFolderSync.setState({ active: true, folder: root, dir, status: EMPTY_STATUS });
+    useFolderSync.setState({ active: true, folder: root, dir, status: EMPTY_STATUS, lost: null });
     await sync.start();
   } catch (error) {
     current?.sync.stop();
@@ -133,6 +161,7 @@ export async function startFolderSync(root: string): Promise<void> {
       active: false,
       folder: root,
       dir: null,
+      lost: null,
       status: { ...EMPTY_STATUS, error: tr("ui.the_folder_cannot_be_used", { n0: error instanceof Error ? error.message : String(error) }) },
     });
   }
@@ -143,9 +172,11 @@ export async function startFolderSync(root: string): Promise<void> {
 export async function syncFolderForCurrentDocument(): Promise<void> {
   if (current && current.handle === currentHandle()) return;
   stopFolderSync(false);
+  // (Whatever was said about the module before is not about this one.)
+  useFolderSync.setState({ active: false, folder: null, dir: null, status: EMPTY_STATUS, lost: null });
   if (!folderSyncAvailable()) return;
   const root = loadConfig()[(currentHandle().doc() as WeftModule).id];
-  if (root) await startFolderSync(root);
+  if (root) await startFolderSync(root, true);
 }
 
 /** Where a link file lies: the folder of the module it opens (its own directory) and the shared folder around that. */

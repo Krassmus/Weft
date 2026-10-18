@@ -16,7 +16,11 @@ export type PlayerStringKey = "submit" | "correct" | "incorrect" | "restart" | "
  * without its own entry here falls back to English. */
 export type FilesStringKey = "filesTitle" | "filesPassword" | "filesUnlock" | "filesWrongPassword" | "filesDownload" | "filesFailed";
 
-type Strings = Record<PlayerStringKey | FilesStringKey | "thanks", string>;
+/** The texts for screen readers and keyboard users (the hidden navigation, the announcement of a slide, ...). {n} and {total} are filled in
+ * by the player. A language without its own entry falls back to English. */
+export type A11yStringKey = "previous" | "navigation" | "slide" | "blank" | "embedded";
+
+type Strings = Record<PlayerStringKey | FilesStringKey | A11yStringKey | "thanks", string>;
 
 /** What an open question (no right or wrong, see QuizBlock.open) says once it is submitted. A language without its own falls back to English. */
 const THANKS: Record<string, string> = {
@@ -24,6 +28,20 @@ const THANKS: Record<string, string> = {
   da: "Tak!", nb: "Takk!", fi: "Kiitos!", pl: "Dziękujemy!", cs: "Děkujeme!", sk: "Ďakujeme!", hu: "Köszönjük!", ro: "Mulțumim!", bg: "Благодарим!",
   hr: "Hvala!", ru: "Спасибо!", uk: "Дякуємо!", el: "Ευχαριστούμε!", tr: "Teşekkürler!", ar: "شكرًا!", he: "תודה!", hi: "धन्यवाद!", zh: "谢谢！",
   zh_TW: "謝謝！", ja: "ありがとうございます！", ko: "감사합니다!", id: "Terima kasih!", vi: "Cảm ơn bạn!", th: "ขอบคุณ!",
+};
+
+function a11yStrings(previous: string, navigation: string, slide: string, blank: string, embedded: string): Record<A11yStringKey, string> {
+  return { previous, navigation, slide, blank, embedded };
+}
+
+const A11Y_TRANSLATIONS: Record<string, Record<A11yStringKey, string>> = {
+  de: a11yStrings("Zurück", "Navigation", "Folie {n}", "Lücke {n} von {total}", "Eingebettete Seite"),
+  en: a11yStrings("Back", "Navigation", "Slide {n}", "Blank {n} of {total}", "Embedded page"),
+  fr: a11yStrings("Retour", "Navigation", "Diapositive {n}", "Trou {n} sur {total}", "Page intégrée"),
+  es: a11yStrings("Atrás", "Navegación", "Diapositiva {n}", "Hueco {n} de {total}", "Página incrustada"),
+  it: a11yStrings("Indietro", "Navigazione", "Diapositiva {n}", "Spazio {n} di {total}", "Pagina incorporata"),
+  pt: a11yStrings("Voltar", "Navegação", "Diapositivo {n}", "Lacuna {n} de {total}", "Página incorporada"),
+  nl: a11yStrings("Terug", "Navigatie", "Dia {n}", "Open plek {n} van {total}", "Ingebedde pagina"),
 };
 
 function filesStrings(title: string, password: string, unlock: string, wrongPassword: string, download: string, failed: string): Record<FilesStringKey, string> {
@@ -48,7 +66,7 @@ function strings(
   play: string,
   language: string,
 ): Strings {
-  return { submit, correct, incorrect, restart, done, next, play, language, thanks: THANKS.en, ...FILES_TRANSLATIONS.en };
+  return { submit, correct, incorrect, restart, done, next, play, language, thanks: THANKS.en, ...FILES_TRANSLATIONS.en, ...A11Y_TRANSLATIONS.en };
 }
 
 // Keyed by language code (the part of a locale before the "_"); Chinese is also keyed by "zh_TW" for
@@ -96,8 +114,13 @@ const ALIASES: Record<string, string> = { no: "nb", nn: "nb", zh_HK: "zh_TW", zh
 /** The fixed texts for a locale ("fr_FR"): its own, else its language's, else English - and German
  * for `null`, a module without languages. */
 export function playerStringsFor(locale: string | null): Strings {
-  if (locale === null) return { ...TRANSLATIONS.de, ...FILES_TRANSLATIONS.de, thanks: THANKS.de };
+  if (locale === null) return { ...TRANSLATIONS.de, ...FILES_TRANSLATIONS.de, ...A11Y_TRANSLATIONS.de, thanks: THANKS.de };
   const base = locale.split("_")[0];
   const key = [locale, base].map((k) => ALIASES[k] ?? k).find((k) => k in TRANSLATIONS);
-  return { ...TRANSLATIONS[key ?? "en"], ...(FILES_TRANSLATIONS[key ?? "en"] ?? FILES_TRANSLATIONS.en), thanks: THANKS[key ?? "en"] ?? THANKS.en };
+  return {
+    ...TRANSLATIONS[key ?? "en"],
+    ...(FILES_TRANSLATIONS[key ?? "en"] ?? FILES_TRANSLATIONS.en),
+    ...(A11Y_TRANSLATIONS[key ?? "en"] ?? A11Y_TRANSLATIONS.en),
+    thanks: THANKS[key ?? "en"] ?? THANKS.en,
+  };
 }

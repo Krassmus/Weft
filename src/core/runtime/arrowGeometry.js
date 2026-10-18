@@ -332,7 +332,7 @@ function arrowWaypoints(block, boxAspect) {
 export function arrowSvgMarkup(block, boxAspect) {
   var height = 100 / (boxAspect > 0 ? boxAspect : 1);
   var points = arrowWaypoints(block, boxAspect);
-  var open = '<svg viewBox="0 0 100 ' + arrowNumber(height) + '" preserveAspectRatio="none" style="width:100%;height:100%;display:block;overflow:visible">';
+  var open = '<svg viewBox="0 0 100 ' + arrowNumber(height) + '" preserveAspectRatio="none" aria-hidden="true" style="width:100%;height:100%;display:block;overflow:visible">';
   if (points.length < 2) return open + "</svg>";
   var color = arrowColor(block.color);
   var w = Math.max(0.05, block.width || 0.8) * (100 / Math.max(block.position.width, 0.01));

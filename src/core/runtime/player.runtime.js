@@ -317,6 +317,102 @@
     return strings[key] || "";
   }
 
+  // Same, with {n}, {total} ... filled in.
+  function uiStringWith(key, values) {
+    return uiString(key).replace(/\{(\w+)\}/g, function (all, name) {
+      return values && values[name] !== undefined ? String(values[name]) : all;
+    });
+  }
+
+  // ---- accessibility ----
+  // Learners who ask their system for less motion get no animation: slide transitions and the Aufbau/Abbau of blocks are
+  // instant cuts (the events still happen in the same order). Looked up each time - the setting can change while the module runs.
+  function prefersReducedMotion() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+
+  // A polite live region for screen readers (visually hidden): what appears on Weiter, a quiz's result, the new slide. Each message is its
+  // own element - one that is added is read, also when it is the same text as the one before - and goes again after a while.
+  var liveRegion = null;
+  function announce(text) {
+    if (!liveRegion || !text) return;
+    var message = document.createElement("div");
+    message.textContent = text;
+    liveRegion.appendChild(message);
+    setTimeout(function () {
+      if (message.parentNode) message.parentNode.removeChild(message);
+    }, 6000);
+  }
+
+  // What a block says, for the announcement of an element that has just appeared: its words (an image: its alternative text; a
+  // formula: its MathML text; nothing for what has no words - a shape, a video).
+  function speechOfBlock(wrap, block) {
+    var text = "";
+    if (block.kind === "image") text = block.alt || "";
+    else if (block.kind === "tex") {
+      var mathml = wrap.querySelector(".katex-mathml");
+      text = mathml ? mathml.textContent : block.tex || "";
+    } else if (block.kind === "text" || block.kind === "list" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "button" || block.kind === "code") {
+      text = wrap.textContent || "";
+    }
+    text = String(text).replace(/\s+/g, " ").trim();
+    return text.length > 400 ? text.slice(0, 399) + "\u2026" : text;
+  }
+  // True while Weiter is being delivered: an element that appears then is announced (the learner asked for it and cannot see it).
+  var announceAppearing = false;
+
+  // The navigation for people who cannot use Space and the arrow keys: a screen reader keeps those for itself in its reading mode, and a
+  // keyboard user may not know them. Real buttons, visually hidden until they have the focus (like a skip link); the same as Space and ←.
+  var navElement = null;
+  var navPrev = null;
+  var navNext = null;
+  function buildNavigation() {
+    if (renderAll) return;
+    navPrev = el("button", { type: "button", class: "weft-sr-nav-button" }, []);
+    navNext = el("button", { type: "button", class: "weft-sr-nav-button" }, []);
+    navPrev.addEventListener("click", goPrev);
+    navNext.addEventListener("click", function () {
+      if (pos >= history.length) restart();
+      else weiter();
+    });
+    navElement = el("nav", { class: "weft-sr-nav" }, [navPrev, navNext]);
+    document.body.appendChild(navElement);
+    liveRegion = el("div", { class: "weft-sr-live", "aria-live": "polite", "aria-atomic": "false", role: "status" }, []);
+    document.body.appendChild(liveRegion);
+  }
+  function updateNavigation() {
+    if (!navElement) return;
+    // A module whose keyboard navigation is switched off may only be left by its own buttons: no Weiter for anyone.
+    navElement.hidden = module.keyboardNavigationEnabled === false;
+    navElement.setAttribute("aria-label", uiString("navigation"));
+    navPrev.textContent = uiString("previous");
+    navPrev.disabled = pos <= 0;
+    navNext.textContent = uiString(pos >= history.length ? "restart" : "next");
+  }
+  var baseTitle = document.title;
+  var firstRender = true;
+  // After every slide: the navigation is up to date, the title says where we are, and a screen reader is told about the new slide - by
+  // moving the focus to it when the focus was on something that is gone (a button of the old slide), else by announcing it.
+  function announceSlide(wrap) {
+    updateNavigation();
+    var label = pos >= history.length ? uiString("done") : uiStringWith("slide", { n: pos + 1 });
+    document.title = baseTitle ? baseTitle + " \u2013 " + label : label;
+    wrap.setAttribute("role", "region");
+    wrap.setAttribute("aria-label", label);
+    if (firstRender) {
+      firstRender = false;
+      return;
+    }
+    var active = document.activeElement;
+    var focusKept = active && active !== document.body && active !== document.documentElement && document.body.contains(active) && !wrap.contains(active);
+    if (focusKept) {
+      announce(label);
+    } else {
+      wrap.setAttribute("tabindex", "-1");
+      wrap.focus({ preventScroll: true });
+    }
+  }
+
   // Functions that refill the texts of the blocks on the page being shown, and the language
   // switches on it - both reset with every page (see renderStage), like every other page-scoped list.
   var languageRefreshers = [];
@@ -333,6 +429,7 @@
       select.value = locale;
     });
     refreshVariableDisplays();
+    updateNavigation();
     syncLms();
   }
 
@@ -1176,9 +1273,14 @@
   function weiter() {
     var waiting = waitingForWeiter;
     waitingForWeiter = {};
-    Object.keys(waiting).forEach(function (id) {
-      deliver(waiting[id], true);
-    });
+    announceAppearing = true;
+    try {
+      Object.keys(waiting).forEach(function (id) {
+        deliver(waiting[id], true);
+      });
+    } finally {
+      announceAppearing = false;
+    }
   }
 
   // The keyframes of one block animation as an Aufbau (hidden -> shown); an Abbau plays them
@@ -1191,6 +1293,8 @@
     up: "inset(100% 0 0 0)",
   };
   function effectFrames(wrap, effect, phase) {
+    // No animation for someone who asks for less motion: the block just appears / goes.
+    if (prefersReducedMotion()) return null;
     var type = effect.type;
     var frames = null;
     if (type === "fade") {
@@ -1501,6 +1605,7 @@
       performers[id] = function () {
         if (shown) return;
         shown = true;
+        if (announceAppearing) announce(String(itemEl.textContent || "").replace(/\s+/g, " ").trim());
         revealWithEffect(itemEl, effect, function () {
           happened(id);
         });
@@ -1538,6 +1643,7 @@
     // Blocks whose shards can be made ahead: what shows no state of its own (a quiz or a video does; they are made as it happens).
     var shatterAhead =
       exit.type === "shatter" &&
+      !prefersReducedMotion() &&
       !!graphEvents[exitId] &&
       (block.kind === "text" || block.kind === "list" || block.kind === "image" || block.kind === "shape" || block.kind === "arrow" ||
         block.kind === "code" || block.kind === "tex" || block.kind === "button");
@@ -1568,6 +1674,8 @@
         if (shown) return;
         shown = true;
         gone = false;
+        // What appears because the learner pressed Weiter is told to a screen reader (what is there to see is not there to hear).
+        if (announceAppearing) announce(speechOfBlock(wrap, block));
         if (exitAnimation) {
           exitAnimation.cancel();
           exitAnimation = null;
@@ -1608,7 +1716,7 @@
         var duration = exit.durationMs || 500;
         // "Zersplittern": the block breaks into pieces that fly off (see shatterBlock) - not an embedded page, which can't be
         // copied: that one just fades.
-        if (exit.type === "shatter" && block.kind !== "iframe") {
+        if (exit.type === "shatter" && block.kind !== "iframe" && !prefersReducedMotion()) {
           // The shards made ahead - or, when the block has changed since (or can't be made ahead), made now.
           var prepared = shatterIsCurrent(preparedShatter, wrap) ? preparedShatter : null;
           if (preparedShatter && !prepared && preparedShatter.overlay.parentNode) preparedShatter.overlay.parentNode.removeChild(preparedShatter.overlay);
@@ -1821,7 +1929,7 @@
       : "";
 
     return (
-      '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;display:block;overflow:visible;' +
+      '<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" style="width:100%;height:100%;display:block;overflow:visible;' +
       filterStyle +
       '">' +
       defsMarkup +
@@ -1853,6 +1961,17 @@
   // the scale factor still genuinely needs the wrap's own rendered pixel width, which isn't known
   // until layout, so that's measured via ResizeObserver instead of computed via calc(). Matches
   // BlockView.tsx's IframeFrame in the editor exactly.
+  // The name of an embedded page for a screen reader (the frame needs one): "Eingebettete Seite: example.org".
+  function iframeTitle(block, src) {
+    var host = "";
+    try {
+      host = new URL(src, window.location.href).hostname;
+    } catch (e) {
+      host = "";
+    }
+    return uiString("embedded") + (host ? ": " + host : "");
+  }
+
   function iframeEl(block, src) {
     var w = block.forcedViewportWidth || DEFAULT_VIEWPORT_WIDTH;
     var ratio = parseAspectRatio();
@@ -1863,6 +1982,7 @@
       src: src,
       sandbox: (block.sandbox || []).join(" "),
       allow: block.allow || "",
+      title: iframeTitle(block, src),
       style: "width:" + w + "px;height:" + h + "px;border:0;",
     }, []);
     var wrap = el("div", { class: "weft-iframe-viewport-wrap" }, [frame]);
@@ -1931,11 +2051,11 @@
       languageRefreshers.push(fillText);
     } else if (block.kind === "list") {
       // Same markup and spacing as the editor's ListBlockCanvas (BlockView.tsx) and the thumbnails.
-      var listBox = el("div", { class: "weft-list", style: "gap:" + (block.spacing || 0) + "cqw;" }, []);
+      var listBox = el("div", { class: "weft-list", role: "list", style: "gap:" + (block.spacing || 0) + "cqw;" }, []);
       var listItemElements = {};
       var listTexts = [];
       block.items.forEach(function (item, index) {
-        var row = el("div", { class: "weft-list-item" }, []);
+        var row = el("div", { class: "weft-list-item", role: "listitem" }, []);
         var marker = el("span", { class: "weft-list-marker is-" + block.marker }, []);
         if (block.marker === "image") {
           if (block.markerAssetId) {
@@ -2390,7 +2510,7 @@
     var wrap = el("div", { class: "weft-block weft-block-quiz", style: positionStyle(block.position) });
     var form = el("form", { class: "weft-quiz" }, []);
 
-    var question = el("div", { class: "weft-quiz-question" }, []);
+    var question = el("div", { class: "weft-quiz-question", id: "weft-question-" + block.id }, []);
     var optionTexts = [];
     var fillQuiz = function () {
       question.innerHTML = quizQuestionHtml(block);
@@ -2405,7 +2525,7 @@
     languageRefreshers.push(fillQuiz);
     form.appendChild(question);
 
-    var optionsWrap = el("div", { class: "weft-quiz-options" }, []);
+    var optionsWrap = el("div", { class: "weft-quiz-options", role: "group", "aria-labelledby": "weft-question-" + block.id }, []);
     block.options.forEach(function (opt) {
       // The whole card is the <label> (not just a small checkbox) so clicking anywhere on an
       // option selects it, and .weft-quiz-option:has(input:checked) in the stylesheet picks up
@@ -2417,9 +2537,9 @@
       var optionLabel = el("label", { class: "weft-quiz-option" }, []);
       var checkboxWrap = el("span", { class: "weft-quiz-option-checkbox" }, []);
       var input = el("input", { type: "checkbox", name: "opt-" + block.id, value: opt.id, class: "weft-quiz-option-input" }, []);
-      var uncheckedIcon = el("span", { class: "weft-quiz-option-checkbox-icon weft-quiz-option-checkbox-icon-unchecked" }, []);
+      var uncheckedIcon = el("span", { class: "weft-quiz-option-checkbox-icon weft-quiz-option-checkbox-icon-unchecked", "aria-hidden": "true" }, []);
       uncheckedIcon.innerHTML = QUIZ_CHECKBOX_UNCHECKED_SVG;
-      var checkedIcon = el("span", { class: "weft-quiz-option-checkbox-icon weft-quiz-option-checkbox-icon-checked" }, []);
+      var checkedIcon = el("span", { class: "weft-quiz-option-checkbox-icon weft-quiz-option-checkbox-icon-checked", "aria-hidden": "true" }, []);
       checkedIcon.innerHTML = QUIZ_CHECKBOX_CHECKED_SVG;
       checkboxWrap.appendChild(input);
       checkboxWrap.appendChild(uncheckedIcon);
@@ -2447,7 +2567,7 @@
     // A plain button, not a form's submit: a module may run in an iframe without allow-forms (the editor's preview, a player
     // file), where a form never fires "submit".
     var submit = el("button", { type: "button", class: "weft-quiz-submit" }, []);
-    var submitIcon = el("span", { class: "weft-quiz-submit-icon" }, []);
+    var submitIcon = el("span", { class: "weft-quiz-submit-icon", "aria-hidden": "true" }, []);
     submitIcon.innerHTML = QUIZ_SUBMIT_ICON_SVG;
     submit.appendChild(submitIcon);
     var submitLabel = document.createTextNode(uiString("submit"));
@@ -2468,7 +2588,7 @@
     // Hidden until submitted, and takes the submit button's place rather than sitting next to it
     // (see the submit handler) - there's nothing left to submit once it's showing.
     var feedback = el("div", { class: "weft-quiz-feedback", hidden: "" }, []);
-    var feedbackIcon = el("span", { class: "weft-quiz-feedback-icon" }, []);
+    var feedbackIcon = el("span", { class: "weft-quiz-feedback-icon", "aria-hidden": "true" }, []);
     var feedbackTitle = el("strong", { class: "weft-quiz-feedback-title" }, []);
     feedback.appendChild(feedbackIcon);
     feedback.appendChild(feedbackTitle);
@@ -2520,6 +2640,7 @@
       showFeedbackTitle();
       feedback.className = "weft-quiz-feedback " + (open ? "is-thanks" : correct ? "is-correct" : "is-incorrect");
       feedback.hidden = false;
+      announce(feedbackTitle.textContent);
     });
 
     wrap.appendChild(form);
@@ -2584,6 +2705,8 @@
       text.innerHTML = blockHtml(block);
       applyVariablesToNode(text);
       blanks = [];
+      // How many blanks there are (for "Lücke 2 von 5" as the name of a field).
+      var totalBlanks = (String(text.textContent).match(CLOZE_MARKER) || []).length;
       var walker = document.createTreeWalker(text, NodeFilter.SHOW_TEXT);
       var nodes = [];
       while (walker.nextNode()) nodes.push(walker.currentNode);
@@ -2618,7 +2741,7 @@
               autocomplete: "off",
               autocapitalize: "off",
               spellcheck: "false",
-              "aria-label": String(blanks.length + 1),
+              "aria-label": uiStringWith("blank", { n: blanks.length + 1, total: totalBlanks }),
               style: "width:" + Math.min(longest + 2, 30) + "ch;",
             },
             [],
@@ -2645,7 +2768,7 @@
     fillText();
 
     var submit = el("button", { type: "button", class: "weft-quiz-submit" }, []);
-    var submitIcon = el("span", { class: "weft-quiz-submit-icon" }, []);
+    var submitIcon = el("span", { class: "weft-quiz-submit-icon", "aria-hidden": "true" }, []);
     submitIcon.innerHTML = QUIZ_SUBMIT_ICON_SVG;
     submit.appendChild(submitIcon);
     var submitLabel = document.createTextNode(uiString("submit"));
@@ -2653,7 +2776,7 @@
     box.appendChild(submit);
 
     var feedback = el("div", { class: "weft-quiz-feedback", hidden: "" }, []);
-    var feedbackIcon = el("span", { class: "weft-quiz-feedback-icon" }, []);
+    var feedbackIcon = el("span", { class: "weft-quiz-feedback-icon", "aria-hidden": "true" }, []);
     var feedbackTitle = el("strong", { class: "weft-quiz-feedback-title" }, []);
     feedback.appendChild(feedbackIcon);
     feedback.appendChild(feedbackTitle);
@@ -2676,6 +2799,7 @@
         var right = clozeIsRight(blank.input.value, blank.answers, caseSensitive, tolerance);
         if (!right) allRight = false;
         blank.input.disabled = true;
+        if (!right) blank.input.setAttribute("aria-invalid", "true");
         blank.input.className = "weft-cloze-input " + (right ? "is-correct" : "is-incorrect");
         blank.mark.textContent = right ? "\u2713" : "\u2717";
         blank.mark.className = "weft-cloze-mark " + (right ? "is-correct" : "is-incorrect");
@@ -2694,6 +2818,7 @@
       showFeedbackTitle();
       feedback.className = "weft-quiz-feedback " + (allRight ? "is-correct" : "is-incorrect");
       feedback.hidden = false;
+      announce(feedbackTitle.textContent);
     });
 
     wrap.appendChild(box);
@@ -2895,6 +3020,9 @@
     // The picture or colour behind a wheel (made below), taken away with the transition.
     var wheelBackdrop = null;
     oldWrap.classList.add("is-transition-old");
+    // The slide that is on its way out is not there any more for a screen reader or the keyboard.
+    oldWrap.setAttribute("aria-hidden", "true");
+    oldWrap.setAttribute("inert", "");
     newWrap.classList.add("is-transition-new");
     root.appendChild(newWrap);
 
@@ -3228,17 +3356,19 @@
     var oldWrap = root.firstElementChild;
     var newWrap = buildStageWrap();
 
-    if (oldWrap && outgoingTransition && outgoingTransition.type !== "none") {
+    if (oldWrap && outgoingTransition && outgoingTransition.type !== "none" && !prefersReducedMotion()) {
       animateTransition(root, oldWrap, newWrap, outgoingTransition);
     } else {
       root.innerHTML = "";
       root.appendChild(newWrap);
     }
+    announceSlide(newWrap);
 
     // After every slide (the finished screen included): progress has moved, and so may anything a
     // formula reads from it.
     syncLms();
   }
 
+  buildNavigation();
   goNext();
 })();

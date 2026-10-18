@@ -2597,6 +2597,10 @@
       wrap.appendChild(doneStage);
     } else {
       wrap.appendChild(renderStage(history[pos]));
+      // The editor's preview wants to know which slide is on: "Esc" there goes back to this one in the editor (see PresentationView.tsx).
+      if (savesViaHost && window.parent !== window) {
+        window.parent.postMessage({ source: "weft-module", type: "page-shown", pageId: history[pos] }, "*");
+      }
     }
     return wrap;
   }

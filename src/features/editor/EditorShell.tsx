@@ -212,7 +212,17 @@ export function EditorShell() {
 
   // If fullscreen is exited from outside our own controls (Escape, the native macOS toggle, a
   // touch swipe, ...) leave presentation mode too, so the two never fall out of sync.
-  useEffect(() => watchFullscreenExit(() => setPresenting(false)), []);
+  // (The slide the presentation is on - the module tells which: see "page-shown" in player.runtime.js - is what the editor shows afterwards.)
+  const shownPageRef = useRef<string | null>(null);
+  const endPresentationRef = useRef<() => void>(() => {});
+  useEffect(() => watchFullscreenExit(() => endPresentationRef.current()), []);
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      if (e.data && e.data.source === "weft-module" && e.data.type === "page-shown" && typeof e.data.pageId === "string") shownPageRef.current = e.data.pageId;
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   // Disabled while presenting: there's no selection UI to copy/paste against there, and the
   // listener would otherwise silently act on whatever was selected before presenting started.
@@ -486,14 +496,24 @@ export function EditorShell() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [inAppMenu, undo, redo]);
 
+  function endPresentation() {
+    if (!presentingRef.current) return;
+    setPresenting(false);
+    const pageId = shownPageRef.current;
+    const { doc: current, select } = useDocumentStore.getState();
+    if (pageId && current.content.pages[pageId]) select({ type: "page", pageId });
+  }
+  endPresentationRef.current = endPresentation;
+
   function handlePresent(startPageId: string | null) {
+    shownPageRef.current = startPageId;
     setPresentStartPageId(startPageId);
     setPresenting(true);
     void enterFullscreenPreview();
   }
 
   if (presenting) {
-    return <PresentationView startPageId={presentStartPageId} onExit={() => setPresenting(false)} />;
+    return <PresentationView startPageId={presentStartPageId} onExit={endPresentation} />;
   }
 
   // Only a brand-new document (no filePath yet) asks where to save - once it has one, whether

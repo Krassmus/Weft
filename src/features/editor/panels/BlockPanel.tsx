@@ -1073,6 +1073,35 @@ function VideoStopPointDialog({
   // Where the video is now (seconds): the timeline below it is coloured up to there.
   const [currentTime, setCurrentTime] = useState(0);
   const [selectedStopPointId, setSelectedStopPointId] = useState<string | null>(null);
+  // The picture of the video at the place the mouse is over on the timeline (a second, silent video element that is moved there - made
+  // when the mouse first comes). `x` is the place in pixels from the left edge of the timeline.
+  const [hover, setHover] = useState<{ x: number; time: number; width: number } | null>(null);
+  const [previewMade, setPreviewMade] = useState(false);
+  const [aspect, setAspect] = useState(16 / 9);
+  const previewRef = useRef<HTMLVideoElement>(null);
+  const wantedPreviewTime = useRef<number | null>(null);
+
+  // One seek at a time: a new place wanted while the video is still on its way is taken once it has arrived.
+  function showPreviewAt(time: number) {
+    const preview = previewRef.current;
+    if (!preview) return;
+    wantedPreviewTime.current = time;
+    if (!preview.seeking) {
+      wantedPreviewTime.current = null;
+      preview.currentTime = time;
+    }
+  }
+
+  function hoverTimeline(event: ReactMouseEvent<HTMLDivElement>) {
+    if (duration <= 0) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.min(rect.width, Math.max(0, event.clientX - rect.left));
+    const time = (x / rect.width) * duration;
+    setPreviewMade(true);
+    setHover({ x, time, width: rect.width });
+    showPreviewAt(time);
+  }
+
   // The controls are the dialog's own (not the video element's: most of what those offer makes no sense here, and the timeline is below).
   const [playing, setPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
@@ -1160,7 +1189,10 @@ function VideoStopPointDialog({
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
           onEnded={() => setPlaying(false)}
-          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+          onLoadedMetadata={(e) => {
+            setDuration(e.currentTarget.duration);
+            if (e.currentTarget.videoWidth > 0 && e.currentTarget.videoHeight > 0) setAspect(e.currentTarget.videoWidth / e.currentTarget.videoHeight);
+          }}
           onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
           onSeeked={(e) => setCurrentTime(e.currentTarget.currentTime)}
         />
@@ -1178,7 +1210,7 @@ function VideoStopPointDialog({
             </svg>
           </button>
         {/* The timeline: the line is coloured up to where the video is now; a click on it goes there. */}
-        <div className="weft-stop-point-track" onClick={seekTo}>
+        <div className="weft-stop-point-track" onClick={seekTo} onMouseMove={hoverTimeline} onMouseLeave={() => setHover(null)}>
           <div className="weft-stop-point-progress" style={{ width: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%` }} />
           {block.stopPoints.map((sp) => (
             <button
@@ -1206,6 +1238,35 @@ function VideoStopPointDialog({
               dangerouslySetInnerHTML={{ __html: stopPointIconSvg(sp.stopsVideo) }}
             />
           ))}
+          {/* What the video shows at the place the mouse is over - nothing to operate, only for looking for a scene. */}
+          {previewMade && (
+            <div
+              className="weft-stop-point-preview"
+              // Over the mouse, but not out of the dialog (the timeline has 13px of margin on each side).
+              style={{
+                left: hover ? Math.max(PREVIEW_WIDTH / 2 - 13, Math.min(hover.x, hover.width - PREVIEW_WIDTH / 2 + 13)) : 0,
+                visibility: hover ? "visible" : "hidden",
+              }}
+            >
+              <video
+                ref={previewRef}
+                src={getObjectUrl(assetId)}
+                muted
+                playsInline
+                preload="auto"
+                tabIndex={-1}
+                style={{ width: PREVIEW_WIDTH, aspectRatio: String(aspect) }}
+                onSeeked={() => {
+                  const wanted = wantedPreviewTime.current;
+                  if (wanted !== null && previewRef.current) {
+                    wantedPreviewTime.current = null;
+                    previewRef.current.currentTime = wanted;
+                  }
+                }}
+              />
+              <span className="weft-stop-point-preview-time">{hover ? formatTimeMMSS(hover.time) : ""}</span>
+            </div>
+          )}
         </div>
           <div className="weft-stop-point-volume">
             <button
@@ -1267,6 +1328,9 @@ function VideoStopPointDialog({
     document.body,
   );
 }
+
+/** Width of the picture that follows the mouse over the timeline of the time marks dialog. */
+const PREVIEW_WIDTH = 168;
 
 const DEFAULT_VIEWPORT_WIDTH = 768;
 

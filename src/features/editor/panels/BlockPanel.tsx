@@ -97,7 +97,7 @@ import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from ".
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { listItemHtml, quizOptionHtml, textHtml } from "../../../core/document/translations";
+import { quizOptionHtml, textHtml } from "../../../core/document/translations";
 import { clozeBlanks } from "../../../core/document/cloze";
 import { useEditingLanguage } from "../useEditingLanguage";
 import { LanguageSelect } from "./LanguageSelect";
@@ -1819,54 +1819,10 @@ function ListEditor({
   onUpdate: BlockPanelProps["onUpdate"];
   onSetImage: BlockPanelProps["onSetImage"];
 }) {
-  const { lang, defaultLang } = useEditingLanguage();
   const perItem = isListPerItem(block);
-  function move(index: number, by: number) {
-    const target = index + by;
-    if (target < 0 || target >= block.items.length) return;
-    const items = [...block.items];
-    [items[index], items[target]] = [items[target], items[index]];
-    onUpdate({ items });
-  }
   return (
     <Collapsible title={tr("ui.list")}>
       <LanguageSelect block={block} />
-      <p className="weft-hint">{tr("ui.type_the_items_directly_on_the")}</p>
-      <ul className="weft-list-items">
-        {block.items.map((item, index) => (
-          <li key={item.id} className="weft-list-items-row">
-            <span className="weft-list-items-label">{stripHtml(listItemHtml(block, item.id, lang, defaultLang)) || tr("ui.empty")}</span>
-            <button type="button" className="weft-ghost-button" title={tr("ui.up")} disabled={index === 0} onClick={() => move(index, -1)}>
-              ↑
-            </button>
-            <button
-              type="button"
-              className="weft-ghost-button"
-              title={tr("ui.down")}
-              disabled={index === block.items.length - 1}
-              onClick={() => move(index, 1)}
-            >
-              ↓
-            </button>
-            <button
-              type="button"
-              className="weft-event-trigger-remove"
-              aria-label={tr("ui.remove_list_item")}
-              disabled={block.items.length < 2}
-              onClick={() => onUpdate({ items: block.items.filter((other) => other.id !== item.id) })}
-            >
-              ×
-            </button>
-          </li>
-        ))}
-      </ul>
-      <button
-        type="button"
-        className="weft-ghost-button weft-full-width"
-        onClick={() => onUpdate({ items: [...block.items, { id: createId(), html: tr("ui.new_item") }] })}
-      >
-        {tr("ui.list_item_2")}
-      </button>
 
       <label className="weft-field">
         <span>{tr("ui.bullet_style")}</span>

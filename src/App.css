@@ -5665,3 +5665,33 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 .weft-stop-point-preview.is-time-only {
   min-width: 52px;
 }
+
+/* The schematic waveform of a sound over the timeline of the time marks dialog (panels/Waveform.tsx): bars standing on the line; the part
+   that has played has the colour of the line. A click on it goes there like one on the line. */
+.weft-stop-point-track.has-wave {
+  margin-top: 58px;
+}
+
+.weft-stop-point-wave {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  height: 40px;
+  margin-bottom: 4px;
+}
+
+.weft-stop-point-wave svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-stop-point-wave-base path {
+  fill: var(--weft-border);
+}
+
+.weft-stop-point-wave-played path {
+  fill: var(--weft-accent);
+}

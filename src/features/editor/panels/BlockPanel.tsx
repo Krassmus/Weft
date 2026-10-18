@@ -107,6 +107,7 @@ import { tr } from "../../../core/i18n/tr";
 import { ColorField } from "../ColorField";
 import { useStopPointDialog } from "../blocks/stopPointDialogStore";
 import { useBackdropClose } from "../useBackdropClose";
+import { Waveform } from "./Waveform";
 import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
 import { plainTextOfHtml } from "../../../core/document/translations";
 import { orderedValues } from "../../../core/document/ordering";
@@ -1371,7 +1372,8 @@ function VideoStopPointDialog({
             </svg>
           </button>
         {/* The timeline: the line is coloured up to where the video is now; a click on it goes there. */}
-        <div className="weft-stop-point-track" onClick={seekTo} onMouseMove={hoverTimeline} onMouseLeave={() => setHover(null)}>
+        <div className={"weft-stop-point-track" + (isAudio ? " has-wave" : "")} onClick={seekTo} onMouseMove={hoverTimeline} onMouseLeave={() => setHover(null)}>
+          {isAudio && <Waveform url={getObjectUrl(assetId)} progress={duration > 0 ? currentTime / duration : 0} />}
           <div className="weft-stop-point-progress" style={{ width: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%` }} />
           {block.stopPoints.map((sp) => (
             <button

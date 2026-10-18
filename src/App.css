@@ -1341,6 +1341,11 @@ img.weft-thumb-block {
   fill: currentColor;
 }
 
+/* The icon of a kind of element (BlockKindIcon) is drawn with lines, not filled. */
+.weft-timeline-node-icon svg.weft-kind-icon {
+  fill: none;
+}
+
 button.weft-timeline-node-icon {
   cursor: pointer;
 }

@@ -27,7 +27,7 @@ import {
   scriptRunNodeId,
   videoResumeNodeId,
   videoStopNodeId,
-  stopPointShowsSomething,
+  stopPointShownKinds,
 } from "../../../core/document/pageTimeline";
 import type { ResolvedTrigger } from "../../../core/document/pageTimeline";
 import { DIRECTION_LABELS } from "../../../core/document/transitions";
@@ -1302,7 +1302,7 @@ function VideoStopPointDialog({
                   setCurrentTime(video.currentTime);
                 }
               }}
-              dangerouslySetInnerHTML={{ __html: stopPointIconSvg(sp.stopsVideo, page ? stopPointShowsSomething(page, videoStopNodeId(block.id, sp.id)) : false) }}
+              dangerouslySetInnerHTML={{ __html: stopPointIconSvg(sp.stopsVideo, page ? stopPointShownKinds(page, videoStopNodeId(block.id, sp.id)) : []) }}
             />
           ))}
           {/* What the video shows at the place the mouse is over - nothing to operate, only for looking for a scene. */}

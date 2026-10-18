@@ -669,7 +669,7 @@ function TimelineNodeIcon({
     node.kind === "end"
       ? arrowRightIconSvg
       : node.eventType === "video-stop-point"
-        ? stopPointIconSvg(node.stopsVideo !== false, node.showsSomething === true)
+        ? stopPointIconSvg(node.stopsVideo !== false, node.shownKinds ?? [])
         : node.kind === "event" && node.eventType
           ? EVENT_ICONS[node.eventType]
           : playIconSvg;

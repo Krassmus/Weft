@@ -135,7 +135,7 @@ function buildVideoLane(video: VideoBlock, page: Page): TimelineLane {
       sourceBlockId: video.id,
       eventType: "video-stop-point",
       stopsVideo: stopPoint.stopsVideo,
-      showsSomething: stopPointShowsSomething(page, stopId),
+      shownKinds: stopPointShownKinds(page, stopId),
       label: tr("ui.time_mark", { n0: formatTimeMMSS(stopPoint.timeSeconds) }),
     });
     edges.push({ from: previousId, to: stopId, kind: "timed", delayMs: Math.max(0, (stopPoint.timeSeconds - previousTimeSeconds) * 1000) });
@@ -861,9 +861,16 @@ export function disappearsOnResume(page: Page, blockId: string, resumeId: string
  * only thing that triggered it. The shortcut of the "verschwindet wieder, wenn das Video weiterläuft" switch; everything it does is
  * an ordinary Abbau and an ordinary trigger, which the graph draws as one node with two events (see foldCompanions in model.ts).
  */
-/** Whether the time mark `stopId` ("video-stop:<video>:<mark>") makes at least one element appear (the Aufbau of a block is triggered by it). */
-export function stopPointShowsSomething(page: Page, stopId: string): boolean {
-  return Object.values(page.timeline.triggers).some((trigger) => trigger.from === stopId && trigger.to.startsWith("block-entrance:"));
+/** The kinds of the elements the time mark `stopId` ("video-stop:<video>:<mark>") makes appear (the Aufbau of a block is triggered by it),
+ * each kind once - empty if it makes nothing appear. */
+export function stopPointShownKinds(page: Page, stopId: string): Block["kind"][] {
+  const kinds = new Set<Block["kind"]>();
+  for (const trigger of Object.values(page.timeline.triggers)) {
+    if (trigger.from !== stopId || !trigger.to.startsWith("block-entrance:")) continue;
+    const block = page.blocks[trigger.to.slice("block-entrance:".length)];
+    if (block) kinds.add(block.kind);
+  }
+  return [...kinds];
 }
 
 /** What "Lässt erscheinen" makes of an Aufbau/Abbau that is off: a fade (the better default - a sudden appearing is rarely wanted). */

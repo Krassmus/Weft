@@ -29,7 +29,7 @@ Jedes Event hat:
 | --- | --- |
 | Icon | womit es im Graphen dargestellt wird |
 | Titel | wird im Graphen angezeigt; der Standardtitel kommt vom Typ des Events, der Nutzer kann ihn pro Event überschreiben. Titel müssen nicht eindeutig sein – der Zusammenhang im Graphen unterscheidet. |
-| Typ | bestimmt die Farbe: **blau** `#4D8DFF` Standard, **gelb** `#F5B83D` Animation, **violett** `#A66CFF` Nutzerinteraktion, **grün** `#22C55E` ein Skript läuft (Logikblock) |
+| Typ | bestimmt die Farbe: **blau** `#4D8DFF` Standard, **gelb** `#F5B83D` Animation, **violett** `#A66CFF` Nutzerinteraktion, **grün** `#34E0A1` ein Skript läuft (Logikblock) |
 | Eingangstrigger | null oder mehrere; **ODER**: einer genügt, um das Event auszulösen |
 | Ausgangstrigger | null oder mehrere; sie werden alle ausgelöst, wenn das Event passiert |
 

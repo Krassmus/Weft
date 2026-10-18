@@ -4625,7 +4625,7 @@ html {
   --weft-eg-blue: #4d8dff;
   --weft-eg-yellow: #f5b83d;
   --weft-eg-violet: #a66cff;
-  --weft-eg-green: #22c55e;
+  --weft-eg-green: #34e0a1;
   --weft-eg-red: #ef4444;
 }
 
@@ -5432,7 +5432,7 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   place-items: center;
   width: 100%;
   height: 100%;
-  background: #16a34a;
+  background: #10b981;
   clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0 50%);
 }
 

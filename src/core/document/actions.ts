@@ -174,7 +174,7 @@ export function addLogicBlockToSequence(afterIndex: number, layoutId: string | n
   const branchPage = emptyPage(layoutId);
   const branch: Branch = { id: createId(), label: tr("ui.branch_1"), condition: null, pages: orderedIdRecord([branchPage.id]) };
   const logicBlockId = createId();
-  edit("Logikblock hinzufügen", (m) => {
+  edit("Verzweigung hinzufügen", (m) => {
     m.pages[branchPage.id] = branchPage;
     m.logicBlocks[logicBlockId] = { id: logicBlockId, name: tr("ui.branching"), branches: [branch] };
     insertOrdered(m.sequence, logicBlockId, { kind: "logic", logicBlockId }, afterIndex + 1);
@@ -341,7 +341,7 @@ export function renameLayout(layoutId: string, name: string) {
 }
 
 export function renameLogicBlock(logicBlockId: string, name: string) {
-  edit("Logikblock umbenennen", (m) => {
+  edit("Verzweigung umbenennen", (m) => {
     const logicBlock = m.logicBlocks[logicBlockId];
     if (logicBlock) logicBlock.name = name;
   });

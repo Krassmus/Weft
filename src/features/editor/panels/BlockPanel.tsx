@@ -1177,6 +1177,18 @@ function VideoStopPointDialog({
     return () => cancelAnimationFrame(frame);
   }, []);
 
+  // The time mark the video has just passed (going forward, playing or jumped to) becomes the selected one - and stays so until the next
+  // one is reached (or something else is clicked).
+  const previousTime = useRef(0);
+  useEffect(() => {
+    const before = previousTime.current;
+    previousTime.current = currentTime;
+    if (currentTime <= before) return;
+    const passed = block.stopPoints.filter((sp) => sp.timeSeconds > before && sp.timeSeconds <= currentTime + 0.001);
+    const last = passed[passed.length - 1];
+    if (last) setSelectedStopPointId(last.id);
+  }, [currentTime, block.stopPoints]);
+
   // A click on the timeline goes to that place in the video.
   function seekTo(event: ReactMouseEvent<HTMLDivElement>) {
     const video = videoRef.current;

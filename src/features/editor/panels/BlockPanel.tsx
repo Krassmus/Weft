@@ -1190,9 +1190,19 @@ function VideoStopPointDialog({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
+      // The space bar starts and pauses the video, as everywhere - except where it has a meaning of its own (typing, a focused button
+      // or slider, which the browser handles itself).
+      if (e.key === " " && !e.repeat && !e.defaultPrevented && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target instanceof HTMLElement ? e.target : null;
+        if (target?.closest("input, textarea, select, button, [contenteditable='true'], [role='slider']")) return;
+        e.preventDefault();
+        togglePlaying();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+    // togglePlaying only reads the video element's ref.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose]);
 
   function addStopPointHere() {

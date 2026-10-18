@@ -5591,6 +5591,26 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   min-width: 0;
 }
 
+.weft-stop-point-shows-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12.5px;
+}
+
+.weft-stop-point-shows-row > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weft-stop-point-shows-row .weft-trash-button {
+  flex: none;
+}
+
 .weft-stop-point-shows-item .weft-field span {
   overflow: hidden;
   text-overflow: ellipsis;

@@ -1442,20 +1442,32 @@ function StopPointShows({ page, video, stopPoint }: { page: Page; video: VideoBl
   if (candidates.length === 0) return null;
   const shows = (blockId: string) =>
     Object.values(page.timeline.triggers).some((trigger) => trigger.from === stopId && trigger.to === blockEffectNodeId(blockId, "entrance"));
+  const shown = candidates.filter((candidate) => shows(candidate.id));
+  const addable = candidates.filter((candidate) => !shows(candidate.id));
   return (
     <div className="weft-stop-point-shows">
       <span className="weft-subgroup-label">{tr("ui.makes_appear")}</span>
-      <div className="weft-stop-point-shows-list">
-        {candidates.map((candidate) => {
-          const on = shows(candidate.id);
-          return (
+      {shown.length > 0 && (
+        <div className="weft-stop-point-shows-list">
+          {shown.map((candidate) => (
             <div key={candidate.id} className="weft-stop-point-shows-item">
-              <label className="weft-field weft-field-inline">
-                <input type="checkbox" checked={on} onChange={(e) => setStopPointShows(page.id, video.id, stopPoint.id, candidate.id, e.target.checked)} />
+              <div className="weft-stop-point-shows-row">
                 <BlockKindIcon kind={candidate.kind} size={14} />
                 <span>{blockTitle(candidate, t)}</span>
-              </label>
-              {on && stopPoint.stopsVideo && (
+                <button
+                  type="button"
+                  className="weft-icon-button weft-trash-button"
+                  title={tr("ui.remove_shown_element")}
+                  aria-label={tr("ui.remove_shown_element")}
+                  onClick={() => {
+                    void confirmDestructive(tr("ui.really_remove_shown_element"), tr("ui.remove_shown_element")).then((ok) => {
+                      if (ok) setStopPointShows(page.id, video.id, stopPoint.id, candidate.id, false);
+                    });
+                  }}
+                  dangerouslySetInnerHTML={{ __html: trashIconSvg }}
+                />
+              </div>
+              {stopPoint.stopsVideo && (
                 <label className="weft-field weft-field-inline weft-stop-point-shows-again">
                   <input
                     type="checkbox"
@@ -1466,9 +1478,27 @@ function StopPointShows({ page, video, stopPoint }: { page: Page; video: VideoBl
                 </label>
               )}
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
+      {addable.length > 0 && (
+        // Always back on "Keines": a chosen element goes up into the list.
+        <label className="weft-field">
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) setStopPointShows(page.id, video.id, stopPoint.id, e.target.value, true);
+            }}
+          >
+            <option value="">{tr("ui.no_element_chosen")}</option>
+            {addable.map((candidate) => (
+              <option key={candidate.id} value={candidate.id}>
+                {blockTitle(candidate, t)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
     </div>
   );
 }

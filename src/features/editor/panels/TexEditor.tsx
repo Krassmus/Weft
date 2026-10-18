@@ -8,6 +8,7 @@ import { useTexDialog } from "../blocks/texDialogStore";
 import { Collapsible } from "../Collapsible";
 import { tr } from "../../../core/i18n/tr";
 import { ColorField } from "../ColorField";
+import { useBackdropClose } from "../useBackdropClose";
 
 const DEFAULT_INSERT_COLOR = "#dc2626";
 
@@ -114,6 +115,7 @@ function TexFormatBar({
  * to breathe, plus a larger, natural-size preview underneath (the slide itself always shows the
  * formula scaled to its box, which would make a short formula look huge here). */
 function TexDialog({ block, onUpdate, onClose }: { block: TexBlock; onUpdate: Update; onClose: () => void }) {
+  const backdropClose = useBackdropClose(onClose);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -133,7 +135,7 @@ function TexDialog({ block, onUpdate, onClose }: { block: TexBlock; onUpdate: Up
   }, [onClose]);
 
   return createPortal(
-    <div className="weft-modal-backdrop" onClick={onClose}>
+    <div className="weft-modal-backdrop" {...backdropClose}>
       <div className="weft-modal weft-tex-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="weft-modal-header">
           <h3>{tr("ui.tex_formula")}</h3>

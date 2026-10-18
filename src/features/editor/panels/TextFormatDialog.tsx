@@ -21,6 +21,7 @@ import type { FontSelectGroup } from "./FontSelect";
 import { StepperSlider } from "./StepperSlider";
 import { tr } from "../../../core/i18n/tr";
 import { ColorField } from "../ColorField";
+import { useBackdropClose } from "../useBackdropClose";
 
 type Align = "left" | "center" | "right";
 
@@ -59,6 +60,7 @@ function mixBrightness(a: string, b: string): number | null {
 }
 
 export function TextFormatDialog({ onClose }: { onClose: () => void }) {
+  const backdropClose = useBackdropClose(onClose);
   const snapshot = useMemo(() => useFormatSnapshot.getState(), []);
   const extended = useMemo(() => readExtendedFormat(), []);
   const customFonts = useDocumentStore((s) => s.doc.content.customFonts);
@@ -181,7 +183,7 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
   }
 
   return createPortal(
-    <div className="weft-modal-backdrop" onClick={onClose}>
+    <div className="weft-modal-backdrop" {...backdropClose}>
       <div className="weft-modal weft-text-format-dialog" data-weft-format-control onClick={(e) => e.stopPropagation()}>
         <div className="weft-modal-header">
           <h3>{tr("ui.font_2")}</h3>

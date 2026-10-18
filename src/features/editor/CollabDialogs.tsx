@@ -11,11 +11,13 @@ import { SettingsWindow } from "../settings/SettingsWindow";
 import { PersonAvatar } from "./PersonAvatar";
 import { useCollabDialog } from "./collabDialogStore";
 import { tr } from "../../core/i18n/tr";
+import { useBackdropClose } from "./useBackdropClose";
 
 /** The frame of the dialogs: a small window over the editor that closes with Esc or a click beside it.
  * `floating`: a window that does not dim or block what is behind it - the editor stays usable (and visible in its true colours, which is
  * what the colour scheme's dialog is for: picking colours off the slide), and it is moved by its heading. It closes with Esc or its x only. */
 export function DialogFrame({ title, onClose, children, floating = false }: { title: string; onClose: () => void; children: ReactNode; floating?: boolean }) {
+  const backdropClose = useBackdropClose(onClose);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -77,7 +79,7 @@ export function DialogFrame({ title, onClose, children, floating = false }: { ti
   }
 
   return createPortal(
-    <div className="weft-modal-backdrop" onClick={onClose}>
+    <div className="weft-modal-backdrop" {...backdropClose}>
       <div className="weft-modal weft-collab-dialog" onClick={(e) => e.stopPropagation()}>
         {header}
         {children}

@@ -100,6 +100,7 @@ import { TriggerPicker } from "./TriggerPicker";
 import { tr } from "../../../core/i18n/tr";
 import { ColorField } from "../ColorField";
 import { useStopPointDialog } from "../blocks/stopPointDialogStore";
+import { useBackdropClose } from "../useBackdropClose";
 
 const SANDBOX_FLAGS = ["allow-scripts", "allow-same-origin", "allow-popups", "allow-forms"];
 const UPLOAD_FONT_VALUE = "__upload__";
@@ -1065,6 +1066,7 @@ function VideoStopPointDialog({
   onUpdate: BlockPanelProps["onUpdate"];
   onClose: () => void;
 }) {
+  const backdropClose = useBackdropClose(onClose);
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [duration, setDuration] = useState(0);
@@ -1141,7 +1143,7 @@ function VideoStopPointDialog({
   const selectedStopPoint = block.stopPoints.find((sp) => sp.id === selectedStopPointId);
 
   return createPortal(
-    <div className="weft-modal-backdrop" onClick={onClose}>
+    <div className="weft-modal-backdrop" {...backdropClose}>
       <div className="weft-modal" onClick={(e) => e.stopPropagation()}>
         <div className="weft-modal-header">
           <h3>{tr("ui.time_marks")}</h3>

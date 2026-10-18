@@ -101,6 +101,7 @@ import { tr } from "../../../core/i18n/tr";
 import { ColorField } from "../ColorField";
 import { useStopPointDialog } from "../blocks/stopPointDialogStore";
 import { useBackdropClose } from "../useBackdropClose";
+import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
 
 const SANDBOX_FLAGS = ["allow-scripts", "allow-same-origin", "allow-popups", "allow-forms"];
 const UPLOAD_FONT_VALUE = "__upload__";
@@ -1308,7 +1309,21 @@ function VideoStopPointDialog({
         </div>
         {selectedStopPoint && (
           <div className="weft-stop-point-settings">
-            <p className="weft-stop-point-settings-title">{tr("ui.time_mark_at")} {formatTimeMMSS(selectedStopPoint.timeSeconds)}</p>
+            <div className="weft-stop-point-settings-head">
+              <p className="weft-stop-point-settings-title">{tr("ui.time_mark_at")} {formatTimeMMSS(selectedStopPoint.timeSeconds)}</p>
+              <button
+                type="button"
+                className="weft-icon-button weft-trash-button"
+                title={tr("ui.remove_time_mark")}
+                aria-label={tr("ui.remove_time_mark")}
+                onClick={() => {
+                  void confirmDestructive(tr("ui.really_delete_time_mark"), tr("ui.remove_time_mark")).then((ok) => {
+                    if (ok) removeStopPoint(selectedStopPoint.id);
+                  });
+                }}
+                dangerouslySetInnerHTML={{ __html: trashIconSvg }}
+              />
+            </div>
             <label className="weft-field weft-field-inline">
               <input
                 type="checkbox"
@@ -1318,9 +1333,6 @@ function VideoStopPointDialog({
               <span>{tr("ui.stop_the_video_here")}</span>
             </label>
             {!selectedStopPoint.stopsVideo && <p className="weft-hint">{tr("ui.the_video_just_goes_on_at")}</p>}
-            <button type="button" className="weft-ghost-button" onClick={() => removeStopPoint(selectedStopPoint.id)}>
-              {tr("ui.remove_time_mark")}
-            </button>
           </div>
         )}
       </div>

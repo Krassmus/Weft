@@ -1061,6 +1061,21 @@ img.weft-thumb-block {
   border-radius: var(--weft-radius-sm);
 }
 
+.weft-stop-point-settings {
+  position: relative;
+}
+
+.weft-stop-point-settings-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.weft-stop-point-settings-head .weft-trash-button {
+  margin: -4px -6px 0 0;
+}
+
 .weft-stop-point-settings-title {
   margin: 0 0 8px;
   font-size: 12.5px;

@@ -693,6 +693,8 @@ export interface TimelineNode {
   eventType?: TimelineEventType;
   /** "video-stop-point" only: whether the video stops there (VideoStopPoint.stopsVideo) - else the mark only marks a moment. */
   stopsVideo?: boolean;
+  /** "video-stop-point" only: at least one element appears at this mark ("Lässt erscheinen" in the dialog of the time marks). */
+  showsSomething?: boolean;
   /** Overrides the default per-kind/per-eventType label (see nodeLabel in Timeline.tsx) - e.g.
    * distinguishing a quiz's "correct answer" and "incorrect answer" outcome lanes, which would
    * otherwise both show the same generic "quiz submitted" node with nothing telling them apart. */

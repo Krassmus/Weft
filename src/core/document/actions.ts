@@ -50,6 +50,8 @@ import {
   quizEndNodeId,
   quizSubmitNodeId,
   setDisappearsOnResume,
+  SHOWN_BY_TIME_MARK_EFFECT,
+  isMadeByTimeMark,
   setTriggerEdge,
   syncPageTimelineEvents,
   videoResumeNodeId,
@@ -828,7 +830,7 @@ export function setStopPointShows(pageId: string, videoId: string, stopPointId: 
     const existing = Object.keys(triggers).filter((id) => triggers[id].from === stopId && triggers[id].to === entranceId);
     if (on) {
       if (existing.length === 0) {
-        if (block.entranceEffect.type === "off") block.entranceEffect = { type: "none", durationMs: 0 };
+        if (block.entranceEffect.type === "off") block.entranceEffect = { ...SHOWN_BY_TIME_MARK_EFFECT };
         let id = `t:${entranceId}`;
         for (let n = 2; id in triggers; n++) id = `t:${entranceId}:${n}`;
         triggers[id] = { from: stopId, to: entranceId, delayMs: 0, weiter: false };
@@ -837,7 +839,7 @@ export function setStopPointShows(pageId: string, videoId: string, stopPointId: 
       for (const id of existing) delete triggers[id];
       setDisappearsOnResume(page, blockId, videoResumeNodeId(videoId, stopPointId), false);
       const stillTriggered = Object.values(triggers).some((t) => t.to === entranceId);
-      if (block.entranceEffect.type === "none" && !stillTriggered) block.entranceEffect = { type: "off", durationMs: 500 };
+      if (isMadeByTimeMark(block.entranceEffect) && !stillTriggered) block.entranceEffect = { type: "off", durationMs: 500 };
     }
     syncPageTimelineEvents(page);
   });

@@ -1,7 +1,7 @@
 import { isSnapshot } from "../collab/mutationScope";
 import { formatTimeMMSS } from "../formatTime";
 import { orderedValues } from "./ordering";
-import type { Block, BlockGroup, ClozeBlock, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode, VideoBlock } from "../types";
+import type { Block, BlockEffect, BlockGroup, ClozeBlock, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode, VideoBlock } from "../types";
 import { tr } from "../i18n/tr";
 
 /**
@@ -116,7 +116,7 @@ export function videoStopNodeId(videoBlockId: string, stopPointId: string): stri
  * already exists (a video's own start can now be triggered by anything, not just implied by
  * VideoBlock.autoplay tying it to "start" - see TRIGGERABLE_EVENT_TYPES).
  */
-function buildVideoLane(video: VideoBlock): TimelineLane {
+function buildVideoLane(video: VideoBlock, page: Page): TimelineLane {
   const startId = videoStartNodeId(video.id);
   const endId = videoEndNodeId(video.id);
 
@@ -135,6 +135,7 @@ function buildVideoLane(video: VideoBlock): TimelineLane {
       sourceBlockId: video.id,
       eventType: "video-stop-point",
       stopsVideo: stopPoint.stopsVideo,
+      showsSomething: stopPointShowsSomething(page, stopId),
       label: tr("ui.time_mark", { n0: formatTimeMMSS(stopPoint.timeSeconds) }),
     });
     edges.push({ from: previousId, to: stopId, kind: "timed", delayMs: Math.max(0, (stopPoint.timeSeconds - previousTimeSeconds) * 1000) });
@@ -540,7 +541,7 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
     }
     if (outcomeLanes === 0) lanes.push(buildQuizLane(quiz));
   }
-  const videoLanes = videos.map((video) => ({ video, lane: buildVideoLane(video) }));
+  const videoLanes = videos.map((video) => ({ video, lane: buildVideoLane(video, page) }));
   for (const { lane } of videoLanes) lanes.push(lane);
   // A button's click is an event of its own (a violet one: the learner does it); what it triggers is drawn from its triggers.
   for (const block of blocks) if (block.kind === "button") lanes.push({ nodes: [makeButtonNode(block)], edges: [] });
@@ -860,6 +861,20 @@ export function disappearsOnResume(page: Page, blockId: string, resumeId: string
  * only thing that triggered it. The shortcut of the "verschwindet wieder, wenn das Video weiterläuft" switch; everything it does is
  * an ordinary Abbau and an ordinary trigger, which the graph draws as one node with two events (see foldCompanions in model.ts).
  */
+/** Whether the time mark `stopId` ("video-stop:<video>:<mark>") makes at least one element appear (the Aufbau of a block is triggered by it). */
+export function stopPointShowsSomething(page: Page, stopId: string): boolean {
+  return Object.values(page.timeline.triggers).some((trigger) => trigger.from === stopId && trigger.to.startsWith("block-entrance:"));
+}
+
+/** What "Lässt erscheinen" makes of an Aufbau/Abbau that is off: a fade (the better default - a sudden appearing is rarely wanted). */
+export const SHOWN_BY_TIME_MARK_EFFECT: BlockEffect = { type: "fade", durationMs: 500 };
+
+/** Whether an Aufbau/Abbau looks like the one "Lässt erscheinen" made (or the plain one an earlier version made) - and may go back to off
+ * when the time mark does not trigger it any more. */
+export function isMadeByTimeMark(effect: BlockEffect): boolean {
+  return effect.type === "none" || (effect.type === SHOWN_BY_TIME_MARK_EFFECT.type && effect.durationMs === SHOWN_BY_TIME_MARK_EFFECT.durationMs);
+}
+
 export function setDisappearsOnResume(page: Page, blockId: string, resumeId: string, on: boolean): void {
   const block = page.blocks[blockId];
   if (!block) return;
@@ -867,7 +882,7 @@ export function setDisappearsOnResume(page: Page, blockId: string, resumeId: str
   const exitId = blockEffectNodeId(blockId, "exit");
   const existing = Object.keys(triggers).find((id) => triggers[id].from === resumeId && triggers[id].to === exitId);
   if (on) {
-    if (block.exitEffect.type === "off") block.exitEffect = { type: "none", durationMs: 0 };
+    if (block.exitEffect.type === "off") block.exitEffect = { ...SHOWN_BY_TIME_MARK_EFFECT };
     if (existing === undefined) {
       let id = `t:${exitId}`;
       for (let n = 2; id in triggers; n++) id = `t:${exitId}:${n}`;
@@ -877,7 +892,7 @@ export function setDisappearsOnResume(page: Page, blockId: string, resumeId: str
   }
   if (existing !== undefined) delete triggers[existing];
   const stillTriggered = Object.values(triggers).some((t) => t.to === exitId);
-  if (block.exitEffect.type === "none" && !stillTriggered) block.exitEffect = { type: "off", durationMs: 0 };
+  if (isMadeByTimeMark(block.exitEffect) && !stillTriggered) block.exitEffect = { type: "off", durationMs: 500 };
 }
 
 /**

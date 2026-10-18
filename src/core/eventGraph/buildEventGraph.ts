@@ -14,6 +14,7 @@ import {
   videoStopNodeId,
 } from "../document/pageTimeline";
 import type { Block, Layout, Page } from "../types";
+import { isMediaBlock } from "../types";
 import type { GraphEvent, GraphTrigger, PageGraph } from "./types";
 
 /**
@@ -52,7 +53,7 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
       }
     }
 
-    if (block.kind === "video") {
+    if (isMediaBlock(block)) {
       events.push({ id: videoStartNodeId(block.id), kind: "video-start" });
       for (const stopPoint of block.stopPoints) {
         events.push({ id: videoStopNodeId(block.id, stopPoint.id), kind: "video-stop" });

@@ -85,6 +85,10 @@ Events:
   wenn die Lernperson das Video danach wieder abspielt). Es steht im Knoten der Zeitmarke, solange es nur den Abbau von Objekten
   auslöst, die dieselbe Zeitmarke erscheinen lässt, und jeder dieser Abbaue nur von ihm ausgelöst wird und selbst nichts auslöst.
   Dieser Abbau steht dann im Knoten des Aufbaus. Zwischen den beiden Knoten laufen dann zwei Trigger: eine Doppellinie.
+- **Audio:** Ein Audio-Block (`AudioBlock`) hat dieselben Events wie ein Video, mit denselben IDs und Arten (`video-start:<Block>`,
+  `video-stop:<Block>:<Zeitmarke>`, `video-resume:...`, `video-end:<Block>`) - der Präfix „video“ steht für „abspielbares Medium“. Nur
+  die Titel heißen „Start des Audios“, „Audio läuft weiter“ und „Ende des Audios“. Er hat kein Bild: `appearance` ist `player`
+  (der Player des Browsers) oder `hidden` (auf der Folie nichts zu sehen; es startet durch `autoplay` oder einen Trigger).
 - Sobald etwas anderes angeschlossen wird – „Video läuft weiter“ löst etwas anderes aus, der Abbau wird noch von etwas anderem
   ausgelöst oder löst selbst etwas aus –, bekommen die Events wieder eigene Knoten, und die Linien laufen einzeln.
 
@@ -238,6 +242,7 @@ Eine einmalige, deterministische Umwandlung beim Laden einer Datei:
 | `QuizBlock.advanceOnCorrect` / `advanceOnIncorrect` | Trigger von „richtig“ / „falsch“ (Verzögerung 1500 ms, Weiter: nein) zu je einem eigenen „Nächste Folie“-Event |
 | `Page.transition` | Übergang jedes „Nächste Folie“-Events dieser Folie |
 | `VideoBlock.autoplay` | Trigger vom Start der Folie (0 ms) zu „Video startet“; sonst startet es nur der Nutzer |
+| `AudioBlock.autoplay` | dasselbe für „Start des Audios“ |
 
 Die Änderung des Weiter-Verhaltens (ein Druck löst alle wartenden Trigger aus, statt einen aus einer Warteschlange) betrifft nur
 Module, in denen zwei Aufbauten **ausdrücklich** beide direkt am selben Ereignis hängen und auf Weiter warten. Die Migration

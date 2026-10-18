@@ -25,6 +25,7 @@ import type {
   VariableType,
   WeftModule,
 } from "../types";
+import { isMediaBlock } from "../types";
 import { DEFAULT_CODE_THEME } from "../code/codeThemes";
 import { insertOrdered, moveOrdered, moveOrderedRun, orderedIdRecord, orderedKeys, orderedValues } from "./ordering";
 import { findChain, reorderedLinks } from "../eventGraph/chains";
@@ -610,6 +611,8 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
       return { ...base, kind, position, assetId: null, alt: "" };
     case "video":
       return { ...base, kind, position, assetId: null, autoplay: false, loop: false, muted: false, controls: true, stopPoints: [] };
+    case "audio":
+      return { ...base, kind, position: { x: 30, y: 40, width: 40, height: 12 }, assetId: null, autoplay: false, loop: false, appearance: "player", stopPoints: [] };
     case "iframe":
       return { ...base, kind, position, url: "https://www.youtube.com/embed/", sandbox: ["allow-scripts"], qrCode: false };
     case "button":
@@ -726,7 +729,7 @@ export function updateBlock(pageId: string, blockId: string, patch: Partial<Bloc
     }
     // The autoplay switch of a video is what puts a trigger from the start of the page to its start there (and takes that one away
     // again) - there is no implicit default any more, see syncPageTimelineEvents.
-    if (page && block.kind === "video" && "autoplay" in patch) {
+    if (page && isMediaBlock(block) && "autoplay" in patch) {
       const to = videoStartNodeId(block.id);
       const existing = Object.values(page.timeline.triggers).find((t) => t.to === to);
       if (block.autoplay && !existing) setTriggerEdge(page.timeline, to, "start", 0, "timed");
@@ -741,7 +744,7 @@ export function updateBlock(pageId: string, blockId: string, patch: Partial<Bloc
     // page.timeline.triggers, not on the block itself - see setEventTrigger below.
     const touchesEffect = "entranceEffect" in patch || "exitEffect" in patch;
     const touchesList = block.kind === "list" && ("items" in patch || "itemEntrance" in patch);
-    if (page && (block.kind === "quiz" || block.kind === "cloze" || block.kind === "video" || touchesEffect || touchesList)) {
+    if (page && (block.kind === "quiz" || block.kind === "cloze" || isMediaBlock(block) || touchesEffect || touchesList)) {
       syncPageTimelineEvents(page);
     }
     // A list whose items have an Aufbau of their own: a new item (or all of them, when the switch has just been turned on) takes its
@@ -1401,6 +1404,27 @@ export async function setBlockVideo(pageId: string, blockId: string, file: File)
   return { playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error, sizeBytes: resolved.file.size };
 }
 
+/** A sound file for an audio block (no conversion: the browsers play MP3, M4A, WAV and OGG themselves). */
+export async function setBlockAudio(pageId: string, blockId: string, file: File): Promise<void> {
+  const assetId = createId();
+  useAssetStore.getState().setAsset(assetId, file);
+  edit("Audio setzen", (m) => {
+    m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "audio/mpeg" });
+    const block = m.pages[pageId]?.blocks[blockId];
+    if (block && block.kind === "audio") block.assetId = assetId;
+  });
+}
+
+export async function setLayoutBlockAudio(layoutId: string, blockId: string, file: File): Promise<void> {
+  const assetId = createId();
+  useAssetStore.getState().setAsset(assetId, file);
+  edit("Audio setzen", (m) => {
+    m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "audio/mpeg" });
+    const block = m.layouts[layoutId]?.blocks[blockId];
+    if (block && block.kind === "audio") block.assetId = assetId;
+  });
+}
+
 /** The texts of the pages that use `layoutId` that are the text for placeholder `blockId`. */
 function textsOfPlaceholder(m: WeftModule, layoutId: string, blockId: string) {
   return Object.values(m.pages)
@@ -1575,6 +1599,48 @@ export async function addVideoBlockToLayout(
     });
   });
   return { blockId, playable: resolved.playable, ffmpegAttempted: resolved.ffmpegAttempted, error: resolved.error, sizeBytes: resolved.file.size };
+}
+
+/** Drops a new audio block onto a page/layout in one step, already carrying the file (see addVideoBlockToPage). */
+export async function addAudioBlockToPage(pageId: string, file: File, position: BlockPosition): Promise<string> {
+  const assetId = createId();
+  const blockId = createId();
+  useAssetStore.getState().setAsset(assetId, file);
+  edit("Audio hinzufügen", (m) => {
+    m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "audio/mpeg" });
+    const page = m.pages[pageId];
+    if (!page) return;
+    pushBlock(page, { ...audioBlockFor(blockId, assetId, position) });
+    syncPageTimelineEvents(page);
+  });
+  return blockId;
+}
+
+export async function addAudioBlockToLayout(layoutId: string, file: File, position: BlockPosition): Promise<string> {
+  const assetId = createId();
+  const blockId = createId();
+  useAssetStore.getState().setAsset(assetId, file);
+  edit("Audio hinzufügen", (m) => {
+    m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "audio/mpeg" });
+    pushBlock(m.layouts[layoutId], { ...audioBlockFor(blockId, assetId, position) });
+  });
+  return blockId;
+}
+
+function audioBlockFor(id: string, assetId: string, position: BlockPosition): NewBlock {
+  return {
+    id,
+    kind: "audio",
+    // The player of a sound is a bar: a dropped position (the area the file was dropped on) is made one.
+    position: { x: position.x, y: position.y, width: Math.max(position.width, 30), height: 12 },
+    assetId,
+    autoplay: false,
+    loop: false,
+    appearance: "player",
+    stopPoints: [],
+    entranceEffect: defaultEntranceEffect(),
+    exitEffect: defaultExitEffect(),
+  };
 }
 
 // ---- Copy / paste (Cmd/Ctrl+C / +V - see features/editor/useCopyPaste.ts) -------------------

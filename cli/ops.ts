@@ -63,7 +63,7 @@ interface Context {
   aliases: Map<string, string>;
   assets: PendingAsset[];
   /** What is known of the files added in this run, by asset id (the pixel size). */
-  media: Map<string, { kind: "image" | "video"; width?: number; height?: number; path: string }>;
+  media: Map<string, { kind: "image" | "video" | "audio"; width?: number; height?: number; path: string }>;
 }
 
 function fail(message: string): never {
@@ -243,7 +243,7 @@ function resolveSet(ctx: Context, value: unknown, key?: string): unknown {
 }
 
 interface AssetInfo {
-  kind: "image" | "video";
+  kind: "image" | "video" | "audio";
   fileName: string;
   mimeType: string;
   size: number;
@@ -252,12 +252,16 @@ interface AssetInfo {
   warnings: string[];
 }
 
+function kindWithArticle(kind: "image" | "video" | "audio"): string {
+  return kind === "image" ? "ein Bild" : kind === "video" ? "ein Video" : "eine Audiodatei";
+}
+
 /** The asset an operation names: a file on disk (`file`: it is added to the module) or one the module has (`asset`: its id, file name or
  * a "$name" from add_asset). Only a file added in this run is known by its pixel size. */
-function assetFor(ctx: Context, op: Operation, expect: "image" | "video" | undefined): { id: string; info: AssetInfo } {
+function assetFor(ctx: Context, op: Operation, expect: "image" | "video" | "audio" | undefined): { id: string; info: AssetInfo } {
   if (typeof op.file === "string") {
     const media = readMedia(op.file);
-    if (expect && media.kind !== expect) fail(`„${op.file}" ist ein ${media.kind === "image" ? "Bild" : "Video"}, hier wird ein ${expect === "image" ? "Bild" : "Video"} gebraucht.`);
+    if (expect && media.kind !== expect) fail(`„${op.file}" ist ${kindWithArticle(media.kind)}, hier wird ${kindWithArticle(expect)} gebraucht.`);
     // The same file twice in one run is one asset.
     const known = [...ctx.media.entries()].find(([, m]) => m.path === media.path);
     if (known) {
@@ -277,12 +281,12 @@ function assetFor(ctx: Context, op: Operation, expect: "image" | "video" | undef
     const ref = alias(ctx, op.asset);
     const meta = ctx.content.assets.find((a) => a.id === ref) ?? ctx.content.assets.find((a) => a.fileName === ref);
     if (!meta) return fail(`Das Modul hat keine Datei „${ref}". Mit "file" eine Datei hinzufügen (oder add_asset).`);
-    const kind = meta.mimeType.startsWith("video/") ? "video" : "image";
-    if (expect && kind !== expect) fail(`Die Datei „${meta.fileName}" ist ein ${kind === "image" ? "Bild" : "Video"}, hier wird ein ${expect === "image" ? "Bild" : "Video"} gebraucht.`);
+    const kind = meta.mimeType.startsWith("video/") ? "video" : meta.mimeType.startsWith("audio/") ? "audio" : "image";
+    if (expect && kind !== expect) fail(`Die Datei „${meta.fileName}" ist ${kindWithArticle(kind)}, hier wird ${kindWithArticle(expect)} gebraucht.`);
     const known = ctx.media.get(meta.id);
     return { id: meta.id, info: { kind, fileName: meta.fileName, mimeType: meta.mimeType, size: 0, width: known?.width, height: known?.height, warnings: [] } };
   }
-  return fail('"file" (Pfad einer Bild-/Videodatei) oder "asset" (eine Datei, die das Modul schon hat) fehlt.');
+  return fail('"file" (Pfad einer Bild-/Video-/Audiodatei) oder "asset" (eine Datei, die das Modul schon hat) fehlt.');
 }
 
 /** `position`, reshaped to the picture's own shape (the same centre and about the same area), so that it fills its box. */
@@ -292,14 +296,25 @@ function fittedPosition(ctx: Context, position: Block["position"], info: AssetIn
   return actions.fitToAspect(position, ratio / aspectRatioNumeric(ctx.content.aspectRatio));
 }
 
-function addMediaBlock(ctx: Context, op: Operation, kind: "image" | "video"): Record<string, unknown> {
+function addMediaBlock(ctx: Context, op: Operation, kind: "image" | "video" | "audio"): Record<string, unknown> {
   const { id: assetId, info } = assetFor(ctx, op, kind);
   const footprint = (op.position as Block["position"] | undefined) ?? { x: 20, y: 20, width: 60, height: 60 };
-  const position = op.fit === false ? footprint : fittedPosition(ctx, { ...footprint, rotation: footprint.rotation }, info);
+  // A sound has no shape of its own: a bar of the width given (and 12 % high) unless a position says otherwise.
+  const position =
+    kind === "audio"
+      ? ((op.position as Block["position"] | undefined) ?? { x: 30, y: 40, width: 40, height: 12 })
+      : op.fit === false
+        ? footprint
+        : fittedPosition(ctx, { ...footprint, rotation: footprint.rotation }, info);
   const set: Record<string, unknown> = { assetId, position };
   if (kind === "image" && typeof op.alt === "string") set.alt = op.alt;
   if (kind === "video") {
     for (const key of ["autoplay", "loop", "muted", "controls"] as const) if (typeof op[key] === "boolean") set[key] = op[key];
+  }
+  if (kind === "audio") {
+    if (typeof op.autoplay === "boolean") set.autoplay = op.autoplay;
+    if (typeof op.loop === "boolean") set.loop = op.loop;
+    if (op.appearance === "hidden" || op.appearance === "player") set.appearance = op.appearance;
   }
   let blockId: string;
   if (op.layout !== undefined) {
@@ -533,9 +548,12 @@ const HANDLERS: Record<string, Handler> = {
   add_video(ctx, op) {
     return addMediaBlock(ctx, op, "video");
   },
+  add_audio(ctx, op) {
+    return addMediaBlock(ctx, op, "audio");
+  },
   set_media(ctx, op) {
     const { block, container } = findBlock(ctx, op.block);
-    if (block.kind !== "image" && block.kind !== "video") fail(`Der Block ${block.id} ist ${block.kind}, kein Bild oder Video.`);
+    if (block.kind !== "image" && block.kind !== "video" && block.kind !== "audio") fail(`Der Block ${block.id} ist ${block.kind}, kein Bild, Video oder Audio.`);
     const { id, info } = assetFor(ctx, op, block.kind);
     const patch: Record<string, unknown> = { assetId: id };
     if (op.fit !== false) patch.position = fittedPosition(ctx, block.position, info);

@@ -50,6 +50,7 @@ const KIND_DEFINITIONS: Record<string, string> = {
   tex: "TexBlock",
   image: "ImageBlock",
   video: "VideoBlock",
+  audio: "AudioBlock",
   iframe: "IframeBlock",
   button: "ButtonBlock",
   quiz: "QuizBlock",
@@ -342,14 +343,14 @@ export function validate(loaded: LoadedWeft): Finding[] {
     }
 
     // Media.
-    if ((block.kind === "image" || block.kind === "video") && block.assetId) {
+    if ((block.kind === "image" || block.kind === "video" || block.kind === "audio") && block.assetId) {
       const meta = content.assets.find((a) => a.id === block.assetId);
       if (!meta) add("error", "asset-missing", `${block.kind}-Block verweist auf die Datei ${block.assetId}, die nicht in der Liste der Dateien steht.`, here);
       else if (loaded.archive && !loaded.files.has(`assets/${meta.id}_${meta.fileName}`)) {
-        add("error", "asset-file-missing", `Die Datei „${meta.fileName}" fehlt im Archiv.`, { ...here, hint: "Das Bild/Video neu einfügen." });
+        add("error", "asset-file-missing", `Die Datei „${meta.fileName}" fehlt im Archiv.`, { ...here, hint: "Das Bild/Video/Audio neu einfügen." });
       }
     }
-    if ((block.kind === "image" || block.kind === "video") && !block.assetId) {
+    if ((block.kind === "image" || block.kind === "video" || block.kind === "audio") && !block.assetId) {
       add("warning", "media-empty", `${block.kind}-Block hat noch keine Datei.`, here);
     }
     if (block.kind === "image" && block.assetId && !block.alt?.trim()) {

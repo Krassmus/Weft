@@ -19,6 +19,12 @@ const ICONS: Record<Kind, ReactNode> = {
       <path d="M10 9.5v5l4.5-2.5z" />
     </>
   ),
+  audio: (
+    <>
+      <path d="M4 10v4h3.5l4.5 4V6l-4.5 4z" />
+      <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />
+    </>
+  ),
   code: <path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 6l-3 12" />,
   tex: <path d="M18 5H7l6 7-6 7h11" />,
   iframe: (

@@ -1,5 +1,6 @@
 import { incomingTriggers } from "../../../core/document/pageTimeline";
 import type { SelectionRef } from "../../../core/document/store";
+import { isMediaBlock } from "../../../core/types";
 import type { Page } from "../../../core/types";
 
 /** What a selected event shows of a video on the canvas: the still of the video at the moment the event is about. */
@@ -20,7 +21,7 @@ export function videoPreviewFor(page: Page, selection: SelectionRef | null): Vid
   for (let depth = 0; depth < 12; depth++) {
     const [kind, blockId, stopPointId] = id.split(":");
     const block = page.blocks[blockId ?? ""];
-    if (block?.kind === "video") {
+    if (block && isMediaBlock(block)) {
       if (kind === "video-stop" || kind === "video-resume") {
         const stopPoint = block.stopPoints.find((s) => s.id === stopPointId);
         return stopPoint ? { blockId: block.id, time: stopPoint.timeSeconds } : null;

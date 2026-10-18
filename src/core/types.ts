@@ -293,6 +293,29 @@ export interface VideoBlock extends BaseBlock {
   stopPoints: VideoStopPoint[];
 }
 
+/**
+ * A sound file: works like a video (it starts by itself or by a trigger or by the learner, it has time marks that stop it and make
+ * things appear - its events have the same ids and kinds as those of a video, see isMediaBlock) - but has no picture. On the slide it is
+ * either invisible (it only plays, started by a trigger or by `autoplay`) or has a player.
+ */
+export interface AudioBlock extends BaseBlock {
+  kind: "audio";
+  assetId: UUID | null;
+  autoplay: boolean;
+  loop: boolean;
+  /** "hidden": nothing to see on the slide (in the editor a small symbol marks the place); "player": the audio element's own player. */
+  appearance: "hidden" | "player";
+  /** Always kept sorted by timeSeconds - like VideoBlock.stopPoints. */
+  stopPoints: VideoStopPoint[];
+}
+
+/** The blocks that play and have time marks: a video or a sound. The stop points, the events and the dialog of the time marks are the same. */
+export type MediaBlock = VideoBlock | AudioBlock;
+
+export function isMediaBlock(block: { kind: string }): block is MediaBlock {
+  return block.kind === "video" || block.kind === "audio";
+}
+
 export interface IframeBlock extends BaseBlock {
   kind: "iframe";
   url: string;
@@ -567,7 +590,7 @@ export interface FilesBlock extends BaseBlock {
  * navigation button (or a shape, which carries no state at all) has nothing graded to exclude, so
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
-export type StaticBlock = TextBlock | PlaceholderBlock | ListBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock | ArrowBlock | FilesBlock;
+export type StaticBlock = TextBlock | PlaceholderBlock | ListBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | AudioBlock | IframeBlock | ButtonBlock | ShapeBlock | ArrowBlock | FilesBlock;
 export type Block = StaticBlock | QuizBlock | ClozeBlock | ScriptBlock;
 
 /** A block as it's first made, before it has been put somewhere (and so given its `order`). */

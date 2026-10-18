@@ -5,6 +5,8 @@ import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
 import {
   addImageBlockToLayout,
   addImageBlockToPage,
+  addAudioBlockToLayout,
+  addAudioBlockToPage,
   addVideoBlockToLayout,
   addVideoBlockToPage,
   bringBlockToFront,
@@ -645,11 +647,14 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
     container: BlockContainerRef,
     addImage: (file: File, position: BlockPosition) => Promise<string>,
     addVideo: (file: File, position: BlockPosition) => Promise<{ blockId: string } & VideoUploadResult>,
+    addAudio: (file: File, position: BlockPosition) => Promise<string>,
   ) {
     e.preventDefault();
     setDragOver(false);
     const rect = e.currentTarget.getBoundingClientRect();
-    const mediaFiles = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
+    const mediaFiles = Array.from(e.dataTransfer.files).filter(
+      (f) => f.type.startsWith("image/") || f.type.startsWith("video/") || f.type.startsWith("audio/"),
+    );
     // Sequential, not Promise.all - addImage/addVideo reads the file's own dimensions before
     // editing the document, and each edit() call is its own undo step, so keeping them in drop
     // order keeps undo order sane too.
@@ -661,6 +666,8 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
         const result = await addVideo(file, position);
         lastBlockId = result.blockId;
         videoReports.push({ fileName: file.name, ...result });
+      } else if (file.type.startsWith("audio/")) {
+        lastBlockId = await addAudio(file, position);
       } else {
         lastBlockId = await addImage(file, position);
       }
@@ -918,6 +925,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                   { kind: "layout", layoutId: target.layout.id },
                   (file, position) => addImageBlockToLayout(target.layout.id, file, position),
                   (file, position) => addVideoBlockToLayout(target.layout.id, file, position),
+                  (file, position) => addAudioBlockToLayout(target.layout.id, file, position),
                 )
               }
             >
@@ -967,6 +975,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                   { kind: "page", pageId: target.page.id },
                   (file, position) => addImageBlockToPage(target.page.id, file, position),
                   (file, position) => addVideoBlockToPage(target.page.id, file, position),
+                  (file, position) => addAudioBlockToPage(target.page.id, file, position),
                 )
               }
             >

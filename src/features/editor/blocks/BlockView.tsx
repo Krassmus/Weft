@@ -68,6 +68,7 @@ import {
   unrotateDelta,
 } from "./resizeMath";
 import { tr } from "../../../core/i18n/tr";
+import { BlockKindIcon } from "../BlockKindIcon";
 import { ScriptHexagon } from "./ScriptHexagon";
 import { useStopPointDialog } from "./stopPointDialogStore";
 
@@ -255,7 +256,7 @@ export function BlockView({
     block.kind === "cloze" ||
     block.kind === "quiz" ||
     block.kind === "list";
-  const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "language" || block.kind === "script" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files";
+  const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "language" || block.kind === "script" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "audio" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files";
   // Only an image or video has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
   // given, so unlike image/video it keeps the full edge+corner handle set below instead of being
@@ -549,7 +550,7 @@ export function BlockView({
             return;
           }
           // A video opens the dialog for its time marks (once it has a file), under the same condition.
-          if (block.kind === "video" && block.assetId && (selected || !onDoubleClick)) {
+          if ((block.kind === "video" || block.kind === "audio") && block.assetId && (selected || !onDoubleClick)) {
             event.stopPropagation();
             useStopPointDialog.getState().open(block.id);
             return;
@@ -762,6 +763,25 @@ function BlockContent({
         </div>
       ) : (
         <div className="weft-edit-block-placeholder">{tr("ui.choose_video")}</div>
+      );
+    case "audio":
+      // A sound has nothing to show: a bar like a player (or, for one that is not visible on the slide, a dashed frame) marks the place.
+      return block.assetId ? (
+        <div className={"weft-edit-block-audio" + (block.appearance === "hidden" ? " is-hidden" : "")}>
+          <BlockKindIcon kind="audio" size={20} />
+          {block.appearance === "hidden" ? (
+            <span>{tr("ui.audio_not_visible_in_editor")}</span>
+          ) : (
+            <>
+              <svg className="weft-edit-block-audio-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5.5v13l11-6.5z" />
+              </svg>
+              <span className="weft-edit-block-audio-line" />
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="weft-edit-block-placeholder">{tr("ui.no_audio_file_chosen")}</div>
       );
     case "iframe":
       return block.qrCode ? (

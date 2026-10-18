@@ -5626,3 +5626,42 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   margin-left: 26px;
   color: var(--weft-text-muted);
 }
+
+/* A sound on the slide in the editor (BlockView.tsx): a bar like a player - or, when it is not visible on the slide, a dashed frame. */
+.weft-edit-block-audio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #f1f3f4;
+  color: #52525b;
+  font-size: 13px;
+  font-size: 1.3cqw;
+}
+
+.weft-edit-block-audio.is-hidden {
+  border: 1.5px dashed #a1a1aa;
+  border-radius: 6px;
+  background: transparent;
+  color: #71717a;
+}
+
+.weft-edit-block-audio-line {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: #c4c7cc;
+}
+
+.weft-thumb-block-audio {
+  border-radius: 999px;
+  background: #e4e6e8;
+}
+
+.weft-stop-point-preview.is-time-only {
+  min-width: 52px;
+}

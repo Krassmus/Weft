@@ -1,7 +1,9 @@
 import { isSnapshot } from "../collab/mutationScope";
 import { formatTimeMMSS } from "../formatTime";
 import { orderedValues } from "./ordering";
-import type { Block, BlockEffect, BlockGroup, ClozeBlock, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode, VideoBlock } from "../types";
+import type { Block, BlockEffect, BlockGroup, ClozeBlock, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode } from "../types";
+import { isMediaBlock } from "../types";
+import type { MediaBlock } from "../types";
 import { tr } from "../i18n/tr";
 
 /**
@@ -116,12 +118,20 @@ export function videoStopNodeId(videoBlockId: string, stopPointId: string): stri
  * already exists (a video's own start can now be triggered by anything, not just implied by
  * VideoBlock.autoplay tying it to "start" - see TRIGGERABLE_EVENT_TYPES).
  */
-function buildVideoLane(video: VideoBlock, page: Page): TimelineLane {
+function buildVideoLane(video: MediaBlock, page: Page): TimelineLane {
+  // (A sound has the same events - only they are called after it.)
+  const audio = video.kind === "audio";
   const startId = videoStartNodeId(video.id);
   const endId = videoEndNodeId(video.id);
 
   const nodes: TimelineNode[] = [
-    { id: startId, kind: "event", sourceBlockId: video.id, eventType: video.autoplay ? "video-start-auto" : "video-start-manual" },
+    {
+      id: startId,
+      kind: "event",
+      sourceBlockId: video.id,
+      eventType: video.autoplay ? "video-start-auto" : "video-start-manual",
+      ...(audio ? { label: tr("ui.start_of_the_audio") } : {}),
+    },
   ];
   const edges: TimelineLane["edges"] = [];
 
@@ -150,14 +160,20 @@ function buildVideoLane(video: VideoBlock, page: Page): TimelineLane {
         kind: "event",
         sourceBlockId: video.id,
         eventType: "video-resume",
-        label: tr("ui.video_continues", { n0: formatTimeMMSS(stopPoint.timeSeconds) }),
+        label: tr(audio ? "ui.audio_continues" : "ui.video_continues", { n0: formatTimeMMSS(stopPoint.timeSeconds) }),
       });
       edges.push({ from: stopId, to: resumeId, kind: "unknown" });
       previousId = resumeId;
     }
   }
 
-  nodes.push({ id: endId, kind: "event", sourceBlockId: video.id, eventType: video.loop ? "video-end-loop" : "video-end-stop" });
+  nodes.push({
+    id: endId,
+    kind: "event",
+    sourceBlockId: video.id,
+    eventType: video.loop ? "video-end-loop" : "video-end-stop",
+    ...(audio ? { label: tr("ui.end_of_the_audio") } : {}),
+  });
   edges.push({ from: previousId, to: endId, kind: "unknown" });
 
   return { nodes, edges };
@@ -170,6 +186,7 @@ const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
   get tex() { return tr("ui.formula"); },
   get image() { return tr("ui.image"); },
   get video() { return tr("ui.video"); },
+  get audio() { return tr("ui.audio"); },
   iframe: "Iframe",
   button: "Button",
   get quiz() { return tr("ui.quiz"); },
@@ -451,7 +468,7 @@ export function getGroupEffectTrigger(page: Page, groupId: string, phase: "entra
 
 /** A video's own "Start des Videos" trigger - none when the learner has to press play. `VideoBlock.autoplay` is only the switch that
  * puts a trigger from the start of the page there (see syncPageTimelineEvents), no implicit default of its own. */
-export function getVideoStartTrigger(page: Page, video: VideoBlock): ResolvedTrigger | null {
+export function getVideoStartTrigger(page: Page, video: MediaBlock): ResolvedTrigger | null {
   const edge = findTriggerEdge(page.timeline, videoStartNodeId(video.id));
   return edge ? resolvedTriggerFromEdge(edge) : null;
 }
@@ -516,7 +533,7 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
   const blocks = orderedValues(page.blocks);
   // A gap text has the events of a quiz (the first answer, submitted, right / wrong): the same lanes.
   const quizzes = blocks.filter((b): b is QuizBlock | ClozeBlock => b.kind === "quiz" || b.kind === "cloze");
-  const videos = blocks.filter((b): b is VideoBlock => b.kind === "video");
+  const videos = blocks.filter((b): b is MediaBlock => isMediaBlock(b));
 
   const startNode: TimelineNode = { id: "start", kind: "start" };
   const endNode: TimelineNode = { id: "end", kind: "end" };
@@ -758,7 +775,7 @@ function blockEventIds(page: Page): Set<string> {
     } else if (block.kind === "script") ids.add(scriptRunNodeId(block.id));
     else if (block.entranceEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "entrance"));
     if (block.exitEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "exit"));
-    if (block.kind === "video") {
+    if (isMediaBlock(block)) {
       ids.add(videoStartNodeId(block.id));
       for (const stopPoint of block.stopPoints) {
         ids.add(videoStopNodeId(block.id, stopPoint.id));

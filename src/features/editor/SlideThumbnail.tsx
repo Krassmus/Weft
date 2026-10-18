@@ -200,6 +200,12 @@ function ThumbBlock({
       <div className="weft-thumb-block weft-thumb-block-placeholder" style={style} />
     );
   }
+  if (block.kind === "audio") {
+    // Only a sound with a player has anything to see: a bar.
+    return block.assetId && block.appearance === "player" ? (
+      <div className="weft-thumb-block weft-thumb-block-audio" style={style} />
+    ) : null;
+  }
   if (block.kind === "iframe" && exportPxPerCqw && block.url) {
     // In the PDF an embedded page can't be what it is on the screen (it is live, and from another origin: no picture of it can be
     // taken): a card with its address as text and QR code - and the address is a link there (data-pdf-link, see exportPdf.tsx).

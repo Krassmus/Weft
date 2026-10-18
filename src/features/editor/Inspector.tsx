@@ -1,7 +1,9 @@
 import {
   setBlockImage,
+  setBlockAudio,
   setBlockVideo,
   setLayoutBlockImage,
+  setLayoutBlockAudio,
   setLayoutBlockVideo,
   updateBlock,
   updateLayoutBlock,
@@ -91,6 +93,7 @@ function InspectorBody({
         onUpdate={(patch) => updateBlock(page.id, block.id, patch)}
         onSetImage={(file) => setBlockImage(page.id, block.id, file)}
         onSetVideo={(file) => setBlockVideo(page.id, block.id, file)}
+        onSetAudio={(file) => setBlockAudio(page.id, block.id, file)}
       />
     );
   }
@@ -105,6 +108,7 @@ function InspectorBody({
       onUpdate={(patch) => updateLayoutBlock(layout.id, block.id, patch)}
       onSetImage={(file) => setLayoutBlockImage(layout.id, block.id, file)}
       onSetVideo={(file) => setLayoutBlockVideo(layout.id, block.id, file)}
+      onSetAudio={(file) => setLayoutBlockAudio(layout.id, block.id, file)}
     />
   );
 }

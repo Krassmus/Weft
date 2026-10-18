@@ -117,6 +117,79 @@
       ],
       "type": "object"
     },
+    "AudioBlock": {
+      "additionalProperties": false,
+      "description": "A sound file: works like a video (it starts by itself or by a trigger or by the learner, it has time marks that stop it and make things appear - its events have the same ids and kinds as those of a video, see isMediaBlock) - but has no picture. On the slide it is either invisible (it only plays, started by a trigger or by `autoplay`) or has a player.",
+      "properties": {
+        "appearance": {
+          "description": "\"hidden\": nothing to see on the slide (in the editor a small symbol marks the place); \"player\": the audio element's own player.",
+          "enum": [
+            "hidden",
+            "player"
+          ],
+          "type": "string"
+        },
+        "assetId": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UUID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "autoplay": {
+          "type": "boolean"
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "audio",
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "stopPoints": {
+          "description": "Always kept sorted by timeSeconds - like VideoBlock.stopPoints.",
+          "items": {
+            "$ref": "#/definitions/VideoStopPoint"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "appearance",
+        "assetId",
+        "autoplay",
+        "entranceEffect",
+        "exitEffect",
+        "id",
+        "kind",
+        "loop",
+        "order",
+        "position",
+        "stopPoints"
+      ],
+      "type": "object"
+    },
     "Block": {
       "anyOf": [
         {
@@ -1957,6 +2030,9 @@
         },
         {
           "$ref": "#/definitions/VideoBlock"
+        },
+        {
+          "$ref": "#/definitions/AudioBlock"
         },
         {
           "$ref": "#/definitions/IframeBlock"

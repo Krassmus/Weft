@@ -2039,21 +2039,25 @@
       } else {
         wrap.appendChild(el("img", { src: assetSrc(block.assetId), alt: block.alt, style: "display:block;width:100%;height:100%;object-fit:contain;" }, []));
       }
-    } else if (block.kind === "video") {
-      var videoWrap = el("div", { class: "weft-video-wrap" }, []);
-      var videoEl = el("video", {
+    } else if (block.kind === "video" || block.kind === "audio") {
+      // A sound works like a video, only without a picture (and without the big play button): it has the same events, time marks and
+      // performers - and either a player of its own or nothing to see at all.
+      var isAudio = block.kind === "audio";
+      var videoWrap = el("div", { class: isAudio ? "weft-audio-wrap" : "weft-video-wrap" }, []);
+      var videoEl = el(isAudio ? "audio" : "video", {
         src: assetSrc(block.assetId),
-        class: "weft-video-el",
+        class: isAudio ? "weft-audio-el" : "weft-video-el",
         playsinline: "",
-        controls: block.controls ? "" : undefined,
+        controls: (isAudio ? block.appearance === "player" : block.controls) ? "" : undefined,
         loop: block.loop ? "" : undefined,
       }, []);
+      if (isAudio && block.appearance !== "player") videoWrap.style.display = "none";
       // Set as live properties, not just attributes: the `muted` content attribute only seeds
       // defaultMuted, not the actual playback-affecting `muted` property, and browsers only
       // honor autoplay at all when that live property is already true at play() time - so
       // setting the attribute alone (as el()'s other boolean attrs do above) would silently
       // leave audible autoplay blocked.
-      videoEl.muted = !!block.muted;
+      videoEl.muted = !isAudio && !!block.muted;
       // Never natively: a video that starts by itself does so because a trigger of the graph (from the start of the page, in the
       // simplest case) tells it to - see its performer below. Native autoplay would start it a second way.
       videoEl.autoplay = false;
@@ -2100,10 +2104,11 @@
       // enabled one) fighting over the same "play" affordance while it's already playing.
       var playButton = el("button", { type: "button", class: "weft-video-play", "aria-label": uiString("play") }, []);
       languageRefreshers.push(function () {
-        playButton.setAttribute("aria-label", uiString("play"));
+        if (playButton) playButton.setAttribute("aria-label", uiString("play"));
       });
       playButton.innerHTML = PLAY_ICON_SVG;
-      playButton.addEventListener("click", function (ev) {
+      if (isAudio) playButton = null;
+      if (playButton) playButton.addEventListener("click", function (ev) {
         ev.stopPropagation();
         // play() rejects if the element is torn down (slide navigation) before it resolves -
         // nothing to recover from there, just avoid an unhandled-rejection console error over it.
@@ -2114,7 +2119,7 @@
       // editor's graph. Whatever made the video start - a trigger or the learner's own press of play - ends up here.
       var hasFiredStart = false;
       videoEl.addEventListener("play", function () {
-        playButton.classList.add("is-hidden");
+        if (playButton) playButton.classList.add("is-hidden");
         if (pausedAtStopPoint !== null) {
           var resumedAt = pausedAtStopPoint;
           pausedAtStopPoint = null;
@@ -2135,11 +2140,11 @@
         happened(videoEndEventId(block.id));
       });
       videoEl.addEventListener("pause", function () {
-        playButton.classList.remove("is-hidden");
+        if (playButton) playButton.classList.remove("is-hidden");
       });
 
       videoWrap.appendChild(videoEl);
-      videoWrap.appendChild(playButton);
+      if (playButton) videoWrap.appendChild(playButton);
       wrap.appendChild(videoWrap);
     } else if (block.kind === "iframe") {
       if (block.qrCode) {

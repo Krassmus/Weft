@@ -3,6 +3,7 @@ import { canTriggerFrom, disappearsOnResume, endNodeIds, findNode, outgoingTrigg
 import { useDocumentStore } from "../../../core/document/store";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
+import { isMediaBlock } from "../../../core/types";
 import type { Page, TimelineNode } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
 import { listTriggerableNodes, nodeLabel } from "../Timeline";
@@ -19,7 +20,7 @@ export function resumableBlock(page: Page, from: string, to: string): { blockId:
   const entrance = /^block-entrance:(.+)$/.exec(to);
   if (!mark || !entrance || !(entrance[1] in page.blocks)) return null;
   const video = page.blocks[mark[1]];
-  if (video?.kind !== "video" || !video.stopPoints.some((s) => s.id === mark[2] && s.stopsVideo)) return null;
+  if (!video || !isMediaBlock(video) || !video.stopPoints.some((s) => s.id === mark[2] && s.stopsVideo)) return null;
   return { blockId: entrance[1], resumeId: `video-resume:${mark[1]}:${mark[2]}` };
 }
 

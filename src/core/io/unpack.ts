@@ -66,14 +66,14 @@ function migrateMissingTimelines(doc: WeftDocument, fileVersion: number) {
 function migrateMissingVideoStopPoints(doc: WeftDocument) {
   for (const page of Object.values(doc.content.pages)) {
     for (const block of Object.values(page.blocks)) {
-      if (block.kind !== "video") continue;
+      if (block.kind !== "video" && block.kind !== "audio") continue;
       block.stopPoints ??= [];
       for (const sp of block.stopPoints) sp.stopsVideo ??= true;
     }
   }
   for (const layout of Object.values(doc.content.layouts)) {
     for (const block of Object.values(layout.blocks)) {
-      if (block.kind !== "video") continue;
+      if (block.kind !== "video" && block.kind !== "audio") continue;
       block.stopPoints ??= [];
       for (const sp of block.stopPoints) sp.stopsVideo ??= true;
     }

@@ -26,6 +26,7 @@ export const BLOCK_KINDS: Record<string, { definition: string; what: string }> =
   button: { definition: "ButtonBlock", what: "Ein Button: Weiter, vorherige Folie, zu einer Folie springen oder ein Ereignis auslösen; kann Variablen ändern." },
   image: { definition: "ImageBlock", what: "Ein Bild (Datei aus `assets`), optional mit Maske und Effekt." },
   video: { definition: "VideoBlock", what: "Ein Video (Datei aus `assets`), mit Zeitmarken, an denen es anhalten kann." },
+  audio: { definition: "AudioBlock", what: "Eine Audiodatei (aus `assets`): nicht sichtbar oder mit Player; wie ein Video mit Zeitmarken, an denen es anhalten kann." },
   code: { definition: "CodeBlock", what: "Quelltext mit Syntaxfärbung." },
   tex: { definition: "TexBlock", what: "Eine Formel (TeX)." },
   iframe: { definition: "IframeBlock", what: "Eine eingebettete Seite (oder ein QR-Code dafür)." },

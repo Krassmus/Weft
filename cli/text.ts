@@ -56,6 +56,11 @@ export function blockSummary(block: Block, content: WeftModule, labels: Record<s
       const asset = content.assets.find((a) => a.id === block.assetId);
       return `${asset ? asset.fileName : "(kein Video)"}${block.stopPoints.length > 0 ? `, ${block.stopPoints.length} Zeitmarken` : ""}`;
     }
+    case "audio": {
+      const asset = content.assets.find((a) => a.id === block.assetId);
+      const shown = block.appearance === "hidden" ? "unsichtbar" : "mit Player";
+      return `${asset ? asset.fileName : "(keine Audiodatei)"}, ${shown}${block.stopPoints.length > 0 ? `, ${block.stopPoints.length} Zeitmarken` : ""}`;
+    }
     case "code":
       return `${block.language}: ${(block.code.split("\n")[0] ?? "").slice(0, 50)}`;
     case "tex":

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { MouseEvent as ReactMouseEvent } from "react";
+import type { MouseEvent as ReactMouseEvent, RefObject } from "react";
 import { createPortal } from "react-dom";
 import { stopPointIconSvg } from "../stopPointIcon";
 import moreOptionsIconSvg from "../../../../mockups/icons/admin.svg?raw";
@@ -79,6 +79,8 @@ import type {
   TimelineEdgeKind,
   VariableDef,
   VariableEffect,
+  AudioBlock,
+  MediaBlock,
   VideoBlock,
   VideoStopPoint,
 } from "../../../core/types";
@@ -128,6 +130,7 @@ interface BlockPanelProps {
   onUpdate: (patch: Partial<Block>) => void;
   onSetImage: (file: File) => void;
   onSetVideo: (file: File) => Promise<VideoUploadResult>;
+  onSetAudio: (file: File) => Promise<void>;
   /** Where the block is (a page or a layout) - what the files block's actions need to find it. */
   container: BlockContainerRef;
   /** Present only when editing a block that lives directly on a page (not inside a Layout) -
@@ -137,7 +140,7 @@ interface BlockPanelProps {
   page?: Page;
 }
 
-export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container, page }: BlockPanelProps) {
+export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, onSetAudio, container, page }: BlockPanelProps) {
   // A block's own Aufbau/Abbau can name any other event as its trigger, but never itself - that's
   // not a real "it happens later" relationship, just a node pointing at its own not-yet-fired self.
   const ownEffectNodeIds = new Set([blockEffectNodeId(block.id, "entrance"), blockEffectNodeId(block.id, "exit")]);
@@ -209,6 +212,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
       {block.kind === "tex" && <TexEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "image" && <ImageEditor block={block} onUpdate={onUpdate} onSetImage={onSetImage} />}
       {block.kind === "video" && <VideoEditor block={block} page={page} onUpdate={onUpdate} onSetVideo={onSetVideo} />}
+      {block.kind === "audio" && <AudioEditor block={block} page={page} onUpdate={onUpdate} onSetAudio={onSetAudio} />}
       {block.kind === "iframe" && <IframeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "button" && <ButtonEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "quiz" && <QuizEditor block={block} page={page} onUpdate={onUpdate} />}
@@ -1057,6 +1061,81 @@ function VideoEditor({
 }
 
 
+/** The panel of an audio block: the file, how it looks on the slide (not at all, or with a player), and its time marks (the dialog of the
+ * video's time marks - a sound has the same events). */
+function AudioEditor({
+  block,
+  page,
+  onUpdate,
+  onSetAudio,
+}: {
+  block: AudioBlock;
+  page?: Page;
+  onUpdate: BlockPanelProps["onUpdate"];
+  onSetAudio: BlockPanelProps["onSetAudio"];
+}) {
+  const stopPointDialogOpen = useStopPointDialog((s) => s.blockId === block.id);
+  const openStopPointDialog = useStopPointDialog((s) => s.open);
+  const closeStopPointDialog = useStopPointDialog((s) => s.close);
+  return (
+    <>
+      <Collapsible title={tr("ui.content")}>
+        <label className="weft-field">
+          <span>{tr("ui.audio_file")}</span>
+          <input
+            type="file"
+            accept="audio/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void onSetAudio(file);
+            }}
+          />
+        </label>
+        <p className="weft-hint">{tr("ui.audio_formats_hint")}</p>
+
+        <label className="weft-field">
+          <span>{tr("ui.audio_on_the_slide")}</span>
+          <select value={block.appearance} onChange={(e) => onUpdate({ appearance: e.target.value as AudioBlock["appearance"] })}>
+            <option value="player">{tr("ui.audio_with_player")}</option>
+            <option value="hidden">{tr("ui.audio_not_visible")}</option>
+          </select>
+        </label>
+        {block.appearance === "hidden" && <p className="weft-hint">{tr("ui.audio_hidden_hint")}</p>}
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={block.loop} onChange={(e) => onUpdate({ loop: e.target.checked })} />
+          <span>{tr("ui.loop")}</span>
+        </label>
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={block.autoplay} onChange={(e) => onUpdate({ autoplay: e.target.checked })} />
+          <span>{tr("ui.audio_play_automatically")}</span>
+        </label>
+      </Collapsible>
+
+      <Collapsible title={tr("ui.time_marks")} defaultOpen={block.stopPoints.length > 0}>
+        <p className="weft-hint">{tr("ui.time_marks_can_pause_the_audio")}</p>
+        {block.stopPoints.length > 0 && (
+          <p className="weft-hint">
+            {block.stopPoints.length} {tr("ui.time_mark_2")}{block.stopPoints.length === 1 ? "" : "n"} angelegt.
+          </p>
+        )}
+        <button
+          type="button"
+          className="weft-ghost-button weft-full-width"
+          disabled={!block.assetId}
+          onClick={() => openStopPointDialog(block.id)}
+        >
+          {tr("ui.configure_time_marks")}
+        </button>
+        {!block.assetId && <p className="weft-hint">{tr("ui.choose_an_audio_file_first")}</p>}
+      </Collapsible>
+
+      {stopPointDialogOpen && block.assetId && (
+        <VideoStopPointDialog block={block} page={page} assetId={block.assetId} onUpdate={onUpdate} onClose={closeStopPointDialog} />
+      )}
+    </>
+  );
+}
+
 /**
  * Opened from VideoEditor's "Zeitmarken konfigurieren" - the video plays here full-size (native
  * controls, so scrubbing/volume/fullscreen all work for free) instead of the small, inert canvas
@@ -1073,7 +1152,7 @@ function VideoStopPointDialog({
   onUpdate,
   onClose,
 }: {
-  block: VideoBlock;
+  block: MediaBlock;
   /** The page the video is on (no page: a video of a layout, which has no events). */
   page?: Page;
   assetId: string;
@@ -1081,6 +1160,7 @@ function VideoStopPointDialog({
   onClose: () => void;
 }) {
   const backdropClose = useBackdropClose(onClose);
+  const isAudio = block.kind === "audio";
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [duration, setDuration] = useState(0);
@@ -1248,21 +1328,35 @@ function VideoStopPointDialog({
           </button>
         </div>
 
-        <video
-          ref={videoRef}
-          src={getObjectUrl(assetId)}
-          className="weft-stop-point-video"
-          onClick={togglePlaying}
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
-          onEnded={() => setPlaying(false)}
-          onLoadedMetadata={(e) => {
-            setDuration(e.currentTarget.duration);
-            if (e.currentTarget.videoWidth > 0 && e.currentTarget.videoHeight > 0) setAspect(e.currentTarget.videoWidth / e.currentTarget.videoHeight);
-          }}
-          onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-          onSeeked={(e) => setCurrentTime(e.currentTarget.currentTime)}
-        />
+        {isAudio ? (
+          // A sound has no picture - the element only plays (it is the same ref as the video's: both are "media elements").
+          <audio
+            ref={videoRef as unknown as RefObject<HTMLAudioElement>}
+            src={getObjectUrl(assetId)}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onEnded={() => setPlaying(false)}
+            onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+            onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+            onSeeked={(e) => setCurrentTime(e.currentTarget.currentTime)}
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            src={getObjectUrl(assetId)}
+            className="weft-stop-point-video"
+            onClick={togglePlaying}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onEnded={() => setPlaying(false)}
+            onLoadedMetadata={(e) => {
+              setDuration(e.currentTarget.duration);
+              if (e.currentTarget.videoWidth > 0 && e.currentTarget.videoHeight > 0) setAspect(e.currentTarget.videoWidth / e.currentTarget.videoHeight);
+            }}
+            onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+            onSeeked={(e) => setCurrentTime(e.currentTarget.currentTime)}
+          />
+        )}
 
         <div className="weft-stop-point-controls">
           <button
@@ -1306,7 +1400,16 @@ function VideoStopPointDialog({
             />
           ))}
           {/* What the video shows at the place the mouse is over - nothing to operate, only for looking for a scene. */}
-          {previewMade && (
+          {previewMade && isAudio && (
+            // A sound has no picture to look at: only the time under the mouse.
+            <div
+              className="weft-stop-point-preview is-time-only"
+              style={{ left: hover ? Math.max(26 - 13, Math.min(hover.x, hover.width - 26 + 13)) : 0, visibility: hover ? "visible" : "hidden" }}
+            >
+              <span className="weft-stop-point-preview-time">{hover ? formatTimeMMSS(hover.time) : ""}</span>
+            </div>
+          )}
+          {previewMade && !isAudio && (
             <div
               className="weft-stop-point-preview"
               // Over the mouse, but not out of the dialog (the timeline has 13px of margin on each side).
@@ -1400,9 +1503,9 @@ function VideoStopPointDialog({
                 checked={selectedStopPoint.stopsVideo}
                 onChange={(e) => updateStopPoint(selectedStopPoint.id, { stopsVideo: e.target.checked })}
               />
-              <span>{tr("ui.stop_the_video_here")}</span>
+              <span>{tr(isAudio ? "ui.stop_the_audio_here" : "ui.stop_the_video_here")}</span>
             </label>
-            {!selectedStopPoint.stopsVideo && <p className="weft-hint">{tr("ui.the_video_just_goes_on_at")}</p>}
+            {!selectedStopPoint.stopsVideo && <p className="weft-hint">{tr(isAudio ? "ui.the_audio_just_goes_on_at" : "ui.the_video_just_goes_on_at")}</p>}
             {page && <StopPointShows page={page} video={block} stopPoint={selectedStopPoint} />}
           </div>
         )}
@@ -1435,7 +1538,7 @@ function blockTitle(block: Block, t: (key: TranslationKey) => string): string {
  * when the video reaches this time mark - and, for a mark that stops the video, a switch per ticked one: it disappears again when the video
  * goes on. The short form of the triggers from the mark's event to the Aufbau of those elements (see setStopPointShows).
  */
-function StopPointShows({ page, video, stopPoint }: { page: Page; video: VideoBlock; stopPoint: VideoStopPoint }) {
+function StopPointShows({ page, video, stopPoint }: { page: Page; video: MediaBlock; stopPoint: VideoStopPoint }) {
   const { t } = useTranslation();
   const stopId = videoStopNodeId(video.id, stopPoint.id);
   const resumeId = videoResumeNodeId(video.id, stopPoint.id);
@@ -1475,7 +1578,7 @@ function StopPointShows({ page, video, stopPoint }: { page: Page; video: VideoBl
                     checked={disappearsOnResume(page, candidate.id, resumeId)}
                     onChange={(e) => setDisappearsOnResumeOf(page.id, candidate.id, resumeId, e.target.checked)}
                   />
-                  <span>{tr("ui.disappears_again_when_the_video_goes")}</span>
+                  <span>{tr(video.kind === "audio" ? "ui.disappears_again_when_the_audio_goes" : "ui.disappears_again_when_the_video_goes")}</span>
                 </label>
               )}
             </div>

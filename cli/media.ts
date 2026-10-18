@@ -5,7 +5,7 @@ import { CliError } from "./load";
 
 /** What the tool can say about a picture or video file it is asked to put into a module. */
 export interface MediaFile {
-  kind: "image" | "video";
+  kind: "image" | "video" | "audio";
   path: string;
   fileName: string;
   mimeType: string;
@@ -25,6 +25,16 @@ const IMAGES: Record<string, string> = {
   ".webp": "image/webp",
   ".svg": "image/svg+xml",
   ".avif": "image/avif",
+};
+const AUDIOS: Record<string, string> = {
+  ".mp3": "audio/mpeg",
+  ".m4a": "audio/mp4",
+  ".aac": "audio/aac",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
+  ".oga": "audio/ogg",
+  ".opus": "audio/ogg",
+  ".flac": "audio/flac",
 };
 const VIDEOS: Record<string, string> = {
   ".mp4": "video/mp4",
@@ -112,9 +122,9 @@ function probeVideo(path: string): { width?: number; height?: number; codec?: st
 /** Reads an image or video file (by its extension: nothing else is taken, so that a module cannot be made to carry just any file). */
 export function readMedia(path: string): MediaFile {
   const extension = extname(path).toLowerCase();
-  const kind: MediaFile["kind"] | null = IMAGES[extension] ? "image" : VIDEOS[extension] ? "video" : null;
+  const kind: MediaFile["kind"] | null = IMAGES[extension] ? "image" : VIDEOS[extension] ? "video" : AUDIOS[extension] ? "audio" : null;
   if (!kind) {
-    throw new CliError(`„${path}": nur Bilder (${Object.keys(IMAGES).join(" ")}) und Videos (${Object.keys(VIDEOS).join(" ")}) lassen sich hinzufügen.`);
+    throw new CliError(`„${path}": nur Bilder (${Object.keys(IMAGES).join(" ")}), Videos (${Object.keys(VIDEOS).join(" ")}) und Audio (${Object.keys(AUDIOS).join(" ")}) lassen sich hinzufügen.`);
   }
   let bytes: Uint8Array;
   try {
@@ -127,7 +137,7 @@ export function readMedia(path: string): MediaFile {
     kind,
     path,
     fileName: basename(path).replace(/[\\/]/g, "_"),
-    mimeType: (kind === "image" ? IMAGES : VIDEOS)[extension],
+    mimeType: (kind === "image" ? IMAGES : kind === "audio" ? AUDIOS : VIDEOS)[extension],
     bytes,
     warnings: [],
   };
@@ -146,7 +156,7 @@ export function readMedia(path: string): MediaFile {
                 : null;
     if (size) [media.width, media.height] = size;
     else media.warnings.push("Die Größe des Bildes ließ sich nicht lesen - es bekommt eine Standardform, im Editor anpassen.");
-  } else {
+  } else if (kind === "video") {
     const info = probeVideo(path);
     media.width = info.width;
     media.height = info.height;

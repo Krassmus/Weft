@@ -1094,33 +1094,45 @@ function VideoStopPointDialog({
   const previewRef = useRef<HTMLVideoElement>(null);
   const wantedPreviewTime = useRef<number | null>(null);
 
-  // One seek at a time: a new place wanted while the video is still on its way is taken once it has arrived. A seek that never arrives
-  // (the app was in the background: the picture stops being decoded and "seeked" does not come) must not hold the preview for good - after
-  // SEEK_PATIENCE_MS the new place is asked for anyway (which replaces the old seek), and coming back to the window starts over.
-  const lastSeekAt = useRef(0);
+  // One seek at a time: a new place wanted while the video is still on its way is taken once it has arrived. After switching to another
+  // app the webview may drop what it holds for a video (the picture then stays on one frame, with or without "seeked"); nothing helps
+  // but a new element - so the preview video is made anew (`previewKey`) when the window comes back, and when a seek has not arrived
+  // after SEEK_PATIENCE_MS (the hovered place is then asked from the new one).
+  const [previewKey, setPreviewKey] = useState(0);
+  const latestHoverTime = useRef(0);
+  const seekWatchdog = useRef<number | undefined>(undefined);
   function showPreviewAt(time: number) {
+    latestHoverTime.current = time;
     const preview = previewRef.current;
     if (!preview) return;
-    const now = performance.now();
-    if (!preview.seeking || now - lastSeekAt.current > SEEK_PATIENCE_MS) {
-      wantedPreviewTime.current = null;
-      lastSeekAt.current = now;
-      preview.currentTime = time;
-    } else {
+    if (preview.seeking) {
       wantedPreviewTime.current = time;
+    } else {
+      wantedPreviewTime.current = null;
+      askPreviewFor(preview, time);
     }
   }
+  function askPreviewFor(preview: HTMLVideoElement, time: number) {
+    preview.currentTime = time;
+    window.clearTimeout(seekWatchdog.current);
+    seekWatchdog.current = window.setTimeout(() => {
+      if (previewRef.current?.seeking) setPreviewKey((k) => k + 1);
+    }, SEEK_PATIENCE_MS);
+  }
   useEffect(() => {
-    const restart = () => {
+    const comeBack = () => {
       if (document.visibilityState === "hidden") return;
-      lastSeekAt.current = 0;
       wantedPreviewTime.current = null;
+      setPreviewKey((k) => k + 1);
     };
-    document.addEventListener("visibilitychange", restart);
-    window.addEventListener("focus", restart);
+    document.addEventListener("visibilitychange", comeBack);
+    window.addEventListener("focus", comeBack);
+    window.addEventListener("pageshow", comeBack);
     return () => {
-      document.removeEventListener("visibilitychange", restart);
-      window.removeEventListener("focus", restart);
+      document.removeEventListener("visibilitychange", comeBack);
+      window.removeEventListener("focus", comeBack);
+      window.removeEventListener("pageshow", comeBack);
+      window.clearTimeout(seekWatchdog.current);
     };
   }, []);
 
@@ -1281,6 +1293,7 @@ function VideoStopPointDialog({
               }}
             >
               <video
+                key={previewKey}
                 ref={previewRef}
                 src={getObjectUrl(assetId)}
                 muted
@@ -1288,12 +1301,14 @@ function VideoStopPointDialog({
                 preload="auto"
                 tabIndex={-1}
                 style={{ width: PREVIEW_WIDTH, aspectRatio: String(aspect) }}
-                onSeeked={() => {
+                // A new element goes to the place the mouse is over as soon as it can.
+                onLoadedData={(event) => askPreviewFor(event.currentTarget, latestHoverTime.current)}
+                onSeeked={(event) => {
+                  window.clearTimeout(seekWatchdog.current);
                   const wanted = wantedPreviewTime.current;
-                  if (wanted !== null && previewRef.current) {
+                  if (wanted !== null) {
                     wantedPreviewTime.current = null;
-                    lastSeekAt.current = performance.now();
-                    previewRef.current.currentTime = wanted;
+                    askPreviewFor(event.currentTarget, wanted);
                   }
                 }}
               />
@@ -1439,7 +1454,7 @@ function StopPointShows({ page, video, stopPoint }: { page: Page; video: VideoBl
 /** Width of the picture that follows the mouse over the timeline of the time marks dialog. */
 const PREVIEW_WIDTH = 168;
 /** How long a seek of that picture may take before a new one is started regardless (ms). */
-const SEEK_PATIENCE_MS = 300;
+const SEEK_PATIENCE_MS = 1500;
 
 const DEFAULT_VIEWPORT_WIDTH = 768;
 

@@ -5496,6 +5496,11 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   cursor: pointer;
 }
 
+/* The play/pause button has a thin edge: without it it fades into the dialog. */
+.weft-stop-point-play {
+  border: 1px solid color-mix(in srgb, var(--weft-text) 28%, transparent);
+}
+
 .weft-stop-point-play:hover,
 .weft-stop-point-mute:hover {
   background: var(--weft-accent-soft);

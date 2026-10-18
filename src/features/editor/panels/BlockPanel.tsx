@@ -1184,7 +1184,13 @@ function VideoStopPointDialog({
             <button
               key={sp.id}
               type="button"
-              className={"weft-timeline-node-icon weft-stop-point-marker" + (sp.id === selectedStopPointId ? " is-selected" : "")}
+              // The marks the video has reached (they stand on the coloured part of the line) are blue, like the line; the selected one
+              // has the ring of a hot event on top of that.
+              className={
+                "weft-timeline-node-icon weft-stop-point-marker" +
+                (sp.timeSeconds <= currentTime + 0.001 ? " is-blue" : "") +
+                (sp.id === selectedStopPointId ? " is-selected is-hot" : "")
+              }
               style={{ left: `${duration > 0 ? (sp.timeSeconds / duration) * 100 : 0}%` }}
               title={formatTimeMMSS(sp.timeSeconds)}
               onClick={(e) => {

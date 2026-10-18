@@ -1071,6 +1071,24 @@ function VideoStopPointDialog({
   // Where the video is now (seconds): the timeline below it is coloured up to there.
   const [currentTime, setCurrentTime] = useState(0);
   const [selectedStopPointId, setSelectedStopPointId] = useState<string | null>(null);
+  // The controls are the dialog's own (not the video element's: most of what those offer makes no sense here, and the timeline is below).
+  const [playing, setPlaying] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted] = useState(false);
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.volume = volume;
+    video.muted = muted;
+  }, [volume, muted]);
+
+  function togglePlaying() {
+    const video = videoRef.current;
+    if (!video) return;
+    // (play() answers with a promise that is refused when the video can't be played - nothing to do about that here.)
+    if (video.paused) void video.play().catch(() => undefined);
+    else video.pause();
+  }
 
   // While the video plays, follow it every frame ("timeupdate" alone comes only a few times a second).
   useEffect(() => {
@@ -1135,13 +1153,28 @@ function VideoStopPointDialog({
         <video
           ref={videoRef}
           src={getObjectUrl(assetId)}
-          controls
           className="weft-stop-point-video"
+          onClick={togglePlaying}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onEnded={() => setPlaying(false)}
           onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
           onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
           onSeeked={(e) => setCurrentTime(e.currentTarget.currentTime)}
         />
 
+        <div className="weft-stop-point-controls">
+          <button
+            type="button"
+            className="weft-stop-point-play"
+            title={playing ? tr("ui.pause") : tr("ui.play")}
+            aria-label={playing ? tr("ui.pause") : tr("ui.play")}
+            onClick={togglePlaying}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              {playing ? <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /> : <path d="M8 5.5v13l11-6.5z" />}
+            </svg>
+          </button>
         {/* The timeline: the line is coloured up to where the video is now; a click on it goes there. */}
         <div className="weft-stop-point-track" onClick={seekTo}>
           <div className="weft-stop-point-progress" style={{ width: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%` }} />
@@ -1166,6 +1199,38 @@ function VideoStopPointDialog({
             />
           ))}
         </div>
+          <div className="weft-stop-point-volume">
+            <button
+              type="button"
+              className="weft-stop-point-mute"
+              title={muted || volume === 0 ? tr("ui.sound_on") : tr("ui.sound_off")}
+              aria-label={muted || volume === 0 ? tr("ui.sound_on") : tr("ui.sound_off")}
+              onClick={() => {
+                if (volume === 0) setVolume(1);
+                setMuted((m) => (volume === 0 ? false : !m));
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor" />
+                {muted || volume === 0 ? <path d="m16 9.5 5 5m0-5-5 5" /> : <path d="M16 9a4 4 0 0 1 0 6m2.5-8.5a7.5 7.5 0 0 1 0 11" />}
+              </svg>
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={muted ? 0 : volume}
+              aria-label={tr("ui.volume")}
+              title={tr("ui.volume")}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                setVolume(next);
+                setMuted(next === 0);
+              }}
+            />
+          </div>
+        </div>
 
         {selectedStopPoint && (
           <div className="weft-stop-point-settings">
@@ -1185,9 +1250,6 @@ function VideoStopPointDialog({
           </div>
         )}
         <div className="weft-format-row weft-stop-point-actions">
-          <button type="button" className="weft-ghost-button" onClick={() => videoRef.current?.pause()}>
-            {tr("ui.pause")}
-          </button>
           <button type="button" className="weft-primary-button" onClick={addStopPointHere}>
             {tr("ui.create_time_mark")}
           </button>

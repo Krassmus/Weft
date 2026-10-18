@@ -1094,16 +1094,35 @@ function VideoStopPointDialog({
   const previewRef = useRef<HTMLVideoElement>(null);
   const wantedPreviewTime = useRef<number | null>(null);
 
-  // One seek at a time: a new place wanted while the video is still on its way is taken once it has arrived.
+  // One seek at a time: a new place wanted while the video is still on its way is taken once it has arrived. A seek that never arrives
+  // (the app was in the background: the picture stops being decoded and "seeked" does not come) must not hold the preview for good - after
+  // SEEK_PATIENCE_MS the new place is asked for anyway (which replaces the old seek), and coming back to the window starts over.
+  const lastSeekAt = useRef(0);
   function showPreviewAt(time: number) {
     const preview = previewRef.current;
     if (!preview) return;
-    wantedPreviewTime.current = time;
-    if (!preview.seeking) {
+    const now = performance.now();
+    if (!preview.seeking || now - lastSeekAt.current > SEEK_PATIENCE_MS) {
       wantedPreviewTime.current = null;
+      lastSeekAt.current = now;
       preview.currentTime = time;
+    } else {
+      wantedPreviewTime.current = time;
     }
   }
+  useEffect(() => {
+    const restart = () => {
+      if (document.visibilityState === "hidden") return;
+      lastSeekAt.current = 0;
+      wantedPreviewTime.current = null;
+    };
+    document.addEventListener("visibilitychange", restart);
+    window.addEventListener("focus", restart);
+    return () => {
+      document.removeEventListener("visibilitychange", restart);
+      window.removeEventListener("focus", restart);
+    };
+  }, []);
 
   function hoverTimeline(event: ReactMouseEvent<HTMLDivElement>) {
     if (duration <= 0) return;
@@ -1273,6 +1292,7 @@ function VideoStopPointDialog({
                   const wanted = wantedPreviewTime.current;
                   if (wanted !== null && previewRef.current) {
                     wantedPreviewTime.current = null;
+                    lastSeekAt.current = performance.now();
                     previewRef.current.currentTime = wanted;
                   }
                 }}
@@ -1418,6 +1438,8 @@ function StopPointShows({ page, video, stopPoint }: { page: Page; video: VideoBl
 
 /** Width of the picture that follows the mouse over the timeline of the time marks dialog. */
 const PREVIEW_WIDTH = 168;
+/** How long a seek of that picture may take before a new one is started regardless (ms). */
+const SEEK_PATIENCE_MS = 300;
 
 const DEFAULT_VIEWPORT_WIDTH = 768;
 

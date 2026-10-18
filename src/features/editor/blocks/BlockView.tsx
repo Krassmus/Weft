@@ -69,6 +69,7 @@ import {
 } from "./resizeMath";
 import { tr } from "../../../core/i18n/tr";
 import { ScriptHexagon } from "./ScriptHexagon";
+import { useStopPointDialog } from "./stopPointDialogStore";
 
 const EDGE_GRAB_PX = 10;
 const DRAG_THRESHOLD_PX = 3;
@@ -545,6 +546,12 @@ export function BlockView({
           if (block.kind === "tex" && (selected || !onDoubleClick)) {
             event.stopPropagation();
             useTexDialog.getState().open(block.id);
+            return;
+          }
+          // A video opens the dialog for its time marks (once it has a file), under the same condition.
+          if (block.kind === "video" && block.assetId && (selected || !onDoubleClick)) {
+            event.stopPropagation();
+            useStopPointDialog.getState().open(block.id);
             return;
           }
           if (!onDoubleClick) return;

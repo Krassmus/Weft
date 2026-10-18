@@ -99,6 +99,7 @@ import { TexEditor } from "./TexEditor";
 import { TriggerPicker } from "./TriggerPicker";
 import { tr } from "../../../core/i18n/tr";
 import { ColorField } from "../ColorField";
+import { useStopPointDialog } from "../blocks/stopPointDialogStore";
 
 const SANDBOX_FLAGS = ["allow-scripts", "allow-same-origin", "allow-popups", "allow-forms"];
 const UPLOAD_FONT_VALUE = "__upload__";
@@ -951,7 +952,10 @@ function VideoEditor({
   onSetVideo: BlockPanelProps["onSetVideo"];
 }) {
   const transcode = useTranscodeStatus();
-  const [stopPointDialogOpen, setStopPointDialogOpen] = useState(false);
+  // (Open by the button below or by a double-click on the video on the slide - see stopPointDialogStore.ts.)
+  const stopPointDialogOpen = useStopPointDialog((s) => s.blockId === block.id);
+  const openStopPointDialog = useStopPointDialog((s) => s.open);
+  const closeStopPointDialog = useStopPointDialog((s) => s.close);
   return (
     <>
       <Collapsible title={tr("ui.content")}>
@@ -1026,7 +1030,7 @@ function VideoEditor({
           type="button"
           className="weft-ghost-button weft-full-width"
           disabled={!block.assetId}
-          onClick={() => setStopPointDialogOpen(true)}
+          onClick={() => openStopPointDialog(block.id)}
         >
           {tr("ui.configure_time_marks")}
         </button>
@@ -1034,7 +1038,7 @@ function VideoEditor({
       </Collapsible>
 
       {stopPointDialogOpen && block.assetId && (
-        <VideoStopPointDialog block={block} assetId={block.assetId} onUpdate={onUpdate} onClose={() => setStopPointDialogOpen(false)} />
+        <VideoStopPointDialog block={block} assetId={block.assetId} onUpdate={onUpdate} onClose={closeStopPointDialog} />
       )}
     </>
   );

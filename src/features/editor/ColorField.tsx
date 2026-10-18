@@ -57,11 +57,10 @@ export function ColorField({
   const [draft, setDraft] = useState<string | null>(null);
   const inPalette = palette.some((c) => c.color.toLowerCase() === hex);
 
-  // The system's picker ("Andere Farbe …") reports every step of a drag - dozens a second, and each of them would be an edit of the
-  // whole module. What the person sees at once is the picker's own (`nativeShown`); the module gets at most one colour per
-  // NATIVE_INTERVAL_MS, and the last one when the picker is done (its "change" event).
+  // The colour wheel reports every step of a drag - dozens a second, and each of them would be an edit of the whole module. What the
+  // person sees at once is the wheel's own (`nativeShown`); the module gets at most one colour per NATIVE_INTERVAL_MS, and the last
+  // one when the pointer is let go.
   const [nativeShown, setNativeShown] = useState<string | null>(null);
-  const nativeRef = useRef<HTMLInputElement>(null);
   const pendingRef = useRef<string | null>(null);
   const sentAtRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -87,18 +86,6 @@ export function ColorField({
     }
   }
 
-  // The picker is done: the last colour is set, and the little window goes.
-  useEffect(() => {
-    const input = nativeRef.current;
-    if (!open || !input) return;
-    const done = () => {
-      flushNative();
-      setNativeShown(null);
-      setOpen(false);
-    };
-    input.addEventListener("change", done);
-    return () => input.removeEventListener("change", done);
-  }, [open]);
   useEffect(() => () => flushNative(), []);
 
   useEffect(() => {
@@ -220,37 +207,10 @@ export function ColorField({
                 setNativeShown(null);
               }}
             />
-            <input
-              className="weft-color-hex"
-              type="text"
-              spellCheck={false}
-              autoComplete="off"
-              maxLength={7}
-              placeholder="#rrggbb"
-              aria-label={tr("ui.hex_colour_value")}
-              title={tr("ui.hex_colour_value")}
-              value={draft ?? (nativeShown ?? hex)}
-              onChange={(e) => {
-                setDraft(e.target.value);
-                // A complete value counts right away (shorthand like "abc" only when the field is left: "abcdef" may follow).
-                const digits = e.target.value.trim().replace(/^#/, "");
-                const parsed = digits.length === 6 ? parseHex(e.target.value) : null;
-                if (parsed) {
-                  if (parsed !== hex) onChange(parsed);
-                  setOpen(false);
-                }
-              }}
-              onBlur={commitDraft}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  commitDraft();
-                }
-              }}
-            />
-            <div className="weft-color-actions">
+            <div className="weft-color-row">
+              <span className="weft-color-preview" style={{ ["--swatch" as string]: nativeShown ?? value }} aria-hidden="true" />
               {route && (
-                <button type="button" className="weft-ghost-button" title={tr("ui.pick_colour_from_screen")} aria-label={tr("ui.pick_colour_from_screen")} onClick={() => void eyedrop()}>
+                <button type="button" className="weft-ghost-button weft-color-eyedropper" title={tr("ui.pick_colour_from_screen")} aria-label={tr("ui.pick_colour_from_screen")} onClick={() => void eyedrop()}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="m2 22 1-1h3l9-9" />
                     <path d="M3 21v-3l9-9" />
@@ -258,10 +218,34 @@ export function ColorField({
                   </svg>
                 </button>
               )}
-              <label className="weft-color-other" title={tr("ui.other_colour")}>
-                <input ref={nativeRef} type="color" value={nativeShown ?? value} onChange={(e) => pushNative(e.target.value)} />
-                <span>{tr("ui.other_colour")}</span>
-              </label>
+              <input
+                className="weft-color-hex"
+                type="text"
+                spellCheck={false}
+                autoComplete="off"
+                maxLength={7}
+                placeholder="#rrggbb"
+                aria-label={tr("ui.hex_colour_value")}
+                title={tr("ui.hex_colour_value")}
+                value={draft ?? (nativeShown ?? hex)}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  // A complete value counts right away (shorthand like "abc" only when the field is left: "abcdef" may follow).
+                  const digits = e.target.value.trim().replace(/^#/, "");
+                  const parsed = digits.length === 6 ? parseHex(e.target.value) : null;
+                  if (parsed) {
+                    if (parsed !== hex) onChange(parsed);
+                    setOpen(false);
+                  }
+                }}
+                onBlur={commitDraft}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    commitDraft();
+                  }
+                }}
+              />
             </div>
             {!hideScheme && (
               <button

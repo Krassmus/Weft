@@ -5022,31 +5022,6 @@ button.weft-timeline-node-icon.is-red:hover,
   outline-offset: 1px;
 }
 
-.weft-color-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.weft-color-other {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.weft-color-other input[type="color"] {
-  flex: none;
-  width: 32px;
-  height: 28px;
-  padding: 2px;
-  border: 1px solid var(--weft-border);
-  border-radius: var(--weft-radius-sm);
-  background: var(--weft-input-bg);
-}
-
 .weft-color-palette-row {
   display: flex;
   flex-wrap: wrap;
@@ -5404,4 +5379,35 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   border-radius: 50%;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
   pointer-events: none;
+}
+
+/* The row under the wheel: the chosen colour, the eyedropper and the hex value, side by side. */
+.weft-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.weft-color-preview {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: linear-gradient(var(--swatch), var(--swatch)), repeating-conic-gradient(#8884 0 25%, transparent 0 50%) 0 0 / 10px 10px;
+}
+
+.weft-color-eyedropper {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+}
+
+.weft-color-row .weft-color-hex {
+  flex: 1;
+  min-width: 0;
+  width: auto;
 }

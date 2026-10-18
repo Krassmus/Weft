@@ -11,11 +11,12 @@ import { useImageBoxAspect } from "../blocks/ImageSvg";
 import { CODE_THEMES } from "../../../core/code/codeThemes";
 import { AUTO_LANGUAGE, CODE_LANGUAGES } from "../../../core/code/highlight";
 import { createId } from "../../../core/id";
-import { addCustomFont, addTrigger, removeTrigger, setEventTrigger, setQuizAdvance, updateTrigger } from "../../../core/document/actions";
+import { addCustomFont, addTrigger, removeTrigger, setDisappearsOnResumeOf, setEventTrigger, setQuizAdvance, setStopPointShows, updateTrigger } from "../../../core/document/actions";
 import type { VideoUploadResult } from "../../../core/document/actions";
 import {
   blockEffectNodeId,
   buttonClickNodeId,
+  disappearsOnResume,
   endNodeIds,
   findNode,
   getBlockEntranceTrigger,
@@ -24,6 +25,8 @@ import {
   outgoingTriggers,
   quizEndNodeId,
   scriptRunNodeId,
+  videoResumeNodeId,
+  videoStopNodeId,
 } from "../../../core/document/pageTimeline";
 import type { ResolvedTrigger } from "../../../core/document/pageTimeline";
 import { DIRECTION_LABELS } from "../../../core/document/transitions";
@@ -102,6 +105,10 @@ import { ColorField } from "../ColorField";
 import { useStopPointDialog } from "../blocks/stopPointDialogStore";
 import { useBackdropClose } from "../useBackdropClose";
 import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
+import { plainTextOfHtml } from "../../../core/document/translations";
+import { orderedValues } from "../../../core/document/ordering";
+import type { TranslationKey } from "../../../core/i18n/translations";
+import { BlockKindIcon } from "../BlockKindIcon";
 
 const SANDBOX_FLAGS = ["allow-scripts", "allow-same-origin", "allow-popups", "allow-forms"];
 const UPLOAD_FONT_VALUE = "__upload__";
@@ -200,7 +207,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
       {block.kind === "code" && <CodeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "tex" && <TexEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "image" && <ImageEditor block={block} onUpdate={onUpdate} onSetImage={onSetImage} />}
-      {block.kind === "video" && <VideoEditor block={block} onUpdate={onUpdate} onSetVideo={onSetVideo} />}
+      {block.kind === "video" && <VideoEditor block={block} page={page} onUpdate={onUpdate} onSetVideo={onSetVideo} />}
       {block.kind === "iframe" && <IframeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "button" && <ButtonEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "quiz" && <QuizEditor block={block} page={page} onUpdate={onUpdate} />}
@@ -946,10 +953,12 @@ function CodeEditor({ block, onUpdate }: { block: CodeBlock; onUpdate: BlockPane
 
 function VideoEditor({
   block,
+  page,
   onUpdate,
   onSetVideo,
 }: {
   block: VideoBlock;
+  page?: Page;
   onUpdate: BlockPanelProps["onUpdate"];
   onSetVideo: BlockPanelProps["onSetVideo"];
 }) {
@@ -1040,7 +1049,7 @@ function VideoEditor({
       </Collapsible>
 
       {stopPointDialogOpen && block.assetId && (
-        <VideoStopPointDialog block={block} assetId={block.assetId} onUpdate={onUpdate} onClose={closeStopPointDialog} />
+        <VideoStopPointDialog block={block} page={page} assetId={block.assetId} onUpdate={onUpdate} onClose={closeStopPointDialog} />
       )}
     </>
   );
@@ -1058,11 +1067,14 @@ function VideoEditor({
  */
 function VideoStopPointDialog({
   block,
+  page,
   assetId,
   onUpdate,
   onClose,
 }: {
   block: VideoBlock;
+  /** The page the video is on (no page: a video of a layout, which has no events). */
+  page?: Page;
   assetId: string;
   onUpdate: BlockPanelProps["onUpdate"];
   onClose: () => void;
@@ -1333,11 +1345,74 @@ function VideoStopPointDialog({
               <span>{tr("ui.stop_the_video_here")}</span>
             </label>
             {!selectedStopPoint.stopsVideo && <p className="weft-hint">{tr("ui.the_video_just_goes_on_at")}</p>}
+            {page && <StopPointShows page={page} video={block} stopPoint={selectedStopPoint} />}
           </div>
         )}
       </div>
     </div>,
     document.body,
+  );
+}
+
+/** What to call a block in a list of the page's elements: its kind and, where it has words, the first of them. */
+function blockTitle(block: Block, t: (key: TranslationKey) => string): string {
+  const html =
+    block.kind === "text" || block.kind === "placeholder" || block.kind === "cloze"
+      ? block.html
+      : block.kind === "button"
+        ? (block.html ?? block.text)
+        : block.kind === "quiz"
+          ? block.questionHtml
+          : block.kind === "list"
+            ? (block.items[0]?.html ?? "")
+            : "";
+  const words = plainTextOfHtml(html);
+  const kind = t(BLOCK_KIND_KEYS[block.kind]);
+  if (!words) return kind;
+  return `${kind}: ${words.length > 26 ? `${words.slice(0, 25)}…` : words}`;
+}
+
+/**
+ * "Lässt erscheinen" under a time mark of a video: the page's elements (all but the video itself) as a list to tick - each ticked one appears
+ * when the video reaches this time mark - and, for a mark that stops the video, a switch per ticked one: it disappears again when the video
+ * goes on. The short form of the triggers from the mark's event to the Aufbau of those elements (see setStopPointShows).
+ */
+function StopPointShows({ page, video, stopPoint }: { page: Page; video: VideoBlock; stopPoint: VideoStopPoint }) {
+  const { t } = useTranslation();
+  const stopId = videoStopNodeId(video.id, stopPoint.id);
+  const resumeId = videoResumeNodeId(video.id, stopPoint.id);
+  const candidates = orderedValues(page.blocks).filter((b) => b.id !== video.id && b.kind !== "script");
+  if (candidates.length === 0) return null;
+  const shows = (blockId: string) =>
+    Object.values(page.timeline.triggers).some((trigger) => trigger.from === stopId && trigger.to === blockEffectNodeId(blockId, "entrance"));
+  return (
+    <div className="weft-stop-point-shows">
+      <span className="weft-subgroup-label">{tr("ui.makes_appear")}</span>
+      <div className="weft-stop-point-shows-list">
+        {candidates.map((candidate) => {
+          const on = shows(candidate.id);
+          return (
+            <div key={candidate.id} className="weft-stop-point-shows-item">
+              <label className="weft-field weft-field-inline">
+                <input type="checkbox" checked={on} onChange={(e) => setStopPointShows(page.id, video.id, stopPoint.id, candidate.id, e.target.checked)} />
+                <BlockKindIcon kind={candidate.kind} size={14} />
+                <span>{blockTitle(candidate, t)}</span>
+              </label>
+              {on && stopPoint.stopsVideo && (
+                <label className="weft-field weft-field-inline weft-stop-point-shows-again">
+                  <input
+                    type="checkbox"
+                    checked={disappearsOnResume(page, candidate.id, resumeId)}
+                    onChange={(e) => setDisappearsOnResumeOf(page.id, candidate.id, resumeId, e.target.checked)}
+                  />
+                  <span>{tr("ui.disappears_again_when_the_video_goes")}</span>
+                </label>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

@@ -1000,7 +1000,7 @@ img.weft-thumb-block {
 .weft-stop-point-video {
   display: block;
   width: 100%;
-  max-height: 60vh;
+  max-height: 44vh;
   background: #000;
   border-radius: var(--weft-radius-sm);
 }
@@ -5569,4 +5569,35 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   text-align: center;
+}
+
+/* "Lässt erscheinen" under a time mark (StopPointShows in panels/BlockPanel.tsx): the page's elements to tick, a switch under each ticked one. */
+.weft-stop-point-shows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.weft-stop-point-shows-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 168px;
+  overflow-y: auto;
+}
+
+.weft-stop-point-shows-item .weft-field {
+  min-width: 0;
+}
+
+.weft-stop-point-shows-item .weft-field span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weft-stop-point-shows-again {
+  margin-left: 26px;
+  color: var(--weft-text-muted);
 }

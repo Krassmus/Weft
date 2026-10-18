@@ -52,7 +52,9 @@ import {
   setDisappearsOnResume,
   setTriggerEdge,
   syncPageTimelineEvents,
+  videoResumeNodeId,
   videoStartNodeId,
+  videoStopNodeId,
 } from "./pageTimeline";
 import { defaultArrowColor } from "./arrow";
 import { defaultShapeCornerRadii, defaultShapeFill, defaultShapeShadow, defaultShapeStroke } from "./shapeDefaults";
@@ -804,6 +806,39 @@ export function setDisappearsOnResumeOf(pageId: string, blockId: string, resumeI
     const page = m.pages[pageId];
     if (!page) return;
     setDisappearsOnResume(page, blockId, resumeId, on);
+    syncPageTimelineEvents(page);
+  });
+}
+
+/**
+ * The short form of a trigger in the dialog of a video's time marks: "Lässt erscheinen" - block `blockId` appears when the video reaches
+ * the time mark `stopPointId`, or not any more. It is the block's Aufbau (one that is off becomes one without animation, so that it has an
+ * event to be triggered), triggered by the time mark's event; everything the graph does with it stays. Taking it away again removes that
+ * trigger (and the "disappears when the video goes on" Abbau that went with it), and an Aufbau that nothing triggers any more and that was
+ * only there for this goes back to off.
+ */
+export function setStopPointShows(pageId: string, videoId: string, stopPointId: string, blockId: string, on: boolean) {
+  edit("Auslöser bearbeiten", (m) => {
+    const page = m.pages[pageId];
+    const block = page?.blocks[blockId];
+    if (!page || !block || blockId === videoId) return;
+    const stopId = videoStopNodeId(videoId, stopPointId);
+    const entranceId = blockEffectNodeId(blockId, "entrance");
+    const triggers = page.timeline.triggers;
+    const existing = Object.keys(triggers).filter((id) => triggers[id].from === stopId && triggers[id].to === entranceId);
+    if (on) {
+      if (existing.length === 0) {
+        if (block.entranceEffect.type === "off") block.entranceEffect = { type: "none", durationMs: 0 };
+        let id = `t:${entranceId}`;
+        for (let n = 2; id in triggers; n++) id = `t:${entranceId}:${n}`;
+        triggers[id] = { from: stopId, to: entranceId, delayMs: 0, weiter: false };
+      }
+    } else {
+      for (const id of existing) delete triggers[id];
+      setDisappearsOnResume(page, blockId, videoResumeNodeId(videoId, stopPointId), false);
+      const stillTriggered = Object.values(triggers).some((t) => t.to === entranceId);
+      if (block.entranceEffect.type === "none" && !stillTriggered) block.entranceEffect = { type: "off", durationMs: 500 };
+    }
     syncPageTimelineEvents(page);
   });
 }

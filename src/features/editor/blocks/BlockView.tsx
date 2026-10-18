@@ -1274,9 +1274,10 @@ function IframeFrame({ block }: { block: IframeBlock }) {
  * of the item before (an empty <span> could not hold it). It is not kept: see withoutCaretPlaceholder. */
 const CARET_PLACEHOLDER = "\u200b";
 
-/** Whether `container` holds anything to see - text (the placeholder above is none), a picture or a line break. */
+/** Whether `container` holds anything to see - text (the placeholder above is none) or a picture. (A line break is not counted: some
+ * browsers keep a <br> at the end of the line they are typing in, and that is no content to carry over.) */
 function hasVisibleContent(container: HTMLElement): boolean {
-  return (container.textContent ?? "").replace(/\u200b/g, "").trim().length > 0 || container.querySelector("img,br") !== null;
+  return (container.textContent ?? "").replace(/\u200b/g, "").trim().length > 0 || container.querySelector("img") !== null;
 }
 
 /**

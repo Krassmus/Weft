@@ -118,6 +118,12 @@ export function focusItem(
 ): void {
   el.focus();
   if (where === "start" || where === "end") {
+    // The start goes into the first text (so that what is typed there has its formatting: at the very start of the element it would
+    // stand in front of the formatting elements); a text-less item has just the element.
+    if (where === "start" && el.querySelector("img,br") === null && textLength(el) > 0) {
+      placeCaret(rangeAtTextOffset(el, 0));
+      return;
+    }
     const range = document.createRange();
     range.selectNodeContents(el);
     range.collapse(where === "start");

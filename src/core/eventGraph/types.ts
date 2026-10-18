@@ -37,6 +37,8 @@ export type GraphEventKind =
    * triggers are the Aufbau/Abbau of its members, which do the work. */
   | "group-entrance"
   | "group-exit"
+  /** A logic block's script runs (`script-run:<blockId>`) - by an incoming trigger; the event has happened once the script is done. */
+  | "script-run"
   /** The page is left, going on to the next one with `transition`. When several of these are reached, the first one wins. */
   | "end";
 
@@ -45,6 +47,8 @@ export interface GraphEvent {
   kind: GraphEventKind;
   /** Only for "end": how the page is left. */
   transition?: Transition;
+  /** The title the author gave the event (see PageTimeline.titles) - what a script's trigger("...") finds it by. */
+  title?: string;
 }
 
 /** One line of the graph: when `from` has happened, `to` happens `delayMs` later - if `weiter`, only once the learner has pressed

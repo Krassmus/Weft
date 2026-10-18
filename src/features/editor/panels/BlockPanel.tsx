@@ -23,6 +23,7 @@ import {
   isListPerItem,
   outgoingTriggers,
   quizEndNodeId,
+  scriptRunNodeId,
 } from "../../../core/document/pageTimeline";
 import type { ResolvedTrigger } from "../../../core/document/pageTimeline";
 import { DIRECTION_LABELS } from "../../../core/document/transitions";
@@ -51,6 +52,7 @@ import type {
   ButtonBlock,
   ClozeBlock,
   CodeBlock,
+  ScriptBlock,
   IframeBlock,
   ImageBlock,
   ListBlock,
@@ -202,7 +204,9 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, container,
       {block.kind === "shape" && <ShapeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "arrow" && <ArrowEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "files" && <FilesEditor key={block.id} block={block} container={container} onUpdate={onUpdate} />}
-      {page && (
+      {block.kind === "script" && <ScriptEditor key={block.id} block={block} page={page} onUpdate={onUpdate} />}
+      {/* (A logic block has no Aufbau/Abbau: it has an event of its own, in the graph.) */}
+      {page && block.kind !== "script" && (
         <>
           <BlockEffectEditor
             key={block.id + "-entrance"}
@@ -846,6 +850,44 @@ function ImageEditTiles({ block, onUpdate }: { block: ImageBlock; onUpdate: Bloc
         />
       )}
     </>
+  );
+}
+
+/** The code of a logic block (ScriptBlock) and what it can use - and the way to its event in the graph, where it is triggered. */
+function ScriptEditor({ block, page, onUpdate }: { block: ScriptBlock; page?: Page; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const select = useDocumentStore((s) => s.select);
+  return (
+    <Collapsible title={tr("ui.script_block")} defaultOpen>
+      <p className="weft-hint">{tr("ui.script_hint")}</p>
+      <textarea
+        className="weft-script-editor-code"
+        spellCheck={false}
+        autoCapitalize="off"
+        autoCorrect="off"
+        value={block.code}
+        aria-label={tr("ui.script_block")}
+        onChange={(e) => onUpdate({ code: e.target.value })}
+        onKeyDown={(e) => {
+          // Tab writes a tab (two spaces wide) instead of leaving the field.
+          if (e.key !== "Tab" || e.shiftKey) return;
+          e.preventDefault();
+          const field = e.currentTarget;
+          const { selectionStart, selectionEnd, value } = field;
+          onUpdate({ code: `${value.slice(0, selectionStart)}\t${value.slice(selectionEnd)}` });
+          requestAnimationFrame(() => field.setSelectionRange(selectionStart + 1, selectionStart + 1));
+        }}
+      />
+      <p className="weft-hint weft-script-api">{tr("ui.script_api_hint")}</p>
+      {page && (
+        <button
+          type="button"
+          className="weft-ghost-button weft-full-width"
+          onClick={() => select({ type: "event", pageId: page.id, nodeId: scriptRunNodeId(block.id) })}
+        >
+          {tr("ui.script_show_event")}
+        </button>
+      )}
+    </Collapsible>
   );
 }
 

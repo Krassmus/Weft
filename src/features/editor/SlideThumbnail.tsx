@@ -27,6 +27,7 @@ import checkboxCheckedSvg from "../../../mockups/icons/checkbox-checked.svg?raw"
 import checkboxUncheckedSvg from "../../../mockups/icons/checkbox-unchecked.svg?raw";
 import acceptSvg from "../../../mockups/icons/accept.svg?raw";
 import { tr } from "../../core/i18n/tr";
+import { ScriptHexagon } from "./blocks/ScriptHexagon";
 
 const THUMB_MAX_HEIGHT_PX = 150;
 
@@ -151,6 +152,13 @@ function ThumbBlock({
     return (
       <div className="weft-thumb-block weft-thumb-block-placeholder" style={style}>
         🌐
+      </div>
+    );
+  }
+  if (block.kind === "script") {
+    return (
+      <div className="weft-thumb-block" style={style}>
+        <ScriptHexagon />
       </div>
     );
   }

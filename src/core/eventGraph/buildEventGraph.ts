@@ -6,6 +6,7 @@ import {
   groupEffectNodeId,
   listItemNodeId,
   quizFillNodeId,
+  scriptRunNodeId,
   quizSubmitNodeId,
   videoEndNodeId,
   videoResumeNodeId,
@@ -32,6 +33,9 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
     if (block.kind === "list" && block.itemEntrance && block.entranceEffect.type !== "off" && pageBlockIds.has(block.id)) {
       // Each item of the list appears on its own, with the list's effect; the list as a whole has no Aufbau event.
       for (const item of block.items) events.push({ id: listItemNodeId(block.id, item.id), kind: "list-item" });
+    } else if (block.kind === "script") {
+      // A logic block has no Aufbau - its event is the script running. (Only a page has them: there are none in a layout.)
+      if (pageBlockIds.has(block.id)) events.push({ id: scriptRunNodeId(block.id), kind: "script-run", title: page.timeline.titles?.[scriptRunNodeId(block.id)]?.trim() || undefined });
     } else if (block.entranceEffect.type !== "off") {
       const id = blockEffectNodeId(block.id, "entrance");
       events.push({ id, kind: "entrance" });
@@ -73,6 +77,12 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
   }
 
   for (const endId of endNodeIds(page)) events.push({ id: endId, kind: "end", transition: page.timeline.ends[endId].transition });
+
+  // The titles the author gave the events (a script finds an event to trigger by its title).
+  for (const event of events) {
+    const title = page.timeline.titles?.[event.id]?.trim();
+    if (title && !event.title) event.title = title;
+  }
 
   const known = new Set(events.map((event) => event.id));
   for (const id of Object.keys(page.timeline.triggers).sort()) {

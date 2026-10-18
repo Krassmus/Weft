@@ -55,6 +55,13 @@ const ICONS: Record<Kind, ReactNode> = {
   ),
   files: <path d="M6 3h8l4 4v14H6zM14 3v4h4M12 11v6m-3-3 3 3 3-3" />,
   cloze: <path d="M3 8h5M14 8h7M3 16h9M17 16h4M8 12h8" />,
+  script: (
+    <>
+      <path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z" />
+      <circle cx="12" cy="12" r="2.4" />
+      <path d="M12 7.4v1.4M12 15.2v1.4M8 9.7l1.2.7M14.8 13.6l1.2.7M16 9.7l-1.2.7M9.2 13.6L8 14.3" />
+    </>
+  ),
   language: (
     <>
       <circle cx="12" cy="12" r="9" />

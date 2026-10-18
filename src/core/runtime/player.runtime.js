@@ -645,10 +645,16 @@
   // The page `pageId`, wherever it is in the module (a button whose action is "goto"): the way on from there is the one after that
   // page, as with a jump page (see resolveJumps). Pages that were shown after the current one on a way back are forgotten. A page
   // that is not part of the module (it was deleted) leaves everything as it is.
-  function goToPage(pageId) {
+  function goToPage(pageId, transition) {
     var place = pageId ? findStartCursor(pageId) : null;
     if (!place) return;
     var outgoing = pos >= 0 && pos < history.length ? history[pos] : null;
+    // A jump of a logic block names the transition itself (see jump in runScript); otherwise it is the one of the page being left.
+    var leaving = function () {
+      if (!transition) return pageTransition(outgoing);
+      nextTransition = null;
+      return Object.assign({}, transition, { fromPageId: outgoing });
+    };
     var keep = Math.min(pos + 1, history.length);
     history.length = keep;
     variablesAtEntry.length = keep;
@@ -657,14 +663,14 @@
     var node = resolveJumps({ type: "page", pageId: pageId });
     if (node.type === "end") {
       pos = history.length;
-      render(pageTransition(outgoing));
+      render(leaving());
       return;
     }
     variablesAtEntry[history.length] = Object.assign({}, variables);
     cursorAtEntry[history.length] = JSON.parse(JSON.stringify(cursor));
     history.push(node.pageId);
     pos = history.length - 1;
-    render(pageTransition(outgoing));
+    render(leaving());
   }
 
   function goPrev() {
@@ -691,6 +697,153 @@
     cursorAtEntry = [];
     pos = -1;
     goNext();
+  }
+
+  // ---- logic blocks (see ScriptBlock in core/types.ts) ----
+  // A logic block's event (`script-run:<blockId>`) runs its JavaScript when it is reached, and has happened once the script is done.
+  // The code gets `vars` (the module's variables by name: read, and write), `debug(...)`, `trigger(name)`, `jump(slide, type, options)`
+  // and `VanillaLM` - what it does with them is up to its author: nothing here checks it.
+  var SCRIPT_DEFAULT_TRANSITION_MS = { none: 500, fade: 500, move: 500, iris: 900, cube: 900, blur: 1200, wheel: 1600, horror: 2000 };
+  var debugBox = null;
+  var debugList = null;
+
+  function scriptRunEventId(blockId) {
+    return "script-run:" + blockId;
+  }
+
+  // debug(...): a small window over the page (kept across pages) that lists what the scripts say.
+  function debugShow(args) {
+    var text = Array.prototype.map
+      .call(args, function (value) {
+        if (typeof value === "string") return value;
+        try {
+          var json = JSON.stringify(value);
+          return json === undefined ? String(value) : json;
+        } catch (error) {
+          return String(value);
+        }
+      })
+      .join(" ");
+    if (!debugBox) {
+      debugList = el("div", { class: "weft-debug-list" }, []);
+      var closeButton = el("button", { type: "button", class: "weft-debug-close", "aria-label": "Close" }, [document.createTextNode("\u00d7")]);
+      closeButton.addEventListener("click", function () {
+        if (debugBox && debugBox.parentNode) debugBox.parentNode.removeChild(debugBox);
+        debugBox = null;
+        debugList = null;
+      });
+      debugBox = el("div", { class: "weft-debug" }, [el("div", { class: "weft-debug-head" }, [document.createTextNode("Debug"), closeButton]), debugList]);
+      document.body.appendChild(debugBox);
+    }
+    debugList.appendChild(el("div", { class: "weft-debug-line" }, [document.createTextNode(text)]));
+    debugList.scrollTop = debugList.scrollHeight;
+  }
+
+  function setScriptVariable(name, value) {
+    var def = variableByName(name);
+    if (!def) {
+      debugShow(["vars: there is no variable called", name]);
+      return;
+    }
+    if (isComputedDef(def)) {
+      debugShow(["vars:", name, "is computed and cannot be set"]);
+      return;
+    }
+    applyEffect({ variableId: def.id, op: "set", value: value });
+  }
+
+  function scriptVariables() {
+    return new Proxy(
+      {},
+      {
+        get: function (target, name) {
+          var entry = typeof name === "string" ? variableValueByName(name) : null;
+          return entry ? entry.value : undefined;
+        },
+        set: function (target, name, value) {
+          if (typeof name === "string") setScriptVariable(name, value);
+          return true;
+        },
+        has: function (target, name) {
+          return typeof name === "string" && variableValueByName(name) !== null;
+        },
+        ownKeys: function () {
+          return module.variables.map(function (v) {
+            return v.name;
+          });
+        },
+        getOwnPropertyDescriptor: function (target, name) {
+          var entry = typeof name === "string" ? variableValueByName(name) : null;
+          return entry ? { value: entry.value, writable: true, enumerable: true, configurable: true } : undefined;
+        },
+      }
+    );
+  }
+
+  // The event of this page called `name`: by its id, or by the title it has in the graph (case does not matter).
+  function eventNamed(name) {
+    if (graphEvents[name]) return name;
+    var wanted = String(name).trim().toLowerCase();
+    var found = null;
+    Object.keys(graphEvents).forEach(function (id) {
+      var title = graphEvents[id].title;
+      if (!found && title && String(title).trim().toLowerCase() === wanted) found = id;
+    });
+    return found;
+  }
+
+  // The slide that goes by `label` ("3", "2.a.1") in the editor's numbering.
+  function pageIdForLabel(label) {
+    var labels = module.pageLabels || {};
+    var wanted = String(label).trim().toLowerCase();
+    var found = null;
+    Object.keys(labels).forEach(function (pageId) {
+      if (!found && String(labels[pageId]).toLowerCase() === wanted) found = pageId;
+    });
+    return found;
+  }
+
+  function runScript(block) {
+    var generation = graphGeneration;
+    // What was asked for happens right after the script, not in the middle of it - and not at all if the page is gone by then.
+    var later = function (action) {
+      setTimeout(function () {
+        if (generation === graphGeneration) action();
+      }, 0);
+    };
+    var debug = function () {
+      debugShow(arguments);
+    };
+    var trigger = function (name) {
+      var id = eventNamed(name);
+      if (!id) {
+        debugShow(["trigger: this slide has no event called", name]);
+        return false;
+      }
+      deliver({ id: "script", from: "script", to: id, delayMs: 0, weiter: false }, false);
+      return true;
+    };
+    var jump = function (slide, type, options) {
+      var pageId = pageIdForLabel(slide);
+      if (!pageId) {
+        debugShow(["jump: there is no slide", slide]);
+        return false;
+      }
+      var kind = type || "none";
+      var transition = Object.assign({}, options || {}, { type: kind });
+      if (!(transition.durationMs > 0)) transition.durationMs = SCRIPT_DEFAULT_TRANSITION_MS[kind] || 500;
+      later(function () {
+        goToPage(pageId, transition);
+      });
+      return true;
+    };
+    try {
+      var run = new Function("vars", "debug", "trigger", "jump", "VanillaLM", block.code || "");
+      run(scriptVariables(), debug, trigger, jump, window.VanillaLM);
+    } catch (error) {
+      debugShow(["Logic block:", error && error.message ? error.message : String(error)]);
+    }
+    return generation === graphGeneration;
   }
 
   // ---- LMS (VanillaLM) ----
@@ -857,7 +1010,7 @@
   // may only be left by its own buttons can't be tapped through either.
   var TAP_INTERACTIVE =
     "a, button, input, select, textarea, label, summary, video, audio, iframe, [contenteditable], [role='button']," +
-    ".weft-block-quiz, .weft-files, .weft-block-language, .weft-block-iframe";
+    ".weft-block-quiz, .weft-files, .weft-block-language, .weft-block-iframe, .weft-debug";
   var lastTapAdvanceAt = 0;
   document.addEventListener("click", function (e) {
     if (e.defaultPrevented || module.keyboardNavigationEnabled === false) return;
@@ -2543,6 +2696,17 @@
   }
 
   function renderBlock(block, page) {
+    if (block.kind === "script") {
+      // Nothing to see: its event is where it runs.
+      var scriptEventId = scriptRunEventId(block.id);
+      if (graphEvents[scriptEventId]) {
+        performers[scriptEventId] = function () {
+          // (A script that sent the learner to another slide has no event to go on from.)
+          if (runScript(block)) happened(scriptEventId);
+        };
+      }
+      return el("div", { class: "weft-block weft-block-script", style: "display:none;" }, []);
+    }
     var wrap = block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : renderStaticBlock(block, page);
     applyBlockEffects(wrap, block, page);
     if (block.kind === "list" && wrap.weftListItems) applyListItemEffects(block, wrap.weftListItems);

@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import gearIconSvg from "../../../mockups/icons/admin.svg?raw";
 import playIconSvg from "../../../mockups/icons/play.svg?raw";
 import arrowRightIconSvg from "../../../mockups/icons/arr_1right.svg?raw";
 import acceptIconSvg from "../../../mockups/icons/accept.svg?raw";
@@ -52,6 +53,7 @@ const EVENT_LABELS: Record<TimelineEventType, string> = {
   get "group-entrance"() { return tr("ui.group_appears"); },
   get "group-exit"() { return tr("ui.group_disappears"); },
   get "list-item-entrance"() { return tr("ui.list_item_3"); },
+  get "script-run"() { return tr("ui.script_block"); },
 };
 
 // "richtig" keeps the checkmark; "falsch" gets its own (decline.svg) rather than sharing accept.svg
@@ -77,6 +79,8 @@ const EVENT_ICONS: Record<TimelineEventType, string> = {
   "group-entrance": animationIconSvg,
   "group-exit": dashingAwayIconSvg,
   "list-item-entrance": animationIconSvg,
+  // A logic block's script runs: the gear (see the hexagon of the block itself).
+  "script-run": gearIconSvg,
 };
 
 /** Exported for BlockEffectEditor in panels/BlockPanel.tsx, which lists these same nodes (minus

@@ -33,6 +33,7 @@ export const BLOCK_KINDS: Record<string, { definition: string; what: string }> =
   arrow: { definition: "ArrowBlock", what: "Ein Pfeil durch mehrere Punkte." },
   files: { definition: "FilesBlock", what: "Dateien zum Herunterladen, optional mit Passwort." },
   language: { definition: "LanguageBlock", what: "Sprachumschalter (nur sinnvoll in mehrsprachigen Modulen)." },
+  script: { definition: "ScriptBlock", what: "Logikblock: JavaScript (`code`), das läuft, wenn sein Ereignis erreicht wird (nur auf Folien). Im Code: vars, debug(), trigger(), jump(), VanillaLM." },
 };
 
 function typeOf(node: Node | boolean | undefined): string {

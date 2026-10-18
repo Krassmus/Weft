@@ -175,6 +175,19 @@ export interface ListBlock extends BaseBlock {
   itemEntrance?: boolean;
 }
 
+/**
+ * A logic block (kind "script"): some JavaScript the page runs when the block's event of the page's graph is reached (see
+ * scriptRunNodeId in document/pageTimeline.ts) - a green event that, like the Aufbau of any block, is triggered by Weiter by default and
+ * can be triggered by anything else. In the editor it is a hexagon with a gear on the slide; the player shows nothing. The code has `vars`
+ * (read and write the module's variables by name), `debug(...)`, `trigger(name)` (an event of the page, by its title), `jump(slide,
+ * transition, options)` and `VanillaLM`; whoever writes it has to know what they do (see runScript in player.runtime.js). A page's
+ * block only - there are no events on a layout.
+ */
+export interface ScriptBlock extends BaseBlock {
+  kind: "script";
+  code: string;
+}
+
 /** A drop-down with which a learner picks the language of the module (it sets `userlanguage`) -
  * addable only while the module offers more than one language. */
 export interface LanguageBlock extends BaseBlock {
@@ -555,7 +568,7 @@ export interface FilesBlock extends BaseBlock {
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
 export type StaticBlock = TextBlock | PlaceholderBlock | ListBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | IframeBlock | ButtonBlock | ShapeBlock | ArrowBlock | FilesBlock;
-export type Block = StaticBlock | QuizBlock | ClozeBlock;
+export type Block = StaticBlock | QuizBlock | ClozeBlock | ScriptBlock;
 
 /** A block as it's first made, before it has been put somewhere (and so given its `order`). */
 export type NewBlock = Block extends infer B ? (B extends Block ? Omit<B, "order"> : never) : never;
@@ -665,7 +678,8 @@ export type TimelineEventType =
   | "button-click"
   | "group-entrance"
   | "group-exit"
-  | "list-item-entrance";
+  | "list-item-entrance"
+  | "script-run";
 
 export interface TimelineNode {
   id: string;

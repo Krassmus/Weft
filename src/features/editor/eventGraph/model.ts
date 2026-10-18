@@ -10,8 +10,8 @@ import {
 import type { Block, Page, TimelineEdgeKind, TimelineNode } from "../../../core/types";
 
 /** What kind an event is, which is what its colour says (docs/event-graph.md, section 2): the learner doing something (violet), an
- * animation (yellow), or anything else (blue). */
-export type EventColor = "blue" | "yellow" | "violet";
+ * animation (yellow), a script that runs (green), or anything else (blue). */
+export type EventColor = "blue" | "yellow" | "violet" | "green";
 
 export interface GraphNodeModel {
   id: string;
@@ -220,6 +220,7 @@ export function buildGraphModel(page: Page): GraphModel {
     ) {
       color = "yellow";
     }
+    else if (node.eventType === "script-run") color = "green";
     else if (isUserEvent(node) || node.eventType === "video-resume") color = "violet";
     // A video start nothing triggers is the learner pressing play.
     else if (node.eventType?.startsWith("video-start") && !incoming.has(node.id)) color = "violet";

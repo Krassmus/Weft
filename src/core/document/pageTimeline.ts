@@ -178,6 +178,7 @@ const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
   get files() { return tr("ui.files"); },
   get list() { return tr("ui.list"); },
   get placeholder() { return tr("ui.text_placeholder"); },
+  get script() { return tr("ui.script_block"); },
 };
 
 /** Kept in sync by hand with player.runtime.js's own blockEffectEventId - see that file's header
@@ -215,6 +216,15 @@ function makeListItemNode(block: ListBlock, index: number, itemId: string): Time
     eventType: "list-item-entrance",
     label: tr("ui.list_item", { n0: index + 1 }),
   };
+}
+
+/** The event of a logic block: its script runs (a green event that is triggered like an Aufbau). Kept in sync by hand with player.runtime.js. */
+export function scriptRunNodeId(blockId: string): string {
+  return `script-run:${blockId}`;
+}
+
+function makeScriptNode(block: Block): TimelineNode {
+  return { id: scriptRunNodeId(block.id), kind: "event", sourceBlockId: block.id, eventType: "script-run", label: BLOCK_KIND_LABELS[block.kind] };
 }
 
 /** The event of a button being clicked (a user event: nothing can make it happen but the learner). */
@@ -260,6 +270,7 @@ export const TRIGGERABLE_EVENT_TYPES: ReadonlySet<TimelineEventType> = new Set<T
   "group-entrance",
   "group-exit",
   "list-item-entrance",
+  "script-run",
 ]);
 
 export function isTriggerableNode(node: TimelineNode): boolean {
@@ -549,6 +560,10 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
         const edge = findTriggerEdge(page.timeline, listItemNodeId(block.id, item.id));
         effectTargets.push({ node: makeListItemNode(block, index, item.id), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
       });
+    } else if (block.kind === "script") {
+      // A logic block has an event of its own (its script runs) instead of an Aufbau, with the trigger the page stores for it.
+      const edge = findTriggerEdge(page.timeline, scriptRunNodeId(block.id));
+      effectTargets.push({ node: makeScriptNode(block), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
     } else if (block.entranceEffect.type !== "off") {
       effectTargets.push({ node: makeBlockEffectNode(block, "entrance"), trigger: getBlockEntranceTrigger(page, block) });
     }
@@ -739,7 +754,8 @@ function blockEventIds(page: Page): Set<string> {
   for (const block of orderedValues(page.blocks)) {
     if (block.kind === "list" && isListPerItem(block)) {
       for (const item of block.items) ids.add(listItemNodeId(block.id, item.id));
-    } else if (block.entranceEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "entrance"));
+    } else if (block.kind === "script") ids.add(scriptRunNodeId(block.id));
+    else if (block.entranceEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "entrance"));
     if (block.exitEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "exit"));
     if (block.kind === "video") {
       ids.add(videoStartNodeId(block.id));
@@ -890,6 +906,7 @@ export function ensureEffectTriggers(page: Page, blockIds: string[]): void {
     if (!block) continue;
     const wanted: string[] = [];
     if (block.kind === "list" && isListPerItem(block)) for (const item of block.items) wanted.push(listItemNodeId(blockId, item.id));
+    else if (block.kind === "script") wanted.push(scriptRunNodeId(blockId));
     else if (block.entranceEffect.type !== "off") wanted.push(blockEffectNodeId(blockId, "entrance"));
     if (block.exitEffect.type !== "off") wanted.push(blockEffectNodeId(blockId, "exit"));
     for (const nodeId of wanted) if (!hasIncoming(nodeId)) appendToWeiterChain(page, nodeId);

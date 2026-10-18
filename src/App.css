@@ -4625,6 +4625,7 @@ html {
   --weft-eg-blue: #4d8dff;
   --weft-eg-yellow: #f5b83d;
   --weft-eg-violet: #a66cff;
+  --weft-eg-green: #22c55e;
   --weft-eg-red: #ef4444;
 }
 
@@ -4728,6 +4729,10 @@ html {
   color: var(--weft-eg-violet);
   border-color: color-mix(in srgb, var(--weft-eg-violet) 55%, transparent);
 }
+.weft-timeline-node-icon.is-green {
+  color: var(--weft-eg-green);
+  border-color: color-mix(in srgb, var(--weft-eg-green) 55%, transparent);
+}
 .weft-timeline-node-icon.is-red {
   color: var(--weft-eg-red);
   border-color: var(--weft-eg-red);
@@ -4751,6 +4756,12 @@ button.weft-timeline-node-icon.is-violet:hover,
   border-color: var(--weft-eg-violet);
   color: var(--weft-eg-violet);
 }
+button.weft-timeline-node-icon.is-green:hover,
+.weft-timeline-node-icon.is-green.is-selected,
+.weft-timeline-node-icon.is-green.is-hot {
+  border-color: var(--weft-eg-green);
+  color: var(--weft-eg-green);
+}
 button.weft-timeline-node-icon.is-red:hover,
 .weft-timeline-node-icon.is-red.is-selected,
 .weft-timeline-node-icon.is-red.is-hot {
@@ -4766,6 +4777,9 @@ button.weft-timeline-node-icon.is-red:hover,
 }
 .weft-timeline-node-icon.is-violet.is-selected {
   background: color-mix(in srgb, var(--weft-eg-violet) 18%, var(--weft-panel-raised));
+}
+.weft-timeline-node-icon.is-green.is-selected {
+  background: color-mix(in srgb, var(--weft-eg-green) 18%, var(--weft-panel-raised));
 }
 .weft-timeline-node-icon.is-red.is-selected {
   background: color-mix(in srgb, var(--weft-eg-red) 18%, var(--weft-panel-raised));
@@ -5410,4 +5424,47 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   flex: 1;
   min-width: 0;
   width: auto;
+}
+
+/* A logic block in the editor: a green hexagon with a gear (ScriptHexagon.tsx). */
+.weft-script-hex {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  background: #16a34a;
+  clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0 50%);
+}
+
+.weft-script-hex-gear {
+  display: grid;
+  width: 46%;
+  aspect-ratio: 1;
+}
+
+.weft-script-hex-gear svg {
+  width: 100%;
+  height: 100%;
+}
+
+.weft-script-hex-gear svg,
+.weft-script-hex-gear svg * {
+  fill: #fff !important;
+}
+
+.weft-script-editor-code {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 220px;
+  padding: 8px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-input-bg);
+  color: var(--weft-text);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  tab-size: 2;
+  white-space: pre;
+  resize: vertical;
 }

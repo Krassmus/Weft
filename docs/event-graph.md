@@ -29,7 +29,7 @@ Jedes Event hat:
 | --- | --- |
 | Icon | womit es im Graphen dargestellt wird |
 | Titel | wird im Graphen angezeigt; der Standardtitel kommt vom Typ des Events, der Nutzer kann ihn pro Event überschreiben. Titel müssen nicht eindeutig sein – der Zusammenhang im Graphen unterscheidet. |
-| Typ | bestimmt die Farbe: **blau** `#4D8DFF` Standard, **gelb** `#F5B83D` Animation, **violett** `#A66CFF` Nutzerinteraktion |
+| Typ | bestimmt die Farbe: **blau** `#4D8DFF` Standard, **gelb** `#F5B83D` Animation, **violett** `#A66CFF` Nutzerinteraktion, **grün** `#22C55E` ein Skript läuft (Logikblock) |
 | Eingangstrigger | null oder mehrere; **ODER**: einer genügt, um das Event auszulösen |
 | Ausgangstrigger | null oder mehrere; sie werden alle ausgelöst, wenn das Event passiert |
 
@@ -155,6 +155,28 @@ Einschalten) bekommen ihren Platz in der Weiter-Kette, einer nach dem anderen; T
 Ein Button-Block liefert das nutzerseitige Event „Button geklickt“. Ein Button mit der Aktion „Nächste Folie“ ist damit ein Trigger
 von „Button geklickt“ zu einem „Nächste Folie“-Event und im Graphen sichtbar. Ein Button kann die Eigenschaft „nur einmal klickbar“
 haben.
+
+### Logikblöcke
+
+Ein Logikblock (`ScriptBlock`, `kind: "script"`) ist ein Objekt **nur auf Folien**, das JavaScript enthält. Im Editor ist er ein grünes
+Sechseck mit Zahnrad, im Player unsichtbar. Er hat statt eines Aufbaus ein **eigenes grünes Event** (`script-run:<Block>`, im Graphen
+„Logikblock“): Kommt ein Trigger dort an, läuft das Skript, und danach hat das Event stattgefunden und schickt seine Ausgangstrigger.
+Beim Anlegen steht das Event wie ein Aufbau am Ende der Weiter-Kette (meist vor „Nächste Folie“); Auslöser und Platz sind frei
+änderbar wie bei jedem Aufbau.
+
+Im Skript stehen zur Verfügung:
+
+- `vars`: die Variablen des Moduls **nach Namen** – `vars.score` liest, `vars.score = 3` schreibt (nicht bei berechneten Variablen).
+- `debug(...)`: zeigt beim Abspielen etwas in einem kleinen Fenster über der Folie.
+- `trigger(name)`: löst ein Event **dieser Folie** aus – `name` ist der **Titel** des Events im Graphen (Groß-/Kleinschreibung egal; es
+  geht auch die Event-Id). Es braucht dafür keine Linie. Die Aktion des Events läuft (ein Aufbau erscheint, die Folie wird verlassen ...).
+- `jump(folie, übergang?, optionen?)`: springt zu einer anderen Folie. `folie` ist ihre Nummer wie in der Seitenleiste (`"3"`,
+  `"2.a.3"`), `übergang` ein Übergangstyp (`"fade"`, `"move"`, `"wheel"` ... – ohne Angabe ein harter Schnitt), `optionen` seine
+  weiteren Felder (`durationMs`, `direction`, ...).
+- `VanillaLM`: die Bibliothek der Lernplattform.
+
+Das Skript läuft ohne Schutz (`new Function`): wer es schreibt, muss wissen, was er tut. Ein Fehler erscheint im Debug-Fenster, das
+Modul läuft weiter. Ein `jump` im Skript lässt das Event ohne Ausgangstrigger enden (die Folie ist ja nicht mehr da).
 
 ## 6. Layout
 

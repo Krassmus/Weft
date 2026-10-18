@@ -587,6 +587,9 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
       };
     case "language":
       return { ...base, kind, position: { x: 74, y: 3, width: 23, height: 7 } };
+    case "script":
+      // A hexagon that is a square on the usual 16:9 slide (the percentages are of the slide's width and height).
+      return { ...base, kind, position: { x: 44.5, y: 40.25, width: 11, height: 19.5 }, code: tr("ui.script_default_code") };
     case "code":
       return {
         ...base,
@@ -664,6 +667,8 @@ export function addBlockToPage(pageId: string, kind: Block["kind"]) {
     if (!page) return;
     insertOrdered(page.blocks, block.id, block);
     syncPageTimelineEvents(page);
+    // A logic block's event waits for Weiter at the end of the chain, like the Aufbau of any block.
+    if (kind === "script") ensureEffectTriggers(page, [block.id]);
   });
   return block.id;
 }
@@ -1648,7 +1653,7 @@ export function pasteBlockInto(
   target: { kind: "page"; pageId: string } | { kind: "layout"; layoutId: string },
   sourceBlock: Block,
 ): string | null {
-  if (target.kind === "layout" && (sourceBlock.kind === "quiz" || sourceBlock.kind === "cloze")) return null;
+  if (target.kind === "layout" && (sourceBlock.kind === "quiz" || sourceBlock.kind === "cloze" || sourceBlock.kind === "script")) return null;
   // A placeholder only exists in a layout.
   if (target.kind === "page" && sourceBlock.kind === "placeholder") return null;
   const newBlock = cloneBlockWithNewId(sourceBlock);

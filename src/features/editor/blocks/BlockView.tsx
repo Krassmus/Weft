@@ -68,6 +68,7 @@ import {
   unrotateDelta,
 } from "./resizeMath";
 import { tr } from "../../../core/i18n/tr";
+import { ScriptHexagon } from "./ScriptHexagon";
 
 const EDGE_GRAB_PX = 10;
 const DRAG_THRESHOLD_PX = 3;
@@ -253,7 +254,7 @@ export function BlockView({
     block.kind === "cloze" ||
     block.kind === "quiz" ||
     block.kind === "list";
-  const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "language" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files";
+  const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "language" || block.kind === "script" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files";
   // Only an image or video has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
   // given, so unlike image/video it keeps the full edge+corner handle set below instead of being
@@ -723,6 +724,8 @@ function BlockContent({
           <span aria-hidden>▾</span>
         </div>
       );
+    case "script":
+      return <ScriptHexagon />;
     case "code":
       return <CodeView block={block} editable={selected} onCommit={(code) => onUpdate?.({ code })} />;
     case "tex":

@@ -70,5 +70,7 @@ export function blockSummary(block: Block, content: WeftModule, labels: Record<s
       return `${block.files.length} Dateien${block.protection ? ", geschützt" : ""}`;
     case "language":
       return "Sprachumschalter";
+    case "script":
+      return `Logikblock: ${(block.code.split("\n").find((line) => line.trim() !== "" && !line.trim().startsWith("//")) ?? "").trim().slice(0, 50)}`;
   }
 }

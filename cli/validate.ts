@@ -58,6 +58,7 @@ const KIND_DEFINITIONS: Record<string, string> = {
   arrow: "ArrowBlock",
   files: "FilesBlock",
   list: "ListBlock",
+  script: "ScriptBlock",
 };
 
 function describe(error: ErrorObject): string {
@@ -202,6 +203,7 @@ export function eventLabel(page: Page, node: TimelineNode, content: WeftModule, 
     "video-resume": "Video läuft weiter",
     "video-end-loop": "Video (Schleife)",
     "video-end-stop": "Video zu Ende",
+    "script-run": "Logikblock läuft",
   };
   return `${names[node.eventType ?? ""] ?? node.eventType ?? node.id}${what}`;
 }

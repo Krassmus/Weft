@@ -1,6 +1,7 @@
 import { orderedValues } from "../document/ordering";
 import { buildEventGraph } from "../eventGraph/buildEventGraph";
 import { branchPageIds, sequenceOf } from "../document/sequence";
+import { pageLabels } from "../document/pageLabels";
 import type { WeftModule } from "../types";
 
 function withoutOrder<T extends { order: string }>(item: T): Omit<T, "order"> {
@@ -22,6 +23,8 @@ function mapValues<T, R>(record: Record<string, T>, fn: (value: T) => R): Record
 export function toRuntimeModule(module: WeftModule): unknown {
   return {
     ...module,
+    // The names the slides go by in the editor ("3", "2.a.1" - see pageLabels), for a logic block's jump("2.a.1").
+    pageLabels: pageLabels(module),
     sequence: sequenceOf(module).map(withoutOrder),
     layouts: mapValues(module.layouts, (layout) => ({ ...layout, blocks: orderedValues(layout.blocks).map(withoutOrder) })),
     pages: mapValues(module.pages, (page) => {

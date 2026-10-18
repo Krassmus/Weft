@@ -1301,6 +1301,11 @@ function VideoStopPointDialog({
           </div>
         </div>
 
+        <div className="weft-format-row weft-stop-point-actions">
+          <button type="button" className="weft-primary-button" onClick={addStopPointHere}>
+            {tr("ui.create_time_mark")}
+          </button>
+        </div>
         {selectedStopPoint && (
           <div className="weft-stop-point-settings">
             <p className="weft-stop-point-settings-title">{tr("ui.time_mark_at")} {formatTimeMMSS(selectedStopPoint.timeSeconds)}</p>
@@ -1318,11 +1323,6 @@ function VideoStopPointDialog({
             </button>
           </div>
         )}
-        <div className="weft-format-row weft-stop-point-actions">
-          <button type="button" className="weft-primary-button" onClick={addStopPointHere}>
-            {tr("ui.create_time_mark")}
-          </button>
-        </div>
       </div>
     </div>,
     document.body,

@@ -1054,7 +1054,7 @@ img.weft-thumb-block {
    below the mini-timeline once a marker's been clicked, rather than every stop point showing its
    own inline controls at once. */
 .weft-stop-point-settings {
-  margin-top: 20px;
+  margin-top: 16px;
   padding: 10px 12px;
   background: var(--weft-panel);
   border: 1px solid var(--weft-border);

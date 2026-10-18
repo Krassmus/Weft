@@ -5,6 +5,7 @@ import { useDocumentStore } from "../../core/document/store";
 import { pickScreenColor, screenColorRoute } from "../../core/colors/screenColor";
 import type { ScreenColorRoute } from "../../core/colors/screenColor";
 import { tr } from "../../core/i18n/tr";
+import { ColorWheel } from "./ColorWheel";
 
 /** "#rrggbb" from what was typed: with or without the "#", three or six digits - or null. */
 function parseHex(text: string): string | null {
@@ -119,7 +120,10 @@ export function ColorField({
     const height = popoverRef.current.offsetHeight;
     const left = Math.max(MARGIN, Math.min(anchor.left, window.innerWidth - POPOVER_WIDTH - MARGIN));
     const below = anchor.bottom + GAP;
-    const top = below + height + MARGIN > window.innerHeight ? Math.max(MARGIN, anchor.top - GAP - height) : below;
+    const above = anchor.top - GAP - height;
+    // Below the swatch if it fits, else above, else (a tall panel in a low window) as far down as the window allows.
+    const top =
+      below + height + MARGIN <= window.innerHeight ? below : above >= MARGIN ? above : Math.max(MARGIN, window.innerHeight - height - MARGIN);
     setPosition({ left, top });
   }, [open, palette.length]);
 
@@ -208,6 +212,14 @@ export function ColorField({
                 ))}
               </div>
             )}
+            <ColorWheel
+              value={nativeShown ?? value}
+              onLive={pushNative}
+              onDone={() => {
+                flushNative();
+                setNativeShown(null);
+              }}
+            />
             <input
               className="weft-color-hex"
               type="text"
@@ -217,7 +229,7 @@ export function ColorField({
               placeholder="#rrggbb"
               aria-label={tr("ui.hex_colour_value")}
               title={tr("ui.hex_colour_value")}
-              value={draft ?? hex}
+              value={draft ?? (nativeShown ?? hex)}
               onChange={(e) => {
                 setDraft(e.target.value);
                 // A complete value counts right away (shorthand like "abc" only when the field is left: "abcdef" may follow).

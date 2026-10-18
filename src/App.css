@@ -4978,6 +4978,8 @@ button.weft-timeline-node-icon.is-red:hover,
 }
 
 .weft-color-popover {
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
   position: fixed;
   z-index: 2000;
   display: flex;
@@ -5356,4 +5358,50 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   flex: 1;
   height: 0;
   border-top: 2px dashed color-mix(in srgb, var(--weft-accent) 70%, transparent);
+}
+
+/* The free colour picker of the colour field: a hue ring and a triangle of saturation and brightness (ColorWheel.tsx). */
+.weft-color-wheel {
+  position: relative;
+  align-self: center;
+  flex: none;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.weft-color-wheel-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 90deg,
+    hsl(0 100% 50%),
+    hsl(60 100% 50%),
+    hsl(120 100% 50%),
+    hsl(180 100% 50%),
+    hsl(240 100% 50%),
+    hsl(300 100% 50%),
+    hsl(360 100% 50%)
+  );
+  -webkit-mask-image: radial-gradient(circle, transparent calc(var(--ring) - 0.5px), #000 calc(var(--ring) + 0.5px));
+  mask-image: radial-gradient(circle, transparent calc(var(--ring) - 0.5px), #000 calc(var(--ring) + 0.5px));
+}
+
+.weft-color-wheel-triangle {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.weft-color-wheel-handle {
+  position: absolute;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
 }

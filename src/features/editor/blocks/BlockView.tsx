@@ -1100,16 +1100,22 @@ function ListBlockCanvas({
         // Everything from the caret on goes into the new item.
         const range = selection.getRangeAt(0);
         range.deleteContents();
+        // (Before the tail is taken out: that moves the caret.)
+        const caretFormatting = formattingAtCaret(api.el, range);
         const tail = document.createRange();
         tail.setStart(range.startContainer, range.startOffset);
         tail.setEnd(api.el, api.el.childNodes.length);
         const rest = document.createElement("div");
         rest.appendChild(tail.extractContents());
         const beforeHtml = api.el.innerHTML;
-        const afterHtml = rest.innerHTML;
+        let afterHtml = rest.innerHTML;
         api.setHtml(beforeHtml);
         const newId = createId();
-        pendingFocus.current = { itemId: newId, where: "start" };
+        // Nothing after the caret (Enter at the end of the item): the new one carries on with the formatting the caret had - its size,
+        // bold, colour ... - as in any editor (see formattingAtCaret).
+        const carried = hasVisibleContent(rest) ? null : caretFormatting;
+        if (carried) afterHtml = carried;
+        pendingFocus.current = { itemId: newId, where: carried ? { offset: CARET_PLACEHOLDER.length } : "start" };
         onUpdate?.(listSplitPatch(block, item.id, newId, lang, defaultLang, beforeHtml, afterHtml));
         return;
       }
@@ -1264,6 +1270,52 @@ function IframeFrame({ block }: { block: IframeBlock }) {
  * whole block, but a QuizBlock has several side by side (the question, each option) - richText.ts
  * itself doesn't care, since "the active editable" is just whichever instance last got focus.
  */
+/** The (invisible) character a new list item starts with after Enter at the end of an item: it gives the caret a place inside the formatting
+ * of the item before (an empty <span> could not hold it). It is not kept: see withoutCaretPlaceholder. */
+const CARET_PLACEHOLDER = "\u200b";
+
+/** Whether `container` holds anything to see - text (the placeholder above is none), a picture or a line break. */
+function hasVisibleContent(container: HTMLElement): boolean {
+  return (container.textContent ?? "").replace(/\u200b/g, "").trim().length > 0 || container.querySelector("img,br") !== null;
+}
+
+/**
+ * The html of a new list item that starts with the formatting at `range` (the caret): the elements around it up to `root` - size, bold,
+ * colour, ... - kept without their content, with the placeholder inside. Null if the caret has no formatting around it.
+ */
+function formattingAtCaret(root: HTMLElement, range: Range): string | null {
+  const chain: HTMLElement[] = [];
+  // A caret between elements (not in a text) takes the formatting of what is before it.
+  let start: Node = range.startContainer;
+  if (start.nodeType === Node.ELEMENT_NODE && range.startOffset > 0) {
+    start = start.childNodes[range.startOffset - 1];
+    while (start.lastChild && start.lastChild.nodeType === Node.ELEMENT_NODE) start = start.lastChild;
+  }
+  for (let node: Node | null = start; node && node !== root; node = node.parentNode) {
+    if (node instanceof HTMLElement) chain.unshift(node);
+  }
+  if (chain.length === 0) return null;
+  const outer = chain[0].cloneNode(false) as HTMLElement;
+  let inner = outer;
+  for (const element of chain.slice(1)) {
+    const copy = element.cloneNode(false) as HTMLElement;
+    inner.appendChild(copy);
+    inner = copy;
+  }
+  inner.appendChild(document.createTextNode(CARET_PLACEHOLDER));
+  const holder = document.createElement("div");
+  holder.appendChild(outer);
+  return holder.innerHTML;
+}
+
+/** The text of a list item as it is kept: without the placeholder - and an item with nothing in it but formatting is simply empty. */
+function withoutCaretPlaceholder(html: string): string {
+  if (!html.includes(CARET_PLACEHOLDER)) return html;
+  const holder = document.createElement("div");
+  holder.innerHTML = html.replace(/\u200b/g, "");
+  return hasVisibleContent(holder) ? holder.innerHTML : "";
+}
+
 function EditableRichText({
   className,
   html,
@@ -1344,8 +1396,10 @@ function EditableRichText({
     // out without typing, would commit identical content as a spurious extra undo step - which
     // then falls in front of the real edit being undone, making Undo look like it did nothing.
     // (What a picture behind letters is shown by in this session is not stored with the text.)
-    const stored = storeableHtml(nextHtml, ref.current);
-    if (stored === lastKnownHtml.current) return;
+    // (The placeholder a new list item starts with is not kept - when it is still there, that is a change to store as well.)
+    const raw = storeableHtml(nextHtml, ref.current);
+    const stored = withoutCaretPlaceholder(raw);
+    if (stored === raw && raw === lastKnownHtml.current) return;
     lastKnownHtml.current = stored;
     onCommit(stored);
   }

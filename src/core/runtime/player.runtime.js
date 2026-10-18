@@ -2843,6 +2843,80 @@
     return wrap;
   }
 
+  // When each event of the page happens at the earliest, counted as [presses of Weiter, milliseconds after the last of them] - from the
+  // triggers of the page's graph (setUpGraph). Events that nothing leads to from the start of the page (they wait for a quiz, say) have none.
+  function eventTimes() {
+    var best = { start: [0, 0] };
+    var queue = ["start"];
+    var steps = 0;
+    while (queue.length > 0 && steps++ < 5000) {
+      var id = queue.shift();
+      var at = best[id];
+      (outgoingTriggers[id] || []).forEach(function (trigger) {
+        var delay = trigger.delayMs || 0;
+        var time = trigger.weiter ? [at[0] + 1, delay] : [at[0], at[1] + delay];
+        var known = best[trigger.to];
+        if (!known || time[0] < known[0] || (time[0] === known[0] && time[1] < known[1])) {
+          best[trigger.to] = time;
+          queue.push(trigger.to);
+        }
+      });
+    }
+    return best;
+  }
+
+  /**
+   * The order the blocks of a page are put into the document in - the order a screen reader reads them and the Tab key goes through them.
+   * Their place on the slide decides: row by row from the top, within a row from left to right (blocks belong to a row when their centre
+   * lies in the height of the first block of it - a tall picture on the left with two texts beside it is one row). The blocks that
+   * appear one after the other (an Aufbau after a press of Weiter or a delay) keep the order of their appearance among themselves: they take
+   * the places that the sorting by position gave to them, in that order - what is there from the start stays where it is.
+   * `items`: { block, wrap, stack } of the blocks of the stage; a logic block (nothing to see) comes last.
+   */
+  function readingOrder(items) {
+    var visible = items.filter(function (item) {
+      return item.block.kind !== "script" && item.block.position;
+    });
+    var hidden = items.filter(function (item) {
+      return visible.indexOf(item) === -1;
+    });
+    var byTop = visible.slice().sort(function (a, b) {
+      return a.block.position.y - b.block.position.y || a.block.position.x - b.block.position.x;
+    });
+    var rows = [];
+    byTop.forEach(function (item) {
+      var p = item.block.position;
+      var middle = p.y + p.height / 2;
+      var row = rows.length > 0 ? rows[rows.length - 1] : null;
+      if (row && middle >= row.top && middle <= row.bottom) row.items.push(item);
+      else rows.push({ top: p.y, bottom: p.y + p.height, items: [item] });
+    });
+    var ordered = [];
+    rows.forEach(function (row) {
+      row.items.sort(function (a, b) {
+        return a.block.position.x - b.block.position.x || a.block.position.y - b.block.position.y;
+      });
+      ordered = ordered.concat(row.items);
+    });
+    // The ones that appear later, in the order they appear.
+    var times = eventTimes();
+    var slots = [];
+    var built = [];
+    ordered.forEach(function (item, index) {
+      var time = item.fromLayout ? null : times[blockEffectEventId(item.block.id, "entrance")];
+      if (!time || (time[0] === 0 && time[1] === 0)) return;
+      slots.push(index);
+      built.push({ item: item, time: time, index: index });
+    });
+    built.sort(function (a, b) {
+      return a.time[0] - b.time[0] || a.time[1] - b.time[1] || a.index - b.index;
+    });
+    built.forEach(function (entry, n) {
+      ordered[slots[n]] = entry.item;
+    });
+    return ordered.concat(hidden);
+  }
+
   function renderStage(pageId) {
     // A fresh graph for a fresh page (see setUpGraph): what is still on its way for the page that was showing is dropped. In
     // particular every page's own Weiter-build progress restarts from the top on a fresh render of it - including navigating
@@ -2853,6 +2927,9 @@
     setUpGraph(page);
     var stage = el("div", { class: "weft-stage", style: stageStyle() }, []);
     var layout = page.layoutId ? module.layouts[page.layoutId] : null;
+    // Every block of the stage with its place in the stacking order (the layout's blocks lie under the page's own): the blocks are put
+    // into the page in reading order (see readingOrder), and the stacking is kept by z-index.
+    var stageItems = [];
     // Layout blocks are marked so a "content only" Move can leave them standing while the page's own
     // blocks slide (see animateTransition).
     if (layout) {
@@ -2861,10 +2938,16 @@
         if (b.kind === "placeholder") return;
         var layoutBlock = renderBlock(b, page);
         layoutBlock.classList.add("weft-block-from-layout");
-        stage.appendChild(layoutBlock);
+        stageItems.push({ block: b, wrap: layoutBlock, stack: stageItems.length, fromLayout: true });
       });
     }
-    page.blocks.forEach(function (b) { stage.appendChild(renderBlock(b, page)); });
+    page.blocks.forEach(function (b) {
+      stageItems.push({ block: b, wrap: renderBlock(b, page), stack: stageItems.length, fromLayout: false });
+    });
+    readingOrder(stageItems).forEach(function (item) {
+      item.wrap.style.zIndex = String(item.stack + 1);
+      stage.appendChild(item.wrap);
+    });
     // Every block's own actions are registered synchronously above, by the time renderBlock returns for it - so the start of
     // the page happens here, still before this stage is even returned to be appended to the DOM; what it triggers arrives
     // right after (see deliver), when the blocks are on the page.

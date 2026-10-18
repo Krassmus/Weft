@@ -1359,7 +1359,7 @@ function VideoStopPointDialog({
           />
         )}
 
-        <div className="weft-stop-point-controls">
+        <div className={"weft-stop-point-controls" + (isAudio ? " has-wave" : "")}>
           <button
             type="button"
             className="weft-stop-point-play"

@@ -1014,7 +1014,7 @@ img.weft-thumb-block {
   flex: 1;
   min-width: 0;
   height: 26px;
-  margin: 16px 13px 4px;
+  margin: var(--stop-point-line, 16px) 13px 4px;
   border-top: 1px solid var(--weft-border);
   cursor: pointer;
 }
@@ -5494,6 +5494,8 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 /* Play/pause, the timeline and the volume in one row under the video (VideoStopPointDialog): the line of the timeline is 16px below its
    top, so the buttons are set to the same height. */
 .weft-stop-point-controls {
+  /* How far down the line of the timeline is: the play button and the volume are on it. */
+  --stop-point-line: 16px;
   display: flex;
   align-items: flex-start;
   gap: 4px;
@@ -5507,7 +5509,7 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   place-items: center;
   width: 28px;
   height: 28px;
-  margin-top: 2px;
+  margin-top: calc(var(--stop-point-line, 16px) - 14px);
   padding: 0;
   border: 0;
   border-radius: var(--weft-radius-sm);
@@ -5532,7 +5534,11 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   align-items: center;
   gap: 2px;
   height: 32px;
-  margin-top: 0;
+  margin-top: calc(var(--stop-point-line, 16px) - 16px);
+}
+
+.weft-stop-point-volume .weft-stop-point-mute {
+  margin-top: 2px;
 }
 
 .weft-stop-point-volume input[type="range"] {
@@ -5668,8 +5674,8 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 
 /* The schematic waveform of a sound over the timeline of the time marks dialog (panels/Waveform.tsx): bars standing on the line; the part
    that has played has the colour of the line. A click on it goes there like one on the line. */
-.weft-stop-point-track.has-wave {
-  margin-top: 58px;
+.weft-stop-point-controls.has-wave {
+  --stop-point-line: 78px;
 }
 
 .weft-stop-point-wave {
@@ -5678,7 +5684,8 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   bottom: 100%;
   left: 0;
   height: 40px;
-  margin-bottom: 4px;
+  /* Over the marks (they stand on the line and reach up some 12px). */
+  margin-bottom: 22px;
 }
 
 .weft-stop-point-wave svg {

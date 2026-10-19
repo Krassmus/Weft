@@ -505,8 +505,14 @@ function TextEditor({
   // tied to the reflected value forces a fresh DOM input (and fresh cursor) only when the
   // selection actually moved to different formatting, never while the user is still typing here.
   const fontSizeKey = snapshot.fontSizePx === "mixed" ? "mixed" : String(snapshot.fontSizePx ?? "");
-  // (The field is made anew when the size changes - see above - so after Enter the focus is given to the new one.)
+  // The size field stays the same element (its focus must survive a change of the size, or a second arrow key press would find nothing to
+  // work on): it is told the size when the selection moves on, unless a number is being typed into it.
   const sizeInputRef = useRef<HTMLInputElement>(null);
+  const sizeTyping = useRef(false);
+  useEffect(() => {
+    const field = sizeInputRef.current;
+    if (field && !sizeTyping.current) field.value = fontSizeKey === "mixed" ? "" : fontSizeKey;
+  }, [fontSizeKey]);
   const fontGroups: FontSelectGroup[] = [
     { options: [{ value: DEFAULT_FONT_FAMILY, label: DEFAULT_FONT_FAMILY, previewFamily: DEFAULT_FONT_FAMILY }] },
     ...(customFonts.length > 0
@@ -624,7 +630,6 @@ function TextEditor({
                 −
               </button>
               <input
-                key={fontSizeKey}
                 ref={sizeInputRef}
                 type="number"
                 min={MIN_FONT_SIZE_PX}
@@ -633,18 +638,40 @@ function TextEditor({
                 placeholder={snapshot.fontSizePx === "mixed" ? tr("ui.mixed") : "24"}
                 // A size that was typed is applied when Enter is pressed or the field is left. (When it is left: a frame later - the
                 // text needs the focus for the change, and Safari does not hand it over in the middle of the focus moving on.)
+                onInput={() => {
+                  sizeTyping.current = true;
+                }}
                 onKeyDown={(e) => {
-                  if (e.key !== "Enter") return;
-                  e.preventDefault();
-                  commitTypedFontSize(e.currentTarget.value);
-                  requestAnimationFrame(() => {
-                    sizeInputRef.current?.focus({ preventScroll: true });
-                    sizeInputRef.current?.select();
-                  });
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    sizeTyping.current = false;
+                    commitTypedFontSize(e.currentTarget.value);
+                    e.currentTarget.select();
+                  } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                    // ↑/↓ change the size by one (ten with Shift) and apply it at once, to see what it looks like. (Typing does not apply
+                    // anything until Enter or leaving the field: a 12 that becomes a 14 is for a moment a 1.)
+                    e.preventDefault();
+                    const typed = Number(e.currentTarget.value);
+                    const base = e.currentTarget.value.trim() !== "" && Number.isFinite(typed) ? typed : typeof snapshot.fontSizePx === "number" ? snapshot.fontSizePx : 16;
+                    const step = (e.key === "ArrowUp" ? 1 : -1) * (e.shiftKey ? 10 : 1);
+                    const next = Math.min(MAX_FONT_SIZE_PX, Math.max(MIN_FONT_SIZE_PX, Math.round(base) + step));
+                    sizeTyping.current = false;
+                    e.currentTarget.value = String(next);
+                    applyFontSize(next);
+                    e.currentTarget.select();
+                  }
                 }}
                 onBlur={(e) => {
                   const typed = e.currentTarget.value;
-                  window.setTimeout(() => commitTypedFontSize(typed), 0);
+                  sizeTyping.current = false;
+                  // (A frame later: the text needs the focus for the change, and Safari does not hand it over in the middle of the focus
+                  // moving on. Then the field shows the size the text has.)
+                  window.setTimeout(() => {
+                    commitTypedFontSize(typed);
+                    const field = sizeInputRef.current;
+                    const size = useFormatSnapshot.getState().fontSizePx;
+                    if (field && document.activeElement !== field) field.value = size === "mixed" || size === null ? "" : String(size);
+                  }, 0);
                 }}
               />
               <button

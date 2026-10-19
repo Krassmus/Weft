@@ -253,37 +253,67 @@ function useStageZoom() {
   const pendingAnchorRef = useRef<{ clientX: number; clientY: number; fracX: number; fracY: number } | null>(null);
   const zoomRef = useRef(1);
   type ZoomAnchor = { clientX: number; clientY: number; fracX: number; fracY: number };
-  // While a gesture runs the zoom is set straight on the stage (its --zoom property, once per picture) and the scroll position corrected
-  // at once; the state - and with it the render of every block of the slide, which is what made it slow - follows when the gesture rests.
-  const wantedRef = useRef<{ zoom: number; anchor: ZoomAnchor | null } | null>(null);
+  // A trackpad pinch only scales the slide's box with a CSS transform (the compositor scales what is already painted - no layout, no new
+  // painting of every shadow, picture and text at every size); when the gesture rests, the zoom is set for real (--zoom on the stage), the
+  // transform taken off and the scroll position corrected so that the part under the cursor stays there. A pinch of two fingers on a
+  // tablet (`live`) sets the zoom for real at once, once per picture: there the point between the fingers moves too.
+  const wantedRef = useRef<{ zoom: number; anchor: ZoomAnchor | null; live: boolean } | null>(null);
   const frameRef = useRef<number | null>(null);
   const commitTimerRef = useRef<number | null>(null);
+  const gestureRef = useRef<{ zoom: number; anchor: ZoomAnchor } | null>(null); // the transform that is on the box
   if (frameRef.current === null && commitTimerRef.current === null) zoomRef.current = zoom;
 
-  function zoomTo(next: number, anchor: ZoomAnchor | null) {
-    wantedRef.current = { zoom: next, anchor };
+  function commitZoom() {
+    commitTimerRef.current = null;
+    const wrap = wrapRef.current;
+    const box = zoomBoxRef.current;
+    const gesture = gestureRef.current;
+    gestureRef.current = null;
+    if (gesture && box) {
+      box.style.transform = "";
+      box.style.transformOrigin = "";
+      box.style.willChange = "";
+      zoomRef.current = gesture.zoom;
+      wrap?.style.setProperty("--zoom", String(gesture.zoom));
+      pendingAnchorRef.current = gesture.anchor;
+      applyAnchor();
+    }
+    setZoom(zoomRef.current);
+  }
+
+  function zoomTo(next: number, anchor: ZoomAnchor | null, live = false) {
+    wantedRef.current = { zoom: next, anchor, live };
     if (frameRef.current !== null) return;
     frameRef.current = requestAnimationFrame(() => {
       frameRef.current = null;
       const wanted = wantedRef.current;
       wantedRef.current = null;
       const wrap = wrapRef.current;
-      if (!wanted || !wrap) return;
-      if (wanted.zoom !== zoomRef.current) {
-        zoomRef.current = wanted.zoom;
-        wrap.style.setProperty("--zoom", String(wanted.zoom));
+      const box = zoomBoxRef.current;
+      if (!wanted || !wrap || !box) return;
+      if (wanted.live) {
+        if (wanted.zoom !== zoomRef.current) {
+          zoomRef.current = wanted.zoom;
+          wrap.style.setProperty("--zoom", String(wanted.zoom));
+        }
+        pendingAnchorRef.current = wanted.anchor;
+        applyAnchor();
+      } else if (wanted.anchor) {
+        // The point that stays: where the gesture began.
+        const anchor = gestureRef.current?.anchor ?? wanted.anchor;
+        if (!gestureRef.current) {
+          box.style.transformOrigin = `${anchor.fracX * 100}% ${anchor.fracY * 100}%`;
+          box.style.willChange = "transform";
+        }
+        gestureRef.current = { zoom: wanted.zoom, anchor };
+        box.style.transform = `scale(${wanted.zoom / zoomRef.current})`;
       }
-      pendingAnchorRef.current = wanted.anchor;
-      applyAnchor();
       if (commitTimerRef.current !== null) window.clearTimeout(commitTimerRef.current);
-      commitTimerRef.current = window.setTimeout(() => {
-        commitTimerRef.current = null;
-        setZoom(zoomRef.current);
-      }, 120);
+      commitTimerRef.current = window.setTimeout(commitZoom, 120);
     });
   }
   // The zoom a gesture event builds on: the one asked for last, not yet shown.
-  const currentZoom = () => wantedRef.current?.zoom ?? zoomRef.current;
+  const currentZoom = () => wantedRef.current?.zoom ?? gestureRef.current?.zoom ?? zoomRef.current;
 
   // Pinching with two fingers.
   useEffect(() => {
@@ -327,7 +357,7 @@ function useStageZoom() {
       e.stopPropagation();
       const [a, b] = pair;
       const nextZoom = clamp((pinch.startZoom * Math.hypot(a.x - b.x, a.y - b.y)) / pinch.startDistance, ZOOM_MIN, ZOOM_MAX);
-      zoomTo(nextZoom, { clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2, fracX: pinch.fracX, fracY: pinch.fracY }); // also pans when the fingers only move
+      zoomTo(nextZoom, { clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2, fracX: pinch.fracX, fracY: pinch.fracY }, true); // also pans when the fingers only move
     }
 
     function onUp(e: PointerEvent) {

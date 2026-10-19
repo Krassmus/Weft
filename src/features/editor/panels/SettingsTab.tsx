@@ -20,10 +20,11 @@ import {
   setModuleTitle,
 } from "../../../core/document/actions";
 import { useDocumentStore } from "../../../core/document/store";
-import { setLanguages } from "../../../core/document/actions";
+import { clearCoverImage, setCoverImage, setLanguages } from "../../../core/document/actions";
+import { useAssetStore } from "../../../core/assets/assetStore";
 import { buildLanguageCatalog, flagForLocale, languageName } from "../../../core/i18n/languages";
 import { useTranslation } from "../../../core/i18n/useTranslation";
-import { confirmDestructive, pickFontFile } from "../../../core/io/fileIO";
+import { confirmDestructive, pickFontFile, pickImageFile, showWarning } from "../../../core/io/fileIO";
 import { useAssetTransfers } from "../../../core/collab/assetSync";
 import { COMPACT_KEEP_BYTES, COMPACT_OFFER_BYTES, compactHistory, historyStats } from "../../../core/collab/compact";
 import type { HistoryStats } from "../../../core/collab/compact";
@@ -281,6 +282,41 @@ function LanguagesField() {
  * the custom fields are showing is local UI state, not part of the document: a ratio that happens
  * to equal a preset is then still editable as a custom one (typing 16 and 9 doesn't make the
  * fields vanish), and reopening the settings simply shows a preset by its name again. */
+/** The cover picture of the module: shown here, chosen and taken away (see WeftModule.coverAssetId). */
+function CoverField() {
+  const coverAssetId = useDocumentStore((s) => s.doc.content.coverAssetId);
+  const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
+  const url = coverAssetId ? getObjectUrl(coverAssetId) : undefined;
+  return (
+    <div className="weft-field">
+      <span>{tr("ui.cover_image")}</span>
+      {url && <img className="weft-cover-preview" src={url} alt={tr("ui.cover_alt")} />}
+      <button
+        type="button"
+        className="weft-ghost-button weft-full-width"
+        onClick={() => {
+          void pickImageFile().then(async (file) => {
+            if (!file) return;
+            try {
+              await setCoverImage(file);
+            } catch {
+              void showWarning(tr("ui.cover_failed"), tr("ui.cover_image"));
+            }
+          });
+        }}
+      >
+        {url ? tr("ui.cover_replace") : tr("ui.cover_choose")}
+      </button>
+      {url && (
+        <button type="button" className="weft-ghost-button weft-full-width" onClick={() => clearCoverImage()}>
+          {tr("ui.cover_remove")}
+        </button>
+      )}
+      <p className="weft-hint">{tr("ui.cover_hint")}</p>
+    </div>
+  );
+}
+
 function AspectRatioField() {
   const aspectRatio = useDocumentStore((s) => s.doc.content.aspectRatio);
   const [customMode, setCustomMode] = useState(!isPresetAspectRatio(aspectRatio));
@@ -675,6 +711,8 @@ export function SettingsTab() {
       </label>
 
       <AspectRatioField />
+
+      <CoverField />
 
       <div className="weft-divider" />
 

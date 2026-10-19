@@ -940,6 +940,10 @@ export interface WeftModule {
    * entry's own `order` (see ordering.ts's orderedValues, and sequenceOf in document/sequence.ts). */
   sequence: Record<UUID, SequenceEntry>;
   assets: AssetMeta[];
+  /** The cover picture that stands for the module (the start screen's tiles, ...): the id of an asset (a PNG - the upload is turned into one).
+   * In a saved or exported file it is the file `logo.png` at the top (not in assets/), see packDocument. Without one the file gets a picture of
+   * the first slide there instead (core/io/coverImage.ts). */
+  coverAssetId?: UUID;
   customFonts: CustomFont[];
   /** The module's colour scheme: colours that come up again and again, managed under the module's settings and offered in every
    * colour picker (features/editor/ColorField.tsx). Missing in modules saved before this existed - read it as empty. A block that

@@ -3,6 +3,27 @@ import type { Layout, Page } from "../types";
 import { blockEffectNodeId } from "./pageTimeline";
 import { orderedValues } from "./ordering";
 
+/** When each event of the page happens at the earliest, counted as [presses of Weiter, milliseconds after the last of them] - from its event graph.
+ * What nothing leads to from the start of the page (it waits for a quiz, say) has no entry. */
+export function eventTimes(page: Page, layout: Layout | null | undefined): Map<string, [number, number]> {
+  const graph = buildEventGraph(page, layout ?? null);
+  const best = new Map<string, [number, number]>([["start", [0, 0]]]);
+  const queue = ["start"];
+  for (let steps = 0; queue.length > 0 && steps < 5000; steps++) {
+    const id = queue.shift() as string;
+    const at = best.get(id) as [number, number];
+    for (const trigger of graph.triggers.filter((t) => t.from === id)) {
+      const time: [number, number] = trigger.weiter ? [at[0] + 1, trigger.delayMs] : [at[0], at[1] + trigger.delayMs];
+      const known = best.get(trigger.to);
+      if (!known || time[0] < known[0] || (time[0] === known[0] && time[1] < known[1])) {
+        best.set(trigger.to, time);
+        queue.push(trigger.to);
+      }
+    }
+  }
+  return best;
+}
+
 /**
  * The order a page's own blocks are read in (and gone through with Tab in the editor): by their place on the slide, row by row from the
  * top and left to right within a row; the blocks that appear one after another (an Aufbau after a press of Weiter or a delay) keep the
@@ -21,22 +42,7 @@ export function pageReadingOrder(page: Page, layout: Layout | null | undefined):
   }
   const ordered = rows.flatMap((row) => [...row.items].sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y));
 
-  // When each event happens at the earliest: [presses of Weiter, milliseconds after the last of them].
-  const graph = buildEventGraph(page, layout ?? null);
-  const best = new Map<string, [number, number]>([["start", [0, 0]]]);
-  const queue = ["start"];
-  for (let steps = 0; queue.length > 0 && steps < 5000; steps++) {
-    const id = queue.shift() as string;
-    const at = best.get(id) as [number, number];
-    for (const trigger of graph.triggers.filter((t) => t.from === id)) {
-      const time: [number, number] = trigger.weiter ? [at[0] + 1, trigger.delayMs] : [at[0], at[1] + trigger.delayMs];
-      const known = best.get(trigger.to);
-      if (!known || time[0] < known[0] || (time[0] === known[0] && time[1] < known[1])) {
-        best.set(trigger.to, time);
-        queue.push(trigger.to);
-      }
-    }
-  }
+  const best = eventTimes(page, layout);
   const slots: number[] = [];
   const built: { id: string; time: [number, number]; index: number }[] = [];
   ordered.forEach((block, index) => {

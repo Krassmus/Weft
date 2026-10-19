@@ -5,6 +5,7 @@ import { useAssetStore } from "../assets/assetStore";
 import { Automerge } from "../collab/automerge";
 import { currentHandle, useDocumentStore } from "../document/store";
 import { usedAssetIds } from "../document/usedAssets";
+import { coverLogoBytes, LOGO_FILE } from "./coverImage";
 import { buildInlineFontFaceCss } from "../runtime/buildInlineFontFaceCss";
 import { buildRuntimeHtml } from "../runtime/buildRuntimeHtml";
 
@@ -142,7 +143,14 @@ export async function packDocument(doc: WeftDocument, options: { forExport?: boo
   };
 
   const blobs = useAssetStore.getState().blobs;
+  // The cover picture is the file logo.png at the top, not one of the assets - the picture of the first slide if the module has no cover (not in
+  // a player file: it is only there to be played).
+  if (!options.playerOnly) {
+    const logo = await coverLogoBytes(content, { fresh: !!options.forExport });
+    if (logo) files[LOGO_FILE] = [logo, { level: 0 }];
+  }
   for (const meta of usedAssets) {
+    if (meta.id === content.coverAssetId) continue;
     const blob = blobs.get(meta.id);
     if (!blob) continue;
     const bytes = new Uint8Array(await blob.arrayBuffer());

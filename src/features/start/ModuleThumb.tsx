@@ -7,7 +7,10 @@ import type { ModuleSummary } from "./moduleSummary";
 export function ModuleThumb({ summary }: { summary: ModuleSummary | null | undefined }) {
   return (
     <div className="weft-start-thumb" aria-hidden="true">
-      {summary?.html ? (
+      {summary?.coverUrl ? (
+        // The cover picture of the file (its logo.png).
+        <img className="weft-start-thumb-frame" src={summary.coverUrl} alt="" draggable={false} style={{ aspectRatio: String(summary.aspect) }} />
+      ) : summary?.html ? (
         <iframe
           className="weft-start-thumb-frame"
           title={summary.title}

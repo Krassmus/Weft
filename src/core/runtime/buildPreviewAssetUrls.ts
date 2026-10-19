@@ -23,6 +23,8 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
 export async function buildPreviewAssetUrls(module: WeftModule): Promise<Record<string, string>> {
   const blobs = useAssetStore.getState().blobs;
   const usedIds = usedAssetIds(module);
+  // (The cover picture is not shown by any slide.)
+  if (module.coverAssetId) usedIds.delete(module.coverAssetId);
   const entries = await Promise.all(
     module.assets
       .filter((meta) => usedIds.has(meta.id))

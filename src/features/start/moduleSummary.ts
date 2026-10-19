@@ -2,6 +2,7 @@ import { strFromU8, unzipSync } from "fflate";
 import { aspectRatioNumeric } from "../../core/aspectRatio";
 import { blobToDataUrl } from "../../core/runtime/buildPreviewAssetUrls";
 import type { AspectRatio } from "../../core/types";
+import { LOGO_FILE } from "../../core/io/coverImage";
 
 /** What a tile of the start screen shows of a module: its name and its first slide - read from the file without opening it. */
 export interface ModuleSummary {
@@ -11,6 +12,8 @@ export interface ModuleSummary {
   /** The module's own page, set to show its first slide as a picture (nothing moves, nothing plays) - for an iframe's `srcDoc`. Null when
    * the file has no page to show. */
   html: string | null;
+  /** The cover picture of the file (its logo.png) as a data: address - when it has one: that is what a tile shows then. */
+  coverUrl: string | null;
 }
 
 const DATA_TAG = /<script id="weft-data" type="application\/json">([\s\S]*?)<\/script>/;
@@ -23,10 +26,12 @@ const IMAGE_EXTENSION = /\.(png|jpe?g|gif|webp|svg|avif)$/i;
 
 export async function summarizeModule(bytes: Uint8Array): Promise<ModuleSummary> {
   const files = unzipSync(bytes, {
-    filter: (file) => file.name === "index.html" || (file.name.startsWith("assets/") && IMAGE_EXTENSION.test(file.name) && file.originalSize <= MAX_IMAGE_BYTES),
+    filter: (file) => file.name === "index.html" || file.name === LOGO_FILE || (file.name.startsWith("assets/") && IMAGE_EXTENSION.test(file.name) && file.originalSize <= MAX_IMAGE_BYTES),
   });
+  const logo = files[LOGO_FILE];
+  const coverUrl = logo ? await blobToDataUrl(new Blob([logo as BlobPart], { type: "image/png" })) : null;
   const page = files["index.html"];
-  if (!page) return { title: "", aspect: 16 / 9, html: null };
+  if (!page) return { title: "", aspect: 16 / 9, html: null, coverUrl };
   let html = strFromU8(page);
 
   const data = DATA_TAG.exec(html);
@@ -53,5 +58,5 @@ export async function summarizeModule(bytes: Uint8Array): Promise<ModuleSummary>
   } catch {
     // keep 16:9
   }
-  return { title: module.title ?? "", aspect, html };
+  return { title: module.title ?? "", aspect, html, coverUrl };
 }

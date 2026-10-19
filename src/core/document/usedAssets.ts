@@ -36,6 +36,7 @@ function assetIdsOfPlain(block: Block | StaticBlock): string[] {
  */
 export function usedAssetIds(module: WeftModule): Set<string> {
   const ids = new Set<string>();
+  if (module.coverAssetId) ids.add(module.coverAssetId);
   for (const page of Object.values(module.pages)) {
     for (const block of Object.values(page.blocks)) {
       for (const id of assetIdsOf(block)) ids.add(id);

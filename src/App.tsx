@@ -7,6 +7,7 @@ import { AudienceView } from "./features/presenter/AudienceView";
 import { StatusLiveRegion } from "./features/editor/StatusLiveRegion";
 import { useResolvedLanguage } from "./core/i18n/languageStore";
 import "./core/accessibility/accessibilityStore";
+import "./features/editor/coverSnapshot";
 import "./fonts.css";
 import "./App.css";
 

@@ -5955,3 +5955,12 @@ h2.weft-inspector-header {
   outline: 3px solid var(--weft-focus-ring);
   outline-offset: 2px;
 }
+
+/* The cover picture in the module's settings (CoverField in panels/SettingsTab.tsx). */
+.weft-cover-preview {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: #fff;
+}

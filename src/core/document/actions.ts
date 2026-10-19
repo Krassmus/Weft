@@ -33,6 +33,7 @@ import { assignPatch, plain, removeWhere } from "./plain";
 import { applyPlaceholderStyle, plainParagraphs } from "./placeholders";
 import { branchPageIds, sequenceOf } from "./sequence";
 import { planSlideMove } from "./slideMoves";
+import { imageToPng, LOGO_FILE } from "../io/coverImage";
 import type { SlideMove, SlideMoveKind } from "./slideMoves";
 import { DEFAULT_TRANSITION_DURATION_MS } from "./transitions";
 import { defaultLanguageOf, rotateDefaultLanguage } from "./translations";
@@ -91,6 +92,24 @@ function emptyJumpPage(): Page {
 export function setModuleTitle(title: string) {
   edit("Titel ändern", (m) => {
     m.title = title;
+  });
+}
+
+/** The cover picture of the module (see WeftModule.coverAssetId): any picture, kept as a PNG. */
+export async function setCoverImage(file: File): Promise<void> {
+  const png = await imageToPng(file);
+  const assetId = createId();
+  useAssetStore.getState().setAsset(assetId, png);
+  edit("Titelbild setzen", (m) => {
+    m.assets.push({ id: assetId, fileName: LOGO_FILE, mimeType: "image/png" });
+    m.coverAssetId = assetId;
+  });
+}
+
+/** Takes the cover picture away: the module then has a picture of its first slide. */
+export function clearCoverImage() {
+  edit("Titelbild entfernen", (m) => {
+    delete m.coverAssetId;
   });
 }
 

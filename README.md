@@ -11,8 +11,10 @@ reines Präsentationstool.
   Tauri packt sie für Desktop (macOS/Windows/Linux) *und* für iOS/iPadOS/Android in
   native Shells, ohne den Code zu duplizieren.
 - **Speicherformat = Exportformat.** Ein Lernmodul ist immer ein ZIP-Archiv mit
-  `weft.json` (das komplette Dokument inkl. Undo-Historie) und `index.html` (ein
-  eigenständiger, abhängigkeitsfreier Player). "Speichern" und "Als HTML-Modul
+  `weft.json` (das komplette Dokument inkl. Undo-Historie), `index.html` (ein
+  eigenständiger, abhängigkeitsfreier Player) und `logo.png` (das Titelbild des Moduls;
+  ohne hochgeladenes Bild ein Bild der ersten Folie, wenn alles Automatische gelaufen ist
+  und noch nichts geklickt wurde). "Speichern" und "Als HTML-Modul
   exportieren" rufen denselben Pack-Code auf (`src/core/io/pack.ts`) – nur die
   Dateiendung unterscheidet sich (`.weft` bzw. `.zip`).
 - **Sandboxed iframe, konsequent.** Die editorinterne Vorschau rendert nicht etwa eine

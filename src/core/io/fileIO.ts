@@ -341,6 +341,28 @@ function fontMimeType(fileName: string): string {
  * opened. Going through the same open()/readFile() pair openDocument() already uses sidesteps
  * that restriction entirely, since it's a Tauri IPC call rather than a DOM click at all.
  */
+/** Lets the user pick a picture (for the cover image of a module). */
+export async function pickImageFile(): Promise<File | null> {
+  if (isTauri()) {
+    const path = await open({
+      title: tr("ui.cover_image"),
+      multiple: false,
+      filters: [{ name: tr("ui.image"), extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "avif"] }],
+    });
+    if (!path || Array.isArray(path)) return null;
+    const bytes = await readFile(path);
+    const fileName = path.split(/[\\/]/).pop() ?? "bild";
+    return new File([bytes as BlobPart], fileName, { type: guessMimeType(fileName) });
+  }
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = () => resolve(input.files?.[0] ?? null);
+    input.click();
+  });
+}
+
 export async function pickFontFile(): Promise<File | null> {
   if (isTauri()) {
     const path = await open({

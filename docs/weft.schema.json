@@ -2555,6 +2555,10 @@
           },
           "type": "array"
         },
+        "coverAssetId": {
+          "$ref": "#/definitions/UUID",
+          "description": "The cover picture that stands for the module (the start screen's tiles, ...): the id of an asset (a PNG - the upload is turned into one). In a saved or exported file it is the file `logo.png` at the top (not in assets/), see packDocument. Without one the file gets a picture of the first slide there instead (core/io/coverImage.ts)."
+        },
         "createdAt": {
           "type": "string"
         },

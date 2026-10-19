@@ -18,7 +18,7 @@ const RENDER_WIDTH_PX = 1280;
 const RENDER_SCALE = 1.5;
 const JPEG_QUALITY = 0.9;
 
-function blobToDataUrl(blob: Blob): Promise<string> {
+export function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
@@ -40,7 +40,7 @@ export function pagesInPlayingOrder(content: WeftModule): string[] {
   return ids.filter((id) => content.pages[id] && !content.pages[id].jump);
 }
 
-function blocksOf(content: WeftModule, pageId: string): Block[] {
+export function blocksOf(content: WeftModule, pageId: string): Block[] {
   const page = content.pages[pageId];
   const layout = page.layoutId ? content.layouts[page.layoutId] : undefined;
   return [...orderedValues(layout?.blocks ?? {}), ...orderedValues(page.blocks)];
@@ -54,7 +54,7 @@ const nextFrame = () =>
   });
 
 /** Everything a drawn slide waits for before it can be photographed: its images, and a video's first picture. */
-async function whenSettled(container: HTMLElement): Promise<void> {
+export async function whenSettled(container: HTMLElement): Promise<void> {
   await Promise.all(
     Array.from(container.querySelectorAll("img")).map((img) => (img.complete ? Promise.resolve() : img.decode().catch(() => undefined))),
   );

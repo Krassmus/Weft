@@ -9,6 +9,7 @@ import { legacyPageToTimeline } from "./legacyEventGraph";
 import type { LegacyPage } from "./legacyEventGraph";
 import { orderedIdRecord, orderedRecord, orderedRecordBy } from "../document/ordering";
 import { ensureBuiltinVariables } from "../document/variables";
+import { LOGO_FILE } from "./coverImage";
 import { assetZipPath, COLLAB_FILE, customFontZipPath, encryptedScriptPath, HISTORY_FILE } from "./pack";
 import { tr } from "../i18n/tr";
 
@@ -335,7 +336,7 @@ function readHistory(bytes: Uint8Array | undefined, marker: { id: string; modifi
 /** Puts the binary assets (images, videos, fonts) the archive carries for `content` into the asset
  * store. unpackDocument does this itself; a merge (collab/merge.ts) does it only once it has
  * succeeded, for what the merged module references. */
-export function importArchiveAssets(zipBytes: Uint8Array, content: Pick<WeftModule, "assets" | "customFonts">): void {
+export function importArchiveAssets(zipBytes: Uint8Array, content: Pick<WeftModule, "assets" | "customFonts" | "coverAssetId">): void {
   importAssets(unzipSync(zipBytes), content);
 }
 
@@ -350,10 +351,11 @@ export function bytesOfEncryptedScript(script: Uint8Array | undefined): Uint8Arr
   return bytes;
 }
 
-function importAssets(files: Record<string, Uint8Array>, content: Pick<WeftModule, "assets" | "customFonts">): void {
+function importAssets(files: Record<string, Uint8Array>, content: Pick<WeftModule, "assets" | "customFonts" | "coverAssetId">): void {
   const setAsset = useAssetStore.getState().setAsset;
   for (const meta of content.assets) {
-    const bytes = files[assetZipPath(meta.id, meta.fileName)] ?? bytesOfEncryptedScript(files[encryptedScriptPath(meta.id, meta.fileName)]);
+    // (The cover picture is the file logo.png - see packDocument.)
+    const bytes = (meta.id === content.coverAssetId ? files[LOGO_FILE] : undefined) ?? files[assetZipPath(meta.id, meta.fileName)] ?? bytesOfEncryptedScript(files[encryptedScriptPath(meta.id, meta.fileName)]);
     if (bytes) setAsset(meta.id, new Blob([bytes as BlobPart], { type: meta.mimeType }));
   }
   for (const font of content.customFonts) {

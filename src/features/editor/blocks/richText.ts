@@ -303,6 +303,19 @@ export function registerActiveEditable(entry: ActiveEditor | null, onlyIfActive?
  * set back afterwards. When the text is being edited it just runs.
  */
 function withWholeSelection(change: () => void) {
+  // A change made from a control of the sidebar (or of a dialog about the text) must leave the keyboard focus on that control: the text is
+  // given the focus for a moment (execCommand needs it there) and the control gets it back - else every key press in the sidebar would
+  // throw the person out of it, and the next one would first have to find the control again.
+  const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const fromControl = !!before && !!before.closest(".weft-inspector, .weft-modal, [data-weft-format-control]");
+  try {
+    runWholeSelection(change);
+  } finally {
+    if (fromControl && before && before.isConnected && document.activeElement !== before) before.focus({ preventScroll: true });
+  }
+}
+
+function runWholeSelection(change: () => void) {
   if (!active || !active.whole) {
     change();
     return;

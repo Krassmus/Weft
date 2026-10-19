@@ -1,5 +1,5 @@
 import { presenceColor, useBlockViewers } from "../../../core/collab/presence";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { createPortal } from "react-dom";
 import type { CSSProperties, MutableRefObject, PointerEvent as ReactPointerEvent } from "react";
@@ -91,15 +91,23 @@ const RESIZE_CURSORS: Record<HandleId, string> = {
  * them. Each handler's mere presence (not `locked`, already checked before either menu opens)
  * decides whether its item appears - see BlockViewProps.onBringToFront's own doc comment for when
  * a block has none of these at all. */
+/** The one-level steps of a block's stacking order (Cmd/Ctrl+] and +[), handed down from BlockView to the canvases of the blocks that
+ * make their own context menu (a quiz, a list). */
+const StackStepsContext = createContext<{ forward?: () => void; backward?: () => void }>({});
+const MOD = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
+
 function layerMenuItems(
   onBringToFront: (() => void) | undefined,
   onSendToBack: (() => void) | undefined,
   onDelete: (() => void) | undefined,
   deleteLabel = tr("ui.delete"),
+  steps: { forward?: () => void; backward?: () => void } = {},
 ): ContextMenuItem[] {
   const items: ContextMenuItem[] = [];
-  if (onBringToFront) items.push({ label: tr("ui.bring_to_front"), onClick: onBringToFront });
-  if (onSendToBack) items.push({ label: tr("ui.send_to_back"), onClick: onSendToBack });
+  if (steps.forward) items.push({ label: tr("ui.bring_forward"), hint: MOD + "]", onClick: steps.forward });
+  if (steps.backward) items.push({ label: tr("ui.send_backward"), hint: MOD + "[", onClick: steps.backward });
+  if (onBringToFront) items.push({ label: tr("ui.bring_to_front"), hint: MOD + "⇧]", onClick: onBringToFront });
+  if (onSendToBack) items.push({ label: tr("ui.send_to_back"), hint: MOD + "⇧[", onClick: onSendToBack });
   if (onDelete) {
     if (items.length > 0) items.push({ separator: true });
     items.push({ label: deleteLabel, danger: true, onClick: onDelete });
@@ -133,6 +141,9 @@ interface BlockViewProps {
    * onDelete already uses for "not removable from here". */
   onBringToFront?: () => void;
   onSendToBack?: () => void;
+  /** One level forward / back in the stacking order (same conditions as the two above). */
+  onBringForward?: () => void;
+  onSendBackward?: () => void;
   /** Every other block sharing this slide (page blocks plus the layout blocks showing through
    * underneath, or the other blocks in the same layout when editing a layout directly) - the
    * candidate edges/centers a move-drag can snap to. See handlePointerDownMove. */
@@ -194,6 +205,8 @@ export function BlockView({
   onDelete,
   onBringToFront,
   onSendToBack,
+  onBringForward,
+  onSendBackward,
   siblingPositions = [],
   livePositionOverride,
   groupSelected,
@@ -520,6 +533,7 @@ export function BlockView({
     );
 
   return (
+    <StackStepsContext.Provider value={{ forward: onBringForward, backward: onSendBackward }}>
     <>
       <div
         ref={wrapRef}
@@ -569,7 +583,7 @@ export function BlockView({
           // should open the menu against that WHOLE selection, not first collapse it down to just
           // this one block the way a plain onSelect would.
           if (!isPartOfCurrentSelection) onSelect?.();
-          const layerItems = layerMenuItems(onBringToFront, onSendToBack, onDelete);
+          const layerItems = layerMenuItems(onBringToFront, onSendToBack, onDelete, tr("ui.delete"), { forward: onBringForward, backward: onSendBackward });
           const items =
             extraMenuItems && extraMenuItems.length > 0
               ? layerItems.length > 0
@@ -664,6 +678,7 @@ export function BlockView({
       {guides}
       <ContextMenu menu={contextMenu.menu} onClose={contextMenu.close} />
     </>
+    </StackStepsContext.Provider>
   );
 }
 
@@ -872,7 +887,7 @@ function QuizBlockCanvas({
   // remove) instead of letting the click bubble up to BlockView's generic "Löschen"/layer-order
   // one - so those have to be offered here too, tacked onto both of this component's own menus, or
   // a quiz block would have no on-canvas way to remove or reorder itself at all.
-  const layerItems = layerMenuItems(onBringToFront, onSendToBack, onDelete, tr("ui.delete_object"));
+  const layerItems = layerMenuItems(onBringToFront, onSendToBack, onDelete, tr("ui.delete_object"), useContext(StackStepsContext));
   const deleteBlockItems: ContextMenuItem[] = layerItems.length > 0 ? [{ separator: true }, ...layerItems] : [];
 
   function addOption() {
@@ -1024,7 +1039,7 @@ function ListBlockCanvas({
 }) {
   const contextMenu = useContextMenu();
   const { lang, defaultLang } = useEditingLanguage();
-  const layerItems = layerMenuItems(onBringToFront, onSendToBack, onDelete, tr("ui.delete_object"));
+  const layerItems = layerMenuItems(onBringToFront, onSendToBack, onDelete, tr("ui.delete_object"), useContext(StackStepsContext));
   const deleteBlockItems: ContextMenuItem[] = layerItems.length > 0 ? [{ separator: true }, ...layerItems] : [];
 
   function addItem() {

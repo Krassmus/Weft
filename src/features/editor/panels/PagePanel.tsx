@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { reorderBlock, removeBlock, removeGroup, setPageNotes } from "../../../core/document/actions";
+import { moveBlockOneStep, reorderBlock, removeBlock, removeGroup, setPageNotes } from "../../../core/document/actions";
+import { announceStatus } from "../../../core/accessibility/statusAnnouncer";
 import { confirmDestructive } from "../../../core/io/fileIO";
 import { useDocumentStore } from "../../../core/document/store";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
@@ -34,6 +35,18 @@ function PresenterNotes({ page }: { page: Page }) {
       }}
     />
   );
+}
+
+/** Alt+↑/↓ on a row of the element list: the element one level toward the front / the back (the list is the stacking order turned around: the
+ * top row is the front). The focus stays on the row, which may have been made anew. */
+function onElementRowKeyDown(event: React.KeyboardEvent<HTMLElement>, pageId: string, blockId: string) {
+  if (!event.altKey || event.metaKey || event.ctrlKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
+  event.preventDefault();
+  event.nativeEvent.stopPropagation();
+  const forward = event.key === "ArrowUp";
+  if (!moveBlockOneStep({ kind: "page", pageId }, blockId, forward ? "forward" : "back")) return;
+  announceStatus(tr(forward ? "ui.status_forward" : "ui.status_backward"));
+  requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-block-row="${CSS.escape(blockId)}"]`)?.focus({ preventScroll: true }));
 }
 
 export function PagePanel({ page }: { page: Page }) {
@@ -110,6 +123,8 @@ export function PagePanel({ page }: { page: Page }) {
                             type="button"
                             className={isMemberActive ? "is-active" : ""}
                             onClick={() => select({ type: "block", container: { kind: "page", pageId: page.id }, blockId: memberId })}
+                            onKeyDown={(e) => onElementRowKeyDown(e, page.id, memberId)}
+                            data-block-row={memberId}
                             {...listHoverProps([memberId])}
                           >
                             <BlockKindIcon kind={memberBlock.kind} size={16} />
@@ -150,6 +165,8 @@ export function PagePanel({ page }: { page: Page }) {
                       : "") + dragClassName
                   }
                   onClick={() => select({ type: "block", container: { kind: "page", pageId: page.id }, blockId: block.id })}
+                  onKeyDown={(e) => onElementRowKeyDown(e, page.id, block.id)}
+                  data-block-row={block.id}
                   {...listHoverProps([block.id])}
                   {...dragAttrs}
                 >

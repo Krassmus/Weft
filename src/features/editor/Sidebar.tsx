@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { MouseEvent as ReactMouseEvent } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import {
   addBranch,
   addJumpToBranch,
@@ -9,7 +9,9 @@ import {
   addPageToBranch,
   addPageToSequence,
   movePageTo,
+  moveLogicBlockStep,
   moveSequenceNode,
+  moveSlide,
   removePageFromBranch,
   removeSequenceNodeAt,
 } from "../../core/document/actions";
@@ -17,8 +19,11 @@ import type { PageContainerRef } from "../../core/document/actions";
 import { editedLayoutId, useDocumentStore } from "../../core/document/store";
 import { useTranslation } from "../../core/i18n/useTranslation";
 import type { LogicBlock, Page } from "../../core/types";
-import { ContextMenu, useContextMenu } from "./ContextMenu";
-import type { ContextMenuItem } from "./ContextMenu";
+import { ContextMenu, contextMenuEventAt, isContextMenuKey, useContextMenu } from "./ContextMenu";
+import type { ContextMenuEvent, ContextMenuItem } from "./ContextMenu";
+import { planSlideMove } from "../../core/document/slideMoves";
+import type { SlideMove, SlideMoveKind } from "../../core/document/slideMoves";
+import { announceStatus } from "../../core/accessibility/statusAnnouncer";
 import { SettingsTab } from "./panels/SettingsTab";
 import { VariablesTab } from "./panels/VariablesTab";
 import { SlideThumbnail } from "./SlideThumbnail";
@@ -34,6 +39,92 @@ import { branchPageIds, sequenceOf } from "../../core/document/sequence";
 import { tr } from "../../core/i18n/tr";
 
 type DragBind = ReturnType<typeof useDragReorder>["bind"];
+
+// ---- The keyboard in the slide list ------------------------------------------------------------------------------------------------
+// With the focus on a slide of the list: ↑/↓ go to the previous/next one (and select it), Alt+arrow keys move it (see planSlideMove), and the
+// Menu key or Shift+F10 opens its context menu. All of it only while the focus is on the list - a click on the slide in the work area, or in
+// a text, has taken the focus away from it, and then the arrow keys do what they do there: move the element that is selected.
+
+const ALT = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌥" : "Alt+";
+const MOVE_KEYS: Record<string, SlideMove> = { ArrowUp: "up", ArrowDown: "down", ArrowRight: "in", ArrowLeft: "out" };
+const MOVE_ARROWS: Record<SlideMove, string> = { up: "↑", down: "↓", in: "→", out: "←" };
+const MOVE_LABELS: Record<SlideMoveKind, "ui.slide_move_up" | "ui.slide_move_down" | "ui.slide_move_into" | "ui.slide_move_next_branch" | "ui.slide_move_previous_branch" | "ui.slide_move_leave_after" | "ui.slide_move_leave_before"> = {
+  up: "ui.slide_move_up",
+  down: "ui.slide_move_down",
+  "into-branching": "ui.slide_move_into",
+  "next-branch": "ui.slide_move_next_branch",
+  "previous-branch": "ui.slide_move_previous_branch",
+  "leave-after": "ui.slide_move_leave_after",
+  "leave-before": "ui.slide_move_leave_before",
+};
+
+/** Moves a slide one step, tells a screen reader where it is now, and keeps the focus on it (its row may have been made anew). */
+function runSlideMove(pageId: string, move: SlideMove): boolean {
+  if (!moveSlide(pageId, move)) return false;
+  const label = pageLabels(useDocumentStore.getState().doc.content)[pageId] ?? "";
+  announceStatus(tr("ui.status_slide_moved", { label }));
+  requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-page-id="${CSS.escape(pageId)}"]`)?.focus({ preventScroll: true }));
+  return true;
+}
+
+function runLogicBlockMove(logicBlockId: string, by: -1 | 1): boolean {
+  if (!moveLogicBlockStep(logicBlockId, by)) return false;
+  const index = sequenceOf(useDocumentStore.getState().doc.content).findIndex((node) => node.kind === "logic" && node.logicBlockId === logicBlockId);
+  announceStatus(tr("ui.status_branching_moved", { n: index + 1 }));
+  requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-logic-id="${CSS.escape(logicBlockId)}"]`)?.focus({ preventScroll: true }));
+  return true;
+}
+
+/** The entries of a slide's context menu for its moves (only the ones it can make), with the keys that do the same. */
+function slideMoveMenuItems(pageId: string): ContextMenuItem[] {
+  const content = useDocumentStore.getState().doc.content;
+  const items: ContextMenuItem[] = [];
+  for (const move of ["up", "down", "in", "out"] as SlideMove[]) {
+    const plan = planSlideMove(content, pageId, move);
+    if (plan) items.push({ label: tr(MOVE_LABELS[plan.kind]), hint: ALT + MOVE_ARROWS[move], onClick: () => void runSlideMove(pageId, move) });
+  }
+  return items;
+}
+
+/** `items` with a separator in front of them - or nothing, when there are none. */
+function withSeparator(items: ContextMenuItem[]): ContextMenuItem[] {
+  return items.length > 0 ? [{ separator: true }, ...items] : [];
+}
+
+/** The keys of one row of the slide list (a slide, or the heading of a branching). */
+function onSlideRowKeyDown(
+  event: ReactKeyboardEvent<HTMLElement>,
+  row: { kind: "page"; pageId: string } | { kind: "logic"; logicBlockId: string },
+  openMenu: () => void,
+) {
+  if (isContextMenuKey(event)) {
+    event.preventDefault();
+    event.stopPropagation();
+    openMenu();
+    return;
+  }
+  if (event.metaKey || event.ctrlKey) return;
+  const move = MOVE_KEYS[event.key];
+  if (!move) return;
+  if (event.altKey) {
+    event.preventDefault();
+    event.nativeEvent.stopPropagation();
+    if (row.kind === "page") runSlideMove(row.pageId, move);
+    else if (move === "up" || move === "down") runLogicBlockMove(row.logicBlockId, move === "up" ? -1 : 1);
+    return;
+  }
+  if ((move === "up" || move === "down") && !event.shiftKey) {
+    // ↑/↓: to the neighbouring row, which is selected like with a click.
+    const rows = Array.from(event.currentTarget.closest(".weft-sequence")?.querySelectorAll<HTMLElement>("button.weft-node-page, button.weft-node-logic") ?? []);
+    const next = rows[rows.indexOf(event.currentTarget) + (move === "up" ? -1 : 1)];
+    event.preventDefault();
+    event.nativeEvent.stopPropagation();
+    if (next) {
+      next.focus();
+      next.click();
+    }
+  }
+}
 
 function firstLayoutId(): string | null {
   const layouts = useDocumentStore.getState().doc.content.layouts;
@@ -366,6 +457,7 @@ function SequenceTree({ openMenu, bind }: { openMenu: ReturnType<typeof useConte
                   { label: tr("ui.insert_slide_below"), onClick: () => addPageToSequence(index, firstLayoutId()) },
                   { label: tr("ui.insert_jump_slide_below"), onClick: () => addJumpToSequence(index) },
                   { label: tr("ui.insert_logic_block_below"), onClick: () => addLogicBlockToSequence(index, firstLayoutId()) },
+                  ...withSeparator(slideMoveMenuItems(node.pageId)),
                   { separator: true },
                   { label: tr("ui.delete"), danger: true, onClick: () => removeSequenceNodeAt(index) },
                 ])
@@ -386,6 +478,10 @@ function SequenceTree({ openMenu, bind }: { openMenu: ReturnType<typeof useConte
                   { label: tr("ui.insert_jump_slide_below"), onClick: () => addJumpToSequence(index) },
                   { label: tr("ui.insert_logic_block_below"), onClick: () => addLogicBlockToSequence(index, firstLayoutId()) },
                   { label: tr("ui.add_branch"), onClick: () => addBranch(node.logicBlockId, firstLayoutId()) },
+                  ...withSeparator([
+                    ...(index > 0 ? [{ label: tr("ui.slide_move_up"), hint: ALT + "↑", onClick: () => void runLogicBlockMove(node.logicBlockId, -1) }] : []),
+                    ...(index < sequence.length - 1 ? [{ label: tr("ui.slide_move_down"), hint: ALT + "↓", onClick: () => void runLogicBlockMove(node.logicBlockId, 1) }] : []),
+                  ]),
                   { separator: true },
                   { label: tr("ui.delete"), danger: true, onClick: () => removeSequenceNodeAt(index) },
                 ])
@@ -412,7 +508,7 @@ function PageRow({
   active: boolean;
   isCurrent?: boolean;
   onSelect: () => void;
-  onContextMenu: (e: ReactMouseEvent) => void;
+  onContextMenu: (e: ContextMenuEvent) => void;
   dragProps: ReturnType<DragBind>;
 }) {
   const page = useDocumentStore((s) => s.doc.content.pages[pageId]);
@@ -434,6 +530,7 @@ function PageRow({
       }
       onClick={onSelect}
       onContextMenu={onContextMenu}
+      onKeyDown={(e) => onSlideRowKeyDown(e, { kind: "page", pageId }, () => onContextMenu(contextMenuEventAt(e.currentTarget)))}
       data-page-id={pageId}
       {...dragAttrs}
     >
@@ -459,7 +556,7 @@ function JumpRow({
   active: boolean;
   isCurrent?: boolean;
   onSelect: () => void;
-  onContextMenu: (e: ReactMouseEvent) => void;
+  onContextMenu: (e: ContextMenuEvent) => void;
   dragClassName: string;
   dragAttrs: Omit<ReturnType<DragBind>, "dragClassName">;
 }) {
@@ -475,6 +572,7 @@ function JumpRow({
       className={"weft-node weft-node-page weft-node-jump" + (active ? " is-active" : isCurrent ? " is-current" : "") + dragClassName}
       onClick={onSelect}
       onContextMenu={onContextMenu}
+      onKeyDown={(e) => onSlideRowKeyDown(e, { kind: "page", pageId: page.id }, () => onContextMenu(contextMenuEventAt(e.currentTarget)))}
       data-page-id={page.id}
       {...dragAttrs}
     >
@@ -500,7 +598,7 @@ function LogicBlockRow({
   index: number;
   active: boolean;
   onSelect: () => void;
-  onContextMenu: (e: ReactMouseEvent) => void;
+  onContextMenu: (e: ContextMenuEvent) => void;
   openMenu: ReturnType<typeof useContextMenu>["open"];
   bind: DragBind;
   dragProps: ReturnType<DragBind>;
@@ -523,6 +621,8 @@ function LogicBlockRow({
         className={"weft-node weft-node-logic" + (active ? " is-active" : "") + dragClassName}
         onClick={onSelect}
         onContextMenu={onContextMenu}
+        onKeyDown={(e) => onSlideRowKeyDown(e, { kind: "logic", logicBlockId: logicBlock.id }, () => onContextMenu(contextMenuEventAt(e.currentTarget)))}
+        data-logic-id={logicBlock.id}
         {...dragAttrs}
       >
         <span className="weft-node-index weft-node-index-logic">⥂</span>
@@ -567,6 +667,7 @@ function LogicBlockRow({
                         onClick: () => addPageToBranch(logicBlock.id, branch.id, firstLayoutId()),
                       },
                       { label: tr("ui.add_jump_slide_to_branch"), onClick: () => addJumpToBranch(logicBlock.id, branch.id) },
+                      ...withSeparator(slideMoveMenuItems(pageId)),
                       { separator: true },
                       {
                         label: tr("ui.delete"),

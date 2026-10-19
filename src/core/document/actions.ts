@@ -31,7 +31,9 @@ import { insertOrdered, moveOrdered, moveOrderedRun, orderedIdRecord, orderedKey
 import { findChain, reorderedLinks } from "../eventGraph/chains";
 import { assignPatch, plain, removeWhere } from "./plain";
 import { applyPlaceholderStyle, plainParagraphs } from "./placeholders";
-import { branchPageIds } from "./sequence";
+import { branchPageIds, sequenceOf } from "./sequence";
+import { planSlideMove } from "./slideMoves";
+import type { SlideMove, SlideMoveKind } from "./slideMoves";
 import { DEFAULT_TRANSITION_DURATION_MS } from "./transitions";
 import { defaultLanguageOf, rotateDefaultLanguage } from "./translations";
 import { defaultInitialValue, isBooleanVariable } from "./variables";
@@ -555,6 +557,24 @@ export function movePageTo(pageId: string, target: PageContainerRef, toIndex: nu
       else if (targetBranch) insertOrdered(targetBranch.pages, pageId, {}, toIndex);
     }
   });
+}
+
+/** One keyboard step of a slide (see planSlideMove): returns what it did, or null when it could go nowhere. */
+export function moveSlide(pageId: string, move: SlideMove): SlideMoveKind | null {
+  const plan = planSlideMove(useDocumentStore.getState().doc.content, pageId, move);
+  if (!plan) return null;
+  movePageTo(pageId, plan.container, plan.index);
+  return plan.kind;
+}
+
+/** One place up or down for an entry of the main sequence that is a logic block (the keyboard's step in the slide list): its branches go with it. */
+export function moveLogicBlockStep(logicBlockId: string, by: -1 | 1): boolean {
+  const content = useDocumentStore.getState().doc.content;
+  const index = sequenceOf(content).findIndex((node) => node.kind === "logic" && node.logicBlockId === logicBlockId);
+  const target = index + by;
+  if (index === -1 || target < 0 || target >= Object.keys(content.sequence).length) return false;
+  moveSequenceNode(index, target);
+  return true;
 }
 
 // ---- Blocks ----------------------------------------------------------------
@@ -1189,6 +1209,27 @@ export function reorderBlock(container: BlockContainerRef, blockId: string, toIn
     const blocks = blockRecord(m, container);
     if (blocks) moveOrdered(blocks, blockId, toIndex);
   });
+}
+
+/** Whether the block is a member of a group (the members of a group stand next to each other in the stacking order: one of them is not moved alone). */
+export function isBlockGrouped(container: BlockContainerRef, blockId: string): boolean {
+  if (container.kind !== "page") return false;
+  const page = useDocumentStore.getState().doc.content.pages[container.pageId];
+  return !!page?.groups.some((group) => group.blockIds.includes(blockId));
+}
+
+/** One level toward the front ("forward") or the back of the stacking order: the step of Cmd/Ctrl+] and +[. Returns false at the end. */
+export function moveBlockOneStep(container: BlockContainerRef, blockId: string, direction: "forward" | "back"): boolean {
+  const content = useDocumentStore.getState().doc.content;
+  if (isBlockGrouped(container, blockId)) return false;
+  const blocks = container.kind === "page" ? content.pages[container.pageId]?.blocks : content.layouts[container.layoutId]?.blocks;
+  if (!blocks) return false;
+  const keys = orderedKeys(blocks);
+  const index = keys.indexOf(blockId);
+  const target = direction === "forward" ? index + 1 : index - 1;
+  if (index === -1 || target < 0 || target >= keys.length) return false;
+  reorderBlock(container, blockId, target);
+  return true;
 }
 
 /** "Ganz nach vorne" in a block's right-click menu (see BlockView.tsx) - moves it to the very end

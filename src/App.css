@@ -936,7 +936,10 @@ img.weft-thumb-block {
 }
 
 .weft-context-menu-item {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
   width: 100%;
   text-align: left;
   padding: 7px 10px;
@@ -948,8 +951,17 @@ img.weft-thumb-block {
   cursor: pointer;
 }
 
-.weft-context-menu-item:hover {
+.weft-context-menu-item:hover,
+.weft-context-menu-item:focus {
   background: var(--weft-accent-soft);
+  outline: none;
+}
+
+/* The key that does the same, next to the entry. */
+.weft-context-menu-hint {
+  color: var(--weft-text-muted);
+  font-size: 11.5px;
+  white-space: nowrap;
 }
 
 .weft-context-menu-item.is-danger {

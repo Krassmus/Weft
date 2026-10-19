@@ -10,6 +10,8 @@ import {
   addVideoBlockToLayout,
   addVideoBlockToPage,
   bringBlockToFront,
+  isBlockGrouped,
+  moveBlockOneStep,
   bringGroupToFront,
   groupBlocks,
   removeBlock,
@@ -45,6 +47,7 @@ import { orderedValues } from "../../core/document/ordering";
 import { PresenceBar } from "./PresenceBar";
 import { branchPageIds, sequenceOf } from "../../core/document/sequence";
 import { tr } from "../../core/i18n/tr";
+import { announceStatus } from "../../core/accessibility/statusAnnouncer";
 import { AddElementMenu } from "./AddElementMenu";
 import { useListHover } from "./listHover";
 
@@ -163,6 +166,8 @@ function useArrowMove(doc: WeftDocument, selection: ReturnType<typeof useDocumen
     function onKeyDown(e: KeyboardEvent) {
       if (!selection || selection.type !== "block") return;
       if (isEditableTarget(document.activeElement)) return;
+      // With the focus in a side panel (the slide list, the properties) the arrow keys are for that panel, not for the element.
+      if (document.activeElement instanceof HTMLElement && document.activeElement.closest(".weft-sidebar, .weft-inspector")) return;
 
       const dx = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
       const dy = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
@@ -190,6 +195,35 @@ function useArrowMove(doc: WeftDocument, selection: ReturnType<typeof useDocumen
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [doc, selection]);
+}
+
+/**
+ * Cmd/Ctrl+] and +[ move the selected element one level toward the front and the back of the stacking order, with Shift all the way (the
+ * keys other programs use for it). Not while a text is being typed in.
+ */
+function useStackingKeys(selection: ReturnType<typeof useDocumentStore.getState>["selection"]) {
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (!selection || selection.type !== "block" || !(e.metaKey || e.ctrlKey)) return;
+      if (isEditableTarget(document.activeElement)) return;
+      // (With Shift the keys give { and } - and with Alt, on a German keyboard, the brackets themselves.)
+      const forward = e.key === "]" || e.key === "}" || e.code === "BracketRight";
+      const back = e.key === "[" || e.key === "{" || e.code === "BracketLeft";
+      if (!forward && !back) return;
+      e.preventDefault();
+      const { container, blockId } = selection;
+      if (isBlockGrouped(container, blockId)) return;
+      if (e.shiftKey) {
+        if (forward) bringBlockToFront(container, blockId);
+        else sendBlockToBack(container, blockId);
+        announceStatus(tr(forward ? "ui.status_to_front" : "ui.status_to_back"));
+      } else if (moveBlockOneStep(container, blockId, forward ? "forward" : "back")) {
+        announceStatus(tr(forward ? "ui.status_forward" : "ui.status_backward"));
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selection]);
 }
 
 /**
@@ -602,6 +636,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
   const activeMoveIds = activeGroup ? activeGroup.blockIds : activeBlocksIds;
 
   useArrowMove(doc, selection);
+  useStackingKeys(selection);
   const { zoom, resetZoom, wrapRef: stageWrapRef, zoomBoxRef } = useStageZoom();
 
   // The "entered" group stops being meaningful the moment the selection moves to a block in a
@@ -951,6 +986,8 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                   }}
                   onBringToFront={() => bringBlockToFront({ kind: "layout", layoutId: target.layout.id }, block.id)}
                   onSendToBack={() => sendBlockToBack({ kind: "layout", layoutId: target.layout.id }, block.id)}
+                  onBringForward={() => moveBlockOneStep({ kind: "layout", layoutId: target.layout.id }, block.id, "forward")}
+                  onSendBackward={() => moveBlockOneStep({ kind: "layout", layoutId: target.layout.id }, block.id, "back")}
                   siblingPositions={orderedValues(target.layout.blocks).filter((b) => b.id !== block.id).map((b) => b.position)}
                 />
               ))}
@@ -1078,6 +1115,8 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                     onDelete={onDelete}
                     onBringToFront={onBringToFront}
                     onSendToBack={onSendToBack}
+                    onBringForward={partOfActiveGroup && activeGroup ? undefined : () => moveBlockOneStep({ kind: "page", pageId: target.page.id }, block.id, "forward")}
+                    onSendBackward={partOfActiveGroup && activeGroup ? undefined : () => moveBlockOneStep({ kind: "page", pageId: target.page.id }, block.id, "back")}
                     siblingPositions={pageSiblingBlocks.filter((b) => b.id !== block.id).map((b) => b.position)}
                   />
                 );

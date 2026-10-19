@@ -288,11 +288,11 @@ export function BlockView({
     block.kind === "quiz" ||
     block.kind === "list";
   const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "language" || block.kind === "script" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "audio" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files" || block.kind === "revealer";
-  // Only an image or video has a "natural" width/height ratio worth protecting from a stretch -
+  // Only an image, video or revealer (an icon) has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
   // given, so unlike image/video it keeps the full edge+corner handle set below instead of being
   // limited to proportional corner-only resizing.
-  const usesProportionalResize = block.kind === "image" || block.kind === "video";
+  const usesProportionalResize = block.kind === "image" || block.kind === "video" || block.kind === "revealer";
 
   const style: CSSProperties = {
     position: "absolute",

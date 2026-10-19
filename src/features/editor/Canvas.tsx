@@ -252,7 +252,38 @@ function useStageZoom() {
   const zoomBoxRef = useRef<HTMLDivElement>(null);
   const pendingAnchorRef = useRef<{ clientX: number; clientY: number; fracX: number; fracY: number } | null>(null);
   const zoomRef = useRef(1);
-  zoomRef.current = zoom;
+  type ZoomAnchor = { clientX: number; clientY: number; fracX: number; fracY: number };
+  // While a gesture runs the zoom is set straight on the stage (its --zoom property, once per picture) and the scroll position corrected
+  // at once; the state - and with it the render of every block of the slide, which is what made it slow - follows when the gesture rests.
+  const wantedRef = useRef<{ zoom: number; anchor: ZoomAnchor | null } | null>(null);
+  const frameRef = useRef<number | null>(null);
+  const commitTimerRef = useRef<number | null>(null);
+  if (frameRef.current === null && commitTimerRef.current === null) zoomRef.current = zoom;
+
+  function zoomTo(next: number, anchor: ZoomAnchor | null) {
+    wantedRef.current = { zoom: next, anchor };
+    if (frameRef.current !== null) return;
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null;
+      const wanted = wantedRef.current;
+      wantedRef.current = null;
+      const wrap = wrapRef.current;
+      if (!wanted || !wrap) return;
+      if (wanted.zoom !== zoomRef.current) {
+        zoomRef.current = wanted.zoom;
+        wrap.style.setProperty("--zoom", String(wanted.zoom));
+      }
+      pendingAnchorRef.current = wanted.anchor;
+      applyAnchor();
+      if (commitTimerRef.current !== null) window.clearTimeout(commitTimerRef.current);
+      commitTimerRef.current = window.setTimeout(() => {
+        commitTimerRef.current = null;
+        setZoom(zoomRef.current);
+      }, 120);
+    });
+  }
+  // The zoom a gesture event builds on: the one asked for last, not yet shown.
+  const currentZoom = () => wantedRef.current?.zoom ?? zoomRef.current;
 
   // Pinching with two fingers.
   useEffect(() => {
@@ -296,9 +327,7 @@ function useStageZoom() {
       e.stopPropagation();
       const [a, b] = pair;
       const nextZoom = clamp((pinch.startZoom * Math.hypot(a.x - b.x, a.y - b.y)) / pinch.startDistance, ZOOM_MIN, ZOOM_MAX);
-      pendingAnchorRef.current = { clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2, fracX: pinch.fracX, fracY: pinch.fracY };
-      if (nextZoom !== zoomRef.current) setZoom(nextZoom);
-      else applyAnchor(); // no size change: only the fingers moved - pan
+      zoomTo(nextZoom, { clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2, fracX: pinch.fracX, fracY: pinch.fracY }); // also pans when the fingers only move
     }
 
     function onUp(e: PointerEvent) {
@@ -342,11 +371,9 @@ function useStageZoom() {
       if (boxRect.width === 0 || boxRect.height === 0) return;
       const fracX = (e.clientX - boxRect.left) / boxRect.width;
       const fracY = (e.clientY - boxRect.top) / boxRect.height;
-      setZoom((prevZoom) => {
-        const nextZoom = clamp(prevZoom * Math.exp(-e.deltaY * ZOOM_WHEEL_SENSITIVITY), ZOOM_MIN, ZOOM_MAX);
-        if (nextZoom !== prevZoom) pendingAnchorRef.current = { clientX: e.clientX, clientY: e.clientY, fracX, fracY };
-        return nextZoom;
-      });
+      const prevZoom = currentZoom();
+      const nextZoom = clamp(prevZoom * Math.exp(-e.deltaY * ZOOM_WHEEL_SENSITIVITY), ZOOM_MIN, ZOOM_MAX);
+      if (nextZoom !== prevZoom) zoomTo(nextZoom, { clientX: e.clientX, clientY: e.clientY, fracX, fracY });
     }
 
     // WebKit (Safari, the webview of the Mac app) reports a trackpad pinch as gesture events, with the factor since its start in `scale` -
@@ -354,7 +381,7 @@ function useStageZoom() {
     let gestureStartZoom = 1;
     function onGestureStart(e: Event) {
       e.preventDefault();
-      gestureStartZoom = zoomRef.current;
+      gestureStartZoom = currentZoom();
     }
     function onGestureChange(e: Event) {
       e.preventDefault();
@@ -365,11 +392,8 @@ function useStageZoom() {
       if (boxRect.width === 0 || boxRect.height === 0) return;
       const fracX = (clientX - boxRect.left) / boxRect.width;
       const fracY = (clientY - boxRect.top) / boxRect.height;
-      setZoom((prevZoom) => {
-        const nextZoom = clamp(gestureStartZoom * scale, ZOOM_MIN, ZOOM_MAX);
-        if (nextZoom !== prevZoom) pendingAnchorRef.current = { clientX, clientY, fracX, fracY };
-        return nextZoom;
-      });
+      const nextZoom = clamp(gestureStartZoom * scale, ZOOM_MIN, ZOOM_MAX);
+      if (nextZoom !== currentZoom()) zoomTo(nextZoom, { clientX, clientY, fracX, fracY });
     }
 
     wrap.addEventListener("wheel", onWheel, { passive: false });

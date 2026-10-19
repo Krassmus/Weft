@@ -18,7 +18,7 @@ export interface PresenterState {
   buildsTotal: number;
 }
 
-export type PresenterCommand = "weiter" | "prev" | "restart" | "goto" | "blackout";
+export type PresenterCommand = "weiter" | "prev" | "restart" | "goto";
 
 export type PresenterMessage =
   /** Presenter -> audience: do this (the same as Space, ←, a jump to a slide, ...). */

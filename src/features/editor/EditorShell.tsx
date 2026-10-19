@@ -70,6 +70,21 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+/** The slide a selection is on (what "Abspielen" and "Präsentieren" start from), or null: the module's beginning. */
+function startPageIdOf(selection: ReturnType<typeof useDocumentStore.getState>["selection"]): string | null {
+  switch (selection?.type) {
+    case "page":
+    case "group":
+    case "event":
+      return selection.pageId;
+    case "block":
+    case "blocks":
+      return selection.container.kind === "page" ? selection.container.pageId : null;
+    default:
+      return null;
+  }
+}
+
 export function EditorShell() {
   const { t } = useTranslation();
   useSyncMenuLanguage();
@@ -365,8 +380,13 @@ export function EditorShell() {
   const showStartRef = useRef<() => void>(() => {});
   const handleDuplicateRef = useRef<() => void>(() => {});
   const handleOpenRecentRef = useRef<(path: string) => Promise<void> | void>(() => {});
+  // "Abspielen" and "Präsentieren" in the native "Ansicht" menu: on the slide that is selected.
+  const playFromMenuRef = useRef<() => void>(() => {});
+  const presentFromMenuRef = useRef<() => void>(() => {});
   const presentingRef = useRef(presenting);
   presentingRef.current = presenting;
+  const presenterRef = useRef(presenter);
+  presenterRef.current = presenter;
   // "Undo"/"Redo" in the native "Edit" menu (see src-tauri/src/lib.rs, which owns the
   // Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z accelerators) - replacing the platform default Edit menu,
   // whose Undo/Redo instead drove the focused WKWebView's own contentEditable undo stack, out of
@@ -428,6 +448,12 @@ export function EditorShell() {
     const unlistenMerge = listen("weft://menu-merge", () => {
       if (!idle()) useCollabDialog.getState().show("merge");
     });
+    const unlistenPlay = listen("weft://menu-play", () => {
+      if (!idle() && !presenterRef.current) playFromMenuRef.current();
+    });
+    const unlistenPresent = listen("weft://menu-present", () => {
+      if (!idle() && !presenterRef.current) presentFromMenuRef.current();
+    });
     return () => {
       void unlistenSave.then((fn) => fn());
       void unlistenSaveAs.then((fn) => fn());
@@ -441,6 +467,8 @@ export function EditorShell() {
       void unlistenOpenRecent.then((fn) => fn());
       void unlistenJoin.then((fn) => fn());
       void unlistenMerge.then((fn) => fn());
+      void unlistenPlay.then((fn) => fn());
+      void unlistenPresent.then((fn) => fn());
     };
   }, []);
 
@@ -626,6 +654,8 @@ export function EditorShell() {
     }
   }
   handleExportPdfRef.current = handleExportPdf;
+  playFromMenuRef.current = () => handlePresent(startPageIdOf(useDocumentStore.getState().selection));
+  presentFromMenuRef.current = () => setPresenter({ startPageId: startPageIdOf(useDocumentStore.getState().selection) });
 
   // Switching to another module replaces the one that is open: what is saved in its file already (the
   // pending autosave is written first), what is not asks first - a module that was never saved has only
@@ -847,7 +877,7 @@ export function EditorShell() {
       >
         <Sidebar />
         <div className="weft-resizer" onPointerDown={handleResizerPointerDown} title={t("toolbar.resizerTitle")} />
-        <Canvas onPresent={handlePresent} onPresenter={(startPageId) => setPresenter({ startPageId })} />
+        <Canvas onPresent={handlePresent} />
         <div className={"weft-inspector-slot" + (compact ? " is-drawer" : "") + (compact && inspectorOpen ? " is-open" : "")}>
           {compact && (
             <button

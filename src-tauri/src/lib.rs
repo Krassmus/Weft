@@ -85,6 +85,9 @@ struct MenuStrings {
     edit: &'static str,
     undo: &'static str,
     redo: &'static str,
+    view: &'static str,
+    play: &'static str,
+    present: &'static str,
 }
 
 #[cfg(desktop)]
@@ -109,6 +112,9 @@ fn menu_strings(lang: &str) -> MenuStrings {
             edit: "Bearbeiten",
             undo: "Rückgängig",
             redo: "Wiederholen",
+            view: "Ansicht",
+            play: "Abspielen",
+            present: "Präsentieren (mit Moderatoransicht)",
         }
     } else {
         MenuStrings {
@@ -130,6 +136,9 @@ fn menu_strings(lang: &str) -> MenuStrings {
             edit: "Edit",
             undo: "Undo",
             redo: "Redo",
+            view: "View",
+            play: "Play",
+            present: "Present (with Presenter View)",
         }
     }
 }
@@ -182,11 +191,13 @@ fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String], player: boo
 
     let mut file_menu = None;
     let mut edit_menu = None;
+    let mut view_menu = None;
     for item in &items {
         let Some(submenu) = item.as_submenu() else { continue };
         match submenu.text().ok().as_deref() {
             Some("File") => file_menu = Some(submenu.clone()),
             Some("Edit") => edit_menu = Some(submenu.clone()),
+            Some("View") => view_menu = Some(submenu.clone()),
             _ => {}
         }
     }
@@ -261,6 +272,15 @@ fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String], player: boo
     let undo_item = MenuItem::with_id(app_handle, "weft-undo", strings.undo, true, Some("CmdOrCtrl+Z"))?;
     let redo_item = MenuItem::with_id(app_handle, "weft-redo", strings.redo, true, Some("CmdOrCtrl+Shift+Z"))?;
     edit_menu.prepend_items(&[&undo_item, &redo_item])?;
+
+    // "Ansicht": playing the module and presenting it with the presenter view, on the slide that is selected (the same as the "Abspielen"
+    // button of the work area). Not for a player file - there is nothing selected to start from, and no module to present.
+    if let Some(view_menu) = view_menu {
+        view_menu.set_text(strings.view)?;
+        let play_item = MenuItem::with_id(app_handle, "weft-play", strings.play, editing, Some("CmdOrCtrl+Alt+P"))?;
+        let present_item = MenuItem::with_id(app_handle, "weft-present", strings.present, editing, Some("CmdOrCtrl+Alt+Shift+P"))?;
+        view_menu.prepend_items(&[&play_item, &present_item, &PredefinedMenuItem::separator(app_handle)?])?;
+    }
 
     Ok(menu)
 }
@@ -589,6 +609,12 @@ pub fn run() {
                     }
                     "weft-export-player" => {
                         let _ = app_handle.emit("weft://menu-export-player", ());
+                    }
+                    "weft-play" => {
+                        let _ = app_handle.emit("weft://menu-play", ());
+                    }
+                    "weft-present" => {
+                        let _ = app_handle.emit("weft://menu-present", ());
                     }
                     "weft-undo" => {
                         let _ = app_handle.emit("weft://menu-undo", ());

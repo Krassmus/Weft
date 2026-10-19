@@ -5744,11 +5744,6 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   flex: 1;
 }
 
-.weft-presenter-top .weft-ghost-button.is-active {
-  background: var(--weft-accent-soft);
-  border-color: var(--weft-accent);
-}
-
 .weft-presenter-body {
   display: grid;
   flex: 1;
@@ -5862,8 +5857,3 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   border: 0;
 }
 
-.weft-audience-black {
-  position: absolute;
-  inset: 0;
-  background: #000;
-}

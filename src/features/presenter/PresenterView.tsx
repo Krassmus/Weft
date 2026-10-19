@@ -48,7 +48,7 @@ async function writeAudienceFile(bytes: Uint8Array): Promise<string> {
 /**
  * The speaker's screen: the editor's window turns into this while presenting, and a second window (AudienceView.tsx) shows the module
  * on the beamer. Here: the slide that is shown (a copy that follows the audience's), the next slide, the notes of the slide, the
- * time, a stopwatch, and the buttons - Space, the arrow keys and Page Up / Down work as well, B blanks the beamer, Esc ends it.
+ * time, a stopwatch, and the buttons - Space, the arrow keys and Page Up / Down work as well, Esc ends it.
  * The audience window is the one that plays (and that a click on the beamer's screen reaches); this window tells it what to do.
  */
 export function PresenterView({ startPageId, onExit }: { startPageId: string | null; onExit: () => void }) {
@@ -64,7 +64,6 @@ export function PresenterView({ startPageId, onExit }: { startPageId: string | n
   const [now, setNow] = useState(() => new Date());
   const [elapsed, setElapsed] = useState(0);
   const [timerRunning, setTimerRunning] = useState(true);
-  const [blackedOut, setBlackedOut] = useState(false);
   const currentFrame = useRef<HTMLIFrameElement>(null);
   const nextFrame = useRef<HTMLIFrameElement>(null);
   const stateRef = useRef<PresenterState | null>(null);
@@ -103,7 +102,6 @@ export function PresenterView({ startPageId, onExit }: { startPageId: string | n
 
   function send(action: PresenterCommand, pageId?: string) {
     sendPresenterMessage({ type: "command", action, pageId });
-    if (action === "blackout") setBlackedOut((value) => !value);
   }
 
   // The audience window: opened here (the desktop app: a player file in the cache folder and a window on the other screen).
@@ -115,7 +113,16 @@ export function PresenterView({ startPageId, onExit }: { startPageId: string | n
       playerBytes.current = bytes;
       if (isTauriRuntime()) {
         const path = await writeAudienceFile(bytes);
-        await invoke("open_audience_window", { path });
+        // A window that is still open (it is opened again by hand) goes first, and its label is free a moment later; one more try
+        // when the opening still meets it.
+        await invoke("close_audience_window").catch(() => undefined);
+        await new Promise((resolve) => window.setTimeout(resolve, 250));
+        try {
+          await invoke("open_audience_window", { path });
+        } catch {
+          await new Promise((resolve) => window.setTimeout(resolve, 500));
+          await invoke("open_audience_window", { path });
+        }
       } else {
         // A browser tab (the development preview): the audience tab is opened by hand or by this, and asks for the file.
         window.open(`${window.location.origin}/?audience`, "weft-audience");
@@ -125,7 +132,11 @@ export function PresenterView({ startPageId, onExit }: { startPageId: string | n
       setAudience("failed");
     }
   }, []);
+  // Once - not twice, as a development build's double start of every effect would: the second opening would meet the first's window.
+  const openedRef = useRef(false);
   useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
     void openAudience();
   }, [openAudience]);
 
@@ -182,7 +193,7 @@ export function PresenterView({ startPageId, onExit }: { startPageId: string | n
       } else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(e.key)) {
         e.preventDefault();
         send("prev");
-      } else if (e.key === "b" || e.key === "B" || e.key === ".") send("blackout");
+      }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -222,9 +233,6 @@ export function PresenterView({ startPageId, onExit }: { startPageId: string | n
           </button>
         )}
         <span className="weft-presenter-spacer" />
-        <button type="button" className={"weft-ghost-button" + (blackedOut ? " is-active" : "")} onClick={() => send("blackout")} title={tr("ui.presenter_blackout")}>
-          {tr("ui.presenter_blackout_short")}
-        </button>
         <button type="button" className="weft-ghost-button" onClick={() => void end()}>
           {tr("ui.presenter_end")}
         </button>

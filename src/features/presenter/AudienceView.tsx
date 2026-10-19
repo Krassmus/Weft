@@ -14,13 +14,11 @@ declare global {
 
 /**
  * The window for the beamer: nothing but the module, full window, on black. It plays a player file that the presenter's window has made
- * (PresenterView.tsx) and is the one that is true - it tells what it shows, and does what it is told (Weiter, Zurück, a jump,
- * "Bildschirm schwarz"). Space, the arrow keys and a click in it work as in any player.
+ * (PresenterView.tsx) and is the one that is true - it tells what it shows, and does what it is told (Weiter, Zurück, a jump). Space, the arrow keys and a click in it work as in any player.
  */
 export function AudienceView() {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [html, setHtml] = useState<string | null>(null);
-  const [black, setBlack] = useState(false);
 
   // The module: from the file the app wrote (the desktop app), else - in a browser tab - from the presenter's tab.
   useEffect(() => {
@@ -57,8 +55,7 @@ export function AudienceView() {
     () =>
       onPresenterMessage((message) => {
         if (message.type === "command") {
-          if (message.action === "blackout") setBlack((value) => !value);
-          else frameRef.current?.contentWindow?.postMessage({ source: "weft-host", type: "control", action: message.action, pageId: message.pageId }, "*");
+          frameRef.current?.contentWindow?.postMessage({ source: "weft-host", type: "control", action: message.action, pageId: message.pageId }, "*");
         } else if (message.type === "close" && !isTauriRuntime()) {
           window.close();
         }
@@ -110,7 +107,6 @@ export function AudienceView() {
           }}
         />
       )}
-      {black && <div className="weft-audience-black" />}
     </div>
   );
 }

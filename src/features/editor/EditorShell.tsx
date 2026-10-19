@@ -481,6 +481,53 @@ export function EditorShell() {
     };
   }, []);
 
+  // F6 / Shift+F6 go to the next / previous of the three areas (the slides, the work area, the properties); Cmd/Ctrl+Alt+1, 2 and 3
+  // go to one directly - from a selected element straight into its properties, say. The focus lands on what is selected there (or on its
+  // first control).
+  useEffect(() => {
+    function focusArea(index: number) {
+      const areas = [".weft-sidebar", ".weft-canvas", ".weft-inspector"];
+      const root = document.querySelector<HTMLElement>(areas[index]);
+      if (!root) return false;
+      const isUsable = (el: HTMLElement) => el.getClientRects().length > 0 && !(el as HTMLButtonElement).disabled;
+      // What gets the focus, the first that is there: what is selected in that area, else its first control.
+      const preferred: Record<number, string[]> = {
+        0: [".weft-node.is-active", ".weft-node.is-current", ".weft-sidebar-tab.is-active"],
+        1: ["[data-block-id].is-selected", ".weft-stage-edit"],
+        2: [".weft-inspector-body button, .weft-inspector-body input, .weft-inspector-body select, .weft-inspector-body textarea"],
+      };
+      let target: HTMLElement = root;
+      for (const selector of preferred[index]) {
+        const found = Array.from(root.querySelectorAll<HTMLElement>(selector)).find(isUsable);
+        if (found) {
+          target = found;
+          break;
+        }
+      }
+      if (target === root) root.tabIndex = -1;
+      target.focus({ preventScroll: false });
+      return true;
+    }
+    function currentArea(): number {
+      const active = document.activeElement;
+      if (active?.closest(".weft-inspector")) return 2;
+      if (active?.closest(".weft-sidebar")) return 0;
+      return 1;
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (presentingRef.current || phaseRef.current !== "editor" || playerRef.current !== null) return;
+      if (e.key === "F6" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        focusArea((currentArea() + (e.shiftKey ? 2 : 1)) % 3);
+      } else if ((e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && ["Digit1", "Digit2", "Digit3"].includes(e.code)) {
+        e.preventDefault();
+        focusArea(Number(e.code.slice(-1)) - 1);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   // Where there is no menu bar (a browser, a tablet) the same commands come from the app's own File menu (FileMenu.tsx) and,
   // with a keyboard, from the usual shortcuts.
   const inAppMenu = !hasNativeMenu();

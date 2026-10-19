@@ -46,6 +46,7 @@ import { LibraryDialogs } from "./LibraryDialogs";
 import { useCollabDialog } from "./collabDialogStore";
 import { Inspector } from "./Inspector";
 import { PresentationView } from "./PresentationView";
+import { PresenterView } from "../presenter/PresenterView";
 import { hasNativeMenu, libraryMode } from "../../core/platform";
 import { loadPlayerFile } from "../../core/io/playerFile";
 import { unpackDocument } from "../../core/io/unpack";
@@ -96,6 +97,8 @@ export function EditorShell() {
   const playerRef = useRef(player);
   playerRef.current = player;
   const [presenting, setPresenting] = useState(false);
+  // The presenter view (see features/presenter/) is on: the page it was started on (null: the module's beginning).
+  const [presenter, setPresenter] = useState<{ startPageId: string | null } | null>(null);
   // Which page "Abspielen" should open on - captured once when it's clicked (see Canvas.tsx,
   // which resolves it from whatever's currently selected), not read live while presenting, since
   // there's no selection UI to keep it in sync with once PresentationView has taken over anyway.
@@ -515,6 +518,9 @@ export function EditorShell() {
   if (presenting) {
     return <PresentationView startPageId={presentStartPageId} onExit={endPresentation} />;
   }
+  if (presenter) {
+    return <PresenterView startPageId={presenter.startPageId} onExit={() => setPresenter(null)} />;
+  }
 
   // Only a brand-new document (no filePath yet) asks where to save - once it has one, whether
   // from a prior save or from "Öffnen", Speichern/Cmd+S silently overwrites that same file,
@@ -841,7 +847,7 @@ export function EditorShell() {
       >
         <Sidebar />
         <div className="weft-resizer" onPointerDown={handleResizerPointerDown} title={t("toolbar.resizerTitle")} />
-        <Canvas onPresent={handlePresent} />
+        <Canvas onPresent={handlePresent} onPresenter={(startPageId) => setPresenter({ startPageId })} />
         <div className={"weft-inspector-slot" + (compact ? " is-drawer" : "") + (compact && inspectorOpen ? " is-open" : "")}>
           {compact && (
             <button

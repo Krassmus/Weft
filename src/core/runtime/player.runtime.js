@@ -45,6 +45,11 @@
   var renderMode = renderModeEl ? JSON.parse(renderModeEl.textContent || "null") : null;
   var renderAll = !!(renderMode && renderMode.all);
 
+  // The presenter view (features/presenter/) shows the module on the presenter's own screen in instances that only follow: no sound,
+  // no animations, no navigation of their own.
+  var followerEl = document.getElementById("weft-follower");
+  var follower = !!(followerEl && JSON.parse(followerEl.textContent || "false"));
+
   var startPageIdEl = document.getElementById("weft-start-page");
   var startPageId = startPageIdEl ? JSON.parse(startPageIdEl.textContent || "null") : null;
 
@@ -328,6 +333,7 @@
   // Learners who ask their system for less motion get no animation: slide transitions and the Aufbau/Abbau of blocks are
   // instant cuts (the events still happen in the same order). Looked up each time - the setting can change while the module runs.
   function prefersReducedMotion() {
+    if (follower) return true;
     return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   }
 
@@ -367,7 +373,7 @@
   var navPrev = null;
   var navNext = null;
   function buildNavigation() {
-    if (renderAll) return;
+    if (renderAll || follower) return;
     navPrev = el("button", { type: "button", class: "weft-sr-nav-button" }, []);
     navNext = el("button", { type: "button", class: "weft-sr-nav-button" }, []);
     navPrev.addEventListener("click", goPrev);
@@ -399,6 +405,8 @@
     document.title = baseTitle ? baseTitle + " \u2013 " + label : label;
     wrap.setAttribute("role", "region");
     wrap.setAttribute("aria-label", label);
+    // (A follower must not take the keyboard focus from the window around it.)
+    if (follower) return;
     if (firstRender) {
       firstRender = false;
       return;
@@ -1203,8 +1211,17 @@
   // on how many go out per second.
   var MAX_DELIVERIES_PER_SECOND = 600;
 
+  // How many of the page's Weiter presses that build something (an element that appears, ...) the learner has pressed, and how many there
+  // are (for the presenter view: "Aufbau 2 von 4"). The press that leaves the page is not one of them.
+  var buildsDone = 0;
+  var buildsTotal = 0;
+  function isBuildTrigger(trigger) {
+    var target = graphEvents[trigger.to];
+    return !!trigger.weiter && !!target && target.kind !== "end";
+  }
   function setUpGraph(page) {
     graphGeneration++;
+    buildsDone = 0;
     graphEvents = {};
     outgoingTriggers = {};
     performers = {};
@@ -1224,6 +1241,7 @@
     graph.triggers.forEach(function (trigger) {
       (outgoingTriggers[trigger.from] = outgoingTriggers[trigger.from] || []).push(trigger);
     });
+    buildsTotal = graph.triggers.filter(isBuildTrigger).length;
   }
 
   function overDeliveryCap() {
@@ -1273,6 +1291,7 @@
   function weiter() {
     var waiting = waitingForWeiter;
     waitingForWeiter = {};
+    if (Object.keys(waiting).some(function (id) { return isBuildTrigger(waiting[id]); })) buildsDone++;
     announceAppearing = true;
     try {
       Object.keys(waiting).forEach(function (id) {
@@ -1281,6 +1300,7 @@
     } finally {
       announceAppearing = false;
     }
+    reportState();
   }
 
   // The keyframes of one block animation as an Aufbau (hidden -> shown); an Abbau plays them
@@ -2177,7 +2197,7 @@
       // honor autoplay at all when that live property is already true at play() time - so
       // setting the attribute alone (as el()'s other boolean attrs do above) would silently
       // leave audible autoplay blocked.
-      videoEl.muted = !isAudio && !!block.muted;
+      videoEl.muted = follower || (!isAudio && !!block.muted);
       // Never natively: a video that starts by itself does so because a trigger of the graph (from the start of the page, in the
       // simplest case) tells it to - see its performer below. Native autoplay would start it a second way.
       videoEl.autoplay = false;
@@ -3446,11 +3466,79 @@
       root.appendChild(newWrap);
     }
     announceSlide(newWrap);
+    reportState();
 
     // After every slide (the finished screen included): progress has moved, and so may anything a
     // formula reads from it.
     syncLms();
   }
+
+  // ---- the presenter view (features/presenter/) ----
+  // The window around the module (the presenter's remote control, or the screen of the audience) can ask for the state of the module -
+  // which slide, how many builds, which slide is next - and send it commands: the same as Space and ← do, a jump to a slide, and "sync"
+  // (a follower catches up with the state that was reported: the slide and its builds).
+  var reportingState = false;
+  // The slide after this one (without going there), or null.
+  function peekNextPageId() {
+    if (pos >= history.length) return null;
+    if (pos < history.length - 1) return history[pos + 1];
+    var savedCursor = JSON.parse(JSON.stringify(cursor));
+    var result = null;
+    try {
+      advanceCursor();
+      var node = resolveJumps(resolveCurrentNode());
+      result = node.type === "page" ? node.pageId : null;
+    } catch (e) {
+      result = null;
+    }
+    cursor = savedCursor;
+    return result;
+  }
+  function reportState() {
+    if (!reportingState || window.parent === window) return;
+    var finished = pos >= history.length;
+    var pageId = !finished && pos >= 0 ? history[pos] : null;
+    window.parent.postMessage(
+      {
+        source: "weft-module",
+        type: "presenter-state",
+        pageId: pageId,
+        pageLabel: pageId && module.pageLabels ? module.pageLabels[pageId] || "" : "",
+        finished: finished,
+        nextPageId: peekNextPageId(),
+        buildsDone: buildsDone,
+        buildsTotal: buildsTotal,
+      },
+      "*"
+    );
+  }
+  function hasPendingBuild() {
+    return Object.keys(waitingForWeiter).some(function (id) {
+      return isBuildTrigger(waitingForWeiter[id]);
+    });
+  }
+  window.addEventListener("message", function (e) {
+    var data = e.data;
+    if (!data || data.source !== "weft-host" || e.source !== window.parent) return;
+    if (data.type === "report-state") {
+      reportingState = data.on !== false;
+      reportState();
+    } else if (data.type === "control") {
+      var instantly = { type: "none", durationMs: 0 };
+      if (data.action === "weiter") {
+        if (pos >= history.length) restart();
+        else weiter();
+      } else if (data.action === "prev") goPrev();
+      else if (data.action === "restart") restart();
+      else if (data.action === "goto") goToPage(data.pageId, instantly);
+      else if (data.action === "sync") {
+        var current = pos >= 0 && pos < history.length ? history[pos] : null;
+        if (!data.finished && data.pageId && current !== data.pageId) goToPage(data.pageId, instantly);
+        var guard = 0;
+        while (!data.finished && buildsDone < (data.buildsDone || 0) && hasPendingBuild() && guard++ < 100) weiter();
+      }
+    }
+  });
 
   buildNavigation();
   goNext();

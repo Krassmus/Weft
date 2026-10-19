@@ -28,7 +28,8 @@ export function toRuntimeModule(module: WeftModule): unknown {
     sequence: sequenceOf(module).map(withoutOrder),
     layouts: mapValues(module.layouts, (layout) => ({ ...layout, blocks: orderedValues(layout.blocks).map(withoutOrder) })),
     pages: mapValues(module.pages, (page) => {
-      const { timeline: _timeline, ...rest } = page;
+      // (The presenter notes are for the author: they never go into the module's page.)
+      const { timeline: _timeline, notes: _notes, notesTranslations: _notesTranslations, ...rest } = page;
       return {
         ...rest,
         blocks: orderedValues(page.blocks).map(withoutOrder),

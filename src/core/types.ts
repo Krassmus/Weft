@@ -855,6 +855,12 @@ export interface Page {
   groups: BlockGroup[];
   /** This page's timeline graph - see PageTimeline. */
   timeline: PageTimeline;
+  /** Notes for whoever presents the module (shown in the presenter view, see features/presenter/): plain text, in the module's default
+   * language. Only for the author: they are in the saved file and the exported .weft.zip's weft.json, but never in the module's page
+   * (index.html) or in a player file. */
+  notes?: string;
+  /** The same notes in the other languages of the module, by locale; a language without an entry shows the default notes. */
+  notesTranslations?: Record<string, string>;
 }
 
 export interface VariableCondition {

@@ -2,6 +2,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { EditorShell } from "./features/editor/EditorShell";
 import { SettingsWindow } from "./features/settings/SettingsWindow";
+import { AudienceView } from "./features/presenter/AudienceView";
 import "./fonts.css";
 import "./App.css";
 
@@ -20,6 +21,16 @@ function isSettingsWindow(): boolean {
   }
 }
 
+/** The window for the beamer of the presenter view (see src-tauri/src/lib.rs's open_audience_window): same bundle, own label. */
+function isAudienceWindow(): boolean {
+  try {
+    return getCurrentWindow().label === "audience";
+  } catch {
+    // No Tauri runtime (a browser tab, the development preview): /?audience.
+    return new URLSearchParams(window.location.search).has("audience");
+  }
+}
+
 export default function App() {
-  return <ErrorBoundary>{isSettingsWindow() ? <SettingsWindow /> : <EditorShell />}</ErrorBoundary>;
+  return <ErrorBoundary>{isSettingsWindow() ? <SettingsWindow /> : isAudienceWindow() ? <AudienceView /> : <EditorShell />}</ErrorBoundary>;
 }

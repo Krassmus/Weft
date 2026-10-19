@@ -57,6 +57,12 @@ export function buttonText(block: ButtonBlock, language: string | null, defaultL
   return translationOf(block.translations, language, defaultLanguage)?.text ?? block.text;
 }
 
+/** The presenter notes of a page in `language` (see Page.notes): the translation if there is one, else the default language's. */
+export function pageNotes(page: { notes?: string; notesTranslations?: Record<string, string> }, language: string | null, defaultLanguage: string | null): string {
+  if (isOwnWording(language, defaultLanguage) || !language) return page.notes ?? "";
+  return page.notesTranslations?.[language] ?? page.notes ?? "";
+}
+
 function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

@@ -923,6 +923,25 @@ export function setQuizAdvance(pageId: string, quizId: string, outcome: "richtig
   });
 }
 
+/** Sets the presenter notes of a page (see Page.notes) in `language` - the default language's go into `notes`, the others' into
+ * `notesTranslations`. An empty text takes the entry away. */
+export function setPageNotes(pageId: string, text: string, language: string | null, defaultLanguage: string | null) {
+  edit("Moderatornotizen", (m) => {
+    const page = m.pages[pageId];
+    if (!page) return;
+    if (language === null || language === defaultLanguage) {
+      if (text) page.notes = text;
+      else delete page.notes;
+      return;
+    }
+    if (text) page.notesTranslations = { ...page.notesTranslations, [language]: text };
+    else if (page.notesTranslations) {
+      delete page.notesTranslations[language];
+      if (Object.keys(page.notesTranslations).length === 0) delete page.notesTranslations;
+    }
+  });
+}
+
 export function removeBlock(pageId: string, blockId: string) {
   edit("Block entfernen", (m) => {
     const page = m.pages[pageId];

@@ -1,4 +1,5 @@
-import { reorderBlock, removeBlock, removeGroup } from "../../../core/document/actions";
+import { useEffect, useState } from "react";
+import { reorderBlock, removeBlock, removeGroup, setPageNotes } from "../../../core/document/actions";
 import { confirmDestructive } from "../../../core/io/fileIO";
 import { useDocumentStore } from "../../../core/document/store";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
@@ -11,6 +12,29 @@ import { useDragReorder } from "../useDragReorder";
 import { LayoutPicker } from "./LayoutPicker";
 import { orderedValues } from "../../../core/document/ordering";
 import { tr } from "../../../core/i18n/tr";
+import { pageNotes } from "../../../core/document/translations";
+import { useEditingLanguage } from "../useEditingLanguage";
+
+/** The notes for whoever presents (Page.notes) - a text field that is stored when it loses the focus (one undo step, not one per letter). */
+function PresenterNotes({ page }: { page: Page }) {
+  const { lang, defaultLang } = useEditingLanguage();
+  const stored = pageNotes(page, lang, defaultLang);
+  const [text, setText] = useState(stored);
+  // Another slide, another language, or a change from somebody else: the field shows what is stored.
+  useEffect(() => setText(stored), [page.id, lang, stored]);
+  return (
+    <textarea
+      className="weft-presenter-notes"
+      rows={7}
+      value={text}
+      placeholder={tr("ui.presenter_notes_placeholder")}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => {
+        if (text !== stored) setPageNotes(page.id, text, lang, defaultLang);
+      }}
+    />
+  );
+}
 
 export function PagePanel({ page }: { page: Page }) {
   const { t } = useTranslation();
@@ -32,6 +56,11 @@ export function PagePanel({ page }: { page: Page }) {
     <>
       <Collapsible title={t("panel.layout")}>
         <LayoutPicker page={page} />
+      </Collapsible>
+
+      <Collapsible title={tr("ui.presenter_notes")} defaultOpen={!!page.notes}>
+        <p className="weft-hint">{tr("ui.presenter_notes_hint")}</p>
+        <PresenterNotes page={page} />
       </Collapsible>
 
       <Collapsible title={`${t("panel.elements")} (${Object.keys(page.blocks).length})`}>

@@ -1,3 +1,4 @@
+import { isTouchDevice } from "../../core/platform";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties, DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent, RefObject } from "react";
 import playIconSvg from "../../../mockups/icons/play.svg?raw";
@@ -539,7 +540,7 @@ function GroupResizeOverlay({
   );
 }
 
-export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) => void }) {
+export function Canvas({ onPresent, onPresenter }: { onPresent: (startPageId: string | null) => void; onPresenter: (startPageId: string | null) => void }) {
   const doc = useDocumentStore((s) => s.doc);
   const selection = useDocumentStore((s) => s.selection);
   const select = useDocumentStore((s) => s.select);
@@ -851,6 +852,17 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
           >
             <span className="weft-canvas-play-icon" dangerouslySetInnerHTML={{ __html: playIconSvg }} />
             {tr("ui.play")}
+          </button>
+        )}
+        {target?.kind !== "layout" && !isTouchDevice() && (
+          // The presenter view needs a second window (the beamer's): the desktop app has it.
+          <button
+            type="button"
+            className="weft-canvas-presenter-button"
+            title={tr("ui.presenter_start_hint")}
+            onClick={() => onPresenter(target?.kind === "page" ? target.page.id : null)}
+          >
+            {tr("ui.presenter_start")}
           </button>
         )}
         {target && <AddElementMenu container={target.kind === "layout" ? { kind: "layout", layoutId: target.layout.id } : { kind: "page", pageId: target.page.id }} />}

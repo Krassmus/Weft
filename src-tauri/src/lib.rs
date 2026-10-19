@@ -393,6 +393,47 @@ fn show_settings_window(app_handle: &AppHandle) {
         .build();
 }
 
+/// The presenter view's second window (see src/features/presenter/): the module for the audience, full screen on the screen the editor's
+/// window is not on (the beamer) - or, with one screen only, a window of its own to be moved by hand. It is the same frontend bundle
+/// as the main window, distinguished by its "audience" label (see App.tsx); the module it plays is a player file that the editor has
+/// written (`path`) - handed over as a global the page reads when it starts.
+#[tauri::command]
+fn open_audience_window(#[cfg_attr(not(desktop), allow(unused_variables))] app: AppHandle, path: String) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        if let Some(window) = app.get_webview_window("audience") {
+            let _ = window.destroy();
+        }
+        let current = app.get_webview_window("main").and_then(|window| window.current_monitor().ok().flatten());
+        let monitors = app.available_monitors().map_err(|error| error.to_string())?;
+        // The other screen, if there is one.
+        let other = monitors
+            .iter()
+            .find(|monitor| current.as_ref().map(|c| c.position() != monitor.position()).unwrap_or(false))
+            .cloned();
+        let script = format!("window.__WEFT_AUDIENCE_FILE__ = {};", serde_json::to_string(&path).map_err(|error| error.to_string())?);
+        let builder = WebviewWindowBuilder::new(&app, "audience", WebviewUrl::App("index.html".into()))
+            .title("Weft")
+            .initialization_script(&script)
+            .inner_size(960.0, 540.0);
+        let window = builder.build().map_err(|error| error.to_string())?;
+        if let Some(monitor) = other {
+            let _ = window.set_position(*monitor.position());
+            let _ = window.set_fullscreen(true);
+        }
+    }
+    Ok(())
+}
+
+/// Closes the presenter view's second window (see open_audience_window), if it is open.
+#[tauri::command]
+fn close_audience_window(#[cfg_attr(not(desktop), allow(unused_variables))] app: AppHandle) {
+    #[cfg(desktop)]
+    if let Some(window) = app.get_webview_window("audience") {
+        let _ = window.destroy();
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg_attr(not(desktop), allow(unused_mut))]
@@ -444,6 +485,8 @@ pub fn run() {
             set_recent_files,
             set_player_mode,
             open_settings_window,
+            open_audience_window,
+            close_audience_window,
             open_files::take_pending_open_files,
             read_clipboard_file_paths,
             color_sampler::screen_color_picker_available,

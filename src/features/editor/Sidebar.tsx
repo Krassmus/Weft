@@ -86,6 +86,13 @@ function slideMoveMenuItems(pageId: string): ContextMenuItem[] {
   return items;
 }
 
+/** A click on a row of the slide list selects it - and gives it the keyboard focus: Safari (and so the app on the Mac) does not focus a button
+ * that is clicked, and without the focus the arrow keys would scroll the list instead of going to the next slide. */
+function selectWithFocus(event: { currentTarget: HTMLElement }, select: () => void) {
+  event.currentTarget.focus({ preventScroll: true });
+  select();
+}
+
 /** `items` with a separator in front of them - or nothing, when there are none. */
 function withSeparator(items: ContextMenuItem[]): ContextMenuItem[] {
   return items.length > 0 ? [{ separator: true }, ...items] : [];
@@ -528,7 +535,7 @@ function PageRow({
         (active ? " is-active" : isCurrent ? " is-current" : "") +
         dragClassName
       }
-      onClick={onSelect}
+      onClick={(e) => selectWithFocus(e, onSelect)}
       onContextMenu={onContextMenu}
       onKeyDown={(e) => onSlideRowKeyDown(e, { kind: "page", pageId }, () => onContextMenu(contextMenuEventAt(e.currentTarget)))}
       data-page-id={pageId}
@@ -570,7 +577,7 @@ function JumpRow({
     <button
       type="button"
       className={"weft-node weft-node-page weft-node-jump" + (active ? " is-active" : isCurrent ? " is-current" : "") + dragClassName}
-      onClick={onSelect}
+      onClick={(e) => selectWithFocus(e, onSelect)}
       onContextMenu={onContextMenu}
       onKeyDown={(e) => onSlideRowKeyDown(e, { kind: "page", pageId: page.id }, () => onContextMenu(contextMenuEventAt(e.currentTarget)))}
       data-page-id={page.id}
@@ -619,7 +626,7 @@ function LogicBlockRow({
       <button
         type="button"
         className={"weft-node weft-node-logic" + (active ? " is-active" : "") + dragClassName}
-        onClick={onSelect}
+        onClick={(e) => selectWithFocus(e, onSelect)}
         onContextMenu={onContextMenu}
         onKeyDown={(e) => onSlideRowKeyDown(e, { kind: "logic", logicBlockId: logicBlock.id }, () => onContextMenu(contextMenuEventAt(e.currentTarget)))}
         data-logic-id={logicBlock.id}

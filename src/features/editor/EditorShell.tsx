@@ -481,8 +481,8 @@ export function EditorShell() {
     };
   }, []);
 
-  // F6 / Shift+F6 go to the next / previous of the three areas (the slides, the work area, the properties); Cmd/Ctrl+Alt+1, 2 and 3
-  // go to one directly - from a selected element straight into its properties, say. The focus lands on what is selected there (or on its
+  // F6 / Shift+F6 go to the next / previous of the three areas (the slides, the work area, the properties); Shift+Enter goes from a selected
+  // element into its properties and back; Cmd/Ctrl+Alt+1, 2 and 3 go to one of the areas directly. The focus lands on what is selected there (or on its
   // first control).
   useEffect(() => {
     function focusArea(index: number) {
@@ -494,7 +494,11 @@ export function EditorShell() {
       const preferred: Record<number, string[]> = {
         0: [".weft-node.is-active", ".weft-node.is-current", ".weft-sidebar-tab.is-active"],
         1: ["[data-block-id].is-selected", ".weft-stage-edit"],
-        2: [".weft-inspector-body button, .weft-inspector-body input, .weft-inspector-body select, .weft-inspector-body textarea"],
+        // (The first real control, not the heading of the first foldable section.)
+        2: [
+          ".weft-inspector-body .weft-collapsible-body :is(button, input, select, textarea)",
+          ".weft-inspector-body :is(button, input, select, textarea)",
+        ],
       };
       let target: HTMLElement = root;
       for (const selector of preferred[index]) {
@@ -519,6 +523,19 @@ export function EditorShell() {
       if (e.key === "F6" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
         focusArea((currentArea() + (e.shiftKey ? 2 : 1)) % 3);
+      } else if (e.key === "Enter" && e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        // Shift+Enter: from the selected element into its properties, and from the properties back to the element. (Not where it is a line
+        // break: in a text that is being edited, or in a text area.)
+        const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        if (!active) return;
+        if (active.closest(".weft-inspector")) {
+          if (active.tagName === "TEXTAREA" || active.isContentEditable) return;
+          e.preventDefault();
+          focusArea(1);
+        } else if (active.hasAttribute("data-block-id") && active.closest(".weft-canvas")) {
+          e.preventDefault();
+          focusArea(2);
+        }
       } else if ((e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && ["Digit1", "Digit2", "Digit3"].includes(e.code)) {
         e.preventDefault();
         focusArea(Number(e.code.slice(-1)) - 1);

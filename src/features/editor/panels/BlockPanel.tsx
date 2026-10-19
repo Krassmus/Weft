@@ -123,6 +123,16 @@ const UPLOAD_FONT_VALUE = "__upload__";
 // (allowed) and then nudged with the "−" button (floored at the button's own hardcoded 8) would
 // visibly jump back *up* to 8 instead of continuing to shrink, which is what actually caused the
 // "inconsistent"/"komisch" behavior reported for small sizes, not the cqw storage itself.
+/** Applies a size typed into the field of the sidebar: only when there is a number in it that is not the size the text has already. Clamped
+ * here, not just via the input's own min/max attributes - those only affect the native spinner UI, not a value typed directly (which is why
+ * typing e.g. "2" previously stored a font-size below the intended floor at all, see MIN_FONT_SIZE_PX's own comment). */
+function commitTypedFontSize(typed: string): void {
+  if (typed.trim() === "") return;
+  const px = Number(typed);
+  if (!Number.isFinite(px) || px === useFormatSnapshot.getState().fontSizePx) return;
+  applyFontSize(Math.min(MAX_FONT_SIZE_PX, Math.max(MIN_FONT_SIZE_PX, px)));
+}
+
 const MIN_FONT_SIZE_PX = 4;
 const MAX_FONT_SIZE_PX = 300;
 
@@ -495,6 +505,8 @@ function TextEditor({
   // tied to the reflected value forces a fresh DOM input (and fresh cursor) only when the
   // selection actually moved to different formatting, never while the user is still typing here.
   const fontSizeKey = snapshot.fontSizePx === "mixed" ? "mixed" : String(snapshot.fontSizePx ?? "");
+  // (The field is made anew when the size changes - see above - so after Enter the focus is given to the new one.)
+  const sizeInputRef = useRef<HTMLInputElement>(null);
   const fontGroups: FontSelectGroup[] = [
     { options: [{ value: DEFAULT_FONT_FAMILY, label: DEFAULT_FONT_FAMILY, previewFamily: DEFAULT_FONT_FAMILY }] },
     ...(customFonts.length > 0
@@ -613,18 +625,26 @@ function TextEditor({
               </button>
               <input
                 key={fontSizeKey}
+                ref={sizeInputRef}
                 type="number"
                 min={MIN_FONT_SIZE_PX}
                 max={MAX_FONT_SIZE_PX}
                 defaultValue={fontSizeKey === "mixed" ? "" : fontSizeKey}
                 placeholder={snapshot.fontSizePx === "mixed" ? tr("ui.mixed") : "24"}
+                // A size that was typed is applied when Enter is pressed or the field is left. (When it is left: a frame later - the
+                // text needs the focus for the change, and Safari does not hand it over in the middle of the focus moving on.)
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
+                  e.preventDefault();
+                  commitTypedFontSize(e.currentTarget.value);
+                  requestAnimationFrame(() => {
+                    sizeInputRef.current?.focus({ preventScroll: true });
+                    sizeInputRef.current?.select();
+                  });
+                }}
                 onBlur={(e) => {
-                  const px = Number(e.target.value);
-                  // Clamped here, not just via the input's own min/max attributes - those only
-                  // affect the native spinner UI, not a value typed directly and read via
-                  // e.target.value, which is why typing e.g. "2" previously stored a font-size
-                  // below the intended floor at all (see MIN_FONT_SIZE_PX's own comment).
-                  if (Number.isFinite(px)) applyFontSize(Math.min(MAX_FONT_SIZE_PX, Math.max(MIN_FONT_SIZE_PX, px)));
+                  const typed = e.currentTarget.value;
+                  window.setTimeout(() => commitTypedFontSize(typed), 0);
                 }}
               />
               <button

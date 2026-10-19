@@ -12,6 +12,7 @@
     "fs:default",
     "dialog:default",
     "deep-link:default",
+    "core:webview:allow-set-webview-zoom",
     "core:window:allow-set-fullscreen",
     "core:window:allow-is-fullscreen",
     "core:window:allow-set-title",

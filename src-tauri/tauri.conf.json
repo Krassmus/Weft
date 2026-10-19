@@ -16,7 +16,8 @@
         "title": "Weft",
         "width": 1200,
         "height": 800,
-        "dragDropEnabled": false
+        "dragDropEnabled": false,
+        "zoomHotkeysEnabled": true
       }
     ],
     "security": {

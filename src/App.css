@@ -16,6 +16,10 @@
   --weft-accent: #3b82f6;
   --weft-accent-hover: #5b95f7;
   --weft-accent-soft: rgba(59, 130, 246, 0.16);
+  /* What is filled with the accent colour (a primary button: white text on it) - the same as the accent unless the contrast is raised. */
+  --weft-accent-fill: #3b82f6;
+  --weft-accent-fill-hover: #5b95f7;
+  --weft-focus-ring: #7db3ff;
   --weft-danger: #f87171;
   /* Marks a timeline event node as its own kind of animation - Aufbau, Abbau, or a "Nächste
      Folie" with an animated transition (see .weft-timeline-node-icon.is-animated in Timeline.tsx)
@@ -143,7 +147,7 @@ textarea {
   padding: 6px 14px;
   border: 1px solid var(--weft-accent);
   border-radius: var(--weft-radius-sm);
-  background: var(--weft-accent);
+  background: var(--weft-accent-fill);
   color: #fff;
   cursor: pointer;
   font-size: 12.5px;
@@ -151,7 +155,7 @@ textarea {
 }
 
 .weft-primary-button:hover {
-  background: var(--weft-accent-hover);
+  background: var(--weft-accent-fill-hover);
   border-color: var(--weft-accent-hover);
 }
 
@@ -276,7 +280,7 @@ textarea {
 
 .weft-resizer:hover,
 .weft-resizer:active {
-  background: var(--weft-accent);
+  background: var(--weft-accent-fill);
 }
 
 /* ---- Sidebar ---- */
@@ -1031,7 +1035,7 @@ img.weft-thumb-block {
   left: 0;
   height: 3px;
   border-radius: 2px;
-  background: var(--weft-accent);
+  background: var(--weft-accent-fill);
   pointer-events: none;
 }
 
@@ -1124,14 +1128,14 @@ img.weft-thumb-block {
    double class beats .weft-canvas-toolbar button's own muted look above. */
 .weft-canvas-toolbar .weft-canvas-end-edit-button {
   border-color: var(--weft-accent);
-  background: var(--weft-accent);
+  background: var(--weft-accent-fill);
   color: #fff;
   font-weight: 600;
 }
 
 .weft-canvas-toolbar .weft-canvas-end-edit-button:hover {
   border-color: var(--weft-accent-hover);
-  background: var(--weft-accent-hover);
+  background: var(--weft-accent-fill-hover);
   color: #fff;
 }
 
@@ -1655,7 +1659,7 @@ button.weft-timeline-node-icon:hover {
   width: 10px;
   height: 10px;
   transform: translate(-50%, -50%);
-  background: var(--weft-accent);
+  background: var(--weft-accent-fill);
   border: 1px solid #ffffff;
   pointer-events: auto;
   touch-action: none;
@@ -1681,7 +1685,7 @@ button.weft-timeline-node-icon:hover {
 }
 
 .weft-mask-point.is-selected {
-  background: var(--weft-accent);
+  background: var(--weft-accent-fill);
 }
 
 .weft-edit-block-video-wrap {
@@ -1891,7 +1895,7 @@ button.weft-timeline-node-icon:hover {
 }
 
 .weft-image-tile.is-open {
-  background: var(--weft-accent);
+  background: var(--weft-accent-fill);
   border-color: var(--weft-accent);
   color: #ffffff;
 }
@@ -1927,7 +1931,7 @@ button.weft-timeline-node-icon:hover {
 
 .weft-image-shape.is-active {
   border-color: var(--weft-accent);
-  background: var(--weft-accent);
+  background: var(--weft-accent-fill);
   color: #ffffff;
 }
 
@@ -2861,7 +2865,7 @@ button.weft-timeline-node-icon:hover {
 
 /* Formatting already applies to the whole current selection/cursor position. */
 .weft-format-button.is-active {
-  background: var(--weft-accent);
+  background: var(--weft-accent-fill);
   border-color: var(--weft-accent);
   color: #fff;
 }
@@ -4191,7 +4195,7 @@ button.weft-timeline-node-icon:hover {
 }
 
 .weft-filemenu-item:hover:not(:disabled) {
-  background: var(--weft-accent);
+  background: var(--weft-accent-fill);
   color: #fff;
 }
 
@@ -5266,7 +5270,7 @@ input[type="range"]::-webkit-slider-thumb {
   margin-top: -5px;
   border: 2px solid var(--weft-panel-raised);
   border-radius: 50%;
-  background: var(--weft-accent);
+  background: var(--weft-accent-fill);
   box-shadow: 0 0 0 1px var(--weft-accent);
 }
 
@@ -5276,19 +5280,19 @@ input[type="range"]::-moz-range-thumb {
   height: 14px;
   border: 2px solid var(--weft-panel-raised);
   border-radius: 50%;
-  background: var(--weft-accent);
+  background: var(--weft-accent-fill);
   box-shadow: 0 0 0 1px var(--weft-accent);
 }
 
 input[type="range"]:hover::-webkit-slider-thumb,
 input[type="range"]:focus-visible::-webkit-slider-thumb {
-  background: var(--weft-accent-hover);
+  background: var(--weft-accent-fill-hover);
   box-shadow: 0 0 0 1px var(--weft-accent-hover);
 }
 
 input[type="range"]:hover::-moz-range-thumb,
 input[type="range"]:focus-visible::-moz-range-thumb {
-  background: var(--weft-accent-hover);
+  background: var(--weft-accent-fill-hover);
   box-shadow: 0 0 0 1px var(--weft-accent-hover);
 }
 
@@ -5813,7 +5817,7 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   padding: 10px 28px;
   border: 1px solid var(--weft-accent);
   border-radius: var(--weft-radius-sm);
-  background: var(--weft-accent);
+  background: var(--weft-accent-fill);
   color: #fff;
   font-size: 15px;
   font-weight: 600;
@@ -5821,7 +5825,7 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 }
 
 .weft-presenter-next-button:hover {
-  background: var(--weft-accent-hover);
+  background: var(--weft-accent-fill-hover);
 }
 
 .weft-presenter-notes-view {
@@ -5857,3 +5861,85 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   border: 0;
 }
 
+
+/* Headings for a screen reader that look like what they were before (the title of a side panel's foldable section, the properties' header). */
+.weft-collapsible-heading {
+  margin: 0;
+  font: inherit;
+  font-weight: inherit;
+}
+
+h2.weft-inspector-header {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+/* Text only for a screen reader: there, but not to be seen. */
+.weft-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Accessibility of the interface (Einstellungen > Barrierefreiheit, see core/accessibility/) ---- */
+
+.weft-settings-subtitle {
+  font-size: 12px;
+  color: var(--weft-text-muted);
+}
+
+/* Contrast "Höher": every text reaches 4.5:1 and the edges of fields and buttons 3:1 - the look stays the one of Weft. */
+:root[data-weft-contrast="higher"] {
+  --weft-text: #f3f5f9;
+  --weft-text-muted: #a9b1c4;
+  --weft-text-faint: #939cb1;
+  --weft-border: #5a6379;
+  --weft-border-subtle: #3a4154;
+  --weft-accent: #5a94f6;
+  --weft-accent-hover: #7db3ff;
+  --weft-accent-fill: #2563eb;
+  --weft-accent-fill-hover: #1d4ed8;
+}
+
+/* Contrast "Sehr starke Kontraste": black ground, white text, light edges everywhere (7:1 and more). */
+:root[data-weft-contrast="strong"] {
+  --weft-bg: #000000;
+  --weft-panel: #05070d;
+  --weft-panel-raised: #0c0f18;
+  --weft-collapsible-bg: #151926;
+  --weft-input-bg: #000000;
+  --weft-text: #ffffff;
+  --weft-text-muted: #e3e8f2;
+  --weft-text-faint: #cdd4e4;
+  --weft-border: #c9d1e6;
+  --weft-border-subtle: #7d869c;
+  --weft-accent: #7db3ff;
+  --weft-accent-hover: #a5c8ff;
+  --weft-accent-soft: rgba(125, 179, 255, 0.28);
+  --weft-accent-fill: #1e40af;
+  --weft-accent-fill-hover: #1e3a8a;
+  --weft-danger: #ff9b9b;
+  --weft-focus-ring: #ffe14d;
+}
+
+:root[data-weft-contrast="higher"] input::placeholder,
+:root[data-weft-contrast="higher"] textarea::placeholder,
+:root[data-weft-contrast="strong"] input::placeholder,
+:root[data-weft-contrast="strong"] textarea::placeholder {
+  color: var(--weft-text-faint);
+  opacity: 1;
+}
+
+/* The ring around what has the keyboard focus - only when it is asked for. (Not around a text that is being edited on the slide: it has
+   its own frame and cursor.) */
+:root[data-weft-focus="on"] :focus-visible:not([contenteditable="true"]) {
+  outline: 3px solid var(--weft-focus-ring);
+  outline-offset: 2px;
+}

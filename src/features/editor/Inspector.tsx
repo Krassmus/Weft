@@ -32,8 +32,10 @@ export function Inspector() {
   const selection = useDocumentStore((s) => s.selection);
 
   return (
-    <aside className="weft-inspector">
-      <div className="weft-inspector-header">{tr("ui.properties")}</div>
+    <aside className="weft-inspector" aria-labelledby="weft-inspector-heading">
+      <h2 className="weft-inspector-header" id="weft-inspector-heading">
+        {tr("ui.properties")}
+      </h2>
       <div className="weft-inspector-body">
         <InspectorBody doc={doc} selection={selection} />
       </div>

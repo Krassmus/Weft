@@ -66,12 +66,16 @@ export function Sidebar() {
   const layoutMode = useDocumentStore((s) => editedLayoutId(s.selection) !== null);
 
   return (
-    <aside className="weft-sidebar">
-      <div className="weft-sidebar-tabs">
+    <aside className="weft-sidebar" aria-label={tr("ui.landmark_slides")}>
+      <div className="weft-sidebar-tabs" role="tablist">
         {TABS.map((tabDef) => (
           <button
             key={tabDef.id}
             type="button"
+            role="tab"
+            id={`weft-sidebar-tab-${tabDef.id}`}
+            aria-selected={tab === tabDef.id}
+            aria-controls="weft-sidebar-panel"
             className={"weft-sidebar-tab" + (tab === tabDef.id ? " is-active" : "")}
             onClick={() => setTab(tabDef.id)}
           >
@@ -80,7 +84,7 @@ export function Sidebar() {
         ))}
       </div>
 
-      <div className="weft-sidebar-content">
+      <div className="weft-sidebar-content" role="tabpanel" id="weft-sidebar-panel" aria-labelledby={`weft-sidebar-tab-${tab}`}>
         {tab === "folien" && (layoutMode ? <LayoutList /> : <SequenceTree openMenu={contextMenu.open} bind={bind} />)}
         {tab === "folien" && !layoutMode && <ViewerLayer />}
         {tab === "variablen" && <VariablesTab />}

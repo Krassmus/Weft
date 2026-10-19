@@ -12,12 +12,14 @@ import { PersonAvatar } from "./PersonAvatar";
 import { useCollabDialog } from "./collabDialogStore";
 import { tr } from "../../core/i18n/tr";
 import { useBackdropClose } from "./useBackdropClose";
+import { useDialogA11y } from "./useDialogA11y";
 
 /** The frame of the dialogs: a small window over the editor that closes with Esc or a click beside it.
  * `floating`: a window that does not dim or block what is behind it - the editor stays usable (and visible in its true colours, which is
  * what the colour scheme's dialog is for: picking colours off the slide), and it is moved by its heading. It closes with Esc or its x only. */
 export function DialogFrame({ title, onClose, children, floating = false }: { title: string; onClose: () => void; children: ReactNode; floating?: boolean }) {
   const backdropClose = useBackdropClose(onClose);
+  const dialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -29,6 +31,8 @@ export function DialogFrame({ title, onClose, children, floating = false }: { ti
   // Where a floating window stands (null until it is measured: at first at the right, under the toolbar).
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
   const windowRef = useRef<HTMLDivElement>(null);
+  // A dialog that blocks the rest holds the focus; the floating one (it stays beside the work) does not.
+  useDialogA11y(floating ? windowRef : dialogRef, { modal: !floating });
   useLayoutEffect(() => {
     if (!floating || !windowRef.current) return;
     setPosition({ left: Math.max(8, window.innerWidth - windowRef.current.offsetWidth - 16), top: 64 });
@@ -58,7 +62,7 @@ export function DialogFrame({ title, onClose, children, floating = false }: { ti
   const header = (
     <div className="weft-modal-header" onPointerDown={startMove}>
       <h3>{title}</h3>
-      <button type="button" className="weft-icon-button" title={tr("ui.close")} onClick={onClose}>
+      <button type="button" className="weft-icon-button" title={tr("ui.close")} aria-label={tr("ui.close")} onClick={onClose}>
         ×
       </button>
     </div>
@@ -80,7 +84,7 @@ export function DialogFrame({ title, onClose, children, floating = false }: { ti
 
   return createPortal(
     <div className="weft-modal-backdrop" {...backdropClose}>
-      <div className="weft-modal weft-collab-dialog" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} className="weft-modal weft-collab-dialog" onClick={(e) => e.stopPropagation()}>
         {header}
         {children}
       </div>

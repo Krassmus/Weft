@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { addAssetFromFile } from "../../../core/document/actions";
@@ -22,6 +22,7 @@ import { StepperSlider } from "./StepperSlider";
 import { tr } from "../../../core/i18n/tr";
 import { ColorField } from "../ColorField";
 import { useBackdropClose } from "../useBackdropClose";
+import { useDialogA11y } from "../useDialogA11y";
 
 type Align = "left" | "center" | "right";
 
@@ -61,6 +62,9 @@ function mixBrightness(a: string, b: string): number | null {
 
 export function TextFormatDialog({ onClose }: { onClose: () => void }) {
   const backdropClose = useBackdropClose(onClose);
+  // (It works on the text that is being edited: the selection stays where it is, so the focus is not moved into it.)
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(dialogRef, { moveFocus: false });
   const snapshot = useMemo(() => useFormatSnapshot.getState(), []);
   const extended = useMemo(() => readExtendedFormat(), []);
   const customFonts = useDocumentStore((s) => s.doc.content.customFonts);
@@ -184,10 +188,10 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
 
   return createPortal(
     <div className="weft-modal-backdrop" {...backdropClose}>
-      <div className="weft-modal weft-text-format-dialog" data-weft-format-control onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} className="weft-modal weft-text-format-dialog" data-weft-format-control onClick={(e) => e.stopPropagation()}>
         <div className="weft-modal-header">
           <h3>{tr("ui.font_2")}</h3>
-          <button type="button" className="weft-icon-button" title={tr("ui.close")} onClick={onClose}>
+          <button type="button" className="weft-icon-button" title={tr("ui.close")} aria-label={tr("ui.close")} onClick={onClose}>
             ×
           </button>
         </div>

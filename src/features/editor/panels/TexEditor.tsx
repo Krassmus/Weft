@@ -9,6 +9,7 @@ import { Collapsible } from "../Collapsible";
 import { tr } from "../../../core/i18n/tr";
 import { ColorField } from "../ColorField";
 import { useBackdropClose } from "../useBackdropClose";
+import { useDialogA11y } from "../useDialogA11y";
 
 const DEFAULT_INSERT_COLOR = "#dc2626";
 
@@ -116,6 +117,8 @@ function TexFormatBar({
  * formula scaled to its box, which would make a short formula look huge here). */
 function TexDialog({ block, onUpdate, onClose }: { block: TexBlock; onUpdate: Update; onClose: () => void }) {
   const backdropClose = useBackdropClose(onClose);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(dialogRef);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -136,10 +139,10 @@ function TexDialog({ block, onUpdate, onClose }: { block: TexBlock; onUpdate: Up
 
   return createPortal(
     <div className="weft-modal-backdrop" {...backdropClose}>
-      <div className="weft-modal weft-tex-dialog" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} className="weft-modal weft-tex-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="weft-modal-header">
           <h3>{tr("ui.tex_formula")}</h3>
-          <button type="button" className="weft-icon-button" title={tr("ui.close")} onClick={onClose}>
+          <button type="button" className="weft-icon-button" title={tr("ui.close")} aria-label={tr("ui.close")} onClick={onClose}>
             ×
           </button>
         </div>

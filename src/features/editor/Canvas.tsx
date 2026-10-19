@@ -835,8 +835,8 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
   }
 
   return (
-    <div className="weft-canvas">
-      <div className="weft-canvas-toolbar">
+    <main className="weft-canvas" aria-label={tr("ui.landmark_work_area")}>
+      <div className="weft-canvas-toolbar" role="toolbar" aria-label={tr("ui.landmark_toolbar")}>
         {target?.kind === "layout" ? (
           // Editing a layout has no slide to play, and nothing else on screen says how to get
           // back - so this takes Abspielen's place and returns to the page edited last.
@@ -1109,6 +1109,6 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
         )}
       </div>
       {target?.kind === "page" && !target.page.jump && <Timeline page={target.page} />}
-    </div>
+    </main>
   );
 }

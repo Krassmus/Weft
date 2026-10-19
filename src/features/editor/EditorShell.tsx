@@ -47,6 +47,7 @@ import { useCollabDialog } from "./collabDialogStore";
 import { Inspector } from "./Inspector";
 import { PresentationView } from "./PresentationView";
 import { PresenterView } from "../presenter/PresenterView";
+import { announceStatus } from "../../core/accessibility/statusAnnouncer";
 import { hasNativeMenu, libraryMode } from "../../core/platform";
 import { loadPlayerFile } from "../../core/io/playerFile";
 import { unpackDocument } from "../../core/io/unpack";
@@ -253,8 +254,10 @@ export function EditorShell() {
   // window renders SettingsWindow instead, see App.tsx's isSettingsWindow()), so this never
   // fights over the title with anything else.
   useEffect(() => {
-    if (!isTauri()) return;
     const title = (player ? player.title : phase === "editor" ? doc.content.title : "").trim();
+    // (The title of the page too - in a browser it is the tab's, and a screen reader says it when the page opens.)
+    document.title = title ? `Weft - ${title}` : "Weft";
+    if (!isTauri()) return;
     // Needs its own explicit "core:window:allow-set-title" capability grant (see
     // src-tauri/capabilities/default.json) - Tauri 2's default core permissions don't include
     // it, so without that this call is silently denied and the title bar just never updates,
@@ -396,10 +399,16 @@ export function EditorShell() {
   useEffect(() => {
     if (!isTauri()) return;
     const unlistenUndo = listen("weft://menu-undo", () => {
-      if (!presentingRef.current && !playerRef.current && phaseRef.current === "editor") undo();
+      if (!presentingRef.current && !playerRef.current && phaseRef.current === "editor") {
+        undo();
+        announceStatus(tr("ui.status_undone"));
+      }
     });
     const unlistenRedo = listen("weft://menu-redo", () => {
-      if (!presentingRef.current && !playerRef.current && phaseRef.current === "editor") redo();
+      if (!presentingRef.current && !playerRef.current && phaseRef.current === "editor") {
+        redo();
+        announceStatus(tr("ui.status_redone"));
+      }
     });
     return () => {
       void unlistenUndo.then((fn) => fn());
@@ -519,8 +528,13 @@ export function EditorShell() {
         runCommandRef.current(command);
       } else if ((key === "z" || key === "y") && !typing && playerRef.current === null && phaseRef.current === "editor") {
         e.preventDefault();
-        if (key === "y" || e.shiftKey) redo();
-        else undo();
+        if (key === "y" || e.shiftKey) {
+          redo();
+          announceStatus(tr("ui.status_redone"));
+        } else {
+          undo();
+          announceStatus(tr("ui.status_undone"));
+        }
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -558,6 +572,7 @@ export function EditorShell() {
       if (filePath) {
         await saveDocumentToPath(doc, filePath);
         useDocumentStore.getState().markSaved(doc.content);
+        announceStatus(tr("ui.status_saved"));
       } else if (libraryMode()) {
         await ensureLibraryDocument();
       } else {
@@ -566,6 +581,7 @@ export function EditorShell() {
           useDocumentStore.setState({ filePath: path });
           useDocumentStore.getState().markSaved(doc.content);
           void clearRecoveryCopy();
+          announceStatus(tr("ui.status_saved"));
         }
       }
     } catch (err) {
@@ -610,6 +626,7 @@ export function EditorShell() {
         useDocumentStore.setState({ filePath: path });
         useDocumentStore.getState().markSaved(doc.content);
         void clearRecoveryCopy();
+        announceStatus(tr("ui.status_saved"));
       }
     } catch (err) {
       alert(`${t("toolbar.saveFailed")}\n${errorMessage(err)}`);
@@ -619,7 +636,7 @@ export function EditorShell() {
 
   async function handleExport() {
     try {
-      await exportAsHtmlModule(doc);
+      if (await exportAsHtmlModule(doc)) announceStatus(tr("ui.status_exported"));
     } catch (err) {
       alert(`${t("toolbar.exportFailed")}\n${errorMessage(err)}`);
     }
@@ -628,7 +645,7 @@ export function EditorShell() {
 
   async function handleExportPlayer() {
     try {
-      await exportPlayerFile(doc);
+      if (await exportPlayerFile(doc)) announceStatus(tr("ui.status_exported"));
     } catch (err) {
       alert(`${t("toolbar.exportFailed")}\n${errorMessage(err)}`);
     }
@@ -641,11 +658,12 @@ export function EditorShell() {
     if (exportingPdfRef.current) return;
     exportingPdfRef.current = true;
     setPdfProgress({ done: 0, total: 0 });
+    announceStatus(tr("ui.status_pdf_started"));
     try {
       const { exportModuleAsPdf } = await import("./exportPdf");
       const bytes = await exportModuleAsPdf(useDocumentStore.getState().doc.content, (done, total) => setPdfProgress({ done, total }));
       setPdfProgress(null);
-      await savePdf(useDocumentStore.getState().doc, bytes);
+      if (await savePdf(useDocumentStore.getState().doc, bytes)) announceStatus(tr("ui.status_exported"));
     } catch (err) {
       setPdfProgress(null);
       alert(`${t("toolbar.exportFailed")}\n${errorMessage(err)}`);
@@ -902,7 +920,7 @@ export function EditorShell() {
           <span>
             {tr("ui.weft_has_recognised_this_file_as")}
           </span>
-          <button type="button" className="weft-icon-button" title={tr("ui.close")} onClick={() => setCopyNotice(null)}>
+          <button type="button" className="weft-icon-button" title={tr("ui.close")} aria-label={tr("ui.close")} onClick={() => setCopyNotice(null)}>
             ×
           </button>
         </div>

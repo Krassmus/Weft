@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ImageBlock, ImageEffect, ImageEffectKind } from "../../../core/types";
 import { ImageSvg, useImageBoxAspect } from "../blocks/ImageSvg";
@@ -6,6 +6,7 @@ import { StepperSlider } from "./StepperSlider";
 import { tr } from "../../../core/i18n/tr";
 import { ColorField } from "../ColorField";
 import { useBackdropClose } from "../useBackdropClose";
+import { useDialogA11y } from "../useDialogA11y";
 
 export const IMAGE_EFFECT_KINDS: { id: ImageEffectKind; label: string }[] = [
   { id: "border", get label() { return tr("ui.border"); } },
@@ -50,6 +51,8 @@ export function ImageEffectDialog({
   onClose: () => void;
 }) {
   const backdropClose = useBackdropClose(onClose);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(dialogRef);
   const [effect, setEffect] = useState<ImageEffect | null>(block.effect ?? null);
   const boxAspect = useImageBoxAspect(block);
 
@@ -96,10 +99,10 @@ export function ImageEffectDialog({
 
   return createPortal(
     <div className="weft-modal-backdrop" {...backdropClose}>
-      <div className="weft-modal weft-text-format-dialog" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} className="weft-modal weft-text-format-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="weft-modal-header">
           <h3>{tr("ui.effect")}</h3>
-          <button type="button" className="weft-icon-button" title={tr("ui.close")} onClick={onClose}>
+          <button type="button" className="weft-icon-button" title={tr("ui.close")} aria-label={tr("ui.close")} onClick={onClose}>
             ×
           </button>
         </div>

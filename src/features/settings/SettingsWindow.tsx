@@ -15,11 +15,19 @@ import { useSyncMenuLanguage } from "../../core/i18n/useSyncMenuLanguage";
 import { avatarFromFile } from "../../core/profile/avatarImage";
 import { useProfileStore } from "../../core/profile/profileStore";
 import { PersonAvatar } from "../editor/PersonAvatar";
+import { useAccessibilityStore } from "../../core/accessibility/accessibilityStore";
+import type { ContrastLevel } from "../../core/accessibility/accessibilityStore";
 
 const LANGUAGE_OPTIONS: { value: LanguagePreference; labelKey: "settings.language.system" | "settings.language.de" | "settings.language.en" }[] = [
   { value: "system", labelKey: "settings.language.system" },
   { value: "de", labelKey: "settings.language.de" },
   { value: "en", labelKey: "settings.language.en" },
+];
+
+const CONTRAST_OPTIONS: { value: ContrastLevel; labelKey: "settings.contrast.stylish" | "settings.contrast.higher" | "settings.contrast.strong" }[] = [
+  { value: "stylish", labelKey: "settings.contrast.stylish" },
+  { value: "higher", labelKey: "settings.contrast.higher" },
+  { value: "strong", labelKey: "settings.contrast.strong" },
 ];
 
 /** The app-level "Einstellungen…"/"Settings…" window (see the app menu, src-tauri/src/lib.rs) -
@@ -93,6 +101,10 @@ export function SettingsWindow() {
   const preference = useLanguageStore((s) => s.preference);
   const setPreference = useLanguageStore((s) => s.setPreference);
   useSyncMenuLanguage();
+  const contrast = useAccessibilityStore((s) => s.contrast);
+  const setContrast = useAccessibilityStore((s) => s.setContrast);
+  const focusRing = useAccessibilityStore((s) => s.focusRing);
+  const setFocusRing = useAccessibilityStore((s) => s.setFocusRing);
   const profile = useProfileStore();
   const [avatarError, setAvatarError] = useState(false);
 
@@ -123,6 +135,22 @@ export function SettingsWindow() {
           </label>
         ))}
         <p className="weft-hint">{t("settings.language.hint")}</p>
+      </fieldset>
+      <fieldset className="weft-settings-field">
+        <legend>{t("settings.access.legend")}</legend>
+        <span className="weft-settings-subtitle">{t("settings.contrast.label")}</span>
+        {CONTRAST_OPTIONS.map((option) => (
+          <label key={option.value} className="weft-field weft-field-inline">
+            <input type="radio" name="contrast" checked={contrast === option.value} onChange={() => setContrast(option.value)} />
+            <span>{t(option.labelKey)}</span>
+          </label>
+        ))}
+        <p className="weft-hint">{t("settings.contrast.hint")}</p>
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={focusRing} onChange={(e) => setFocusRing(e.target.checked)} />
+          <span>{t("settings.focus.label")}</span>
+        </label>
+        <p className="weft-hint">{t("settings.focus.hint")}</p>
       </fieldset>
       <fieldset className="weft-settings-field">
         <legend>{t("settings.profile.legend")}</legend>

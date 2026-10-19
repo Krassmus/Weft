@@ -1,8 +1,12 @@
+import { useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { EditorShell } from "./features/editor/EditorShell";
 import { SettingsWindow } from "./features/settings/SettingsWindow";
 import { AudienceView } from "./features/presenter/AudienceView";
+import { StatusLiveRegion } from "./features/editor/StatusLiveRegion";
+import { useResolvedLanguage } from "./core/i18n/languageStore";
+import "./core/accessibility/accessibilityStore";
 import "./fonts.css";
 import "./App.css";
 
@@ -31,6 +35,21 @@ function isAudienceWindow(): boolean {
   }
 }
 
+/** The language of the interface is the language of the page for a screen reader (which picks its voice by it). */
+function DocumentLanguage() {
+  const language = useResolvedLanguage();
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
+  return null;
+}
+
 export default function App() {
-  return <ErrorBoundary>{isSettingsWindow() ? <SettingsWindow /> : isAudienceWindow() ? <AudienceView /> : <EditorShell />}</ErrorBoundary>;
+  return (
+    <ErrorBoundary>
+      <DocumentLanguage />
+      {isSettingsWindow() ? <SettingsWindow /> : isAudienceWindow() ? <AudienceView /> : <EditorShell />}
+      <StatusLiveRegion />
+    </ErrorBoundary>
+  );
 }

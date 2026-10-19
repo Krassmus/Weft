@@ -60,6 +60,7 @@ const KIND_DEFINITIONS: Record<string, string> = {
   files: "FilesBlock",
   list: "ListBlock",
   script: "ScriptBlock",
+  revealer: "RevealerBlock",
 };
 
 function describe(error: ErrorObject): string {
@@ -205,6 +206,8 @@ export function eventLabel(page: Page, node: TimelineNode, content: WeftModule, 
     "video-end-loop": "Video (Schleife)",
     "video-end-stop": "Video zu Ende",
     "script-run": "Logikblock läuft",
+    "revealer-open": "Revealer öffnet sich",
+    "revealer-button": "Revealer-Button geklickt",
   };
   return `${names[node.eventType ?? ""] ?? node.eventType ?? node.id}${what}`;
 }
@@ -352,6 +355,20 @@ export function validate(loaded: LoadedWeft): Finding[] {
     }
     if ((block.kind === "image" || block.kind === "video" || block.kind === "audio") && !block.assetId) {
       add("warning", "media-empty", `${block.kind}-Block hat noch keine Datei.`, here);
+    }
+    if (block.kind === "revealer") {
+      if (block.imageAssetId) {
+        const meta = content.assets.find((a) => a.id === block.imageAssetId);
+        if (!meta) add("error", "asset-missing", `revealer-Block verweist auf das Bild ${block.imageAssetId}, das nicht in der Liste der Dateien steht.`, here);
+        else if (loaded.archive && !loaded.files.has(`assets/${meta.id}_${meta.fileName}`)) {
+          add("error", "asset-file-missing", `Die Datei „${meta.fileName}" fehlt im Archiv.`, { ...here, hint: "Das Bild neu einfügen." });
+        } else if (!block.imageAlt.trim()) add("info", "image-no-alt", "Bild im Revealer ohne Alternativtext (imageAlt).", here);
+      }
+      if (!block.title.trim()) add("warning", "revealer-no-title", "Revealer ohne Überschrift.", here);
+      if (block.button?.action === "goto") {
+        if (!block.button.targetPageId) add("warning", "button-target-empty", "Der Button des Revealers springt zu einer Folie, hat aber kein Ziel.", { ...here, hint: "button.targetPageId setzen." });
+        else if (!content.pages[block.button.targetPageId]) add("error", "button-target-missing", "Der Button des Revealers springt zu einer Folie, die es nicht mehr gibt.", here);
+      }
     }
     if (block.kind === "image" && block.assetId && !block.alt?.trim()) {
       add("info", "image-no-alt", "Bild ohne Alternativtext.", here);

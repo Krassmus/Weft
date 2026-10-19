@@ -1,7 +1,7 @@
 import { isSnapshot } from "../collab/mutationScope";
 import { formatTimeMMSS } from "../formatTime";
 import { orderedValues } from "./ordering";
-import type { Block, BlockEffect, BlockGroup, ClozeBlock, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode } from "../types";
+import type { Block, BlockEffect, RevealerBlock, BlockGroup, ClozeBlock, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode } from "../types";
 import { isMediaBlock } from "../types";
 import type { MediaBlock } from "../types";
 import { tr } from "../i18n/tr";
@@ -187,6 +187,7 @@ const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
   get image() { return tr("ui.image"); },
   get video() { return tr("ui.video"); },
   get audio() { return tr("ui.audio"); },
+  get revealer() { return tr("ui.revealer"); },
   iframe: "Iframe",
   button: "Button",
   get quiz() { return tr("ui.quiz"); },
@@ -256,6 +257,26 @@ export function groupEffectNodeId(groupId: string, phase: "entrance" | "exit"): 
   return `group-${phase}:${groupId}`;
 }
 
+/** The event of a revealer's window opening - by a click on its icon or by a trigger, so it is triggerable like a video's start. */
+export function revealerOpenNodeId(blockId: string): string {
+  return `revealer-open:${blockId}`;
+}
+
+/** The event of the button in a revealer's window being clicked (a user event). */
+export function revealerButtonNodeId(blockId: string): string {
+  return `revealer-button:${blockId}`;
+}
+
+function makeRevealerNodes(block: RevealerBlock): TimelineNode[] {
+  const nodes: TimelineNode[] = [
+    { id: revealerOpenNodeId(block.id), kind: "event", sourceBlockId: block.id, eventType: "revealer-open", label: tr("ui.revealer_opens") },
+  ];
+  if (block.button) {
+    nodes.push({ id: revealerButtonNodeId(block.id), kind: "event", sourceBlockId: block.id, eventType: "revealer-button", label: tr("ui.revealer_button_clicked") });
+  }
+  return nodes;
+}
+
 function makeButtonNode(block: Block): TimelineNode {
   return { id: buttonClickNodeId(block.id), kind: "event", sourceBlockId: block.id, eventType: "button-click" };
 }
@@ -283,6 +304,7 @@ function makeGroupEffectNode(group: BlockGroup, phase: "entrance" | "exit"): Tim
 export const TRIGGERABLE_EVENT_TYPES: ReadonlySet<TimelineEventType> = new Set<TimelineEventType>([
   "video-start-auto",
   "video-start-manual",
+  "revealer-open",
   "block-entrance",
   "block-exit",
   "group-entrance",
@@ -562,6 +584,8 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
   for (const { lane } of videoLanes) lanes.push(lane);
   // A button's click is an event of its own (a violet one: the learner does it); what it triggers is drawn from its triggers.
   for (const block of blocks) if (block.kind === "button") lanes.push({ nodes: [makeButtonNode(block)], edges: [] });
+  // A revealer: the opening of its window and, when it has one, the click on the button in it - each a lone event.
+  for (const block of blocks) if (block.kind === "revealer") for (const node of makeRevealerNodes(block)) lanes.push({ nodes: [node], edges: [] });
 
   const nodesById = new Map<string, TimelineNode>();
   for (const lane of lanes) for (const node of lane.nodes) nodesById.set(node.id, node);
@@ -784,6 +808,10 @@ function blockEventIds(page: Page): Set<string> {
       ids.add(videoEndNodeId(block.id));
     }
     if (block.kind === "button") ids.add(buttonClickNodeId(block.id));
+    if (block.kind === "revealer") {
+      ids.add(revealerOpenNodeId(block.id));
+      if (block.button) ids.add(revealerButtonNodeId(block.id));
+    }
     if (block.kind === "quiz" || block.kind === "cloze") {
       ids.add(quizFillNodeId(block.id));
       ids.add(quizSubmitNodeId(block.id));

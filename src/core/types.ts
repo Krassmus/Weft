@@ -112,6 +112,10 @@ export interface BlockTranslation {
   text?: string;
   /** ListBlock: each item's html by item id. */
   items?: Record<UUID, string>;
+  /** RevealerBlock: the heading, the text of its window and the description of its picture (`text` is its button's label). */
+  title?: string;
+  body?: string;
+  alt?: string;
 }
 
 export interface TextBlock extends BaseBlock {
@@ -428,6 +432,43 @@ export interface ButtonBlock extends BaseBlock {
   onClick?: VariableEffect[];
 }
 
+/** The icons of a Revealer: an i, an exclamation mark in a triangle, an exclamation mark in a circle, a question mark. */
+export type RevealerIcon = "info" | "warning" | "exclamation" | "question";
+
+/** The button in the window of a Revealer: what a click does is what ButtonBlock.action says (without the picking of a plain "next
+ * slide": "event" is "what the graph says after `revealer-button:<id>`"). */
+export interface RevealerButton {
+  text: string;
+  action: "event" | "prev" | "advance" | "goto";
+  targetPageId?: string;
+  /** Changes to variables that every click makes. */
+  onClick?: VariableEffect[];
+}
+
+/**
+ * A small icon in a coloured shape on the slide. A click on it (or an incoming trigger of its event, see TimelineEventType "revealer-open")
+ * opens a window around it with a heading and - all of them optional - a small text, a picture and a button; the window closes with its x.
+ * The sign on the icon is black or white, whichever stands out more from `color`.
+ */
+export interface RevealerBlock extends BaseBlock {
+  kind: "revealer";
+  icon: RevealerIcon;
+  /** The colour of the icon (a hex colour). */
+  color: string;
+  title: string;
+  /** The small text of the window (plain text, with line breaks); "" for none. */
+  body: string;
+  /** The picture of the window (an asset), or null for none. */
+  imageAssetId: UUID | null;
+  /** The description of the picture for those who cannot see it. */
+  imageAlt: string;
+  /** The button of the window, or null for none. */
+  button: RevealerButton | null;
+  /** The look of the window: dark (the default) or light. */
+  windowStyle: "dark" | "light";
+  translations?: Record<string, BlockTranslation>;
+}
+
 /** The basic PowerPoint/Keynote-style shapes ShapeBlock supports - "polygon" is any regular n-gon
  * (ShapeBlock.sides picks n), not a free-form outline; there's no path editor. */
 export type ShapeKind = "rectangle" | "ellipse" | "polygon" | "star";
@@ -590,7 +631,7 @@ export interface FilesBlock extends BaseBlock {
  * navigation button (or a shape, which carries no state at all) has nothing graded to exclude, so
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
-export type StaticBlock = TextBlock | PlaceholderBlock | ListBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | AudioBlock | IframeBlock | ButtonBlock | ShapeBlock | ArrowBlock | FilesBlock;
+export type StaticBlock = TextBlock | PlaceholderBlock | ListBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | AudioBlock | RevealerBlock | IframeBlock | ButtonBlock | ShapeBlock | ArrowBlock | FilesBlock;
 export type Block = StaticBlock | QuizBlock | ClozeBlock | ScriptBlock;
 
 /** A block as it's first made, before it has been put somewhere (and so given its `order`). */
@@ -702,7 +743,9 @@ export type TimelineEventType =
   | "group-entrance"
   | "group-exit"
   | "list-item-entrance"
-  | "script-run";
+  | "script-run"
+  | "revealer-open"
+  | "revealer-button";
 
 export interface TimelineNode {
   id: string;

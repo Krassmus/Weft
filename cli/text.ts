@@ -48,6 +48,8 @@ export function blockSummary(block: Block, content: WeftModule, labels: Record<s
               : "löst ein Ereignis aus";
       return `„${label}" → ${action}`;
     }
+    case "revealer":
+      return `${block.icon}: „${block.title}"${block.body ? " + Text" : ""}${block.imageAssetId ? " + Bild" : ""}${block.button ? ` + Button „${block.button.text}"` : ""}`;
     case "image": {
       const asset = content.assets.find((a) => a.id === block.assetId);
       return `${block.alt ? `„${block.alt}" ` : ""}${asset ? asset.fileName : "(kein Bild)"}`.trim();

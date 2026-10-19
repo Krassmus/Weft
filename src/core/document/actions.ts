@@ -656,6 +656,21 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
       return { ...base, kind, position, url: "https://www.youtube.com/embed/", sandbox: ["allow-scripts"], qrCode: false };
     case "button":
       return { ...base, kind, position: { x: 35, y: 82, width: 30, height: 10 }, text: tr("ui.next"), action: "advance" };
+    case "revealer":
+      return {
+        ...base,
+        kind,
+        // A square on a 16:9 slide (the icon is drawn as large as fits in its box, whatever the box is).
+        position: { x: 20, y: 30, width: 4.5, height: 8 },
+        icon: "info",
+        color: "#3b82f6",
+        title: tr("ui.revealer_default_title"),
+        body: tr("ui.revealer_default_text"),
+        imageAssetId: null,
+        imageAlt: "",
+        button: { text: tr("ui.revealer_default_button"), action: "event" },
+        windowStyle: "dark",
+      };
     case "shape":
       return {
         ...base,
@@ -1460,6 +1475,9 @@ export async function setBlockImage(pageId: string, blockId: string, file: File)
     if (block && block.kind === "image") {
       block.assetId = assetId;
       block.position = fitToAspect(block.position, percentRatio);
+    } else if (block && block.kind === "revealer") {
+      // The picture in the window.
+      block.imageAssetId = assetId;
     } else if (block && block.kind === "list") {
       // The picture in front of the items.
       block.markerAssetId = assetId;

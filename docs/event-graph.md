@@ -313,4 +313,9 @@ und wenn sie fertig ist – bei einer Animation nach ihrer Dauer –, passiert d
      Der Graph fasst diese Mitglieder-Events zu dem einen Gruppen-Event zusammen, solange sie nur von der Gruppe ausgelöst werden.
      Für eine ältere Gruppe ohne eigenen Effekt zeigt das Panel den ersten Mitglied-Effekt; die erste Änderung macht ihn zum
      Gruppen-Effekt und nimmt die Mitglieder aus der Weiter-Kette (an deren Ende das Gruppen-Event tritt).
+   - Ein **Revealer** (`RevealerBlock`: Icon, Farbe, Überschrift, optional Text, Bild und Button) hat zwei Events:
+     „Revealer öffnet sich“ (`revealer-open:<id>`, passiert, sobald sein Fenster aufgeht - durch einen Klick auf das Icon oder durch
+     einen Trigger; er ist ein auslösbares Ziel, das Fenster öffnet sich also auch ohne Klick) und - nur mit Button -
+     „Revealer-Button geklickt“ (`revealer-button:<id>`, wie `button-click`). Was der Button tut (`button.action`, `onClick`,
+     `targetPageId`), wird wie bei einem Button-Block gewählt. Die Icon-Farbe (weiß oder schwarz) folgt dem Kontrast zur Farbe.
    - Der Graph zeigt jetzt jeden gespeicherten Trigger (vorher nur den ersten eines Events).

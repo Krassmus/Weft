@@ -8,6 +8,8 @@ import {
   quizFillNodeId,
   scriptRunNodeId,
   quizSubmitNodeId,
+  revealerButtonNodeId,
+  revealerOpenNodeId,
   videoEndNodeId,
   videoResumeNodeId,
   videoStartNodeId,
@@ -43,6 +45,11 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
       if (!pageBlockIds.has(block.id)) triggers.push({ id: `layout:${id}`, from: "start", to: id, delayMs: 0, weiter: false });
     }
     if (block.exitEffect.type !== "off") events.push({ id: blockEffectNodeId(block.id, "exit"), kind: "exit" });
+
+    if (block.kind === "revealer") {
+      events.push({ id: revealerOpenNodeId(block.id), kind: "revealer-open" });
+      if (block.button) events.push({ id: revealerButtonNodeId(block.id), kind: "revealer-button" });
+    }
 
     if (block.kind === "button") {
       const id = buttonClickNodeId(block.id);

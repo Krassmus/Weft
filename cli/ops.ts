@@ -13,6 +13,8 @@ import {
   videoEndNodeId,
   videoResumeNodeId,
   videoStartNodeId,
+  revealerButtonNodeId,
+  revealerOpenNodeId,
   videoStopNodeId,
 } from "../src/core/document/pageTimeline";
 import { branchPageIds, sequenceOf } from "../src/core/document/sequence";
@@ -175,6 +177,10 @@ function eventId(ctx: Context, raw: unknown, what: string): string {
       return quizEndNodeId(blockOf(), "richtig");
     case "quiz-incorrect-end":
       return quizEndNodeId(blockOf(), "falsch");
+    case "revealer-open":
+      return revealerOpenNodeId(blockOf());
+    case "revealer-button":
+      return revealerButtonNodeId(blockOf());
     case "video-start":
       return videoStartNodeId(blockOf());
     case "video-end":

@@ -303,6 +303,12 @@
       "additionalProperties": false,
       "description": "What one block says in a language OTHER than the module's default one (see WeftModule.languages) - only the fields that have been translated; anything missing is shown in the default language's wording instead. The block's own plain fields (html, questionHtml, text, ...) ARE the default language's wording, so a module that never uses languages has none of this at all.",
       "properties": {
+        "alt": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
         "html": {
           "description": "TextBlock, ButtonBlock (its formatted label).",
           "type": "string"
@@ -327,6 +333,10 @@
         },
         "text": {
           "description": "ButtonBlock: the label as plain text (what `html` says, without the formatting).",
+          "type": "string"
+        },
+        "title": {
+          "description": "RevealerBlock: the heading, the text of its window and the description of its picture (`text` is its button's label).",
           "type": "string"
         }
       },
@@ -1659,6 +1669,148 @@
       ],
       "type": "object"
     },
+    "RevealerBlock": {
+      "additionalProperties": false,
+      "description": "A small icon in a coloured shape on the slide. A click on it (or an incoming trigger of its event, see TimelineEventType \"revealer-open\") opens a window around it with a heading and - all of them optional - a small text, a picture and a button; the window closes with its x. The sign on the icon is black or white, whichever stands out more from `color`.",
+      "properties": {
+        "body": {
+          "description": "The small text of the window (plain text, with line breaks); \"\" for none.",
+          "type": "string"
+        },
+        "button": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RevealerButton"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The button of the window, or null for none."
+        },
+        "color": {
+          "description": "The colour of the icon (a hex colour).",
+          "type": "string"
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "icon": {
+          "$ref": "#/definitions/RevealerIcon"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "imageAlt": {
+          "description": "The description of the picture for those who cannot see it.",
+          "type": "string"
+        },
+        "imageAssetId": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UUID"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The picture of the window (an asset), or null for none."
+        },
+        "kind": {
+          "const": "revealer",
+          "type": "string"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "title": {
+          "type": "string"
+        },
+        "translations": {
+          "additionalProperties": {
+            "$ref": "#/definitions/BlockTranslation"
+          },
+          "type": "object"
+        },
+        "windowStyle": {
+          "description": "The look of the window: dark (the default) or light.",
+          "enum": [
+            "dark",
+            "light"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "body",
+        "button",
+        "color",
+        "entranceEffect",
+        "exitEffect",
+        "icon",
+        "id",
+        "imageAlt",
+        "imageAssetId",
+        "kind",
+        "order",
+        "position",
+        "title",
+        "windowStyle"
+      ],
+      "type": "object"
+    },
+    "RevealerButton": {
+      "additionalProperties": false,
+      "description": "The button in the window of a Revealer: what a click does is what ButtonBlock.action says (without the picking of a plain \"next slide\": \"event\" is \"what the graph says after `revealer-button:<id>`\").",
+      "properties": {
+        "action": {
+          "enum": [
+            "event",
+            "prev",
+            "advance",
+            "goto"
+          ],
+          "type": "string"
+        },
+        "onClick": {
+          "description": "Changes to variables that every click makes.",
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        },
+        "targetPageId": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "action"
+      ],
+      "type": "object"
+    },
+    "RevealerIcon": {
+      "description": "The icons of a Revealer: an i, an exclamation mark in a triangle, an exclamation mark in a circle, a question mark.",
+      "enum": [
+        "info",
+        "warning",
+        "exclamation",
+        "question"
+      ],
+      "type": "string"
+    },
     "ScriptBlock": {
       "additionalProperties": false,
       "description": "A logic block (kind \"script\"): some JavaScript the page runs when the block's event of the page's graph is reached (see scriptRunNodeId in document/pageTimeline.ts) - a green event that, like the Aufbau of any block, is triggered by Weiter by default and can be triggered by anything else. In the editor it is a hexagon with a gear on the slide; the player shows nothing. The code has `vars` (read and write the module's variables by name), `debug(...)`, `trigger(name)` (an event of the page, by its title), `jump(slide, transition, options)` and `VanillaLM`; whoever writes it has to know what they do (see runScript in player.runtime.js). A page's block only - there are no events on a layout.",
@@ -2044,6 +2196,9 @@
         },
         {
           "$ref": "#/definitions/AudioBlock"
+        },
+        {
+          "$ref": "#/definitions/RevealerBlock"
         },
         {
           "$ref": "#/definitions/IframeBlock"

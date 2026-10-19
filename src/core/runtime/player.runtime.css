@@ -984,3 +984,152 @@ summary:focus-visible,
     scroll-behavior: auto !important;
   }
 }
+
+/* ---- Revealer: an icon that opens a window around itself (see renderRevealerBlock in player.runtime.js) ---- */
+.weft-block-revealer {
+  /* The window may stand beyond the block's own box. */
+  overflow: visible;
+}
+
+.weft-revealer-icon {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.weft-revealer-icon svg {
+  display: block;
+  transition: transform 0.12s ease-out;
+}
+
+.weft-revealer-icon:hover svg {
+  transform: scale(1.08);
+}
+
+.weft-revealer-panel {
+  position: absolute;
+  z-index: 1;
+  /* The icon stands in the window's top left corner (or, at the right edge of the slide, in its top right one). */
+  left: -1.4cqw;
+  top: -1.4cqw;
+  box-sizing: border-box;
+  width: 28cqw;
+  padding: calc(100% + 2.2cqw) 1.4cqw 1.4cqw;
+  border-radius: 1.2cqw;
+  font-size: 1.05cqw;
+  line-height: 1.45;
+  text-align: left;
+  transform-origin: top left;
+  animation: weft-revealer-in 0.18s ease-out;
+}
+
+/* (padding-top: 100% is the width of the box, which is the icon's width - the icon is a square.) */
+.weft-revealer-panel.is-right {
+  left: auto;
+  right: -1.4cqw;
+  transform-origin: top right;
+}
+
+.weft-revealer-panel[hidden] {
+  display: none;
+}
+
+.weft-revealer-panel.is-dark {
+  background: #1c2230;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #d7deee;
+  box-shadow: 0 1.2cqw 3cqw rgba(0, 0, 0, 0.35);
+}
+
+.weft-revealer-panel.is-light {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  color: #374151;
+  box-shadow: 0 1.2cqw 3cqw rgba(0, 0, 0, 0.18);
+}
+
+.weft-revealer-title {
+  margin: 0 0 0.5cqw;
+  font-size: 1.5cqw;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.weft-revealer-panel.is-dark .weft-revealer-title {
+  color: #ffffff;
+}
+
+.weft-revealer-panel.is-light .weft-revealer-title {
+  color: #111827;
+}
+
+.weft-revealer-text {
+  margin: 0 0 0.9cqw;
+  white-space: pre-wrap;
+}
+
+.weft-revealer-text[hidden] {
+  display: none;
+}
+
+.weft-revealer-image {
+  display: block;
+  width: 100%;
+  max-height: 14cqw;
+  margin: 0 0 0.9cqw;
+  border-radius: 0.6cqw;
+  object-fit: cover;
+}
+
+.weft-revealer-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.weft-revealer-button {
+  padding: 0.55cqw 1.3cqw;
+  border: 0;
+  border-radius: 0.6cqw;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.weft-revealer-close {
+  position: absolute;
+  top: 1.1cqw;
+  right: 1.2cqw;
+  width: 2.2cqw;
+  height: 2.2cqw;
+  padding: 0;
+  border: 0;
+  border-radius: 0.5cqw;
+  background: transparent;
+  color: inherit;
+  font-size: 1.8cqw;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.weft-revealer-panel.is-right .weft-revealer-close {
+  right: 1.2cqw;
+}
+
+@keyframes weft-revealer-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

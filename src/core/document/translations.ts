@@ -1,4 +1,4 @@
-import type { BlockTranslation, ButtonBlock, ClozeBlock, ListBlock, QuizBlock, TextBlock, WeftModule } from "../types";
+import type { BlockTranslation, ButtonBlock, ClozeBlock, ListBlock, QuizBlock, RevealerBlock, TextBlock, WeftModule } from "../types";
 
 /**
  * Per-language wording of the blocks that carry text (text, quiz, button). The block's own fields
@@ -215,6 +215,49 @@ export function buttonTextPatch(block: ButtonBlock, language: string | null, def
   return wordingPatch(block, language, defaultLanguage, { text }, (t) => ({ ...t, text })) as Partial<ButtonBlock>;
 }
 
+/** The words of a revealer in `language`: what it has in that language, else the block's own wording (the default language's). */
+export interface RevealerWording {
+  title: string;
+  body: string;
+  imageAlt: string;
+  buttonText: string;
+}
+
+export function revealerWording(block: RevealerBlock, language: string | null, defaultLanguage: string | null): RevealerWording {
+  const t = isOwnWording(language, defaultLanguage) || !language ? undefined : block.translations?.[language];
+  return {
+    title: t?.title ?? block.title,
+    body: t?.body ?? block.body,
+    imageAlt: t?.alt ?? block.imageAlt,
+    buttonText: t?.text ?? block.button?.text ?? "",
+  };
+}
+
+/** The patch that stores some of a revealer's words in `language`: into the block's own fields for the default language, into its translations
+ * entry for any other one. */
+export function revealerWordingPatch(
+  block: RevealerBlock,
+  language: string | null,
+  defaultLanguage: string | null,
+  fields: Partial<RevealerWording>,
+): Partial<RevealerBlock> {
+  if (isOwnWording(language, defaultLanguage) || !language) {
+    const own: Partial<RevealerBlock> = {};
+    if (fields.title !== undefined) own.title = fields.title;
+    if (fields.body !== undefined) own.body = fields.body;
+    if (fields.imageAlt !== undefined) own.imageAlt = fields.imageAlt;
+    if (fields.buttonText !== undefined && block.button) own.button = { ...block.button, text: fields.buttonText };
+    return own;
+  }
+  const existing = block.translations?.[language] ?? {};
+  const next: BlockTranslation = { ...existing };
+  if (fields.title !== undefined) next.title = fields.title;
+  if (fields.body !== undefined) next.body = fields.body;
+  if (fields.imageAlt !== undefined) next.alt = fields.imageAlt;
+  if (fields.buttonText !== undefined) next.text = fields.buttonText;
+  return { translations: { ...block.translations, [language]: next } };
+}
+
 /**
  * The default language changed (a different one was dragged to the top, or the default was
  * removed): the blocks' own fields must hold the NEW default's wording, so swap them with its
@@ -229,6 +272,18 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
     ...Object.values(content.layouts).flatMap((layout) => Object.values(layout.blocks)),
   ];
   for (const block of blocks) {
+    if (block.kind === "revealer") {
+      // The words of a revealer swap with the translation of the new default like any other block's.
+      const incomingWords = block.translations?.[newDefault];
+      const outgoingWords: BlockTranslation = { title: block.title, body: block.body, alt: block.imageAlt };
+      if (block.button) outgoingWords.text = block.button.text;
+      if (incomingWords?.title !== undefined) block.title = incomingWords.title;
+      if (incomingWords?.body !== undefined) block.body = incomingWords.body;
+      if (incomingWords?.alt !== undefined) block.imageAlt = incomingWords.alt;
+      if (block.button && incomingWords?.text !== undefined) block.button.text = incomingWords.text;
+      block.translations = { ...block.translations, [oldDefault]: outgoingWords };
+      continue;
+    }
     if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "list") continue;
     const incoming = block.translations?.[newDefault];
     const outgoing: BlockTranslation = {};

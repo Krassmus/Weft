@@ -5964,3 +5964,129 @@ h2.weft-inspector-header {
   border-radius: var(--weft-radius-sm);
   background: #fff;
 }
+
+/* ---- A revealer on the canvas (RevealerCanvas in blocks/BlockView.tsx): the icon, and the window around it while the block is selected. The
+   look of the window is the player's (see the end of core/runtime/player.runtime.css), made for the canvas. ---- */
+.weft-edit-revealer {
+  position: relative;
+}
+
+.weft-edit-revealer-icon {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.weft-edit-revealer-panel {
+  position: absolute;
+  z-index: 1;
+  left: -1.4cqw;
+  top: -1.4cqw;
+  box-sizing: border-box;
+  width: 28cqw;
+  padding: calc(100% + 2.2cqw) 1.4cqw 1.4cqw;
+  border-radius: 1.2cqw;
+  font-size: 1.05cqw;
+  line-height: 1.45;
+  text-align: left;
+  pointer-events: none;
+}
+
+.weft-edit-revealer-panel.is-right {
+  left: auto;
+  right: -1.4cqw;
+}
+
+.weft-edit-revealer-panel.is-dark {
+  background: #1c2230;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #d7deee;
+  box-shadow: 0 1.2cqw 3cqw rgba(0, 0, 0, 0.35);
+}
+
+.weft-edit-revealer-panel.is-light {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  color: #374151;
+  box-shadow: 0 1.2cqw 3cqw rgba(0, 0, 0, 0.18);
+}
+
+.weft-edit-revealer-title {
+  margin: 0 0 0.5cqw;
+  font-size: 1.5cqw;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.weft-edit-revealer-panel.is-dark .weft-edit-revealer-title {
+  color: #ffffff;
+}
+
+.weft-edit-revealer-panel.is-light .weft-edit-revealer-title {
+  color: #111827;
+}
+
+.weft-edit-revealer-text {
+  margin: 0 0 0.9cqw;
+  white-space: pre-wrap;
+}
+
+.weft-edit-revealer-image {
+  display: block;
+  width: 100%;
+  max-height: 14cqw;
+  margin: 0 0 0.9cqw;
+  border-radius: 0.6cqw;
+  object-fit: cover;
+}
+
+.weft-edit-revealer-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.weft-edit-revealer-button {
+  padding: 0.55cqw 1.3cqw;
+  border-radius: 0.6cqw;
+  font-weight: 600;
+}
+
+.weft-edit-revealer-close {
+  position: absolute;
+  top: 1.1cqw;
+  right: 1.2cqw;
+  font-size: 1.8cqw;
+  line-height: 1;
+}
+
+.weft-thumb-block-revealer svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-revealer-icon-choice {
+  display: flex;
+  gap: 6px;
+}
+
+.weft-revealer-icon-button {
+  width: 36px;
+  height: 36px;
+  padding: 3px;
+  border: 1px solid var(--weft-border, #d0d0d0);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.weft-revealer-icon-button.is-active {
+  border-color: var(--weft-accent, #3b82f6);
+  box-shadow: 0 0 0 1px var(--weft-accent, #3b82f6);
+}
+
+.weft-revealer-icon-button svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

@@ -18,7 +18,7 @@ export type FilesStringKey = "filesTitle" | "filesPassword" | "filesUnlock" | "f
 
 /** The texts for screen readers and keyboard users (the hidden navigation, the announcement of a slide, ...). {n} and {total} are filled in
  * by the player. A language without its own entry falls back to English. */
-export type A11yStringKey = "previous" | "navigation" | "slide" | "blank" | "embedded";
+export type A11yStringKey = "previous" | "navigation" | "slide" | "blank" | "embedded" | "revealerOpen" | "revealerClose";
 
 type Strings = Record<PlayerStringKey | FilesStringKey | A11yStringKey | "thanks", string>;
 
@@ -30,18 +30,18 @@ const THANKS: Record<string, string> = {
   zh_TW: "謝謝！", ja: "ありがとうございます！", ko: "감사합니다!", id: "Terima kasih!", vi: "Cảm ơn bạn!", th: "ขอบคุณ!",
 };
 
-function a11yStrings(previous: string, navigation: string, slide: string, blank: string, embedded: string): Record<A11yStringKey, string> {
-  return { previous, navigation, slide, blank, embedded };
+function a11yStrings(previous: string, navigation: string, slide: string, blank: string, embedded: string, revealerOpen: string, revealerClose: string): Record<A11yStringKey, string> {
+  return { previous, navigation, slide, blank, embedded, revealerOpen, revealerClose };
 }
 
 const A11Y_TRANSLATIONS: Record<string, Record<A11yStringKey, string>> = {
-  de: a11yStrings("Zurück", "Navigation", "Folie {n}", "Lücke {n} von {total}", "Eingebettete Seite"),
-  en: a11yStrings("Back", "Navigation", "Slide {n}", "Blank {n} of {total}", "Embedded page"),
-  fr: a11yStrings("Retour", "Navigation", "Diapositive {n}", "Trou {n} sur {total}", "Page intégrée"),
-  es: a11yStrings("Atrás", "Navegación", "Diapositiva {n}", "Hueco {n} de {total}", "Página incrustada"),
-  it: a11yStrings("Indietro", "Navigazione", "Diapositiva {n}", "Spazio {n} di {total}", "Pagina incorporata"),
-  pt: a11yStrings("Voltar", "Navegação", "Diapositivo {n}", "Lacuna {n} de {total}", "Página incorporada"),
-  nl: a11yStrings("Terug", "Navigatie", "Dia {n}", "Open plek {n} van {total}", "Ingebedde pagina"),
+  de: a11yStrings("Zurück", "Navigation", "Folie {n}", "Lücke {n} von {total}", "Eingebettete Seite", "Mehr Informationen anzeigen", "Schließen"),
+  en: a11yStrings("Back", "Navigation", "Slide {n}", "Blank {n} of {total}", "Embedded page", "Show more information", "Close"),
+  fr: a11yStrings("Retour", "Navigation", "Diapositive {n}", "Trou {n} sur {total}", "Page intégrée", "Afficher plus d'informations", "Fermer"),
+  es: a11yStrings("Atrás", "Navegación", "Diapositiva {n}", "Hueco {n} de {total}", "Página incrustada", "Mostrar más información", "Cerrar"),
+  it: a11yStrings("Indietro", "Navigazione", "Diapositiva {n}", "Spazio {n} di {total}", "Pagina incorporata", "Mostra più informazioni", "Chiudi"),
+  pt: a11yStrings("Voltar", "Navegação", "Diapositivo {n}", "Lacuna {n} de {total}", "Página incorporada", "Mostrar mais informações", "Fechar"),
+  nl: a11yStrings("Terug", "Navigatie", "Dia {n}", "Open plek {n} van {total}", "Ingebedde pagina", "Meer informatie tonen", "Sluiten"),
 };
 
 function filesStrings(title: string, password: string, unlock: string, wrongPassword: string, download: string, failed: string): Record<FilesStringKey, string> {

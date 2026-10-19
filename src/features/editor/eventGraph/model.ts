@@ -61,7 +61,8 @@ function isUserEvent(node: TimelineNode): boolean {
     type === "quiz-submit" ||
     type === "quiz-submit-correct" ||
     type === "quiz-submit-incorrect" ||
-    type === "button-click"
+    type === "button-click" ||
+    type === "revealer-button"
   );
 }
 
@@ -195,7 +196,7 @@ export function buildGraphModel(page: Page): GraphModel {
   for (const node of nodes) {
     // The start of the page, what the learner does, and a video the learner can always start.
     if (afterAppearing.has(node.id)) continue;
-    if (node.kind === "start" || isUserEvent(node) || node.eventType === "video-start-manual" || node.eventType === "video-start-auto") mark(node.id);
+    if (node.kind === "start" || isUserEvent(node) || node.eventType === "video-start-manual" || node.eventType === "video-start-auto" || node.eventType === "revealer-open") mark(node.id);
   }
   while (queue.length > 0) {
     const id = queue.shift()!;

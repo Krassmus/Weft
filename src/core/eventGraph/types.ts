@@ -33,6 +33,10 @@ export type GraphEventKind =
   | "quiz-submit"
   /** A button was clicked (`button-click:<blockId>`). Made to happen by the player. */
   | "button-click"
+  /** A revealer's window opens (`revealer-open:<blockId>`) - by a trigger (it is then the action of the event) or by a click on its icon. */
+  | "revealer-open"
+  /** The button in a revealer's window was clicked (`revealer-button:<blockId>`). Made to happen by the player. */
+  | "revealer-button"
   /** The Aufbau/Abbau of a group as a whole (`group-entrance:<groupId>`, `group-exit:<groupId>`): it has no action of its own - what it
    * triggers are the Aufbau/Abbau of its members, which do the work. */
   | "group-entrance"

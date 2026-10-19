@@ -8,6 +8,7 @@ import declineIconSvg from "../../../mockups/icons/decline.svg?raw";
 import hand2IconSvg from "../../../mockups/icons/hand2.svg?raw";
 import video2IconSvg from "../../../mockups/icons/video2.svg?raw";
 import stopIconSvg from "../../../mockups/icons/stop.svg?raw";
+import infoIconSvgRaw from "../../../mockups/icons/info-circle-full.svg?raw";
 import animationIconSvgRaw from "../../../mockups/icons/animation.svg?raw";
 import dashingAwayIconSvgRaw from "../../../mockups/icons/dashing-away.svg?raw";
 import { reorderChain } from "../../core/document/actions";
@@ -36,6 +37,9 @@ const dashingAwayIconSvg = dashingAwayIconSvgRaw.replace(/style="fill:[^;"]*;fil
 const INFINITY_ICON_SVG =
   '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><text x="8" y="12" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#28497c">∞</text></svg>';
 
+// The info icon takes the colour of the event like the others do (its own colour is a fill in the file).
+const infoIconSvg = infoIconSvgRaw.replace(/fill="[^"]*"/g, 'fill="#28497c"').replace(/style="fill:[^"]*"/g, 'fill="#28497c"');
+
 const EVENT_LABELS: Record<TimelineEventType, string> = {
   get "quiz-fill-start"() { return tr("ui.fill_in"); },
   get "quiz-submit"() { return tr("ui.quiz_submitted"); },
@@ -50,6 +54,8 @@ const EVENT_LABELS: Record<TimelineEventType, string> = {
   get "block-entrance"() { return tr("ui.appears"); },
   get "block-exit"() { return tr("ui.disappears"); },
   get "button-click"() { return tr("ui.button_clicked"); },
+  get "revealer-open"() { return tr("ui.revealer_opens"); },
+  get "revealer-button"() { return tr("ui.revealer_button_clicked"); },
   get "group-entrance"() { return tr("ui.group_appears"); },
   get "group-exit"() { return tr("ui.group_disappears"); },
   get "list-item-entrance"() { return tr("ui.list_item_3"); },
@@ -76,6 +82,8 @@ const EVENT_ICONS: Record<TimelineEventType, string> = {
   "block-entrance": animationIconSvg,
   "block-exit": dashingAwayIconSvg,
   "button-click": hand2IconSvg,
+  "revealer-open": infoIconSvg,
+  "revealer-button": hand2IconSvg,
   "group-entrance": animationIconSvg,
   "group-exit": dashingAwayIconSvg,
   "list-item-entrance": animationIconSvg,

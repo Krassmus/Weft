@@ -24,6 +24,7 @@ import {
   isListPerItem,
   outgoingTriggers,
   quizEndNodeId,
+  revealerButtonNodeId,
   scriptRunNodeId,
   videoResumeNodeId,
   videoStopNodeId,
@@ -81,6 +82,7 @@ import type {
   VariableEffect,
   AudioBlock,
   MediaBlock,
+  RevealerBlock,
   VideoBlock,
   VideoStopPoint,
 } from "../../../core/types";
@@ -97,7 +99,9 @@ import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from ".
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { quizOptionHtml, textHtml } from "../../../core/document/translations";
+import { quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
+import type { RevealerWording } from "../../../core/document/translations";
+import { revealerIconSvg } from "../../../core/runtime/revealerGeometry";
 import { clozeBlanks } from "../../../core/document/cloze";
 import { useEditingLanguage } from "../useEditingLanguage";
 import { LanguageSelect } from "./LanguageSelect";
@@ -226,6 +230,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, onSetAudio
       {block.kind === "audio" && <AudioEditor block={block} page={page} onUpdate={onUpdate} onSetAudio={onSetAudio} />}
       {block.kind === "iframe" && <IframeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "button" && <ButtonEditor block={block} page={page} onUpdate={onUpdate} />}
+      {block.kind === "revealer" && <RevealerEditor block={block} page={page} onUpdate={onUpdate} onSetImage={onSetImage} />}
       {block.kind === "quiz" && <QuizEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "shape" && <ShapeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "arrow" && <ArrowEditor block={block} onUpdate={onUpdate} />}
@@ -1922,8 +1927,153 @@ function ListEditor({
 /** What the "Aktion" menu of a button says for the click's first target in the graph (see ButtonEditor). */
 const NO_TARGET = "event:";
 
-function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Page; onUpdate: BlockPanelProps["onUpdate"] }) {
-  const clickId = buttonClickNodeId(block.id);
+const REVEALER_ICONS: { icon: RevealerBlock["icon"]; label: () => string }[] = [
+  { icon: "info", label: () => tr("ui.revealer_icon_info") },
+  { icon: "warning", label: () => tr("ui.revealer_icon_warning") },
+  { icon: "exclamation", label: () => tr("ui.revealer_icon_exclamation") },
+  { icon: "question", label: () => tr("ui.revealer_icon_question") },
+];
+
+/**
+ * The panel of a revealer: its icon and colour, what its window says (a heading, and - optional - a small text, a picture and a button), how the
+ * window looks, and what the button does (the same choices as a button block: see ButtonActionSection). The window is shown on the canvas while the
+ * block is selected.
+ */
+function RevealerEditor({
+  block,
+  page,
+  onUpdate,
+  onSetImage,
+}: {
+  block: RevealerBlock;
+  page?: Page;
+  onUpdate: BlockPanelProps["onUpdate"];
+  onSetImage: BlockPanelProps["onSetImage"];
+}) {
+  const { lang, defaultLang } = useEditingLanguage();
+  const words = revealerWording(block, lang, defaultLang);
+  const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
+  const imageUrl = block.imageAssetId ? getObjectUrl(block.imageAssetId) : undefined;
+  const say = (fields: Partial<RevealerWording>) => onUpdate(revealerWordingPatch(block, lang, defaultLang, fields));
+  const button = block.button;
+  return (
+    <>
+      <Collapsible title={tr("ui.revealer")}>
+        <LanguageSelect block={block} />
+        <div className="weft-field">
+          <span>{tr("ui.revealer_icon")}</span>
+          <div className="weft-revealer-icon-choice" role="group" aria-label={tr("ui.revealer_icon")}>
+            {REVEALER_ICONS.map((choice) => (
+              <button
+                key={choice.icon}
+                type="button"
+                className={"weft-revealer-icon-button" + (block.icon === choice.icon ? " is-active" : "")}
+                aria-pressed={block.icon === choice.icon}
+                title={choice.label()}
+                aria-label={choice.label()}
+                onClick={() => onUpdate({ icon: choice.icon })}
+                dangerouslySetInnerHTML={{ __html: revealerIconSvg(choice.icon, block.color) }}
+              />
+            ))}
+          </div>
+        </div>
+        <label className="weft-field">
+          <span>{tr("ui.revealer_color")}</span>
+          <ColorField value={block.color} ariaLabel={tr("ui.revealer_color")} onChange={(color) => onUpdate({ color })} />
+        </label>
+        <label className="weft-field">
+          <span>{tr("ui.revealer_window")}</span>
+          <select value={block.windowStyle} onChange={(e) => onUpdate({ windowStyle: e.target.value as RevealerBlock["windowStyle"] })}>
+            <option value="dark">{tr("ui.revealer_window_dark")}</option>
+            <option value="light">{tr("ui.revealer_window_light")}</option>
+          </select>
+        </label>
+      </Collapsible>
+
+      <Collapsible title={tr("ui.revealer_content")}>
+        <label className="weft-field">
+          <span>{tr("ui.revealer_title")}</span>
+          <input value={words.title} onChange={(e) => say({ title: e.target.value })} />
+        </label>
+        <label className="weft-field">
+          <span>{tr("ui.revealer_text")}</span>
+          <textarea rows={4} value={words.body} onChange={(e) => say({ body: e.target.value })} />
+        </label>
+        <div className="weft-field">
+          <span>{tr("ui.revealer_image")}</span>
+          {imageUrl && <img className="weft-cover-preview" src={imageUrl} alt="" />}
+          <input
+            type="file"
+            accept="image/*"
+            aria-label={tr("ui.revealer_choose_image")}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onSetImage(file);
+              e.target.value = "";
+            }}
+          />
+          {imageUrl && (
+            <button type="button" className="weft-ghost-button weft-full-width" onClick={() => onUpdate({ imageAssetId: null })}>
+              {tr("ui.revealer_remove_image")}
+            </button>
+          )}
+        </div>
+        {imageUrl && (
+          <label className="weft-field">
+            <span>{tr("ui.revealer_image_alt")}</span>
+            <input value={words.imageAlt} onChange={(e) => say({ imageAlt: e.target.value })} />
+          </label>
+        )}
+        <label className="weft-field weft-field-inline">
+          <input
+            type="checkbox"
+            checked={button !== null}
+            onChange={(e) =>
+              onUpdate({ button: e.target.checked ? { text: tr("ui.revealer_default_button"), action: "event" } : null })
+            }
+          />
+          <span>{tr("ui.revealer_button_on")}</span>
+        </label>
+        {button && (
+          <label className="weft-field">
+            <span>{tr("ui.revealer_button_text")}</span>
+            <input value={words.buttonText} onChange={(e) => say({ buttonText: e.target.value })} />
+          </label>
+        )}
+        <p className="weft-hint">{tr("ui.revealer_opens_note")}</p>
+      </Collapsible>
+
+      {button && (
+        <ButtonActionSection
+          page={page}
+          clickId={revealerButtonNodeId(block.id)}
+          action={button.action}
+          targetPageId={button.targetPageId}
+          effects={button.onClick ?? []}
+          onChange={(patch) => onUpdate({ button: { ...button, ...patch } })}
+        />
+      )}
+    </>
+  );
+}
+
+/** What a click on a button does, and what it triggers: the sections "Aktion", "Löst aus" and "Variablen ändern" of a button block - and of the button in
+ * the window of a revealer, which does the same. `clickId` is the event of the click; `onChange` receives the fields that changed. */
+function ButtonActionSection({
+  page,
+  clickId,
+  action,
+  targetPageId,
+  effects,
+  onChange,
+}: {
+  page?: Page;
+  clickId: string;
+  action: ButtonBlock["action"];
+  targetPageId?: string;
+  effects: VariableEffect[];
+  onChange: (patch: { action?: ButtonBlock["action"]; targetPageId?: string; onClick?: VariableEffect[] }) => void;
+}) {
   const clickNode = page ? findNode(page, clickId) : undefined;
   const outgoing = page ? outgoingTriggers(page.timeline, clickId) : [];
   // What the click can make happen: the events of the page that can be triggered, and every "Nächste Folie".
@@ -1936,35 +2086,33 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
   // The pages a click can lead to, named by their place in the sidebar ("4.a.1") - the block stores the id of the page.
   const content = useDocumentStore((s) => s.doc.content);
   const pages = pageChoices(content, false);
-  const targetKnown = !!block.targetPageId && pages.some((p) => p.pageId === block.targetPageId);
+  const targetKnown = !!targetPageId && pages.some((p) => p.pageId === targetPageId);
   const value =
-    block.action === "event"
+    action === "event"
       ? outgoing[0]
         ? `event:${outgoing[0].to}`
         : NO_TARGET
-      : block.action === "goto"
-        ? `goto:${block.targetPageId ?? ""}`
-        : block.action;
+      : action === "goto"
+        ? `goto:${targetPageId ?? ""}`
+        : action;
   const variables = useDocumentStore((s) => s.doc.content.variables);
-  const look = buttonAppearanceOf(block);
-  const setLook = (patch: Partial<ButtonAppearance>) => onUpdate({ appearance: { ...look, ...patch } });
 
   function chooseAction(chosen: string) {
     if (chosen === "advance" || chosen === "prev") {
-      onUpdate({ action: chosen });
+      onChange({ action: chosen });
       return;
     }
     if (chosen.startsWith("goto:")) {
-      onUpdate({ action: "goto", targetPageId: chosen.slice("goto:".length) || undefined });
+      onChange({ action: "goto", targetPageId: chosen.slice("goto:".length) || undefined });
       return;
     }
     if (!page) {
-      onUpdate({ action: "event" });
+      onChange({ action: "event" });
       return;
     }
-    // Turning a button into one that triggers an event gives it its default trigger (to "Nächste Folie", see updateBlock); the
+    // Turning a button into one that triggers an event gives a button block its default trigger (to "Nächste Folie", see updateBlock); the
     // chosen event then takes that one's place.
-    if (block.action !== "event") onUpdate({ action: "event" });
+    if (action !== "event") onChange({ action: "event" });
     const target = chosen.slice("event:".length);
     const current = outgoingTriggers(useDocumentStore.getState().doc.content.pages[page.id].timeline, clickId);
     if (!target) {
@@ -1985,9 +2133,9 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
             <option value="advance">{tr("ui.next")}</option>
             <option value="prev">{tr("ui.previous_slide")}</option>
             <optgroup label={tr("ui.jump_to_a_slide")}>
-              {block.action === "goto" && !block.targetPageId && <option value="goto:">{tr("ui.choose_slide")}</option>}
-              {block.action === "goto" && block.targetPageId && !targetKnown && (
-                <option value={`goto:${block.targetPageId}`}>{tr("ui.deleted_slide")}</option>
+              {action === "goto" && !targetPageId && <option value="goto:">{tr("ui.choose_slide")}</option>}
+              {action === "goto" && targetPageId && !targetKnown && (
+                <option value={`goto:${targetPageId}`}>{tr("ui.deleted_slide")}</option>
               )}
               {pages.map((choice) => (
                 <option key={choice.pageId} value={`goto:${choice.pageId}`}>
@@ -2009,21 +2157,21 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
             )}
           </select>
         </label>
-        {block.action === "advance" && (
+        {action === "advance" && (
           <p className="weft-hint">
             {tr("ui.first_shows_the_entrances_of_this")}
           </p>
         )}
-        {block.action === "prev" && (
+        {action === "prev" && (
           <p className="weft-hint">
             {tr("ui.automatically_disabled_on_the_first_slide")}
           </p>
         )}
-        {block.action === "goto" && (
+        {action === "goto" && (
           <>
-            {targetKnown && block.targetPageId ? (
+            {targetKnown && targetPageId ? (
               <div className="weft-jump-miniature">
-                <PageMiniature pageId={block.targetPageId} />
+                <PageMiniature pageId={targetPageId} />
               </div>
             ) : (
               <p className="weft-hint">{tr("ui.this_slide_no_longer_exists_the")}</p>
@@ -2033,18 +2181,36 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
             </p>
           </>
         )}
-        {block.action === "event" && !page && (
+        {action === "event" && !page && (
           <p className="weft-hint">
             {tr("ui.the_click_is_an_event_in")}
           </p>
         )}
       </Collapsible>
-      {block.action === "event" && page && clickNode && <OutgoingTriggersSection page={page} node={clickNode} />}
-      <Collapsible title={tr("ui.change_variables")} defaultOpen={(block.onClick ?? []).length > 0}>
+      {action === "event" && page && clickNode && <OutgoingTriggersSection page={page} node={clickNode} />}
+      <Collapsible title={tr("ui.change_variables")} defaultOpen={(effects).length > 0}>
         <p className="weft-hint">{tr("ui.on_every_click_in_addition_to")}</p>
-        <EffectListEditor effects={block.onClick ?? []} variables={variables} onChange={(onClick) => onUpdate({ onClick })} />
+        <EffectListEditor effects={effects} variables={variables} onChange={(onClick) => onChange({ onClick })} />
         {variables.length === 0 && <p className="weft-hint">{tr("ui.there_are_no_variables_yet_create")}</p>}
       </Collapsible>
+    </>
+  );
+}
+
+function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Page; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const look = buttonAppearanceOf(block);
+  const setLook = (patch: Partial<ButtonAppearance>) => onUpdate({ appearance: { ...look, ...patch } });
+
+  return (
+    <>
+      <ButtonActionSection
+        page={page}
+        clickId={buttonClickNodeId(block.id)}
+        action={block.action}
+        targetPageId={block.targetPageId}
+        effects={block.onClick ?? []}
+        onChange={(patch) => onUpdate(patch)}
+      />
       <Collapsible title={tr("ui.appearance")}>
         <div className="weft-field">
           <span>{tr("ui.background")}</span>

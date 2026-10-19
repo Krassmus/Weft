@@ -25,6 +25,7 @@ import { tr } from "../../../core/i18n/tr";
 // real playback time that nothing could fake, so there's nothing here to edit, just to explain.
 const EVENT_HINTS: Partial<Record<TimelineEventType, string>> = {
   get "button-click"() { return tr("ui.happens_as_soon_as_the_learner"); },
+  get "revealer-button"() { return tr("ui.revealer_button_hint"); },
   get "quiz-fill-start"() { return tr("ui.happens_as_soon_as_the_learner_2"); },
   get "quiz-submit"() { return tr("ui.happens_as_soon_as_the_quiz"); },
   get "quiz-submit-correct"() { return tr("ui.happens_as_soon_as_the_quiz_2"); },

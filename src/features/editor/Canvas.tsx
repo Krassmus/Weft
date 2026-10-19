@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { CSSProperties, DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent, RefObject } from "react";
+import type { CSSProperties, DragEvent as ReactDragEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, RefObject } from "react";
 import playIconSvg from "../../../mockups/icons/play.svg?raw";
 import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
 import {
@@ -34,6 +34,8 @@ import type { BlockContainerRef } from "../../core/document/store";
 import { warnAboutVideoUploads } from "../../core/io/fileIO";
 import type { VideoUploadReport } from "../../core/io/fileIO";
 import type { BlockGroup, BlockPosition, Layout, Page, WeftDocument } from "../../core/types";
+import { pageReadingOrder } from "../../core/document/readingOrder";
+import { pageLabels } from "../../core/document/pageLabels";
 import type { ContextMenuItem } from "./ContextMenu";
 import { BlockView } from "./blocks/BlockView";
 import { PlaceholderSlot } from "./blocks/PlaceholderSlot";
@@ -718,6 +720,26 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
    * threshold/pointermove/pointerup-on-window idiom as BlockView's handlePointerDownMove, just
    * driving every member's position via clampGroupMove + one updateBlockPositions on finish
    * instead of a single block's own clampMove + onUpdate. */
+  /** Tab on the slide: from the slide itself or from an element to the next one in reading order (and Shift+Tab to the one before) - which is
+   * selected, so that its panel comes up. From the last one (or before the first) Tab goes on as usual, out of the slide. */
+  function onStageKeyDown(e: ReactKeyboardEvent<HTMLDivElement>, page: Page, layout: Layout | null) {
+    if (e.key !== "Tab" || e.altKey || e.ctrlKey || e.metaKey) return;
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const onStage = active === e.currentTarget;
+    const onBlock = !!active && e.currentTarget.contains(active) && active.hasAttribute("data-block-id");
+    // (In a text that is being edited, or on another control, Tab is Tab.)
+    if (!onStage && !onBlock) return;
+    if (onStage && e.shiftKey) return;
+    const order = pageReadingOrder(page, layout);
+    const index = onBlock && active ? order.indexOf(active.dataset.blockId ?? "") : -1;
+    const next = index + (e.shiftKey ? -1 : 1);
+    if (next < 0 || next >= order.length) return;
+    e.preventDefault();
+    const blockId = order[next];
+    select({ type: "block", container: { kind: "page", pageId: page.id }, blockId });
+    requestAnimationFrame(() => stageRef.current?.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(blockId)}"]`)?.focus({ preventScroll: true }));
+  }
+
   function startGroupMove(e: ReactPointerEvent, page: Page, memberIds: string[]) {
     if (e.button !== 0) return;
     const stage = stageRef.current?.getBoundingClientRect();
@@ -1001,6 +1023,12 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
               ref={stageRef}
               className={"weft-stage weft-stage-edit" + (dragOver ? " is-drag-over" : "")}
               style={{ aspectRatio: aspect }}
+              // The slide as one place for the keyboard: Tab stops here when no element of it is selected, and from here (or from an
+              // element) goes from element to element in reading order - then on, out of the slide.
+              role="group"
+              aria-label={tr("ui.stage_label", { n: pageLabels(doc.content)[target.page.id] ?? "" })}
+              tabIndex={selection?.type === "block" && selection.container.kind === "page" && selection.container.pageId === target.page.id ? -1 : 0}
+              onKeyDown={(e) => onStageKeyDown(e, target.page, target.layout)}
               onClick={() => {
                 if (!pressStartedInBlockRef.current) select({ type: "page", pageId: target.page.id });
               }}

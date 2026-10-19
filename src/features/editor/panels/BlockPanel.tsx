@@ -108,11 +108,10 @@ import { ColorField } from "../ColorField";
 import { useStopPointDialog } from "../blocks/stopPointDialogStore";
 import { useBackdropClose } from "../useBackdropClose";
 import { useDialogA11y } from "../useDialogA11y";
+import { blockTitle } from "../blockTitle";
 import { Waveform } from "./Waveform";
 import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
-import { plainTextOfHtml } from "../../../core/document/translations";
 import { orderedValues } from "../../../core/document/ordering";
-import type { TranslationKey } from "../../../core/i18n/translations";
 import { BlockKindIcon } from "../BlockKindIcon";
 
 const SANDBOX_FLAGS = ["allow-scripts", "allow-same-origin", "allow-popups", "allow-forms"];
@@ -1518,24 +1517,6 @@ function VideoStopPointDialog({
     </div>,
     document.body,
   );
-}
-
-/** What to call a block in a list of the page's elements: its kind and, where it has words, the first of them. */
-function blockTitle(block: Block, t: (key: TranslationKey) => string): string {
-  const html =
-    block.kind === "text" || block.kind === "placeholder" || block.kind === "cloze"
-      ? block.html
-      : block.kind === "button"
-        ? (block.html ?? block.text)
-        : block.kind === "quiz"
-          ? block.questionHtml
-          : block.kind === "list"
-            ? (block.items[0]?.html ?? "")
-            : "";
-  const words = plainTextOfHtml(html);
-  const kind = t(BLOCK_KIND_KEYS[block.kind]);
-  if (!words) return kind;
-  return `${kind}: ${words.length > 26 ? `${words.slice(0, 25)}…` : words}`;
 }
 
 /**

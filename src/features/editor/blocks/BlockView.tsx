@@ -1,5 +1,6 @@
 import { presenceColor, useBlockViewers } from "../../../core/collab/presence";
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { flushSync } from "react-dom";
 import { createPortal } from "react-dom";
 import type { CSSProperties, MutableRefObject, PointerEvent as ReactPointerEvent } from "react";
@@ -39,7 +40,9 @@ import { confirmDestructive } from "../../../core/io/fileIO";
 import type { ArrowPoint, Block, BlockPosition, ClozeBlock, IframeBlock, ImageMask, ListBlock, QuizBlock } from "../../../core/types";
 import { ListMarkerView } from "./ListMarkerView";
 import { caretAt, caretOnLine, caretX, fitListMarkers, focusItem, textLength } from "./listCaret";
-import { ContextMenu, useContextMenu } from "../ContextMenu";
+import { ContextMenu, isContextMenuKey, useContextMenu } from "../ContextMenu";
+import { blockTitle } from "../blockTitle";
+import { useTranslation } from "../../../core/i18n/useTranslation";
 import type { ContextMenuItem } from "../ContextMenu";
 import { registerActiveEditable, registerWholeRegion, resolveInlineAssets, saveSelection, storeableHtml } from "./richText";
 import { ArrowHandles } from "./ArrowHandles";
@@ -94,6 +97,8 @@ const RESIZE_CURSORS: Record<HandleId, string> = {
 /** The one-level steps of a block's stacking order (Cmd/Ctrl+] and +[), handed down from BlockView to the canvases of the blocks that
  * make their own context menu (a quiz, a list). */
 const StackStepsContext = createContext<{ forward?: () => void; backward?: () => void }>({});
+/** The name of the block (its kind and the first words), for the text fields in it: a screen reader says which one it is in. */
+const BlockNameContext = createContext<string | undefined>(undefined);
 const MOD = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
 
 function layerMenuItems(
@@ -244,10 +249,21 @@ export function BlockView({
       if (e.key !== "Escape") return;
       setEditing(false);
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      // (The block keeps the keyboard focus: from there Enter edits again, Tab goes on.)
+      wrapRef.current?.focus({ preventScroll: true });
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [editing]);
+  // Enter on a block that has the focus (not its text): the text is edited, a formula or a time-marks dialog opens - what a double click does.
+  const focusTextPending = useRef(false);
+  useEffect(() => {
+    if (!editing || !focusTextPending.current) return;
+    focusTextPending.current = false;
+    wrapRef.current?.querySelector<HTMLElement>('[contenteditable="true"], textarea')?.focus();
+  }, [editing]);
+  const { t } = useTranslation();
+  const accessibleName = blockTitle(block, t);
   const slideAspect = useDocumentStore((s) => aspectRatioNumeric(s.doc.content.aspectRatio));
   const [nearEdge, setNearEdge] = useState(false);
   const [snapGuides, setSnapGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
@@ -534,6 +550,7 @@ export function BlockView({
 
   return (
     <StackStepsContext.Provider value={{ forward: onBringForward, backward: onSendBackward }}>
+    <BlockNameContext.Provider value={accessibleName}>
     <>
       <div
         ref={wrapRef}
@@ -547,6 +564,41 @@ export function BlockView({
           (nearEdge ? " is-near-edge" : "")
         }
         style={style}
+        // For the keyboard: the block that is selected is the one Tab stops at (see Canvas.tsx, which moves between them), it has a name, and
+        // Enter / the Menu key do what a double click / a right click do.
+        role={locked ? undefined : "group"}
+        aria-label={locked ? undefined : accessibleName}
+        tabIndex={locked ? undefined : selected ? 0 : -1}
+        data-block-id={locked ? undefined : block.id}
+        onFocus={(event) => {
+          // (A focus that came from the keyboard selects; one from a click is the click's own business - it may be a Shift click.)
+          if (locked || selected || event.target !== event.currentTarget || !event.currentTarget.matches(":focus-visible")) return;
+          onSelect?.();
+        }}
+        onKeyDown={(event: ReactKeyboardEvent<HTMLDivElement>) => {
+          if (locked || event.target !== event.currentTarget) return;
+          if (isContextMenuKey(event)) {
+            event.preventDefault();
+            const rect = event.currentTarget.getBoundingClientRect();
+            event.currentTarget.dispatchEvent(
+              new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: rect.left + 16, clientY: rect.top + 16 }),
+            );
+            return;
+          }
+          if (event.key !== "Enter" || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+          if (block.kind === "tex") {
+            event.preventDefault();
+            useTexDialog.getState().open(block.id);
+          } else if ((block.kind === "video" || block.kind === "audio") && block.assetId) {
+            event.preventDefault();
+            useStopPointDialog.getState().open(block.id);
+          } else if (isTextLike && !groupSelected) {
+            event.preventDefault();
+            if (!selected) onSelect?.();
+            focusTextPending.current = true;
+            setEditing(true);
+          }
+        }}
         onClick={(event) => {
           if (locked) return;
           event.stopPropagation();
@@ -678,6 +730,7 @@ export function BlockView({
       {guides}
       <ContextMenu menu={contextMenu.menu} onClose={contextMenu.close} />
     </>
+    </BlockNameContext.Provider>
     </StackStepsContext.Provider>
   );
 }
@@ -1361,6 +1414,7 @@ function EditableRichText({
   onCommit: (html: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const blockName = useContext(BlockNameContext);
   // null (never a real value once committed/synced) so the very first effect run below always
   // syncs the initial content into the DOM, instead of comparing html to itself and concluding
   // there's nothing to do.
@@ -1425,6 +1479,9 @@ function EditableRichText({
       ref={ref}
       className={className}
       contentEditable={editable}
+      role={editable ? "textbox" : undefined}
+      aria-multiline={editable ? true : undefined}
+      aria-label={editable ? blockName : undefined}
       suppressContentEditableWarning
       onFocus={() => ref.current && registerActiveEditable({ el: ref.current, commit })}
       onBlur={(e) => {

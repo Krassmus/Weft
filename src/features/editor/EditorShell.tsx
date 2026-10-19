@@ -3,6 +3,7 @@ import { syncLiveForCurrentDocument } from "../../core/collab/session";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useAccessibilityStore } from "../../core/accessibility/accessibilityStore";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createBlankDocument } from "../../core/document/createEmptyDocument";
@@ -398,6 +399,9 @@ export function EditorShell() {
   // indirection is needed to keep this subscription from going stale.
   useEffect(() => {
     if (!isTauri()) return;
+    const unlistenZoom = listen<string>("weft://menu-zoom", (e) => {
+      useAccessibilityStore.getState().stepUiZoom(e.payload === "in" ? 1 : e.payload === "out" ? -1 : 0);
+    });
     const unlistenUndo = listen("weft://menu-undo", () => {
       if (!presentingRef.current && !playerRef.current && phaseRef.current === "editor") {
         undo();
@@ -411,6 +415,7 @@ export function EditorShell() {
       }
     });
     return () => {
+      void unlistenZoom.then((fn) => fn());
       void unlistenUndo.then((fn) => fn());
       void unlistenRedo.then((fn) => fn());
     };

@@ -88,6 +88,9 @@ struct MenuStrings {
     view: &'static str,
     play: &'static str,
     present: &'static str,
+    zoom_in: &'static str,
+    zoom_out: &'static str,
+    zoom_reset: &'static str,
 }
 
 #[cfg(desktop)]
@@ -115,6 +118,9 @@ fn menu_strings(lang: &str) -> MenuStrings {
             view: "Ansicht",
             play: "Abspielen",
             present: "Präsentieren (mit Moderatoransicht)",
+            zoom_in: "Oberfläche vergrößern",
+            zoom_out: "Oberfläche verkleinern",
+            zoom_reset: "Originalgröße der Oberfläche",
         }
     } else {
         MenuStrings {
@@ -139,6 +145,9 @@ fn menu_strings(lang: &str) -> MenuStrings {
             view: "View",
             play: "Play",
             present: "Present (with Presenter View)",
+            zoom_in: "Make Interface Larger",
+            zoom_out: "Make Interface Smaller",
+            zoom_reset: "Actual Interface Size",
         }
     }
 }
@@ -280,6 +289,12 @@ fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String], player: boo
         let play_item = MenuItem::with_id(app_handle, "weft-play", strings.play, editing, Some("CmdOrCtrl+Alt+P"))?;
         let present_item = MenuItem::with_id(app_handle, "weft-present", strings.present, editing, Some("CmdOrCtrl+Alt+Shift+P"))?;
         view_menu.prepend_items(&[&play_item, &present_item, &PredefinedMenuItem::separator(app_handle)?])?;
+        // The size of Weft's own interface (an accessibility setting, also in the settings window) - the pinch gesture of the trackpad does
+        // not change it any more (that is for the slide, see useStageZoom in Canvas.tsx), so this menu and these keys do.
+        let zoom_in_item = MenuItem::with_id(app_handle, "weft-zoom-in", strings.zoom_in, true, Some("CmdOrCtrl+Plus"))?;
+        let zoom_out_item = MenuItem::with_id(app_handle, "weft-zoom-out", strings.zoom_out, true, Some("CmdOrCtrl+Minus"))?;
+        let zoom_reset_item = MenuItem::with_id(app_handle, "weft-zoom-reset", strings.zoom_reset, true, Some("CmdOrCtrl+0"))?;
+        view_menu.append_items(&[&PredefinedMenuItem::separator(app_handle)?, &zoom_in_item, &zoom_out_item, &zoom_reset_item])?;
     }
 
     Ok(menu)
@@ -615,6 +630,15 @@ pub fn run() {
                     }
                     "weft-present" => {
                         let _ = app_handle.emit("weft://menu-present", ());
+                    }
+                    "weft-zoom-in" => {
+                        let _ = app_handle.emit("weft://menu-zoom", "in");
+                    }
+                    "weft-zoom-out" => {
+                        let _ = app_handle.emit("weft://menu-zoom", "out");
+                    }
+                    "weft-zoom-reset" => {
+                        let _ = app_handle.emit("weft://menu-zoom", "reset");
                     }
                     "weft-undo" => {
                         let _ = app_handle.emit("weft://menu-undo", ());

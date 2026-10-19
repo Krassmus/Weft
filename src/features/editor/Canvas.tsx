@@ -349,8 +349,37 @@ function useStageZoom() {
       });
     }
 
+    // WebKit (Safari, the webview of the Mac app) reports a trackpad pinch as gesture events, with the factor since its start in `scale` -
+    // not as a wheel event with ctrlKey like Chrome does.
+    let gestureStartZoom = 1;
+    function onGestureStart(e: Event) {
+      e.preventDefault();
+      gestureStartZoom = zoomRef.current;
+    }
+    function onGestureChange(e: Event) {
+      e.preventDefault();
+      const { scale, clientX, clientY } = e as Event & { scale: number; clientX: number; clientY: number };
+      const box = zoomBoxRef.current;
+      if (!box) return;
+      const boxRect = box.getBoundingClientRect();
+      if (boxRect.width === 0 || boxRect.height === 0) return;
+      const fracX = (clientX - boxRect.left) / boxRect.width;
+      const fracY = (clientY - boxRect.top) / boxRect.height;
+      setZoom((prevZoom) => {
+        const nextZoom = clamp(gestureStartZoom * scale, ZOOM_MIN, ZOOM_MAX);
+        if (nextZoom !== prevZoom) pendingAnchorRef.current = { clientX, clientY, fracX, fracY };
+        return nextZoom;
+      });
+    }
+
     wrap.addEventListener("wheel", onWheel, { passive: false });
-    return () => wrap.removeEventListener("wheel", onWheel);
+    wrap.addEventListener("gesturestart", onGestureStart);
+    wrap.addEventListener("gesturechange", onGestureChange);
+    return () => {
+      wrap.removeEventListener("wheel", onWheel);
+      wrap.removeEventListener("gesturestart", onGestureStart);
+      wrap.removeEventListener("gesturechange", onGestureChange);
+    };
   }, []);
 
   // Scrolls so that the part of the slide the anchor names (see pendingAnchorRef) is under the point it names.

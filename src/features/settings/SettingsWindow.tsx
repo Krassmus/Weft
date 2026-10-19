@@ -15,7 +15,8 @@ import { useSyncMenuLanguage } from "../../core/i18n/useSyncMenuLanguage";
 import { avatarFromFile } from "../../core/profile/avatarImage";
 import { useProfileStore } from "../../core/profile/profileStore";
 import { PersonAvatar } from "../editor/PersonAvatar";
-import { useAccessibilityStore } from "../../core/accessibility/accessibilityStore";
+import { UI_ZOOM_STEPS, useAccessibilityStore } from "../../core/accessibility/accessibilityStore";
+import { isTauri } from "../../core/io/fileIO";
 import type { ContrastLevel } from "../../core/accessibility/accessibilityStore";
 
 const LANGUAGE_OPTIONS: { value: LanguagePreference; labelKey: "settings.language.system" | "settings.language.de" | "settings.language.en" }[] = [
@@ -102,6 +103,9 @@ export function SettingsWindow() {
   const setPreference = useLanguageStore((s) => s.setPreference);
   useSyncMenuLanguage();
   const contrast = useAccessibilityStore((s) => s.contrast);
+  const uiZoom = useAccessibilityStore((s) => s.uiZoom);
+  const setUiZoom = useAccessibilityStore((s) => s.setUiZoom);
+  const isDesktopApp = isTauri();
   const setContrast = useAccessibilityStore((s) => s.setContrast);
   const focusRing = useAccessibilityStore((s) => s.focusRing);
   const setFocusRing = useAccessibilityStore((s) => s.setFocusRing);
@@ -146,6 +150,19 @@ export function SettingsWindow() {
           </label>
         ))}
         <p className="weft-hint">{t("settings.contrast.hint")}</p>
+        {isDesktopApp && (
+          <label className="weft-field">
+            <span>{t("settings.zoom.label")}</span>
+            <select value={uiZoom} onChange={(e) => setUiZoom(Number(e.target.value))}>
+              {UI_ZOOM_STEPS.map((step) => (
+                <option key={step} value={step}>
+                  {Math.round(step * 100)} %
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {isDesktopApp && <p className="weft-hint">{t("settings.zoom.hint")}</p>}
         <label className="weft-field weft-field-inline">
           <input type="checkbox" checked={focusRing} onChange={(e) => setFocusRing(e.target.checked)} />
           <span>{t("settings.focus.label")}</span>

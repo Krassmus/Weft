@@ -2,6 +2,7 @@ import { canTriggerFrom, computeAdvanceChainTail } from "../../../core/document/
 import type { ResolvedTrigger } from "../../../core/document/pageTimeline";
 import type { Page, TimelineEdgeKind } from "../../../core/types";
 import { tr } from "../../../core/i18n/tr";
+import { SecondsControl } from "./SecondsControl";
 
 // A UI-only sentinel for the main select's "Weiter" option - never itself written into the
 // document (see handleMainChange below, which always resolves it to a real node id + kind
@@ -80,21 +81,17 @@ export function TriggerPicker({
           </select>
         </label>
       ) : (
-        <label className="weft-field">
-          <span>{tr("ui.delay_seconds")}</span>
-          <input
-            type="number"
-            min={0}
-            step={0.1}
+        <div className="weft-field">
+          <span>{tr("ui.delay_in_seconds")}</span>
+          <SecondsControl
+            label={tr("ui.delay_seconds")}
             disabled={trigger === null}
-            value={(trigger?.kind === "timed" ? trigger.delayMs : 0) / 1000}
-            onChange={(e) => {
-              const seconds = Number(e.target.value);
-              if (!Number.isFinite(seconds) || seconds < 0 || !trigger || trigger.kind !== "timed") return;
-              onChange(trigger.from, Math.round(seconds * 1000), "timed");
+            valueMs={trigger?.kind === "timed" ? trigger.delayMs : 0}
+            onChange={(delayMs) => {
+              if (trigger?.kind === "timed") onChange(trigger.from, delayMs, "timed");
             }}
           />
-        </label>
+        </div>
       )}
     </>
   );

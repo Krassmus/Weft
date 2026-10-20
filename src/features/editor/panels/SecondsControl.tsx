@@ -13,19 +13,22 @@ export function SecondsControl({
   onChange,
   minMs = 0,
   label,
+  disabled = false,
 }: {
   valueMs: number;
   onChange: (valueMs: number) => void;
   minMs?: number;
   /** For assistive technology: what the number is. */
   label: string;
+  /** Shown, but not to be changed (there is nothing it would change). */
+  disabled?: boolean;
 }) {
   const seconds = valueMs / 1000;
   // Tenths of a second: 0.1 + 0.2 is not 0.3.
   const setSeconds = (value: number) => onChange(Math.max(minMs, Math.round(value * 10) * 100));
   return (
     <span className="weft-delay-control">
-      <button type="button" className="weft-delay-step" aria-label={tr("ui.0_1_seconds_less")} disabled={valueMs <= minMs} onClick={() => setSeconds(seconds - 0.1)}>
+      <button type="button" className="weft-delay-step" aria-label={tr("ui.0_1_seconds_less")} disabled={disabled || valueMs <= minMs} onClick={() => setSeconds(seconds - 0.1)}>
         −
       </button>
       <input
@@ -33,13 +36,14 @@ export function SecondsControl({
         min={minMs / 1000}
         step={0.1}
         value={seconds}
+        disabled={disabled}
         aria-label={label}
         onChange={(e) => {
           const value = Number(e.target.value);
           if (Number.isFinite(value) && (minMs === 0 ? value >= 0 : value > 0)) onChange(Math.round(value * 1000));
         }}
       />
-      <button type="button" className="weft-delay-step" aria-label={tr("ui.0_1_seconds_more")} onClick={() => setSeconds(seconds + 0.1)}>
+      <button type="button" className="weft-delay-step" aria-label={tr("ui.0_1_seconds_more")} disabled={disabled} onClick={() => setSeconds(seconds + 0.1)}>
         +
       </button>
       <input
@@ -49,6 +53,7 @@ export function SecondsControl({
         max={SLIDER_MAX_SECONDS}
         step={0.1}
         value={Math.min(Math.max(seconds, minMs / 1000), SLIDER_MAX_SECONDS)}
+        disabled={disabled}
         aria-label={tr("ui.set", { label: label })}
         onChange={(e) => setSeconds(Number(e.target.value))}
       />

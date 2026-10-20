@@ -115,7 +115,7 @@ export async function exportModuleAsPdf(
         const blob = useAssetStore.getState().blobs.get(block.assetId);
         if (blob) imageUrls[block.id] = await blobToDataUrl(blob);
       }
-      flushSync(() => root.render(<SlideThumbnail blocks={blocks} exportPxPerCqw={RENDER_WIDTH_PX / 100} qrSvgs={qrSvgs} imageUrls={imageUrls} />));
+      flushSync(() => root.render(<SlideThumbnail blocks={blocks} pageId={pageIds[i]} exportPxPerCqw={RENDER_WIDTH_PX / 100} qrSvgs={qrSvgs} imageUrls={imageUrls} />));
       await whenSettled(holder);
       const canvas = await html2canvas(holder, {
         scale: RENDER_SCALE,

@@ -542,7 +542,7 @@ function PageRow({
       {...dragAttrs}
     >
       <span className="weft-node-index">{index}</span>
-      <SlideThumbnail blocks={[...orderedValues(layout?.blocks ?? {}), ...orderedValues(page.blocks)]} />
+      <SlideThumbnail blocks={[...orderedValues(layout?.blocks ?? {}), ...orderedValues(page.blocks)]} pageId={pageId} />
     </button>
   );
 }

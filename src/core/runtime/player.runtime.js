@@ -457,7 +457,8 @@
   // progress = round up(visited / (visited + remaining) * 100): "visited" is the pages on the path
   // taken up to and including the one showing (so the last page reads 100), "remaining" the most
   // pages that can still follow it - along the rest of its own branch, then the longest branch of
-  // every logic block still ahead.
+  // every logic block still ahead. (core/document/pageProgress.ts works the same sum out without playing, for the PDF and the editor:
+  // keep the two in step.)
   function isJumpPage(pageId) {
     return !!(module.pages[pageId] && module.pages[pageId].jump);
   }

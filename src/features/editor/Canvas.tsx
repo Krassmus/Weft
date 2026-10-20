@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ActionPathOverlay } from "./ActionPathOverlay";
+import { StagePageContext } from "./blocks/stagePage";
 import type { CSSProperties, DragEvent as ReactDragEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, RefObject } from "react";
 import playIconSvg from "../../../mockups/icons/play.svg?raw";
 import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
@@ -1068,6 +1069,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
   }
 
   return (
+    <StagePageContext.Provider value={target?.kind === "page" ? target.page.id : null}>
     <main className="weft-canvas" aria-label={tr("ui.landmark_work_area")}>
       <div className="weft-canvas-toolbar" role="toolbar" aria-label={tr("ui.landmark_toolbar")}>
         {target?.kind === "layout" ? (
@@ -1354,5 +1356,6 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
       </div>
       {target?.kind === "page" && !target.page.jump && <Timeline page={target.page} />}
     </main>
+    </StagePageContext.Provider>
   );
 }

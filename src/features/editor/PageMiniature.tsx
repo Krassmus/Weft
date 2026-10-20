@@ -11,5 +11,5 @@ export function PageMiniature({ pageId }: { pageId: string }) {
   const page = content.pages[pageId];
   const layout = page?.layoutId ? content.layouts[page.layoutId] : undefined;
   if (!page || !pageLabels(content)[pageId]) return <div className="weft-miniature-missing">{tr("ui.slide_deleted")}</div>;
-  return <SlideThumbnail blocks={[...orderedValues(layout?.blocks ?? {}), ...orderedValues(page.blocks)]} />;
+  return <SlideThumbnail blocks={[...orderedValues(layout?.blocks ?? {}), ...orderedValues(page.blocks)]} pageId={pageId} />;
 }

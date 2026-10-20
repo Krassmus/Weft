@@ -60,7 +60,7 @@ const renderer: CoverRenderer = {
         const blob = useAssetStore.getState().blobs.get(block.assetId);
         if (blob) imageUrls[block.id] = await blobToDataUrl(blob);
       }
-      flushSync(() => root.render(<SlideThumbnail blocks={blocks} exportPxPerCqw={COVER_WIDTH_PX / 100} imageUrls={imageUrls} />));
+      flushSync(() => root.render(<SlideThumbnail blocks={blocks} pageId={pageId} exportPxPerCqw={COVER_WIDTH_PX / 100} imageUrls={imageUrls} />));
       await whenSettled(holder);
       const canvas = await html2canvas(holder, {
         scale: 1,

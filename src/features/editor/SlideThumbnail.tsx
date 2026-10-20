@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from "react";
+import { pageProgress } from "../../core/document/pageProgress";
 import { revealerIconSvg } from "../../core/runtime/revealerGeometry.js";
 import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
 import { buttonAppearanceCss } from "../../core/document/buttonAppearance";
@@ -48,8 +49,12 @@ export function SlideThumbnail({
   qrSvgs,
   imageUrls,
   placeholderSlots = false,
+  pageId,
 }: {
   blocks: Block[];
+  /** The page these blocks are the picture of: a progress bar and a {{progress}} in a text then show the value `progress` has on that
+   * page (see pageProgress). Without it a bar shows half and a text keeps its placeholder. */
+  pageId?: string;
   /** Show the placeholders of a layout (as their sample text in a dashed frame) - for the picture of a layout itself; on a page they
    * are not part of what is shown. */
   placeholderSlots?: boolean;
@@ -62,6 +67,11 @@ export function SlideThumbnail({
 }) {
   const aspectRatio = useDocumentStore((s) => s.doc.content.aspectRatio);
   const numeric = aspectRatioNumeric(aspectRatio);
+  // (Worked out only for a picture that has something to show it with; a declared variable of the same name wins, as when played.)
+  const usesProgress = !!pageId && (blocks.some((b) => b.kind === "progress") || /\{\{\s*progress\s*\}\}/.test(JSON.stringify(blocks)));
+  const progress = useDocumentStore((s) =>
+    usesProgress && pageId && !s.doc.content.variables.some((v) => v.name === "progress") ? pageProgress(s.doc.content, pageId) : null,
+  );
   // A portrait slide at the full width of the sidebar would be a huge tower - it is capped at the
   // height a landscape one has anyway and sits narrower instead.
   const portraitCap = numeric < 1 ? { flex: "0 1 auto", width: `min(100%, ${THUMB_MAX_HEIGHT_PX * numeric}px)`, marginInline: "auto" } : undefined;
@@ -77,7 +87,7 @@ export function SlideThumbnail({
     <div className="weft-thumb" style={{ aspectRatio: aspectRatioCss(aspectRatio), ...portraitCap }}>
       <div className="weft-thumb-stage" ref={stageRef}>
         {blocks.map((block) => (
-          <ThumbBlock key={block.id} block={block} exportPxPerCqw={exportPxPerCqw} qrSvg={qrSvgs?.[block.id]} imageUrl={imageUrls?.[block.id]} placeholderSlots={placeholderSlots} />
+          <ThumbBlock key={block.id} block={block} exportPxPerCqw={exportPxPerCqw} qrSvg={qrSvgs?.[block.id]} imageUrl={imageUrls?.[block.id]} placeholderSlots={placeholderSlots} progress={progress} />
         ))}
       </div>
     </div>
@@ -90,14 +100,18 @@ function ThumbBlock({
   qrSvg,
   imageUrl,
   placeholderSlots,
+  progress,
 }: {
   block: Block;
+  /** The value of `progress` on this page, if it is known (see SlideThumbnail's pageId). */
+  progress: number | null;
   exportPxPerCqw?: number;
   qrSvg?: string;
   imageUrl?: string;
   placeholderSlots?: boolean;
 }) {
   const slideAspect = useDocumentStore((s) => aspectRatioNumeric(s.doc.content.aspectRatio));
+  const variables = useDocumentStore((s) => s.doc.content.variables);
   const { lang, defaultLang } = useEditingLanguage();
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
   const style = {
@@ -107,6 +121,10 @@ function ThumbBlock({
     height: `${block.position.height}%`,
     transform: block.position.rotation ? `rotate(${block.position.rotation}deg)` : undefined,
   };
+
+  // A {{progress}} in a text is its value on this page (the name is matched the way the player matches it).
+  const shown = (html: string) =>
+    progress === null ? html : html.replace(/\{\{([^{}<>]*)\}\}/g, (all, name: string) => (name.trim() === "progress" ? String(progress) : all));
 
   if (block.kind === "placeholder") {
     return placeholderSlots ? (
@@ -118,12 +136,12 @@ function ThumbBlock({
     ) : null;
   }
   if (block.kind === "text") {
-    return <div className="weft-thumb-block weft-thumb-block-text" style={style} dangerouslySetInnerHTML={{ __html: textHtml(block, lang, defaultLang) }} />;
+    return <div className="weft-thumb-block weft-thumb-block-text" style={style} dangerouslySetInnerHTML={{ __html: shown(textHtml(block, lang, defaultLang)) }} />;
   }
   if (block.kind === "cloze") {
     return (
       <div className="weft-thumb-block weft-thumb-block-cloze" style={style}>
-        <div className="weft-thumb-block-cloze-text" dangerouslySetInnerHTML={{ __html: clozeBlanksAsBoxes(textHtml(block, lang, defaultLang)) }} />
+        <div className="weft-thumb-block-cloze-text" dangerouslySetInnerHTML={{ __html: clozeBlanksAsBoxes(shown(textHtml(block, lang, defaultLang))) }} />
         <div className="weft-thumb-block-quiz-submit">
           <span className="weft-thumb-block-quiz-submit-icon" dangerouslySetInnerHTML={{ __html: acceptSvg }} />
           {playerStringsFor(lang).submit}
@@ -143,7 +161,7 @@ function ThumbBlock({
         {block.items.map((item, index) => (
           <div key={item.id} className="weft-thumb-block-list-item">
             <ListMarkerView block={block} index={index} />
-            <span className="weft-thumb-block-list-item-text" dangerouslySetInnerHTML={{ __html: listItemHtml(block, item.id, lang, defaultLang) }} />
+            <span className="weft-thumb-block-list-item-text" dangerouslySetInnerHTML={{ __html: shown(listItemHtml(block, item.id, lang, defaultLang)) }} />
           </div>
         ))}
       </div>
@@ -202,9 +220,13 @@ function ThumbBlock({
     );
   }
   if (block.kind === "progress") {
+    const declared = variables.find((v) => v.name === block.variable);
+    const initial = declared && declared.type === "number" ? Number(declared.initialValue) : NaN;
+    const known = Number.isFinite(initial) ? initial : (block.variable || "progress") === "progress" && progress !== null ? progress : 50;
+    const fill = Math.min(100, Math.max(0, known));
     return (
       <div className={"weft-thumb-block weft-thumb-block-progress" + (block.rounded ? " is-rounded" : "")} style={{ ...style, background: block.trackColor }}>
-        <div style={{ width: "50%", height: "100%", background: block.color }} />
+        <div style={{ width: `${fill}%`, height: "100%", background: block.color }} />
       </div>
     );
   }
@@ -285,7 +307,7 @@ function ThumbBlock({
     return (
       <div className="weft-thumb-block weft-thumb-block-button" style={{ ...style, ...buttonAppearanceCss(block) }}>
         {buttonText(block, lang, defaultLang).trim() ? (
-          <span className="weft-thumb-block-button-text" dangerouslySetInnerHTML={{ __html: buttonHtml(block, lang, defaultLang) }} />
+          <span className="weft-thumb-block-button-text" dangerouslySetInnerHTML={{ __html: shown(buttonHtml(block, lang, defaultLang)) }} />
         ) : (
           playerStringsFor(lang).next
         )}
@@ -300,7 +322,7 @@ function ThumbBlock({
     // differently-laid-out preview.
     return (
       <div className="weft-thumb-block weft-thumb-block-quiz" style={style}>
-        <div className="weft-thumb-block-quiz-question" dangerouslySetInnerHTML={{ __html: quizQuestionHtml(block, lang, defaultLang) }} />
+        <div className="weft-thumb-block-quiz-question" dangerouslySetInnerHTML={{ __html: shown(quizQuestionHtml(block, lang, defaultLang)) }} />
         <div className="weft-thumb-block-quiz-options">
           {block.options.map((opt) => {
             // (A PDF does not give away the answers: nothing is marked there, as when a learner starts the quiz.)
@@ -311,7 +333,7 @@ function ThumbBlock({
                   className="weft-thumb-block-quiz-option-checkbox"
                   dangerouslySetInnerHTML={{ __html: isCorrect ? checkboxCheckedSvg : checkboxUncheckedSvg }}
                 />
-                <span className="weft-thumb-block-quiz-option-text" dangerouslySetInnerHTML={{ __html: quizOptionHtml(block, opt.id, lang, defaultLang) }} />
+                <span className="weft-thumb-block-quiz-option-text" dangerouslySetInnerHTML={{ __html: shown(quizOptionHtml(block, opt.id, lang, defaultLang)) }} />
               </div>
             );
           })}

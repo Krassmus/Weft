@@ -2,7 +2,8 @@
 import { tr } from "../i18n/tr";/** Variables that always exist and compute themselves - usable in {{placeholders}} in texts and in
  * formulas, but never declared in the module's own variable list (so they can't be set, removed or
  * branched on). The values themselves are computed by player.runtime.js (variableValueByName) -
- * keep the names in sync with it. A variable the author declares under the same name takes
+ * keep the names in sync with it. `progress` alone can also be worked out without playing (pageProgress.ts), which
+ * the PDF, the thumbnails and the editor's progress bar use. A variable the author declares under the same name takes
  * precedence there. */
 export interface VirtualVariable {
   name: string;

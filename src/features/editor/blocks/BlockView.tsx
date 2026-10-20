@@ -35,6 +35,8 @@ import { autonymLabel } from "../../../core/i18n/languages";
 import { playerStringsFor } from "../../../core/i18n/playerStrings";
 import { useEditingLanguage } from "../useEditingLanguage";
 import { useAssetStore } from "../../../core/assets/assetStore";
+import { pageProgress } from "../../../core/document/pageProgress";
+import { useStagePageId } from "./stagePage";
 import { useDocumentStore } from "../../../core/document/store";
 import { createId } from "../../../core/id";
 import { confirmDestructive } from "../../../core/io/fileIO";
@@ -978,12 +980,18 @@ function RevealerCanvas({ block, selected }: { block: RevealerBlock; selected: b
   );
 }
 
-/** A progress bar on the canvas: a sample value (half, or the starting value of a number variable it shows) - nothing moves here. */
+/** A progress bar on the canvas: the value its variable has on this page where that is known (`progress`: see pageProgress; a number
+ * variable: its starting value), else half - nothing moves here. */
 function ProgressCanvas({ block }: { block: ProgressBlock }) {
+  const pageId = useStagePageId();
   const variables = useDocumentStore((s) => s.doc.content.variables);
   const declared = variables.find((v) => v.name === block.variable);
   const initial = declared && declared.type === "number" ? Number(declared.initialValue) : NaN;
-  const value = Number.isFinite(initial) ? Math.min(100, Math.max(0, initial)) : 50;
+  const ofPage = useDocumentStore((s) =>
+    pageId && !Number.isFinite(initial) && (block.variable || "progress") === "progress" && !declared ? pageProgress(s.doc.content, pageId) : null,
+  );
+  const known = Number.isFinite(initial) ? initial : (ofPage ?? 50);
+  const value = Math.min(100, Math.max(0, known));
   return (
     <div className={"weft-edit-progress" + (block.rounded ? " is-rounded" : "")} style={{ background: block.trackColor }}>
       <div className="weft-edit-progress-fill" style={{ width: `${value}%`, background: block.color }} />

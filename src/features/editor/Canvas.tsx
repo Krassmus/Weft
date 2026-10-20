@@ -60,6 +60,10 @@ const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 4;
 // How much larger than its size at the start of a pinch the slide is first painted, when the pinch zooms in (see useStageZoom).
 const OVERSAMPLE = 2.5;
+// The work area around the slide (.weft-canvas-stage-wrap in App.css): its padding, and the share of its size (--pan-x/--pan-y there) that
+// the slide can be moved away from the middle - which is also where the work area is scrolled to when the slide is in the middle.
+const STAGE_WRAP_PADDING = 28;
+const PAN_SHARE = 0.3;
 // ... but no more than this many device pixels in all (the slide at its larger size).
 const OVERSAMPLE_PIXELS = 6_000_000;
 // Trackpad pinch gestures arrive as wheel events with only a handful of deltaY units per step -
@@ -486,7 +490,49 @@ function useStageZoom() {
 
   useLayoutEffect(applyAnchor, [zoom]);
 
-  return { zoom, resetZoom: () => setZoom(1), wrapRef, zoomBoxRef };
+  // The slide stands in the middle of the work area when the work area is scrolled to the margin around it (PAN_SHARE of the area, see
+  // --pan-x/--pan-y in App.css). It stays where the author scrolled it to - but follows the middle while that is where it is (a window
+  // that changes its size).
+  function centerStage() {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const content = (size: number) => size - 2 * STAGE_WRAP_PADDING;
+    wrap.scrollLeft = content(wrap.clientWidth) * PAN_SHARE;
+    wrap.scrollTop = content(wrap.clientHeight) * PAN_SHARE;
+  }
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    centerStage();
+    let centered = true;
+    const isCentered = () => {
+      const x = (wrap.clientWidth - 2 * STAGE_WRAP_PADDING) * PAN_SHARE;
+      const y = (wrap.clientHeight - 2 * STAGE_WRAP_PADDING) * PAN_SHARE;
+      return Math.abs(wrap.scrollLeft - x) < 3 && Math.abs(wrap.scrollTop - y) < 3;
+    };
+    const onScroll = () => {
+      centered = isCentered();
+    };
+    wrap.addEventListener("scroll", onScroll, { passive: true });
+    const observer = new ResizeObserver(() => {
+      if (centered) centerStage();
+    });
+    observer.observe(wrap);
+    return () => {
+      wrap.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+    };
+  }, []);
+
+  return {
+    zoom,
+    resetZoom: () => {
+      setZoom(1);
+      requestAnimationFrame(centerStage);
+    },
+    wrapRef,
+    zoomBoxRef,
+  };
 }
 
 type EditTarget = { kind: "page"; page: Page; layout: Layout | null } | { kind: "layout"; layout: Layout };

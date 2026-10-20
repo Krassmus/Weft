@@ -1241,10 +1241,20 @@ img.weft-thumb-block {
   /* Also never taller than the visible canvas at zoom 1: --ar (the slide's width/height, set on
      the wrap by Canvas.tsx) turns the wrap's own content height (cqh - see its container-type) into
      the widest slide that still fits it, which only matters for a portrait slide like 9:16. */
-  width: calc(min(100%, 920px, 100cqh * var(--ar, 1.78)) * var(--zoom, 1));
+  --stage-w: calc(min(100cqw, 920px, 100cqh * var(--ar, 1.78)) * var(--zoom, 1));
+  /* How far the slide may be scrolled away from the middle of the work area (and, zoomed in, past its own edge). */
+  --pan-x: 30cqw;
+  --pan-y: 30cqh;
+  width: var(--stage-w);
+  /* As high as the slide is (not stretched to the work area, which the margins below do not leave room for). */
+  align-self: flex-start;
   /* A small edge between the slide and the work area behind it. */
   border: 2px solid black;
-  margin: auto;
+  /* Centered while it is smaller than the work area - and the margin around it is a stretch of work area that can be scrolled over, so
+     the slide is not tied to the middle (that, and nothing else, is what pulled it back to the middle after a zoom out). Scrolled to
+     --pan-x/--pan-y it stands in the middle (see useStageZoom). */
+  margin: calc(var(--pan-y) + max(0px, (100cqh - var(--stage-w) / var(--ar, 1.78)) / 2))
+    calc(var(--pan-x) + max(0px, (100cqw - var(--stage-w)) / 2));
   /* .weft-canvas-stage-wrap is a flex container now (see its own comment - needed so this
      margin:auto centers on both axes, not just horizontally), and a flex item's default
      flex-shrink:1 would otherwise silently shrink this back down to fit the wrap's own width

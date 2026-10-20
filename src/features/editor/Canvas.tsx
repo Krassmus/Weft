@@ -60,6 +60,8 @@ const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 4;
 // How much larger than its size at the start of a pinch the slide is first painted, when the pinch zooms in (see useStageZoom).
 const OVERSAMPLE = 2.5;
+// ... but no more than this many device pixels in all (the slide at its larger size).
+const OVERSAMPLE_PIXELS = 6_000_000;
 // Trackpad pinch gestures arrive as wheel events with only a handful of deltaY units per step -
 // exponential response (see useStageZoom) keeps the FEEL of a given pinch distance the same at
 // any zoom level, rather than a fixed-percent step that feels twitchy when zoomed in far.
@@ -308,7 +310,13 @@ function useStageZoom() {
           // takes it back to the size it has - so that a good deal of the zoom is still sharp, not the blown-up picture of the small one.
           const anchor = wanted.anchor;
           if (wanted.zoom > zoomRef.current) {
-            const sharp = Math.min(ZOOM_MAX, zoomRef.current * OVERSAMPLE);
+            // As much larger as the pixels allow: the whole slide is painted at that size, so a large window (and a retina screen) gets
+            // less of it than a small one - painting too many pixels is what makes the gesture stutter.
+            const shown = box.getBoundingClientRect();
+            const visibleCssPx = Math.min(shown.width, wrap.clientWidth) * Math.min(shown.height, wrap.clientHeight);
+            const devicePx = Math.max(1, visibleCssPx * window.devicePixelRatio * window.devicePixelRatio);
+            const factor = Math.max(1, Math.min(OVERSAMPLE, Math.sqrt(OVERSAMPLE_PIXELS / devicePx)));
+            const sharp = Math.min(ZOOM_MAX, zoomRef.current * factor);
             if (sharp > zoomRef.current) {
               zoomRef.current = sharp;
               wrap.style.setProperty("--zoom", String(sharp));

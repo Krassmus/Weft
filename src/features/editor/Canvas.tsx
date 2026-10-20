@@ -440,14 +440,30 @@ function useStageZoom() {
 
     // WebKit (Safari, the webview of the Mac app) reports a trackpad pinch as gesture events, with the factor since its start in `scale` -
     // not as a wheel event with ctrlKey like Chrome does.
+    // Where the cursor is: the point the slide is zoomed around. (The position the gesture events themselves carry is not to be trusted - in
+    // the webview of the Mac app it is not the cursor's, and the slide then moved towards the top left with every zoom.)
+    let pointer: { x: number; y: number } | null = null;
+    function onPointerMove(e: PointerEvent) {
+      if (e.pointerType !== "touch") pointer = { x: e.clientX, y: e.clientY };
+    }
     let gestureStartZoom = 1;
+    let gesturePoint = { x: 0, y: 0 };
     function onGestureStart(e: Event) {
       e.preventDefault();
       gestureStartZoom = currentZoom();
+      const { clientX, clientY } = e as Event & { clientX?: number; clientY?: number };
+      const wrapRect = wrap!.getBoundingClientRect();
+      gesturePoint =
+        pointer && pointer.x >= wrapRect.left && pointer.x <= wrapRect.right && pointer.y >= wrapRect.top && pointer.y <= wrapRect.bottom
+          ? pointer
+          : Number.isFinite(clientX) && Number.isFinite(clientY) && (clientX || clientY)
+            ? { x: clientX as number, y: clientY as number }
+            : { x: wrapRect.left + wrapRect.width / 2, y: wrapRect.top + wrapRect.height / 2 };
     }
     function onGestureChange(e: Event) {
       e.preventDefault();
-      const { scale, clientX, clientY } = e as Event & { scale: number; clientX: number; clientY: number };
+      const { scale } = e as Event & { scale: number };
+      const { x: clientX, y: clientY } = gesturePoint;
       const box = zoomBoxRef.current;
       if (!box) return;
       const boxRect = box.getBoundingClientRect();
@@ -459,10 +475,12 @@ function useStageZoom() {
     }
 
     wrap.addEventListener("wheel", onWheel, { passive: false });
+    wrap.addEventListener("pointermove", onPointerMove, { passive: true });
     wrap.addEventListener("gesturestart", onGestureStart);
     wrap.addEventListener("gesturechange", onGestureChange);
     return () => {
       wrap.removeEventListener("wheel", onWheel);
+      wrap.removeEventListener("pointermove", onPointerMove);
       wrap.removeEventListener("gesturestart", onGestureStart);
       wrap.removeEventListener("gesturechange", onGestureChange);
     };

@@ -288,6 +288,12 @@ async function pasteFromClipboard(): Promise<void> {
   }
 }
 
+/** Whether some text of the page is marked (selected) - not just a caret. */
+function hasMarkedText(): boolean {
+  const marked = window.getSelection();
+  return !!marked && !marked.isCollapsed && marked.toString().trim() !== "";
+}
+
 /** Puts a copy on the OS clipboard as its text, plain and as HTML, with Weft's own structure hidden in the HTML (see clipboardEntryHtml). Where
  * the clipboard takes no HTML, just the text goes there - a paste into Weft then finds the in-app clipboard (see getClipboard). */
 function writeOsClipboard(entry: ClipboardEntry): void {
@@ -333,6 +339,9 @@ export function useCopyPaste(enabled: boolean) {
       const key = e.key.toLowerCase();
       if (key !== "c" && key !== "v" && key !== "x") return;
       if (isEditableTarget(document.activeElement)) return;
+      // Text the author has marked - in the side panel, in a hint, anywhere - is what Cmd/Ctrl+C copies then: the browser's own copy
+      // (the selected element or page is only copied when no text is marked).
+      if (key === "c" && hasMarkedText()) return;
 
       const { doc, selection, select } = useDocumentStore.getState();
       const content = doc.content;

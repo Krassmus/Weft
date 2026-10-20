@@ -1,4 +1,5 @@
 import type { Block, Page } from "../types";
+import { orderedValues } from "./ordering";
 
 export type ClipboardEntry = { kind: "page"; page: Page } | { kind: "block"; block: Block };
 
@@ -49,6 +50,98 @@ export function parseClipboardText(text: string): ClipboardEntry | null {
     if (entry.kind === "page" && typeof entry.page === "object" && entry.page !== null) return entry as ClipboardEntry;
     if (entry.kind === "block" && typeof entry.block === "object" && entry.block !== null) return entry as ClipboardEntry;
     return null;
+  } catch {
+    return null;
+  }
+}
+
+// ---- What other programs get from a copy ------------------------------------------------------------------------------------------
+//
+// A copy used to put the whole structure (as JSON behind WEFT_CLIPBOARD_MARKER) into the clipboard as its text - which is what a paste into
+// any other program showed. Now the clipboard holds two things: the text of what was copied, as plain text and as a few paragraphs of HTML
+// (what a text editor or a word processor takes), and - hidden in an attribute of that HTML, where nobody sees it - the structure, which
+// is how a paste into Weft finds its own data again (see parseClipboardHtml). The old marker text is still understood.
+
+/** The words of an HTML text as lines of plain text: one line for each paragraph, line break and list item. */
+function plainLinesOfHtml(html: string): string[] {
+  const body = new DOMParser().parseFromString(html, "text/html").body;
+  body.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
+  body.querySelectorAll("p, div, li, h1, h2, h3, h4, h5, h6").forEach((el) => el.append("\n"));
+  return (body.textContent ?? "")
+    .replace(/\u00a0/g, " ")
+    .split("\n")
+    .map((line) => line.trim());
+}
+
+/** The text of one block - what a reader of the slide would read in it - as lines. */
+function blockLines(block: Block): string[] {
+  switch (block.kind) {
+    case "text":
+    case "placeholder":
+    case "cloze":
+      return plainLinesOfHtml(block.html);
+    case "button":
+      return plainLinesOfHtml(block.html ?? block.text);
+    case "list":
+      return block.items.flatMap((item) => plainLinesOfHtml(item.html));
+    case "quiz":
+      return [...plainLinesOfHtml(block.questionHtml), ...block.options.flatMap((option) => plainLinesOfHtml(option.html))];
+    case "revealer":
+      return [block.title, block.body];
+    case "code":
+      return block.code.split("\n");
+    case "tex":
+      return [block.tex];
+    default:
+      return [];
+  }
+}
+
+/** The text of a copy as plain text: the words of the block or of every block of the page (paragraphs apart, no empty ones at the ends). */
+export function clipboardEntryPlainText(entry: ClipboardEntry): string {
+  const groups = entry.kind === "block" ? [blockLines(entry.block)] : orderedValues(entry.page.blocks).map(blockLines);
+  const text = groups
+    .map((lines) => lines.join("\n").replace(/\n{3,}/g, "\n\n").trim())
+    .filter((group) => group !== "")
+    .join("\n\n");
+  return text;
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function toBase64(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+  return btoa(binary);
+}
+
+function fromBase64(base64: string): string {
+  const binary = atob(base64);
+  return new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
+}
+
+const WEFT_CLIPBOARD_ATTRIBUTE = "data-weft-clipboard";
+
+/** The copy as HTML: its paragraphs, and the structure (see serializeClipboardEntry) in an attribute of the container. */
+export function clipboardEntryHtml(entry: ClipboardEntry): string {
+  const paragraphs = clipboardEntryPlainText(entry)
+    .split(/\n{2,}/)
+    .filter((paragraph) => paragraph !== "")
+    .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, "<br>")}</p>`)
+    .join("");
+  return `<div ${WEFT_CLIPBOARD_ATTRIBUTE}="${toBase64(serializeClipboardEntry(entry))}">${paragraphs}</div>`;
+}
+
+/** The inverse of clipboardEntryHtml - null for HTML from anywhere else. */
+export function parseClipboardHtml(html: string): ClipboardEntry | null {
+  const holder = new DOMParser().parseFromString(html, "text/html").querySelector(`[${WEFT_CLIPBOARD_ATTRIBUTE}]`);
+  const encoded = holder?.getAttribute(WEFT_CLIPBOARD_ATTRIBUTE);
+  if (!encoded) return null;
+  try {
+    return parseClipboardText(fromBase64(encoded));
   } catch {
     return null;
   }

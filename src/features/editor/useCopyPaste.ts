@@ -14,7 +14,14 @@ import {
   removePage,
 } from "../../core/document/actions";
 import type { ClipboardEntry } from "../../core/document/clipboard";
-import { getClipboard, parseClipboardText, serializeClipboardEntry, setClipboard } from "../../core/document/clipboard";
+import {
+  clipboardEntryHtml,
+  clipboardEntryPlainText,
+  getClipboard,
+  parseClipboardHtml,
+  parseClipboardText,
+  setClipboard,
+} from "../../core/document/clipboard";
 import { useDocumentStore } from "../../core/document/store";
 import type { BlockContainerRef, SelectionRef } from "../../core/document/store";
 import { isTauri } from "../../core/io/fileIO";
@@ -248,6 +255,14 @@ async function pasteFromClipboard(): Promise<void> {
     const items = await navigator.clipboard.read();
     let fallbackText: string | null = null;
     for (const item of items) {
+      // What Weft itself copied: its structure, hidden in the HTML next to the text others get (see clipboardEntryHtml).
+      if (item.types.includes("text/html")) {
+        const entry = parseClipboardHtml(await (await item.getType("text/html")).text());
+        if (entry) {
+          pasteEntry(entry, selection);
+          return;
+        }
+      }
       if (item.types.includes("text/plain")) {
         const text = await (await item.getType("text/plain")).text();
         const entry = parseClipboardText(text);
@@ -271,6 +286,24 @@ async function pasteFromClipboard(): Promise<void> {
     const clip = getClipboard();
     if (clip) pasteEntry(clip, selection);
   }
+}
+
+/** Puts a copy on the OS clipboard as its text, plain and as HTML, with Weft's own structure hidden in the HTML (see clipboardEntryHtml). Where
+ * the clipboard takes no HTML, just the text goes there - a paste into Weft then finds the in-app clipboard (see getClipboard). */
+function writeOsClipboard(entry: ClipboardEntry): void {
+  const clipboard = navigator.clipboard;
+  if (!clipboard) return;
+  const text = clipboardEntryPlainText(entry) || "Weft";
+  const plainOnly = () => void clipboard.writeText(text).catch(() => {});
+  if (typeof ClipboardItem === "undefined" || !clipboard.write) {
+    plainOnly();
+    return;
+  }
+  const item = new ClipboardItem({
+    "text/plain": new Blob([text], { type: "text/plain" }),
+    "text/html": new Blob([clipboardEntryHtml(entry)], { type: "text/html" }),
+  });
+  clipboard.write([item]).catch(plainOnly);
 }
 
 /**
@@ -318,7 +351,7 @@ export function useCopyPaste(enabled: boolean) {
         setClipboard(entry);
         // Best-effort: a failed/denied OS write still leaves the in-app clipboard above working
         // for the rest of this session, exactly like before OS integration existed.
-        navigator.clipboard?.writeText(serializeClipboardEntry(entry))?.catch(() => {});
+        writeOsClipboard(entry);
 
         if (key === "x") {
           if (selection?.type === "page") removePage(selection.pageId);

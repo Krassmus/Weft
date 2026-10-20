@@ -55,7 +55,7 @@ export function ActionEffectsEditor({ block, page }: { block: Block; page: Page 
   const effects = block.actionEffects ?? [];
   const events = listPageTriggerEvents(page);
   return (
-    <Collapsible title={tr("ui.action_effects")}>
+    <Collapsible title={tr("ui.action_effects")} defaultOpen={effects.length > 0}>
       <p className="weft-hint">{tr("ui.action_hint")}</p>
       {effects.map((effect, index) => (
         <ActionEffectCard key={effect.id} block={block} page={page} effect={effect} index={index} events={events} />

@@ -585,11 +585,13 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
   // A button's click is an event of its own (a violet one: the learner does it); what it triggers is drawn from its triggers.
   for (const block of blocks) if (block.kind === "button") lanes.push({ nodes: [makeButtonNode(block)], edges: [] });
   // A revealer: the opening of its window and, when it has one, the click on the button in it - which only comes after (a dashed line, as
-  // from a quiz's first answer to its submit: the learner does it).
+  // from a quiz's first answer to its submit: the learner does it) - and, before them, its own Aufbau if it has one.
   for (const block of blocks) {
     if (block.kind !== "revealer") continue;
     const nodes = makeRevealerNodes(block);
-    lanes.push({ nodes, edges: nodes.length > 1 ? [{ from: nodes[0].id, to: nodes[1].id, kind: "unknown" }] : [] });
+    // An icon that appears (it has an Aufbau) cannot be opened before: its own event leads the lane, as the source of a video's start does.
+    if (block.entranceEffect.type !== "off") nodes.unshift(makeBlockEffectNode(block, "entrance"));
+    lanes.push({ nodes, edges: nodes.slice(1).map((node, index) => ({ from: nodes[index].id, to: node.id, kind: "unknown" as const })) });
   }
 
   const nodesById = new Map<string, TimelineNode>();

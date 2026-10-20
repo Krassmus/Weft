@@ -20,6 +20,11 @@ APP = (180, 190)
 APPLICATIONS = (480, 190)
 SCALE = 2
 ICON_RADIUS = 78  # how far from an icon's centre the line stops (the icon is 128 wide, plus a little air)
+# Finder writes the names of the two icons itself, in the colour of the Mac's appearance (black in light mode, white in dark mode - the
+# colour of a label cannot be set, and does not depend on the picture behind it). A mid-tone chip behind each name reads with both.
+LABEL_CENTER_BELOW = 85  # points from an icon's centre to the middle of its name (measured in Finder)
+LABEL_CHIP = (118, 26)  # points
+LABEL_CHIP_COLOR = (95, 113, 160)
 
 BG = np.array([10, 13, 22], dtype=np.float32)  # --weft-bg
 DOT = np.array([160, 180, 230], dtype=np.float32)
@@ -53,6 +58,12 @@ while x < x1:
     end = min(x + dash, x1)
     draw.rounded_rectangle([x, y - thickness / 2, end, y + thickness / 2], radius=thickness / 2, fill=LINE + (255,))
     x += dash + gap
+for centre_x, centre_y in (APP, APPLICATIONS):
+    cx = centre_x * SCALE * SS
+    cy = (centre_y + LABEL_CENTER_BELOW) * SCALE * SS
+    half_w = LABEL_CHIP[0] * SCALE * SS / 2
+    half_h = LABEL_CHIP[1] * SCALE * SS / 2
+    draw.rounded_rectangle([cx - half_w, cy - half_h, cx + half_w, cy + half_h], radius=half_h, fill=LABEL_CHIP_COLOR + (255,), outline=(130, 150, 205, 255), width=SCALE * SS)
 layer = layer.resize((width, height), Image.LANCZOS)
 image = Image.alpha_composite(image, layer).convert("RGB")
 

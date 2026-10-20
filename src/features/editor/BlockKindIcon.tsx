@@ -31,6 +31,12 @@ const ICONS: Record<Kind, ReactNode> = {
       <path d="M12 11v5M12 8h.01" />
     </>
   ),
+  progress: (
+    <>
+      <rect x="3" y="9" width="18" height="6" rx="3" />
+      <path d="M3 12h9" strokeWidth={5} />
+    </>
+  ),
   code: <path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 6l-3 12" />,
   tex: <path d="M18 5H7l6 7-6 7h11" />,
   iframe: (

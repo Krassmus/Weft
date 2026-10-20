@@ -48,6 +48,8 @@ export function blockSummary(block: Block, content: WeftModule, labels: Record<s
               : "löst ein Ereignis aus";
       return `„${label}" → ${action}`;
     }
+    case "progress":
+      return `zeigt „${block.variable}“${block.animate ? ", animiert" : ""}`;
     case "revealer":
       return `${block.icon}: „${block.title}"${block.body ? " + Text" : ""}${block.imageAssetId ? " + Bild" : ""}${block.button ? ` + Button „${block.button.text}"` : ""}`;
     case "image": {

@@ -1682,6 +1682,75 @@
       ],
       "type": "object"
     },
+    "ProgressBlock": {
+      "additionalProperties": false,
+      "description": "A progress bar: a track with a fill that is as long as the value of a variable says (0 to 100 - what is below or above is held to that). By default the variable is `progress`, the virtual one that tells how far the learner is through the module; any other number (or computed) variable can be shown as well. It works on a layout too, and is the same bar on every slide that has it: after a change of slide the slide changes first, then the variable has its new value, and then the fill moves - if `animate` is on, so does it after every change of the variable.",
+      "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
+        "animate": {
+          "description": "Whether the fill moves to a new value instead of jumping there.",
+          "type": "boolean"
+        },
+        "color": {
+          "description": "The colour of the fill.",
+          "type": "string"
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "progress",
+          "type": "string"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "rounded": {
+          "description": "Rounded ends (otherwise square ones).",
+          "type": "boolean"
+        },
+        "trackColor": {
+          "description": "The colour of the track behind it.",
+          "type": "string"
+        },
+        "variable": {
+          "description": "The name of the variable the bar shows.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "animate",
+        "color",
+        "entranceEffect",
+        "exitEffect",
+        "id",
+        "kind",
+        "order",
+        "position",
+        "rounded",
+        "trackColor",
+        "variable"
+      ],
+      "type": "object"
+    },
     "QuizBlock": {
       "additionalProperties": false,
       "properties": {
@@ -2331,6 +2400,9 @@
         },
         {
           "$ref": "#/definitions/LanguageBlock"
+        },
+        {
+          "$ref": "#/definitions/ProgressBlock"
         },
         {
           "$ref": "#/definitions/CodeBlock"

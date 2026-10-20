@@ -11,7 +11,7 @@ import { BlockKindIcon } from "./BlockKindIcon";
 type Kind = Block["kind"];
 
 /** The elements that only show something, and the ones the learner does something with - the two columns of the menu. */
-const PRESENTATION_KINDS: Kind[] = ["text", "image", "code", "tex", "iframe", "video", "audio", "shape", "arrow", "list", "placeholder"];
+const PRESENTATION_KINDS: Kind[] = ["text", "image", "code", "tex", "iframe", "video", "audio", "shape", "arrow", "list", "progress", "placeholder"];
 const INTERACTIVE_KINDS: Kind[] = ["button", "revealer", "quiz", "files", "cloze", "language", "script"];
 
 const MENU_WIDTH = 340;

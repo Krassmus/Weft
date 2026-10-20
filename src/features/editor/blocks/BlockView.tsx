@@ -38,7 +38,7 @@ import { useAssetStore } from "../../../core/assets/assetStore";
 import { useDocumentStore } from "../../../core/document/store";
 import { createId } from "../../../core/id";
 import { confirmDestructive } from "../../../core/io/fileIO";
-import type { ArrowPoint, Block, BlockPosition, ClozeBlock, IframeBlock, ImageMask, ListBlock, QuizBlock, RevealerBlock } from "../../../core/types";
+import type { ArrowPoint, Block, BlockPosition, ClozeBlock, IframeBlock, ImageMask, ListBlock, ProgressBlock, QuizBlock, RevealerBlock } from "../../../core/types";
 import { ListMarkerView } from "./ListMarkerView";
 import { caretAt, caretOnLine, caretX, fitListMarkers, focusItem, textLength } from "./listCaret";
 import { ContextMenu, isContextMenuKey, useContextMenu } from "../ContextMenu";
@@ -287,7 +287,7 @@ export function BlockView({
     block.kind === "cloze" ||
     block.kind === "quiz" ||
     block.kind === "list";
-  const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "language" || block.kind === "script" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "audio" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files" || block.kind === "revealer";
+  const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "language" || block.kind === "script" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "audio" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files" || block.kind === "revealer" || block.kind === "progress";
   // Only an image, video or revealer (an icon) has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
   // given, so unlike image/video it keeps the full edge+corner handle set below instead of being
@@ -836,6 +836,8 @@ function BlockContent({
       );
     case "revealer":
       return <RevealerCanvas block={block} selected={selected} />;
+    case "progress":
+      return <ProgressCanvas block={block} />;
     case "audio":
       // A sound has nothing to show: a bar like a player (or, for one that is not visible on the slide, a dashed frame) marks the place.
       return block.assetId ? (
@@ -972,6 +974,19 @@ function RevealerCanvas({ block, selected }: { block: RevealerBlock; selected: b
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** A progress bar on the canvas: a sample value (half, or the starting value of a number variable it shows) - nothing moves here. */
+function ProgressCanvas({ block }: { block: ProgressBlock }) {
+  const variables = useDocumentStore((s) => s.doc.content.variables);
+  const declared = variables.find((v) => v.name === block.variable);
+  const initial = declared && declared.type === "number" ? Number(declared.initialValue) : NaN;
+  const value = Number.isFinite(initial) ? Math.min(100, Math.max(0, initial)) : 50;
+  return (
+    <div className={"weft-edit-progress" + (block.rounded ? " is-rounded" : "")} style={{ background: block.trackColor }}>
+      <div className="weft-edit-progress-fill" style={{ width: `${value}%`, background: block.color }} />
     </div>
   );
 }

@@ -83,6 +83,7 @@ import type {
   VariableEffect,
   AudioBlock,
   MediaBlock,
+  ProgressBlock,
   RevealerBlock,
   VideoBlock,
   VideoStopPoint,
@@ -235,6 +236,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, onSetAudio
       {block.kind === "quiz" && <QuizEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "shape" && <ShapeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "arrow" && <ArrowEditor block={block} onUpdate={onUpdate} />}
+      {block.kind === "progress" && <ProgressEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "files" && <FilesEditor key={block.id} block={block} container={container} onUpdate={onUpdate} />}
       {block.kind === "script" && <ScriptEditor key={block.id} block={block} page={page} onUpdate={onUpdate} />}
       {/* (A logic block has no Aufbau/Abbau: it has an event of its own, in the graph.) */}
@@ -2417,6 +2419,48 @@ const ARROW_STYLE_LABELS: Record<ArrowStyle, string> = {
   get sketch() { return tr("ui.hand_drawn"); },
   get ornate() { return tr("ui.ornate_art_nouveau"); },
 };
+
+/** The progress bar's panel: which variable it shows (`progress` - how far the learner is - or a number variable), its colours and whether it moves. */
+function ProgressEditor({ block, onUpdate }: { block: ProgressBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const variables = useDocumentStore((s) => s.doc.content.variables);
+  // What can be shown: the virtual `progress`, and the number (and computed) variables of the module - and whatever the block already
+  // names, even if that variable has been renamed or removed since (so that the select shows what is stored).
+  const names = ["progress", ...variables.filter((v) => v.type === "number" || v.type === "computed").map((v) => v.name)];
+  if (!names.includes(block.variable)) names.push(block.variable);
+  return (
+    <Collapsible title={tr("ui.progress_bar")}>
+      <label className="weft-field">
+        <span>{tr("ui.progress_variable")}</span>
+        <select value={block.variable} onChange={(e) => onUpdate({ variable: e.target.value })}>
+          {names.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="weft-hint">{tr("ui.progress_variable_hint")}</p>
+      <label className="weft-field">
+        <span>{tr("ui.progress_color")}</span>
+        <ColorField value={block.color} ariaLabel={tr("ui.progress_color")} onChange={(color) => onUpdate({ color })} />
+      </label>
+      <label className="weft-field">
+        <span>{tr("ui.progress_track")}</span>
+        <ColorField value={block.trackColor} ariaLabel={tr("ui.progress_track")} onChange={(trackColor) => onUpdate({ trackColor })} />
+      </label>
+      <label className="weft-field weft-field-inline">
+        <input type="checkbox" checked={block.rounded} onChange={(e) => onUpdate({ rounded: e.target.checked })} />
+        <span>{tr("ui.progress_rounded")}</span>
+      </label>
+      <label className="weft-field weft-field-inline">
+        <input type="checkbox" checked={block.animate} onChange={(e) => onUpdate({ animate: e.target.checked })} />
+        <span>{tr("ui.progress_animate")}</span>
+      </label>
+      <p className="weft-hint">{tr("ui.progress_animate_hint")}</p>
+      <p className="weft-hint">{tr("ui.progress_preview_note")}</p>
+    </Collapsible>
+  );
+}
 
 function ArrowEditor({ block, onUpdate }: { block: ArrowBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
   return (

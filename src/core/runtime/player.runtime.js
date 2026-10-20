@@ -549,6 +549,7 @@
       var current = variableValueByName(spans[i].getAttribute("data-weft-var"));
       if (current) spans[i].textContent = formatVariableValue(current.value);
     }
+    settleProgressBars();
   }
 
   // ---- sequence / branch traversal ----
@@ -2541,6 +2542,59 @@
     return box;
   }
 
+  // ---- ProgressBlock: a bar as long as the value of a variable (0 to 100) says ----
+  // The variable is `progress` (the virtual one) unless the author chose another. The fill is always made to show where the bar
+  // stood last (a bar of a layout is made anew with every slide - it starts where it was), and moved to the variable's value only once
+  // that is settled: a slide first changes, then the value is what it is on the new slide, and then the fill moves (see settleProgressBars,
+  // called when a transition is over and when a variable changes). Without `animate` it simply shows the value.
+  var PROGRESS_MOVE_MS = 800;
+  var shownProgress = {}; // block id -> what its bar showed last
+  var progressBars = []; // the bars of the slide that is showing (reset with every slide)
+
+  function progressTarget(block) {
+    var current = variableValueByName(block.variable || "progress");
+    var value = current ? Number(current.value) : 0;
+    if (!isFinite(value)) value = 0;
+    return Math.min(100, Math.max(0, value));
+  }
+
+  function renderProgressBlock(block) {
+    var fill = el("div", { class: "weft-progress-fill", style: "background:" + (block.color || "#3b82f6") + ";" }, []);
+    var track = el(
+      "div",
+      { class: "weft-progress-track" + (block.rounded === false ? "" : " is-rounded"), style: "background:" + (block.trackColor || "#dbe4f5") + ";" },
+      [fill],
+    );
+    var wrap = el(
+      "div",
+      { class: "weft-block weft-block-progress", style: positionStyle(block.position), role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-label": block.variable || "progress" },
+      [track],
+    );
+    var target = progressTarget(block);
+    var animated = !!block.animate && !renderAll;
+    // Where the bar starts: where it stood (a first showing: empty), or - without animation, or in a picture of the slide - the value itself.
+    var start = animated ? (shownProgress[block.id] !== undefined ? shownProgress[block.id] : 0) : target;
+    if (!animated) shownProgress[block.id] = target;
+    fill.style.width = start + "%";
+    wrap.setAttribute("aria-valuenow", String(Math.round(start)));
+    progressBars.push({ block: block, wrap: wrap, fill: fill, shown: start, animated: animated });
+    return wrap;
+  }
+
+  // Moves every bar of the slide to the value of its variable. Not while a slide transition is running (it is called again when that is over).
+  function settleProgressBars() {
+    if (finishActiveTransition) return;
+    progressBars.forEach(function (bar) {
+      var target = progressTarget(bar.block);
+      if (target === bar.shown) return;
+      bar.shown = target;
+      shownProgress[bar.block.id] = target;
+      bar.wrap.setAttribute("aria-valuenow", String(Math.round(target)));
+      bar.fill.style.transition = bar.animated && !prefersReducedMotion() ? "width " + PROGRESS_MOVE_MS + "ms ease" : "none";
+      bar.fill.style.width = target + "%";
+    });
+  }
+
   // ---- RevealerBlock: an icon that opens a window around itself ----
   // The window opens with a click on the icon or with a trigger to its event (`revealer-open:<id>`), and closes with its x or Escape. Its button is an
   // event of its own (`revealer-button:<id>`) that does what a button block does. The icon is drawn by revealerIconSvg (revealerGeometry.js).
@@ -3068,7 +3122,7 @@
       }
       return el("div", { class: "weft-block weft-block-script", style: "display:none;" }, []);
     }
-    var wrap = block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : block.kind === "revealer" ? renderRevealerBlock(block) : renderStaticBlock(block, page);
+    var wrap = block.kind === "progress" ? renderProgressBlock(block) : block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : block.kind === "revealer" ? renderRevealerBlock(block) : renderStaticBlock(block, page);
     applyBlockEffects(wrap, block, page);
     applyActionEffects(wrap, block);
     if (block.kind === "list" && wrap.weftListItems) applyListItemEffects(block, wrap.weftListItems);
@@ -3155,6 +3209,7 @@
     // back to a page you'd already stepped through once.
     languageRefreshers = [];
     languageSwitches = [];
+    progressBars = [];
     var page = module.pages[pageId];
     setUpGraph(page);
     var stage = el("div", { class: "weft-stage", style: stageStyle() }, []);
@@ -3326,7 +3381,7 @@
     });
   }
 
-  function animateTransition(root, oldWrap, newWrap, transition) {
+  function animateTransition(root, oldWrap, newWrap, transition, whenOver) {
     var duration = transition.durationMs || 500;
     var type = transition.type;
     var width = root.clientWidth;
@@ -3358,6 +3413,7 @@
       root.style.overflow = "";
       newWrap.style.background = "";
       if (wheelBackdrop && wheelBackdrop.parentNode) wheelBackdrop.parentNode.removeChild(wheelBackdrop);
+      if (whenOver) whenOver();
     }
     // A new page change during a running transition completes it on the spot (see render()).
     finishActiveTransition = finish;
@@ -3672,10 +3728,15 @@
     var newWrap = buildStageWrap();
 
     if (oldWrap && outgoingTransition && outgoingTransition.type !== "none" && !prefersReducedMotion()) {
-      animateTransition(root, oldWrap, newWrap, outgoingTransition);
+      // The slide changes first; only then does a progress bar move (see settleProgressBars).
+      animateTransition(root, oldWrap, newWrap, outgoingTransition, settleProgressBars);
     } else {
       root.innerHTML = "";
       root.appendChild(newWrap);
+      // (Two frames later, so that the bars have been shown where they stood before they move.)
+      requestAnimationFrame(function () {
+        requestAnimationFrame(settleProgressBars);
+      });
     }
     announceSlide(newWrap);
     reportState();

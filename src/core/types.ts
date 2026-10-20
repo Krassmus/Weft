@@ -227,6 +227,27 @@ export interface LanguageBlock extends BaseBlock {
   kind: "language";
 }
 
+/**
+ * A progress bar: a track with a fill that is as long as the value of a variable says (0 to 100 - what is below or above is held to
+ * that). By default the variable is `progress`, the virtual one that tells how far the learner is through the module; any other number
+ * (or computed) variable can be shown as well. It works on a layout too, and is the same bar on every slide that has it: after a change of
+ * slide the slide changes first, then the variable has its new value, and then the fill moves - if `animate` is on, so does it after every
+ * change of the variable.
+ */
+export interface ProgressBlock extends BaseBlock {
+  kind: "progress";
+  /** The name of the variable the bar shows. */
+  variable: string;
+  /** The colour of the fill. */
+  color: string;
+  /** The colour of the track behind it. */
+  trackColor: string;
+  /** Rounded ends (otherwise square ones). */
+  rounded: boolean;
+  /** Whether the fill moves to a new value instead of jumping there. */
+  animate: boolean;
+}
+
 /** Program code with syntax highlighting (highlight.js) - works like a text block (typed straight
  * into the block on the slide, scrolls if it doesn't fit) but is plain text: no formatting other
  * than what the highlighter itself colors. */
@@ -660,7 +681,7 @@ export interface FilesBlock extends BaseBlock {
  * navigation button (or a shape, which carries no state at all) has nothing graded to exclude, so
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
-export type StaticBlock = TextBlock | PlaceholderBlock | ListBlock | LanguageBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | AudioBlock | RevealerBlock | IframeBlock | ButtonBlock | ShapeBlock | ArrowBlock | FilesBlock;
+export type StaticBlock = TextBlock | PlaceholderBlock | ListBlock | LanguageBlock | ProgressBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | AudioBlock | RevealerBlock | IframeBlock | ButtonBlock | ShapeBlock | ArrowBlock | FilesBlock;
 export type Block = StaticBlock | QuizBlock | ClozeBlock | ScriptBlock;
 
 /** A block as it's first made, before it has been put somewhere (and so given its `order`). */

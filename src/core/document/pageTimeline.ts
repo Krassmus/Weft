@@ -188,6 +188,7 @@ const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
   get video() { return tr("ui.video"); },
   get audio() { return tr("ui.audio"); },
   get revealer() { return tr("ui.revealer"); },
+  get progress() { return tr("ui.progress_bar"); },
   iframe: "Iframe",
   button: "Button",
   get quiz() { return tr("ui.quiz"); },

@@ -201,6 +201,13 @@ function ThumbBlock({
       <div className="weft-thumb-block weft-thumb-block-placeholder" style={style} />
     );
   }
+  if (block.kind === "progress") {
+    return (
+      <div className={"weft-thumb-block weft-thumb-block-progress" + (block.rounded ? " is-rounded" : "")} style={{ ...style, background: block.trackColor }}>
+        <div style={{ width: "50%", height: "100%", background: block.color }} />
+      </div>
+    );
+  }
   if (block.kind === "revealer") {
     return (
       <div

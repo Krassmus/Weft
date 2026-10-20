@@ -42,6 +42,14 @@
     "iOS": {
       "minimumSystemVersion": "16.0"
     },
+    "macOS": {
+      "dmg": {
+        "background": "dmg/background.png",
+        "windowSize": { "width": 660, "height": 400 },
+        "appPosition": { "x": 180, "y": 190 },
+        "applicationFolderPosition": { "x": 480, "y": 190 }
+      }
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

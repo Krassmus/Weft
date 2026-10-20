@@ -327,5 +327,7 @@ und wenn sie fertig ist – bei einer Animation nach ihrer Dauer –, passiert d
      nach der Zeit), ist **rot** und trägt eine Warnung; die Auswahl seines Auslösers führt solche Quellen gar nicht erst auf, und im
      Graphen wird ein Ziehen, das ihn so verschieben würde, abgewiesen. Der Player führt Bewegung und Drehung mit den CSS-Eigenschaften
      `translate`/`rotate` aus (sie stören `transform` von Drehung/Aufbau/Abbau nicht); eine Bewegung bleibt (das nächste Ereignis beginnt
-     dort).
+     dort). Der Weg einer Bewegung wird
+     auf der Folie wie ein Pfeil gezeichnet (`ActionEffect.path`: Versätze vom Startpunkt in Prozent der Folie; Zwischenstationen,
+     durch die eine Kurve läuft; am Ende ein roter Punkt); `easing` ist eine CSS-Timing-Funktion, `rotation` die Drehung in Grad.
    - Der Graph zeigt jetzt jeden gespeicherten Trigger (vorher nur den ersten eines Events).

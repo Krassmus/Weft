@@ -328,6 +328,13 @@ function arrowWaypoints(block, boxAspect) {
   });
 }
 
+// The middle of the curve between each pair of neighbouring points (where the editor puts its "add a point" handles), in the points' units.
+export function arrowCurveMiddles(points) {
+  return arrowSegments(points).map(function (segment) {
+    return arrowBezierAt(segment, 0.5);
+  });
+}
+
 // `count` + 1 points along the curve through `points`, evenly spaced along its length (the way of an Aktionseffekt that moves: see
 // player.runtime.js and the editor's path). Fewer than two points: just those.
 export function arrowEvenPoints(points, count) {

@@ -10,6 +10,7 @@ import { defaultActionEffect } from "../../../core/document/blockEffects";
 import { tr } from "../../../core/i18n/tr";
 import type { ActionEffect, ActionEffectType, Block, Page } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
+import { useActionEdit } from "../actionEdit";
 import { listPageTriggerEvents } from "../Timeline";
 import { SecondsControl } from "./SecondsControl";
 import { TriggerPicker } from "./TriggerPicker";
@@ -63,7 +64,7 @@ export function ActionEffectsEditor({ block, page }: { block: Block; page: Page 
         <span>{tr("ui.action_add")}</span>
         <div className="weft-action-add">
           {TYPES.map((type) => (
-            <button key={type} type="button" className="weft-ghost-button" onClick={() => addActionEffect(page.id, block.id, type)}>
+            <button key={type} type="button" className="weft-ghost-button" onClick={() => useActionEdit.getState().edit(block.id, addActionEffect(page.id, block.id, type))}>
               {TYPE_LABELS[type]()}
             </button>
           ))}
@@ -106,7 +107,12 @@ export function ActionEffectCard({
   }
 
   return (
-    <div className="weft-action-card">
+    <div
+      className="weft-action-card"
+      // The way of a move is drawn on the slide while the author works on its card.
+      onFocusCapture={() => useActionEdit.getState().edit(block.id, effect.id)}
+      onPointerDownCapture={() => useActionEdit.getState().edit(block.id, effect.id)}
+    >
       <div className="weft-action-card-head">
         <select
           value={effect.type}

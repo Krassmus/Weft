@@ -8,3 +8,6 @@ export function arrowSegmentMiddles(block: Pick<ArrowBlock, "position" | "points
 
 /** `count` + 1 points along the curve through `points`, evenly spaced along its length. */
 export function arrowEvenPoints(points: { x: number; y: number }[], count: number): { x: number; y: number }[];
+
+/** The middle of the curve between each pair of neighbouring points, in the points' units. */
+export function arrowCurveMiddles(points: { x: number; y: number }[]): { x: number; y: number }[];

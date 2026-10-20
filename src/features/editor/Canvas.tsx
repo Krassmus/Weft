@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ActionPathOverlay } from "./ActionPathOverlay";
 import type { CSSProperties, DragEvent as ReactDragEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, RefObject } from "react";
 import playIconSvg from "../../../mockups/icons/play.svg?raw";
 import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
@@ -1330,6 +1331,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                 target.page.timeline.ends[selection.nodeId]?.transition.type === "iris" && (
                   <IrisCenterHandle page={target.page} endId={selection.nodeId} stageRef={stageRef} />
                 )}
+              <ActionPathOverlay page={target.page} stageRef={stageRef} onDragEnd={suppressNextClick} />
               {activeGroup && !enteredGroupId && (
                 <GroupResizeOverlay page={target.page} group={activeGroup} stageRef={stageRef} onLiveChange={setGroupLiveOverrides} />
               )}

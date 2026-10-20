@@ -34,6 +34,8 @@ export function TriggerPicker({
   allowNoTrigger,
   noTriggerLabel,
   onChange,
+  canUse,
+  advanceFrom,
 }: {
   page: Page;
   targetNodeId: string;
@@ -42,15 +44,19 @@ export function TriggerPicker({
   allowNoTrigger: boolean;
   noTriggerLabel: string;
   onChange: (from: string | null, delayMs: number, kind: TimelineEdgeKind) => void;
+  /** Further limits what may be offered as the source (an Aktionseffekt takes nothing from before its block's Aufbau or after its Abbau). */
+  canUse?: (candidateId: string) => boolean;
+  /** What "Weiter" waits after: by default the end of the page's chain. */
+  advanceFrom?: string;
 }) {
   const mainValue = trigger?.kind === "advance" ? ADVANCE_SENTINEL : (trigger?.from ?? "");
   // Nothing that already waits for this event (directly or further up its own chain) can be what
   // triggers it - that would be a loop of events each waiting for the next, none of which would ever
   // happen. The current source stays listed regardless, so the select always shows what's stored.
-  const sources = options.filter((event) => event.id === trigger?.from || canTriggerFrom(page, event.id, targetNodeId));
+  const sources = options.filter((event) => event.id === trigger?.from || (canTriggerFrom(page, event.id, targetNodeId) && (!canUse || canUse(event.id))));
 
   function handleMainChange(value: string) {
-    if (value === ADVANCE_SENTINEL) onChange(computeAdvanceChainTail(page, targetNodeId), 0, "advance");
+    if (value === ADVANCE_SENTINEL) onChange(advanceFrom ?? computeAdvanceChainTail(page, targetNodeId), 0, "advance");
     else if (value === "") onChange(null, 0, "timed");
     else onChange(value, trigger?.kind === "timed" ? trigger.delayMs : 0, "timed");
   }

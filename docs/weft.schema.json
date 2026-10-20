@@ -2,10 +2,62 @@
   "$ref": "#/definitions/WeftFileJson",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
+    "ActionEffect": {
+      "additionalProperties": false,
+      "description": "An Aktionseffekt of a block (see BaseBlock.actionEffects): something the block does while it is there, to move to another place or to draw attention to itself. Like an Aufbau/Abbau it is an event of the page's graph (`block-action:<blockId>:<id>`, with its trigger stored in PageTimeline.triggers) - only what it does lives here. The player carries it out with the CSS properties `translate` and `rotate` (so they do not meet the `transform` of the block's own rotation or of its Aufbau/Abbau), and what a \"move\" has done stays: the block is where it went, and the next effect starts from there.",
+      "properties": {
+        "durationMs": {
+          "type": "number"
+        },
+        "easing": {
+          "description": "\"move\" only: a CSS timing function (`ease-in-out`, `cubic-bezier(0.34, 1.56, 0.64, 1)`, ...) for how fast it goes along the way. Absent: \"ease-in-out\".",
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "path": {
+          "description": "\"move\" only: the way the block takes, as points in percent of the slide's width (x) and height (y), measured from where the block is when the effect starts - not necessarily where it was put on the slide. The last point is where it ends; a curve runs through all of them. Absent or empty: it does not move (it may still turn).",
+          "items": {
+            "$ref": "#/definitions/ArrowPoint"
+          },
+          "type": "array"
+        },
+        "rotation": {
+          "description": "\"move\" only: how many degrees it turns on the way - clockwise when positive, counterclockwise when negative, and not limited.",
+          "type": "number"
+        },
+        "type": {
+          "$ref": "#/definitions/ActionEffectType"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "durationMs"
+      ],
+      "type": "object"
+    },
+    "ActionEffectType": {
+      "description": "What an Aktionseffekt does to its block between its Aufbau and its Abbau: it moves to a point (and may turn on the way), it shakes once, or it blinks once.",
+      "enum": [
+        "move",
+        "shake",
+        "blink"
+      ],
+      "type": "string"
+    },
     "ArrowBlock": {
       "additionalProperties": false,
       "description": "An arrow: a curve through its waypoints (two or more; the first and last are its ends), with an arrowhead at either end if wanted. The block's box is the box around the waypoints (the editor keeps them in step - see core/document/arrow.ts), so moving, rotating, scaling and the entrance/exit effects work on it like on any other block. Drawn by runtime/arrowGeometry.js, the same code in the editor and the player.",
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "arrowStyle": {
           "$ref": "#/definitions/ArrowStyle"
         },
@@ -121,6 +173,13 @@
       "additionalProperties": false,
       "description": "A sound file: works like a video (it starts by itself or by a trigger or by the learner, it has time marks that stop it and make things appear - its events have the same ids and kinds as those of a video, see isMediaBlock) - but has no picture. On the slide it is either invisible (it only plays, started by a trigger or by `autoplay`) or has a player.",
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "appearance": {
           "description": "\"hidden\": nothing to see on the slide (in the editor a small symbol marks the place); \"player\": the audio element's own player.",
           "enum": [
@@ -432,6 +491,13 @@
           ],
           "type": "string"
         },
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "appearance": {
           "$ref": "#/definitions/ButtonAppearance"
         },
@@ -499,6 +565,13 @@
       "additionalProperties": false,
       "description": "A gap text: a rich text in which `[[Berlin]]` is a blank (an input field in the player) whose right answer is \"Berlin\" (see core/document/cloze.ts), with a \"Abschicken\" button under it that marks which answers were right. Like a quiz it is graded, so it lives on pages only (not in a layout), and it has the same events in the page's graph (the first answer typed, submitted - plain, and right/wrong).",
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "answerEffects": {
           "additionalProperties": {
             "items": {
@@ -589,6 +662,13 @@
       "additionalProperties": false,
       "description": "Program code with syntax highlighting (highlight.js) - works like a text block (typed straight into the block on the slide, scrolls if it doesn't fit) but is plain text: no formatting other than what the highlighter itself colors.",
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "code": {
           "type": "string"
         },
@@ -701,6 +781,13 @@
       "additionalProperties": false,
       "description": "Files the learners can download. With a password, the files in the archive are really encrypted (AES-256-GCM) and the learner sees them only after entering it; names, types and sizes (`files`) stay readable.",
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "entranceEffect": {
           "$ref": "#/definitions/BlockEffect",
           "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
@@ -784,6 +871,13 @@
     "IframeBlock": {
       "additionalProperties": false,
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "allow": {
           "type": "string"
         },
@@ -848,6 +942,13 @@
     "ImageBlock": {
       "additionalProperties": false,
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "alt": {
           "type": "string"
         },
@@ -1147,6 +1248,13 @@
       "additionalProperties": false,
       "description": "A drop-down with which a learner picks the language of the module (it sets `userlanguage`) - addable only while the module offers more than one language.",
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "entranceEffect": {
           "$ref": "#/definitions/BlockEffect",
           "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
@@ -1208,6 +1316,13 @@
       "additionalProperties": false,
       "description": "A list of texts. Each item is rich text edited in place on the slide, like the options of a quiz. Its Aufbau is either the list's as a whole (the block's own `entranceEffect`, an event of the block) or - with `itemEntrance` - the same effect for every item one by one, each an event of its own in the page's graph (`list-item:<blockId>:<itemId>`, see listItemNodeId in document/pageTimeline.ts), by default one after the other on Weiter. The Abbau is always the list's as a whole.",
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "entranceEffect": {
           "$ref": "#/definitions/BlockEffect",
           "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
@@ -1517,6 +1632,13 @@
       "additionalProperties": false,
       "description": "A placeholder for a text on the pages that use a layout (only exists in a layout): it has no text of its own. What the author sets up is where it stands and how its text looks; the `html` is a sample that carries that formatting (font, size, colour, alignment, ...) - it is never shown on a page. On a page the slot can be clicked to type a text, which then starts out formatted like the sample (see core/document/placeholders.ts).",
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "entranceEffect": {
           "$ref": "#/definitions/BlockEffect",
           "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
@@ -1563,6 +1685,13 @@
     "QuizBlock": {
       "additionalProperties": false,
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "correctOptionIds": {
           "items": {
             "$ref": "#/definitions/UUID"
@@ -1673,6 +1802,13 @@
       "additionalProperties": false,
       "description": "A small icon in a coloured shape on the slide. A click on it (or an incoming trigger of its event, see TimelineEventType \"revealer-open\") opens a window around it with a heading and - all of them optional - a small text, a picture and a button; the window closes with its x. The sign on the icon is black or white, whichever stands out more from `color`.",
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "body": {
           "description": "The small text of the window (plain text, with line breaks); \"\" for none.",
           "type": "string"
@@ -1815,6 +1951,13 @@
       "additionalProperties": false,
       "description": "A logic block (kind \"script\"): some JavaScript the page runs when the block's event of the page's graph is reached (see scriptRunNodeId in document/pageTimeline.ts) - a green event that, like the Aufbau of any block, is triggered by Weiter by default and can be triggered by anything else. In the editor it is a hexagon with a gear on the slide; the player shows nothing. The code has `vars` (read and write the module's variables by name), `debug(...)`, `trigger(name)` (an event of the page, by its title), `jump(slide, transition, options)` and `VanillaLM`; whoever writes it has to know what they do (see runScript in player.runtime.js). A page's block only - there are no events on a layout.",
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "code": {
           "type": "string"
         },
@@ -1902,6 +2045,13 @@
     "ShapeBlock": {
       "additionalProperties": false,
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "cornerRadii": {
           "$ref": "#/definitions/ShapeCornerRadii",
           "description": "Only meaningful for \"rectangle\"."
@@ -2222,6 +2372,13 @@
       "additionalProperties": false,
       "description": "A TeX formula (rendered with KaTeX in display mode, so it may span several lines via a double backslash). Behaves like an image on the slide: it is scaled to fit its box (contain), so resizing the box resizes the formula. Formatting is deliberately limited to the block as a whole (`color`) plus whatever TeX commands the author writes into `tex` itself (e.g. a color command around part of it).",
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "color": {
           "description": "CSS color for the whole formula; \"\" = inherit the slide's own text color.",
           "type": "string"
@@ -2267,6 +2424,13 @@
     "TextBlock": {
       "additionalProperties": false,
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "entranceEffect": {
           "$ref": "#/definitions/BlockEffect",
           "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
@@ -2582,6 +2746,13 @@
     "VideoBlock": {
       "additionalProperties": false,
       "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
         "assetId": {
           "anyOf": [
             {

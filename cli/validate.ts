@@ -8,7 +8,7 @@ import { branchPageIds, sequenceOf } from "../src/core/document/sequence";
 import { isTranslated, plainTextOfHtml } from "../src/core/document/translations";
 import { placeholderSources } from "../src/core/document/variablePlaceholders";
 import { virtualVariablesFor } from "../src/core/document/virtualVariables";
-import { listAllNodes } from "../src/core/document/pageTimeline";
+import { actionEffectProblem, listAllNodes } from "../src/core/document/pageTimeline";
 import { CURRENT_FORMAT_VERSION } from "../src/core/types";
 import type { Block, Page, TimelineNode, VariableEffect, WeftModule } from "../src/core/types";
 import type { LoadedWeft } from "./load";
@@ -191,6 +191,9 @@ export function eventLabel(page: Page, node: TimelineNode, content: WeftModule, 
   const names: Record<string, string> = {
     "block-entrance": "Aufbau",
     "block-exit": "Abbau",
+    "block-action-move": "Element bewegt sich",
+    "block-action-shake": "Element schüttelt sich",
+    "block-action-blink": "Element blinkt",
     "group-entrance": "Aufbau einer Gruppe",
     "group-exit": "Abbau einer Gruppe",
     "list-item-entrance": "Aufbau eines Listenpunkts",
@@ -332,6 +335,18 @@ export function validate(loaded: LoadedWeft): Finding[] {
       add("warning", "block-off-slide", `${block.kind}-Block liegt (teilweise) außerhalb der Folie.`, { ...here, hint: "position so setzen, dass x+width und y+height höchstens 100 sind." });
     }
     if (p && (p.width <= 0 || p.height <= 0)) add("error", "block-no-size", `${block.kind}-Block hat keine Größe.`, here);
+
+    // Aktionseffekte: only on a page, and between the Aufbau and the Abbau of the block (see actionEffectProblem).
+    if (block.actionEffects?.length) {
+      const page = where.page ? content.pages[where.page.id] : undefined;
+      if (!page) add("warning", "action-effect-in-layout", "Aktionseffekte eines Layout-Blocks gelten nicht (nur Blöcke einer Folie haben welche).", here);
+      for (const effect of block.actionEffects) {
+        const problem = page ? actionEffectProblem(page, block, effect.id) : null;
+        if (problem) {
+          add("warning", "action-effect-misplaced", problem === "before-entrance" ? "Ein Aktionseffekt kann passieren, bevor das Element erschienen ist - er bewirkt dann nichts." : "Ein Aktionseffekt kann passieren, nachdem das Element verschwunden ist - er bewirkt dann nichts.", { ...here, hint: "Seinen Auslöser (Ereignis) so wählen, dass er nach dem Aufbau und vor dem Abbau des Elements kommt." });
+        }
+      }
+    }
 
     // Placeholders.
     if (block.kind === "placeholder" && !isLayout) {

@@ -5,3 +5,6 @@ export function arrowSvgMarkup(block: Pick<ArrowBlock, "id" | "position" | "poin
 
 /** The curve's middle between each pair of neighbouring waypoints, in the block's own percent. */
 export function arrowSegmentMiddles(block: Pick<ArrowBlock, "position" | "points">, boxAspect: number): { x: number; y: number }[];
+
+/** `count` + 1 points along the curve through `points`, evenly spaced along its length. */
+export function arrowEvenPoints(points: { x: number; y: number }[], count: number): { x: number; y: number }[];

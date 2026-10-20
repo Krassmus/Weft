@@ -1355,6 +1355,9 @@
   function blockEffectEventId(blockId, phase) {
     return "block-" + phase + ":" + blockId;
   }
+  function blockActionEventId(blockId, effectId) {
+    return "block-action:" + blockId + ":" + effectId;
+  }
   function quizFillEventId(blockId) {
     return "quiz-fill:" + blockId;
   }
@@ -1763,6 +1766,88 @@
         }
       };
     }
+  }
+
+  /**
+   * The Aktionseffekte of a block (ActionEffect in core/types.ts): each is an event of the page's graph; when it is made to happen the
+   * block moves (and turns), shakes or blinks, and the event has happened once that is over. They use the CSS properties `translate`
+   * and `rotate` - which do not meet the `transform` of the block's own rotation or of its Aufbau/Abbau - and a move leaves the block
+   * where it went: the next effect starts from there (`state`, in units of the slide's width: cqw).
+   */
+  function applyActionEffects(wrap, block) {
+    if (renderAll) return;
+    var effects = block.actionEffects || [];
+    if (!effects.length) return;
+    var state = { x: 0, y: 0, rotation: 0 };
+    var aspect = slideAspectNumeric();
+    function settle() {
+      wrap.style.translate = state.x || state.y ? state.x + "cqw " + state.y + "cqw" : "";
+      wrap.style.rotate = state.rotation ? state.rotation + "deg" : "";
+    }
+    function translation(x, y) {
+      return x + "cqw " + y + "cqw";
+    }
+    effects.forEach(function (effect) {
+      var id = blockActionEventId(block.id, effect.id);
+      if (!graphEvents[id]) return;
+      performers[id] = function () {
+        var duration = Math.max(50, effect.durationMs || 500);
+        var reduced = prefersReducedMotion();
+        var frames = null;
+        var onDone = settle;
+        if (effect.type === "move") {
+          // The way: percent of the slide's width and height from where the block is now, as a curve through the points (the units of
+          // its height turned into those of its width, so the curve is not stretched).
+          var way = [{ x: 0, y: 0 }].concat(
+            (effect.path || []).map(function (point) {
+              return { x: Number(point.x) || 0, y: (Number(point.y) || 0) / aspect };
+            }),
+          );
+          var steps = 48;
+          var points = way.length > 1 ? arrowEvenPoints(way, steps) : [way[0]];
+          var end = points[points.length - 1];
+          var turn = Number(effect.rotation) || 0;
+          var fromX = state.x;
+          var fromY = state.y;
+          var fromRotation = state.rotation;
+          state.x = fromX + end.x;
+          state.y = fromY + end.y;
+          state.rotation = fromRotation + turn;
+          if (!reduced) {
+            frames = (points.length > 1 ? points : [points[0], points[0]]).map(function (point, i, all) {
+              return { translate: translation(fromX + point.x, fromY + point.y), rotate: fromRotation + (turn * i) / (all.length - 1) + "deg" };
+            });
+          }
+        } else if (!reduced && effect.type === "shake") {
+          // Once to and fro, fading out, in the block's own place.
+          var amounts = [0, -1, 1, -0.8, 0.8, -0.5, 0.5, -0.2, 0];
+          frames = amounts.map(function (amount) {
+            return { translate: translation(state.x + amount * 1.1, state.y), rotate: state.rotation + amount * 2 + "deg" };
+          });
+        } else if (!reduced && effect.type === "blink") {
+          frames = [1, 0.15, 1, 0.15, 1].map(function (opacity) {
+            return { opacity: opacity };
+          });
+        }
+        var finish = once(function () {
+          settle();
+          happened(id);
+        });
+        if (!frames) {
+          finish();
+          return;
+        }
+        var animation = wrap.animate(frames, {
+          duration: duration,
+          easing: effect.type === "move" ? effect.easing || "ease-in-out" : effect.type === "shake" ? "linear" : "ease-in-out",
+          fill: "none",
+        });
+        // A move is settled first, so that there is no frame at the old place when the animation ends.
+        if (effect.type === "move") settle();
+        animation.onfinish = finish;
+        setTimeout(finish, duration + 100);
+      };
+    });
   }
 
   // Same icon set as the editor canvas's video2 watermark (see BlockView.tsx) - play, not video2,
@@ -2985,6 +3070,7 @@
     }
     var wrap = block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : block.kind === "revealer" ? renderRevealerBlock(block) : renderStaticBlock(block, page);
     applyBlockEffects(wrap, block, page);
+    applyActionEffects(wrap, block);
     if (block.kind === "list" && wrap.weftListItems) applyListItemEffects(block, wrap.weftListItems);
     return wrap;
   }

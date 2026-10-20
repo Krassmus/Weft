@@ -80,6 +80,32 @@ export interface BlockEffect {
   direction?: TransitionDirection;
 }
 
+/** What an Aktionseffekt does to its block between its Aufbau and its Abbau: it moves to a point (and may turn on the way), it shakes
+ * once, or it blinks once. */
+export type ActionEffectType = "move" | "shake" | "blink";
+
+/**
+ * An Aktionseffekt of a block (see BaseBlock.actionEffects): something the block does while it is there, to move to another place or to
+ * draw attention to itself. Like an Aufbau/Abbau it is an event of the page's graph (`block-action:<blockId>:<id>`, with its trigger
+ * stored in PageTimeline.triggers) - only what it does lives here. The player carries it out with the CSS properties `translate` and
+ * `rotate` (so they do not meet the `transform` of the block's own rotation or of its Aufbau/Abbau), and what a "move" has done stays:
+ * the block is where it went, and the next effect starts from there.
+ */
+export interface ActionEffect {
+  id: UUID;
+  type: ActionEffectType;
+  durationMs: number;
+  /** "move" only: the way the block takes, as points in percent of the slide's width (x) and height (y), measured from where the block is
+   * when the effect starts - not necessarily where it was put on the slide. The last point is where it ends; a curve runs through all of
+   * them. Absent or empty: it does not move (it may still turn). */
+  path?: ArrowPoint[];
+  /** "move" only: a CSS timing function (`ease-in-out`, `cubic-bezier(0.34, 1.56, 0.64, 1)`, ...) for how fast it goes along the way.
+   * Absent: "ease-in-out". */
+  easing?: string;
+  /** "move" only: how many degrees it turns on the way - clockwise when positive, counterclockwise when negative, and not limited. */
+  rotation?: number;
+}
+
 interface BaseBlock {
   id: UUID;
   /** Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts. */
@@ -93,6 +119,9 @@ interface BaseBlock {
    * at all, i.e. exactly how every block behaved before this field existed - it simply stays
    * until the slide changes. */
   exitEffect: BlockEffect;
+  /** What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter
+   * of the page's graph. Absent: none (a module saved before they existed). */
+  actionEffects?: ActionEffect[];
 }
 
 /**
@@ -739,6 +768,9 @@ export type TimelineEventType =
   | "video-end-stop"
   | "block-entrance"
   | "block-exit"
+  | "block-action-move"
+  | "block-action-shake"
+  | "block-action-blink"
   | "button-click"
   | "group-entrance"
   | "group-exit"
@@ -757,6 +789,9 @@ export interface TimelineNode {
   sourceGroupId?: UUID;
   /** Required when kind is "event": which event this is. */
   eventType?: TimelineEventType;
+  /** An Aktionseffekt (`block-action-*`) that cannot work: it happens before its block has appeared or after it has gone (see
+   * actionEffectProblem in document/pageTimeline.ts). Derived, not stored. */
+  problem?: "before-entrance" | "after-exit";
   /** "video-stop-point" only: whether the video stops there (VideoStopPoint.stopsVideo) - else the mark only marks a moment. */
   stopsVideo?: boolean;
   /** "video-stop-point" only: the kinds of the elements that appear at this mark ("Lässt erscheinen" in the dialog of the time marks),

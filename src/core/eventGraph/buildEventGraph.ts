@@ -1,5 +1,6 @@
 import { orderedValues } from "../document/ordering";
 import {
+  blockActionNodeId,
   blockEffectNodeId,
   buttonClickNodeId,
   endNodeIds,
@@ -44,6 +45,7 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
       events.push({ id, kind: "entrance" });
       if (!pageBlockIds.has(block.id)) triggers.push({ id: `layout:${id}`, from: "start", to: id, delayMs: 0, weiter: false });
     }
+    if (pageBlockIds.has(block.id)) for (const effect of block.actionEffects ?? []) events.push({ id: blockActionNodeId(block.id, effect.id), kind: "action" });
     if (block.exitEffect.type !== "off") events.push({ id: blockEffectNodeId(block.id, "exit"), kind: "exit" });
 
     if (block.kind === "revealer") {

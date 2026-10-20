@@ -42,6 +42,7 @@ import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
 import { SecondsControl } from "./SecondsControl";
 import { StepperSlider } from "./StepperSlider";
+import { ActionEffectsEditor } from "./ActionEffectsEditor";
 import { addFilesToBlock, removeFileFromBlock, setFilesPassword } from "../../../core/document/filesActions";
 import type { BlockContainerRef } from "../../../core/document/store";
 import { confirmDestructive, pickFilesFromDisk, pickFontFile, warnAboutVideoUploads } from "../../../core/io/fileIO";
@@ -254,6 +255,8 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, onSetAudio
               setEventTrigger(page.id, blockEffectNodeId(block.id, "entrance"), from, delayMs, kind)
             }
           />
+          {/* What the block does between its Aufbau and its Abbau: a block of the page only (the effects of a layout's blocks are the layout's). */}
+          {block.id in page.blocks && <ActionEffectsEditor key={block.id + "-actions"} block={block} page={page} />}
           <BlockEffectEditor
             key={block.id + "-exit"}
             title={tr("ui.exit")}

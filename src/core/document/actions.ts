@@ -3,6 +3,8 @@ import { aspectRatioNumeric } from "../aspectRatio";
 import { useAssetStore } from "../assets/assetStore";
 import { isFfmpegAvailable, transcodeToH264 } from "../io/videoTranscode";
 import type {
+  ActionEffect,
+  ActionEffectType,
   AspectRatio,
   Block,
   BlockEffect,
@@ -38,17 +40,19 @@ import type { SlideMove, SlideMoveKind } from "./slideMoves";
 import { DEFAULT_TRANSITION_DURATION_MS } from "./transitions";
 import { defaultLanguageOf, rotateDefaultLanguage } from "./translations";
 import { defaultInitialValue, isBooleanVariable } from "./variables";
-import { defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
+import { defaultActionEffect, defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
 import {
   blockEffectNodeId,
   canTriggerFrom,
   createDefaultPageTimeline,
   appendToWeiterChain,
+  placeActionEffect,
   ensureButtonTrigger,
   ensureEffectTriggers,
   groupEffectNodeId,
   ensureListItemTriggers,
   isListPerItem,
+  isChainOrderAllowed,
   spliceOutOfTriggers,
   isEndNodeId,
   quizEndNodeId,
@@ -814,6 +818,42 @@ export function updateBlock(pageId: string, blockId: string, patch: Partial<Bloc
   });
 }
 
+/** Gives a block a new Aktionseffekt (see ActionEffect) of `type`; it takes its place in the graph between the block's Aufbau and Abbau
+ * (see placeActionEffect). Returns its id. */
+export function addActionEffect(pageId: string, blockId: string, type: ActionEffectType): string {
+  const effectId = createId();
+  edit("Aktionseffekt hinzufügen", (m) => {
+    const page = m.pages[pageId];
+    const block = page?.blocks[blockId];
+    if (!page || !block) return;
+    // (Read the list back after creating it: what `??=` evaluates to is the plain array, not the one in the document.)
+    if (!block.actionEffects) block.actionEffects = [];
+    block.actionEffects.push(defaultActionEffect(effectId, type));
+    syncPageTimelineEvents(page);
+    placeActionEffect(page, blockId, effectId);
+  });
+  return effectId;
+}
+
+/** Changes an Aktionseffekt of a block. */
+export function updateActionEffect(pageId: string, blockId: string, effectId: string, patch: Partial<Omit<ActionEffect, "id">>) {
+  edit("Aktionseffekt bearbeiten", (m) => {
+    const effect = m.pages[pageId]?.blocks[blockId]?.actionEffects?.find((e) => e.id === effectId);
+    if (effect) assignPatch(effect, patch);
+  });
+}
+
+/** Takes an Aktionseffekt away: what it triggered is triggered by what triggered it (see syncPageTimelineEvents). */
+export function removeActionEffect(pageId: string, blockId: string, effectId: string) {
+  edit("Aktionseffekt entfernen", (m) => {
+    const page = m.pages[pageId];
+    const effects = page?.blocks[blockId]?.actionEffects;
+    if (!page || !effects) return;
+    removeWhere(effects, (e) => e.id === effectId);
+    syncPageTimelineEvents(page);
+  });
+}
+
 /**
  * The one write path for every trigger edge on a page - a block's own Aufbau/Abbau (see
  * BlockEffectEditor in panels/BlockPanel.tsx), a video's own start, "Nächste Folie"'s own
@@ -918,7 +958,8 @@ export function reorderChain(pageId: string, order: string[]) {
   edit("Reihenfolge ändern", (m) => {
     const page = m.pages[pageId];
     if (!page || order.length < 2) return;
-    const chain = findChain(page.timeline, order[0], (id) => id.startsWith("block-entrance:") || id.startsWith("block-exit:") || id.startsWith("list-item:"));
+    const chain = findChain(page.timeline, order[0], (id) => id.startsWith("block-entrance:") || id.startsWith("block-exit:") || id.startsWith("block-action:") || id.startsWith("list-item:"));
+    if (!isChainOrderAllowed(order)) return;
     if (!chain || chain.nodeIds.length !== order.length || !order.every((id) => chain.nodeIds.includes(id))) return;
     const lastOut = chain.triggerIds.length > chain.nodeIds.length ? page.timeline.triggers[chain.triggerIds[chain.nodeIds.length]]?.to : null;
     for (const [id, link] of reorderedLinks(chain, order, lastOut ?? null)) {

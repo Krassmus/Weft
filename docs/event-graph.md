@@ -318,4 +318,14 @@ und wenn sie fertig ist – bei einer Animation nach ihrer Dauer –, passiert d
      einen Trigger; er ist ein auslösbares Ziel, das Fenster öffnet sich also auch ohne Klick) und - nur mit Button -
      „Button im Revealer geklickt“ (`revealer-button:<id>`, wie `button-click`; der Button ist erst da, wenn das Fenster offen ist, deshalb läuft eine gestrichelte Linie vom Öffnen zu diesem Klick: eine Lane wie beim Quiz von der ersten Antwort zum Abschicken). Hat der Revealer einen Aufbau, steht dessen Event („Revealer erscheint“) davor: Das Icon lässt sich erst öffnen, wenn es da ist. Was der Button tut (`button.action`, `onClick`,
      `targetPageId`), wird wie bei einem Button-Block gewählt. Die Icon-Farbe (weiß oder schwarz) folgt dem Kontrast zur Farbe.
+   - Ein Element kann **Aktionseffekte** haben (`Block.actionEffects`): zwischen Aufbau und Abbau bewegt es sich zu einem Punkt (und dreht
+     sich dabei), schüttelt sich einmal oder blinkt einmal. Jeder ist ein Event (`block-action:<Block>:<Effekt>`, Knotentypen
+     `block-action-move`/`-shake`/`-blink`, gelb) mit eigenem Trigger. Ein neuer Effekt wird standardmäßig mit **Weiter** ausgelöst, ohne
+     Verzögerung, und sortiert sich in die Kette ein: nach dem, was das Element zuletzt tat (Aufbau oder voriger Effekt) und vor dem, was
+     dort auf Weiter wartete - auch vor dem Abbau des Elements; kommt ein Aufbau/Abbau später dazu, tritt er vor die Effekte bzw. hinter
+     sie. Ein Effekt, der vor dem Aufbau oder nach dem Abbau seines Elements passieren kann (beurteilt nach der Kette der Auslöser, nicht
+     nach der Zeit), ist **rot** und trägt eine Warnung; die Auswahl seines Auslösers führt solche Quellen gar nicht erst auf, und im
+     Graphen wird ein Ziehen, das ihn so verschieben würde, abgewiesen. Der Player führt Bewegung und Drehung mit den CSS-Eigenschaften
+     `translate`/`rotate` aus (sie stören `transform` von Drehung/Aufbau/Abbau nicht); eine Bewegung bleibt (das nächste Ereignis beginnt
+     dort).
    - Der Graph zeigt jetzt jeden gespeicherten Trigger (vorher nur den ersten eines Events).

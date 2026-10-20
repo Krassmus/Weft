@@ -216,6 +216,7 @@ export function buildGraphModel(page: Page): GraphModel {
       node.kind === "event" &&
       (node.eventType === "block-entrance" ||
         node.eventType === "block-exit" ||
+        node.eventType?.startsWith("block-action") ||
         node.eventType === "group-entrance" ||
         node.eventType === "group-exit" ||
         node.eventType === "list-item-entrance")

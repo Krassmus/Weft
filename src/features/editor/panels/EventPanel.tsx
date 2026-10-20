@@ -1,5 +1,7 @@
 import { addTrigger, setEventTitle, setGroupEffect, updateBlock, updateTrigger } from "../../../core/document/actions";
 import {
+  actionEffectAdvanceSource,
+  canTriggerActionEffectFrom,
   canTriggerFrom,
   findNode,
   getBlockEntranceTrigger,
@@ -15,6 +17,7 @@ import { Collapsible } from "../Collapsible";
 import { buildGraphModel } from "../eventGraph/model";
 import { listPageTriggerEvents, nodeLabel } from "../Timeline";
 import { BlockEffectEditor } from "./BlockPanel";
+import { ActionEffectCard } from "./ActionEffectsEditor";
 import { OutgoingTriggersSection, TriggerCard, resumableBlock } from "./TriggerSections";
 import { TransitionPanel } from "./TransitionPanel";
 import { tr } from "../../../core/i18n/tr";
@@ -104,6 +107,12 @@ function SingleEventPanel({ page, nodeId }: { page: Page; nodeId: string }) {
         {node.kind === "start" && <p className="weft-hint">{tr("ui.happens_automatically_as_soon_as_this")}</p>}
       </div>
 
+      {node.problem && (
+        <div className="weft-placeholder-warning">
+          <p>{node.problem === "before-entrance" ? tr("ui.action_problem_before") : tr("ui.action_problem_after")}</p>
+        </div>
+      )}
+
       {unreachable && (
         <div className="weft-placeholder-warning">
           <p>
@@ -189,6 +198,14 @@ function EffectSection({ page, node }: { page: Page; node: TimelineNode }) {
     );
   }
   const sourceBlock = node.sourceBlockId ? page.blocks[node.sourceBlockId] : undefined;
+  // An Aktionseffekt: what it does (its trigger is listed below).
+  if (sourceBlock && node.eventType?.startsWith("block-action")) {
+    const effectId = node.id.split(":")[2];
+    const index = (sourceBlock.actionEffects ?? []).findIndex((e) => e.id === effectId);
+    const effect = sourceBlock.actionEffects?.[index];
+    if (!effect) return null;
+    return <ActionEffectCard key={node.id} block={sourceBlock} page={page} effect={effect} index={index} events={[]} hideTrigger />;
+  }
   if (!sourceBlock || (node.eventType !== "block-entrance" && node.eventType !== "block-exit" && node.eventType !== "list-item-entrance")) return null;
   // An item of a list appears with the effect of the list's Aufbau - the same for every item.
   const phase = node.eventType === "block-exit" ? "exit" : "entrance";
@@ -224,7 +241,10 @@ function IncomingTriggersSection({ page, node }: { page: Page; node: TimelineNod
 
   const incoming = incomingTriggers(page.timeline, node.id);
   // Everything that can cause something - but not the event itself.
-  const options = listPageTriggerEvents(page).filter((e) => e.id !== node.id);
+  const actionBlock = node.eventType?.startsWith("block-action") && node.sourceBlockId ? page.blocks[node.sourceBlockId] : undefined;
+  const actionEffectId = actionBlock ? node.id.split(":")[2] : "";
+  // An Aktionseffekt takes nothing from before its block's Aufbau or after its Abbau (the one that is stored stays listed: see TriggerCard).
+  const options = listPageTriggerEvents(page).filter((e) => e.id !== node.id && (!actionBlock || canTriggerActionEffectFrom(page, actionBlock, actionEffectId, e.id)));
   const labelOf = (id: string) => options.find((o) => o.id === id)?.label ?? id;
 
   return (
@@ -251,7 +271,9 @@ function IncomingTriggersSection({ page, node }: { page: Page; node: TimelineNod
           ))}
         </ul>
       )}
-      <button type="button" className="weft-ghost-button weft-full-width" onClick={() => addTrigger(page.id, "start", node.id, 0, true)}>
+      <button type="button" className="weft-ghost-button weft-full-width" onClick={() =>
+          actionBlock ? addTrigger(page.id, actionEffectAdvanceSource(page, actionBlock, actionEffectId), node.id, 0, true) : addTrigger(page.id, "start", node.id, 0, true)
+        }>
         {tr("ui.trigger")}
       </button>
     </Collapsible>

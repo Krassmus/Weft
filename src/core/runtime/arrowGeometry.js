@@ -328,6 +328,16 @@ function arrowWaypoints(block, boxAspect) {
   });
 }
 
+// `count` + 1 points along the curve through `points`, evenly spaced along its length (the way of an Aktionseffekt that moves: see
+// player.runtime.js and the editor's path). Fewer than two points: just those.
+export function arrowEvenPoints(points, count) {
+  if (points.length < 2) return points.slice();
+  var curve = arrowSample(points);
+  var result = [];
+  for (var i = 0; i <= count; i++) result.push(arrowPointAt(curve, (curve.total * i) / count));
+  return result;
+}
+
 // The SVG of an arrow, as a string - to be put in a box that is the block's own.
 export function arrowSvgMarkup(block, boxAspect) {
   var height = 100 / (boxAspect > 0 ? boxAspect : 1);

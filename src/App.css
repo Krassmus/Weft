@@ -6100,3 +6100,47 @@ h2.weft-inspector-header {
   width: 100%;
   height: 100%;
 }
+
+/* ---- The Aktionseffekte of a block in its panel (ActionEffectsEditor.tsx) ---- */
+.weft-action-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 8px;
+  border: 1px solid var(--weft-border, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+}
+
+.weft-action-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.weft-action-card-head select {
+  flex: 1;
+  min-width: 0;
+}
+
+.weft-action-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.weft-action-card .weft-field-row {
+  display: flex;
+  gap: 8px;
+}
+
+.weft-action-card .weft-field-row > .weft-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.weft-action-bezier {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}

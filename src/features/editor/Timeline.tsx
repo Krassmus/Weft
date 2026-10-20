@@ -12,7 +12,7 @@ import infoIconSvgRaw from "../../../mockups/icons/info-circle-full.svg?raw";
 import animationIconSvgRaw from "../../../mockups/icons/animation.svg?raw";
 import dashingAwayIconSvgRaw from "../../../mockups/icons/dashing-away.svg?raw";
 import { reorderChain } from "../../core/document/actions";
-import { isTriggerableNode, listAllNodes } from "../../core/document/pageTimeline";
+import { isChainOrderAllowed, isTriggerableNode, listAllNodes } from "../../core/document/pageTimeline";
 import { findChain } from "../../core/eventGraph/chains";
 import { useDocumentStore } from "../../core/document/store";
 import { stopPointIconSvg } from "./stopPointIcon";
@@ -40,6 +40,14 @@ const INFINITY_ICON_SVG =
 // The info icon takes the colour of the event like the others do (its own colour is a fill in the file).
 const infoIconSvg = infoIconSvgRaw.replace(/fill="[^"]*"/g, 'fill="#28497c"').replace(/style="fill:[^"]*"/g, 'fill="#28497c"');
 
+// An Aktionseffekt: a way with a dot at its end (move), vibration marks beside a box (shake), rays around a point (blink).
+const moveActionIconSvg =
+  '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#28497c" stroke-width="1.5" stroke-linecap="round"><path d="M2 12 C5 12 5 4 11 4" stroke-dasharray="0.1 2.6"/><circle cx="12" cy="4" r="2" fill="#28497c" stroke="none"/></svg>';
+const shakeActionIconSvg =
+  '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#28497c" stroke-width="1.5" stroke-linecap="round"><rect x="5" y="4" width="6" height="8" rx="1" fill="#28497c" stroke="none"/><path d="M2.5 5.5 L2.5 10.5 M13.5 5.5 L13.5 10.5 M0.8 7 L0.8 9 M15.2 7 L15.2 9"/></svg>';
+const blinkActionIconSvg =
+  '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#28497c" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="2.2" fill="#28497c" stroke="none"/><path d="M8 1.5 V3.5 M8 12.5 V14.5 M1.5 8 H3.5 M12.5 8 H14.5 M3.4 3.4 L4.8 4.8 M11.2 11.2 L12.6 12.6 M12.6 3.4 L11.2 4.8 M4.8 11.2 L3.4 12.6"/></svg>';
+
 const EVENT_LABELS: Record<TimelineEventType, string> = {
   get "quiz-fill-start"() { return tr("ui.fill_in"); },
   get "quiz-submit"() { return tr("ui.quiz_submitted"); },
@@ -53,6 +61,9 @@ const EVENT_LABELS: Record<TimelineEventType, string> = {
   get "video-end-stop"() { return tr("ui.end_of_the_video"); },
   get "block-entrance"() { return tr("ui.appears"); },
   get "block-exit"() { return tr("ui.disappears"); },
+  get "block-action-move"() { return tr("ui.action_move_event"); },
+  get "block-action-shake"() { return tr("ui.action_shake_event"); },
+  get "block-action-blink"() { return tr("ui.action_blink_event"); },
   get "button-click"() { return tr("ui.button_clicked"); },
   get "revealer-open"() { return tr("ui.revealer_opens"); },
   get "revealer-button"() { return tr("ui.revealer_button_clicked"); },
@@ -81,6 +92,9 @@ const EVENT_ICONS: Record<TimelineEventType, string> = {
   // Aufbau - the animations (Fade, Move, ...) - and Abbau (dashing away) have an icon each.
   "block-entrance": animationIconSvg,
   "block-exit": dashingAwayIconSvg,
+  "block-action-move": moveActionIconSvg,
+  "block-action-shake": shakeActionIconSvg,
+  "block-action-blink": blinkActionIconSvg,
   "button-click": hand2IconSvg,
   "revealer-open": infoIconSvg,
   "revealer-button": hand2IconSvg,
@@ -445,7 +459,8 @@ function TimelineGraph({ page }: { page: Page }) {
   }
 
   function colorOf(n: GraphNodeModel): EventColor | "red" {
-    if (n.unreachable) return "red";
+    // Unreachable, or (an Aktionseffekt) before the Aufbau or after the Abbau of its block: nothing it could do.
+    if (n.unreachable || n.node.problem) return "red";
     // A "Nächste Folie" that animates its transition is an animation.
     if (n.node.kind === "end" && (page.timeline.ends[n.id]?.transition.type ?? "none") !== "none") return "yellow";
     return n.color;
@@ -453,7 +468,7 @@ function TimelineGraph({ page }: { page: Page }) {
 
   // The chain an event can be moved in: events that follow each other one by one, in one row.
   function chainOf(nodeId: string): string[] | null {
-    const chain = findChain(page.timeline, nodeId, (id) => id.startsWith("block-entrance:") || id.startsWith("block-exit:") || id.startsWith("list-item:"));
+    const chain = findChain(page.timeline, nodeId, (id) => id.startsWith("block-entrance:") || id.startsWith("block-exit:") || id.startsWith("block-action:") || id.startsWith("list-item:"));
     if (!chain) return null;
     const row = layout.row.get(nodeId);
     if (!chain.nodeIds.every((id) => layout.row.get(id) === row)) return null;
@@ -481,6 +496,8 @@ function TimelineGraph({ page }: { page: Page }) {
       others.splice(best, 0, nodeId);
       return others;
     };
+    // A place that would put an Aktionseffekt before the Aufbau of its block or after its Abbau is not one: the event stays where it was.
+    const allowedOrder = (order: string[]) => (isChainOrderAllowed(order) ? order : chain);
     const move = (e: PointerEvent) => {
       if (!started) {
         if (Math.abs(e.clientX - startX) < DRAG_THRESHOLD_PX) return;
@@ -488,7 +505,7 @@ function TimelineGraph({ page }: { page: Page }) {
         document.body.classList.add("weft-dragging");
       }
       const x = e.clientX - origin;
-      setDrag({ nodeId, x, order: orderFor(x) });
+      setDrag({ nodeId, x, order: allowedOrder(orderFor(x)) });
     };
     const finish = (e: PointerEvent) => {
       window.removeEventListener("pointermove", move);
@@ -498,7 +515,7 @@ function TimelineGraph({ page }: { page: Page }) {
       if (!started) return;
       suppressClickRef.current = true;
       setTimeout(() => (suppressClickRef.current = false), 0);
-      const order = orderFor(e.clientX - origin);
+      const order = allowedOrder(orderFor(e.clientX - origin));
       setDrag(null);
       if (order.some((id, i) => id !== chain[i])) reorderChain(page.id, order);
     };

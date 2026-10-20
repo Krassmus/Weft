@@ -1,7 +1,7 @@
 import { isSnapshot } from "../collab/mutationScope";
 import { formatTimeMMSS } from "../formatTime";
 import { orderedValues } from "./ordering";
-import type { Block, BlockEffect, RevealerBlock, BlockGroup, ClozeBlock, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode } from "../types";
+import type { ActionEffect, Block, BlockEffect, RevealerBlock, BlockGroup, ClozeBlock, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode } from "../types";
 import { isMediaBlock } from "../types";
 import type { MediaBlock } from "../types";
 import { tr } from "../i18n/tr";
@@ -216,6 +216,91 @@ function makeBlockEffectNode(block: Block, phase: "entrance" | "exit"): Timeline
   };
 }
 
+/** One Aktionseffekt of a block (see ActionEffect). Kept in sync by hand with player.runtime.js. */
+export function blockActionNodeId(blockId: string, effectId: string): string {
+  return `block-action:${blockId}:${effectId}`;
+}
+
+const ACTION_EVENT_TYPES = { move: "block-action-move", shake: "block-action-shake", blink: "block-action-blink" } as const satisfies Record<ActionEffect["type"], TimelineEventType>;
+
+/** What the author is told about an Aktionseffekt that cannot work (see actionEffectProblem). */
+export type ActionEffectProblem = "before-entrance" | "after-exit";
+
+/** The event of the Aufbau of `block` as the Aktionseffekte of the block have to wait for it - none where the block has none that is one
+ * node (no Aufbau; a list whose items appear one by one; a logic block). */
+function entranceNodeIdOf(block: Block): string | null {
+  if (block.kind === "script" || block.entranceEffect.type === "off" || isListPerItem(block)) return null;
+  return blockEffectNodeId(block.id, "entrance");
+}
+
+/**
+ * Whether an Aktionseffekt is where it cannot work: it can happen before the block has appeared (the event of its Aufbau is not what it
+ * waits for, directly or through others) or after the block has gone (it waits for the event of its Abbau). Judged by what causes what,
+ * as everywhere in the graph - not by the time that passes on separate chains. An effect nothing triggers is not a problem of that kind
+ * (the graph shows it as unreachable).
+ */
+export function actionEffectProblem(page: Page, block: Block, effectId: string): ActionEffectProblem | null {
+  const id = blockActionNodeId(block.id, effectId);
+  if (!findTriggerEdge(page.timeline, id)) return null;
+  if (block.exitEffect.type !== "off" && waitsOn(page, id, blockEffectNodeId(block.id, "exit"))) return "after-exit";
+  const entranceId = entranceNodeIdOf(block);
+  if (entranceId && !waitsOn(page, id, entranceId)) return "before-entrance";
+  return null;
+}
+
+/** Whether `candidateId` may be offered as what triggers the Aktionseffekt `effectId` of `block`: nothing that would be a loop (see
+ * canTriggerFrom), nothing that comes after the Abbau of the block, and - where the block has an Aufbau - nothing but the Aufbau itself
+ * and what comes after it. */
+export function canTriggerActionEffectFrom(page: Page, block: Block, effectId: string, candidateId: string): boolean {
+  const id = blockActionNodeId(block.id, effectId);
+  if (!canTriggerFrom(page, candidateId, id)) return false;
+  if (block.exitEffect.type !== "off" && waitsOn(page, candidateId, blockEffectNodeId(block.id, "exit"))) return false;
+  const entranceId = entranceNodeIdOf(block);
+  return !entranceId || waitsOn(page, candidateId, entranceId);
+}
+
+/** Whether an order of the events of one chain (see findChain) keeps every Aktionseffekt between the Aufbau and the Abbau of its block -
+ * for those of the block that are in the chain. A drag in the graph that would break this is refused. */
+export function isChainOrderAllowed(order: string[]): boolean {
+  const placeOf = (id: string) => order.indexOf(id);
+  for (const id of order) {
+    const match = /^block-action:([^:]+):[^:]+$/.exec(id);
+    if (!match) continue;
+    const entrance = placeOf(`block-entrance:${match[1]}`);
+    const exit = placeOf(`block-exit:${match[1]}`);
+    const here = placeOf(id);
+    if ((entrance >= 0 && entrance > here) || (exit >= 0 && exit < here)) return false;
+  }
+  return true;
+}
+
+/** What "Weiter" means as the trigger of the Aktionseffekt `effectId`: it waits for Weiter after what the block did before it (the effect
+ * before it, else the Aufbau) - not at the end of the page's chain, which may lie behind the Abbau of the block. */
+export function actionEffectAdvanceSource(page: Page, block: Block, effectId: string): string {
+  const effects = block.actionEffects ?? [];
+  const id = blockActionNodeId(block.id, effectId);
+  const hasIncoming = (to: string) => Object.values(page.timeline.triggers).some((t) => t.to === to);
+  for (let i = effects.findIndex((e) => e.id === effectId) - 1; i >= 0; i--) {
+    const earlier = blockActionNodeId(block.id, effects[i].id);
+    if (hasIncoming(earlier) && canTriggerFrom(page, earlier, id)) return earlier;
+  }
+  const entranceId = entranceNodeIdOf(block);
+  if (entranceId && canTriggerFrom(page, entranceId, id)) return entranceId;
+  return computeAdvanceChainTail(page, id);
+}
+
+function makeBlockActionNode(page: Page, block: Block, effect: ActionEffect): TimelineNode {
+  const problem = actionEffectProblem(page, block, effect.id);
+  return {
+    id: blockActionNodeId(block.id, effect.id),
+    kind: "event",
+    sourceBlockId: block.id,
+    eventType: ACTION_EVENT_TYPES[effect.type],
+    label: tr(effect.type === "move" ? "ui.action_moves" : effect.type === "shake" ? "ui.action_shakes" : "ui.action_blinks", { n0: BLOCK_KIND_LABELS[block.kind] }),
+    ...(problem ? { problem } : {}),
+  };
+}
+
 /** The Aufbau of one item of a list (see ListBlock.itemEntrance). Kept in sync by hand with player.runtime.js. */
 export function listItemNodeId(blockId: string, itemId: string): string {
   return `list-item:${blockId}:${itemId}`;
@@ -307,6 +392,9 @@ export const TRIGGERABLE_EVENT_TYPES: ReadonlySet<TimelineEventType> = new Set<T
   "revealer-open",
   "block-entrance",
   "block-exit",
+  "block-action-move",
+  "block-action-shake",
+  "block-action-blink",
   "group-entrance",
   "group-exit",
   "list-item-entrance",
@@ -482,6 +570,12 @@ export function getBlockExitTrigger(page: Page, block: Block): ResolvedTrigger |
   return edge ? resolvedTriggerFromEdge(edge) : null;
 }
 
+/** The trigger of an Aktionseffekt of a block, as stored (null: none - it then never happens). */
+export function getActionEffectTrigger(page: Page, blockId: string, effectId: string): ResolvedTrigger | null {
+  const edge = findTriggerEdge(page.timeline, blockActionNodeId(blockId, effectId));
+  return edge ? resolvedTriggerFromEdge(edge) : null;
+}
+
 /** The trigger of a group's own Aufbau/Abbau event, as stored (null: none). */
 export function getGroupEffectTrigger(page: Page, groupId: string, phase: "entrance" | "exit"): ResolvedTrigger | null {
   const edge = findTriggerEdge(page.timeline, groupEffectNodeId(groupId, phase));
@@ -615,6 +709,13 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
       effectTargets.push({ node: makeScriptNode(block), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
     } else if (block.entranceEffect.type !== "off") {
       effectTargets.push({ node: makeBlockEffectNode(block, "entrance"), trigger: getBlockEntranceTrigger(page, block) });
+    }
+    // The Aktionseffekte lie between the Aufbau and the Abbau (only on a page: a layout block has none of its own per page).
+    if (block.id in page.blocks) {
+      for (const effect of block.actionEffects ?? []) {
+        const edge = findTriggerEdge(page.timeline, blockActionNodeId(block.id, effect.id));
+        effectTargets.push({ node: makeBlockActionNode(page, block, effect), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
+      }
     }
     if (block.exitEffect.type !== "off") effectTargets.push({ node: makeBlockEffectNode(block, "exit"), trigger: getBlockExitTrigger(page, block) });
   }
@@ -805,6 +906,7 @@ function blockEventIds(page: Page): Set<string> {
       for (const item of block.items) ids.add(listItemNodeId(block.id, item.id));
     } else if (block.kind === "script") ids.add(scriptRunNodeId(block.id));
     else if (block.entranceEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "entrance"));
+    for (const effect of block.actionEffects ?? []) ids.add(blockActionNodeId(block.id, effect.id));
     if (block.exitEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "exit"));
     if (isMediaBlock(block)) {
       ids.add(videoStartNodeId(block.id));
@@ -983,7 +1085,21 @@ export function ensureEffectTriggers(page: Page, blockIds: string[]): void {
     else if (block.kind === "script") wanted.push(scriptRunNodeId(blockId));
     else if (block.entranceEffect.type !== "off") wanted.push(blockEffectNodeId(blockId, "entrance"));
     if (block.exitEffect.type !== "off") wanted.push(blockEffectNodeId(blockId, "exit"));
-    for (const nodeId of wanted) if (!hasIncoming(nodeId)) appendToWeiterChain(page, nodeId);
+    for (const nodeId of wanted) {
+      if (hasIncoming(nodeId)) continue;
+      const actionIds = (block.actionEffects ?? []).map((e) => blockActionNodeId(blockId, e.id)).filter(hasIncoming);
+      if (nodeId === blockEffectNodeId(blockId, "entrance") && actionIds.length > 0) {
+        // The Aufbau comes back to a block that has Aktionseffekte: it goes before the first of them, where it belongs.
+        const first = incomingTriggers(timeline, actionIds[0])[0];
+        timeline.triggers[`t:${nodeId}`] = { from: first.from, to: nodeId, delayMs: 0, weiter: true };
+        timeline.triggers[first.id].from = nodeId;
+      } else if (nodeId === blockEffectNodeId(blockId, "exit") && actionIds.length > 0) {
+        // ...and the Abbau after the last of them.
+        const last = actionIds[actionIds.length - 1];
+        for (const out of outgoingTriggers(timeline, last)) if (out.weiter) timeline.triggers[out.id].from = nodeId;
+        timeline.triggers[`t:${nodeId}`] = { from: last, to: nodeId, delayMs: 0, weiter: true };
+      } else appendToWeiterChain(page, nodeId);
+    }
   }
 }
 
@@ -1013,6 +1129,47 @@ export function ensureListItemTriggers(page: Page, blockId: string, onlyItemIds?
       appendToWeiterChain(page, nodeId);
     }
   });
+}
+
+/**
+ * Gives the Aktionseffekt `effectId` of block `blockId` its place when it has just been made: it waits for Weiter after what the block
+ * did last - the Aufbau or the Aktionseffekt before it - and what waited for Weiter after that (the Abbau of the block, the Aufbau of
+ * the next one, "Nächste Folie") now waits after it, so it lies between the Aufbau and the Abbau and the chain stays one. A block with no
+ * Aufbau (or none that has a place in a chain) puts it before its Abbau, when that has a trigger; else at the end of the chain.
+ */
+export function placeActionEffect(page: Page, blockId: string, effectId: string): void {
+  const block = page.blocks[blockId];
+  if (!block) return;
+  const timeline = page.timeline;
+  const triggers = timeline.triggers;
+  const nodeId = blockActionNodeId(blockId, effectId);
+  if (Object.values(triggers).some((t) => t.to === nodeId)) return;
+  const hasIncoming = (to: string) => Object.values(triggers).some((t) => t.to === to);
+  const entranceId = entranceNodeIdOf(block);
+  const exitId = block.exitEffect.type !== "off" ? blockEffectNodeId(blockId, "exit") : null;
+  const effects = block.actionEffects ?? [];
+  let previous: string | null = null;
+  for (let i = effects.findIndex((e) => e.id === effectId) - 1; i >= 0; i--) {
+    const id = blockActionNodeId(blockId, effects[i].id);
+    if (hasIncoming(id)) {
+      previous = id;
+      break;
+    }
+  }
+  if (!previous && entranceId && hasIncoming(entranceId)) previous = entranceId;
+  if (previous) {
+    for (const out of outgoingTriggers(timeline, previous)) if (out.weiter && out.to !== nodeId) triggers[out.id].from = nodeId;
+    if (exitId) for (const t of incomingTriggers(timeline, exitId)) if (t.from === previous) triggers[t.id].from = nodeId;
+    triggers[`t:${nodeId}`] = { from: previous, to: nodeId, delayMs: 0, weiter: true };
+    return;
+  }
+  const exitIn = exitId ? incomingTriggers(timeline, exitId)[0] : undefined;
+  if (exitIn) {
+    triggers[`t:${nodeId}`] = { from: exitIn.from, to: nodeId, delayMs: 0, weiter: true };
+    triggers[exitIn.id].from = nodeId;
+    return;
+  }
+  appendToWeiterChain(page, nodeId);
 }
 
 /** `nodeId` waits for Weiter at the end of the chain; "Nächste Folie" stays the last link of the chain it was the last link of. */

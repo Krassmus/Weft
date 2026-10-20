@@ -207,7 +207,7 @@ export function eventLabel(page: Page, node: TimelineNode, content: WeftModule, 
     "video-end-stop": "Video zu Ende",
     "script-run": "Logikblock läuft",
     "revealer-open": "Revealer öffnet sich",
-    "revealer-button": "Revealer-Button geklickt",
+    "revealer-button": "Button im Revealer geklickt",
   };
   return `${names[node.eventType ?? ""] ?? node.eventType ?? node.id}${what}`;
 }

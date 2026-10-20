@@ -316,6 +316,6 @@ und wenn sie fertig ist – bei einer Animation nach ihrer Dauer –, passiert d
    - Ein **Revealer** (`RevealerBlock`: Icon, Farbe, Überschrift, optional Text, Bild und Button) hat zwei Events:
      „Revealer öffnet sich“ (`revealer-open:<id>`, passiert, sobald sein Fenster aufgeht - durch einen Klick auf das Icon oder durch
      einen Trigger; er ist ein auslösbares Ziel, das Fenster öffnet sich also auch ohne Klick) und - nur mit Button -
-     „Revealer-Button geklickt“ (`revealer-button:<id>`, wie `button-click`). Was der Button tut (`button.action`, `onClick`,
+     „Button im Revealer geklickt“ (`revealer-button:<id>`, wie `button-click`; der Button ist erst da, wenn das Fenster offen ist, deshalb läuft eine gestrichelte Linie vom Öffnen zu diesem Klick: eine Lane wie beim Quiz von der ersten Antwort zum Abschicken). Was der Button tut (`button.action`, `onClick`,
      `targetPageId`), wird wie bei einem Button-Block gewählt. Die Icon-Farbe (weiß oder schwarz) folgt dem Kontrast zur Farbe.
    - Der Graph zeigt jetzt jeden gespeicherten Trigger (vorher nur den ersten eines Events).

@@ -584,8 +584,13 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
   for (const { lane } of videoLanes) lanes.push(lane);
   // A button's click is an event of its own (a violet one: the learner does it); what it triggers is drawn from its triggers.
   for (const block of blocks) if (block.kind === "button") lanes.push({ nodes: [makeButtonNode(block)], edges: [] });
-  // A revealer: the opening of its window and, when it has one, the click on the button in it - each a lone event.
-  for (const block of blocks) if (block.kind === "revealer") for (const node of makeRevealerNodes(block)) lanes.push({ nodes: [node], edges: [] });
+  // A revealer: the opening of its window and, when it has one, the click on the button in it - which only comes after (a dashed line, as
+  // from a quiz's first answer to its submit: the learner does it).
+  for (const block of blocks) {
+    if (block.kind !== "revealer") continue;
+    const nodes = makeRevealerNodes(block);
+    lanes.push({ nodes, edges: nodes.length > 1 ? [{ from: nodes[0].id, to: nodes[1].id, kind: "unknown" }] : [] });
+  }
 
   const nodesById = new Map<string, TimelineNode>();
   for (const lane of lanes) for (const node of lane.nodes) nodesById.set(node.id, node);

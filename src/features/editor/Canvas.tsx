@@ -58,6 +58,8 @@ const ARROW_STEP_PERCENT_FAST = 5;
 
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 4;
+// How much larger than its size at the start of a pinch the slide is first painted, when the pinch zooms in (see useStageZoom).
+const OVERSAMPLE = 2.5;
 // Trackpad pinch gestures arrive as wheel events with only a handful of deltaY units per step -
 // exponential response (see useStageZoom) keeps the FEEL of a given pinch distance the same at
 // any zoom level, rather than a fixed-percent step that feels twitchy when zoomed in far.
@@ -260,7 +262,8 @@ function useStageZoom() {
   const wantedRef = useRef<{ zoom: number; anchor: ZoomAnchor | null; live: boolean } | null>(null);
   const frameRef = useRef<number | null>(null);
   const commitTimerRef = useRef<number | null>(null);
-  const gestureRef = useRef<{ zoom: number; anchor: ZoomAnchor } | null>(null); // the transform that is on the box
+  // The transform that is on the box: the zoom it shows, the point that stays under the cursor, and the box as it was laid out when the gesture began.
+  const gestureRef = useRef<{ zoom: number; anchor: ZoomAnchor; left: number; top: number; width: number; height: number } | null>(null);
   if (frameRef.current === null && commitTimerRef.current === null) zoomRef.current = zoom;
 
   function commitZoom() {
@@ -299,14 +302,31 @@ function useStageZoom() {
         pendingAnchorRef.current = wanted.anchor;
         applyAnchor();
       } else if (wanted.anchor) {
-        // The point that stays: where the gesture began.
-        const anchor = gestureRef.current?.anchor ?? wanted.anchor;
-        if (!gestureRef.current) {
-          box.style.transformOrigin = `${anchor.fracX * 100}% ${anchor.fracY * 100}%`;
+        let gesture = gestureRef.current;
+        if (!gesture) {
+          // The gesture begins: when it zooms in, the slide is first laid out (and so painted) larger than it is shown - the transform below
+          // takes it back to the size it has - so that a good deal of the zoom is still sharp, not the blown-up picture of the small one.
+          const anchor = wanted.anchor;
+          if (wanted.zoom > zoomRef.current) {
+            const sharp = Math.min(ZOOM_MAX, zoomRef.current * OVERSAMPLE);
+            if (sharp > zoomRef.current) {
+              zoomRef.current = sharp;
+              wrap.style.setProperty("--zoom", String(sharp));
+            }
+          }
+          const laidOut = box.getBoundingClientRect();
+          box.style.transformOrigin = "0 0";
           box.style.willChange = "transform";
+          gesture = { zoom: wanted.zoom, anchor, left: laidOut.left, top: laidOut.top, width: laidOut.width, height: laidOut.height };
         }
-        gestureRef.current = { zoom: wanted.zoom, anchor };
-        box.style.transform = `scale(${wanted.zoom / zoomRef.current})`;
+        gesture.zoom = wanted.zoom;
+        gestureRef.current = gesture;
+        // Scaled from the box's own corner, then moved so that the point of the slide the cursor was over stays under it.
+        const scale = wanted.zoom / zoomRef.current;
+        const { anchor } = gesture;
+        const x = anchor.clientX - gesture.left - anchor.fracX * gesture.width * scale;
+        const y = anchor.clientY - gesture.top - anchor.fracY * gesture.height * scale;
+        box.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
       }
       if (commitTimerRef.current !== null) window.clearTimeout(commitTimerRef.current);
       commitTimerRef.current = window.setTimeout(commitZoom, 120);

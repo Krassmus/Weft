@@ -62,10 +62,10 @@ const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 4;
 // How much larger than its size at the start of a pinch the slide is first painted, when the pinch zooms in (see useStageZoom).
 const OVERSAMPLE = 2.5;
-// The work area around the slide (.weft-canvas-stage-wrap in App.css): its padding, and the share of its size (--pan-x/--pan-y there) that
-// the slide can be moved away from the middle - which is also where the work area is scrolled to when the slide is in the middle.
-const STAGE_WRAP_PADDING = 28;
-const PAN_SHARE = 0.3;
+// How far the slide can be moved away from the middle of the work area (.weft-canvas-stage-wrap in App.css), in pixels - which is also where the
+// work area is scrolled to when the slide is in the middle. Kept in sync by hand with --pan-x/--pan-y there.
+const PAN_X = 320;
+const PAN_Y = 240;
 // ... but no more than this many device pixels in all (the slide at its larger size).
 const OVERSAMPLE_PIXELS = 6_000_000;
 // Trackpad pinch gestures arrive as wheel events with only a handful of deltaY units per step -
@@ -510,44 +510,16 @@ function useStageZoom() {
 
   useLayoutEffect(applyAnchor, [zoom]);
 
-  // The slide stands in the middle of the work area when the work area is scrolled to the margin around it (PAN_SHARE of the area, see
-  // --pan-x/--pan-y in App.css). It stays where the author scrolled it to - but follows the middle while that is where it is (a window
-  // that changes its size).
-  // The middle is a scroll position that depends on the size of the work area - so whether the slide is in it is always asked for the
-  // size it was last put there at (a scroll event is delivered a frame later, and by then a window that is being dragged has a new size:
-  // measured against that, a slide that had just been centered looked scrolled away, and stopped following).
-  const centeredAtRef = useRef({ width: 0, height: 0 });
-  const middleOf = (size: number) => (size - 2 * STAGE_WRAP_PADDING) * PAN_SHARE;
+  // The slide stands in the middle of the work area when the work area is scrolled to the margin around it (PAN_X/PAN_Y, see --pan-x/--pan-y
+  // in App.css). That scroll position does not depend on the size of the work area, so a window that changes its size leaves the slide where
+  // it is - in the middle, or wherever the author scrolled it to - without anything to do here.
   function centerStage() {
     const wrap = wrapRef.current;
     if (!wrap) return;
-    centeredAtRef.current = { width: wrap.clientWidth, height: wrap.clientHeight };
-    wrap.scrollLeft = middleOf(wrap.clientWidth);
-    wrap.scrollTop = middleOf(wrap.clientHeight);
+    wrap.scrollLeft = PAN_X;
+    wrap.scrollTop = PAN_Y;
   }
-  useLayoutEffect(() => {
-    const wrap = wrapRef.current;
-    if (!wrap) return;
-    centerStage();
-    let centered = true;
-    const isCentered = () => {
-      const { width, height } = centeredAtRef.current;
-      return Math.abs(wrap.scrollLeft - middleOf(width)) < 3 && Math.abs(wrap.scrollTop - middleOf(height)) < 3;
-    };
-    const onScroll = () => {
-      centered = isCentered();
-    };
-    wrap.addEventListener("scroll", onScroll, { passive: true });
-    const observer = new ResizeObserver(() => {
-      if (centered) centerStage();
-      else centeredAtRef.current = { width: wrap.clientWidth, height: wrap.clientHeight };
-    });
-    observer.observe(wrap);
-    return () => {
-      wrap.removeEventListener("scroll", onScroll);
-      observer.disconnect();
-    };
-  }, []);
+  useLayoutEffect(centerStage, []);
 
   return {
     zoom,

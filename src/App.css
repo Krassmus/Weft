@@ -1242,9 +1242,12 @@ img.weft-thumb-block {
      the wrap by Canvas.tsx) turns the wrap's own content height (cqh - see its container-type) into
      the widest slide that still fits it, which only matters for a portrait slide like 9:16. */
   --stage-w: calc(min(100cqw, 920px, 100cqh * var(--ar, 1.78)) * var(--zoom, 1));
-  /* How far the slide may be scrolled away from the middle of the work area (and, zoomed in, past its own edge). */
-  --pan-x: 30cqw;
-  --pan-y: 30cqh;
+  /* How far the slide may be scrolled away from the middle of the work area (and, zoomed in, past its own edge). A fixed size, not a
+     share of the work area (PAN_X/PAN_Y in Canvas.tsx say the same): then the scroll position the slide stands in the middle at is the
+     same whatever size the window has, and a window that is being resized does not move the slide at all - nothing has to follow the
+     middle with a script (which, a frame behind a window being dragged, made the slide jump to the left or up). */
+  --pan-x: 320px;
+  --pan-y: 240px;
   width: var(--stage-w);
   /* As high as the slide is (not stretched to the work area, which the margins below do not leave room for). */
   align-self: flex-start;
@@ -1252,7 +1255,7 @@ img.weft-thumb-block {
   border: 2px solid black;
   /* Centered while it is smaller than the work area - and the margin around it is a stretch of work area that can be scrolled over, so
      the slide is not tied to the middle (that, and nothing else, is what pulled it back to the middle after a zoom out). Scrolled to
-     --pan-x/--pan-y it stands in the middle (see useStageZoom). */
+     exactly --pan-x/--pan-y it stands in the middle (see useStageZoom). */
   margin: calc(var(--pan-y) + max(0px, (100cqh - var(--stage-w) / var(--ar, 1.78)) / 2))
     calc(var(--pan-x) + max(0px, (100cqw - var(--stage-w)) / 2));
   /* .weft-canvas-stage-wrap is a flex container now (see its own comment - needed so this

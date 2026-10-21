@@ -313,7 +313,6 @@ function CoverField() {
           {tr("ui.cover_remove")}
         </button>
       )}
-      <p className="weft-hint">{tr("ui.cover_hint")}</p>
     </div>
   );
 }
@@ -772,9 +771,6 @@ export function SettingsTab() {
           >
             {tr("ui.upload_your_own_font_2")}
           </button>
-          <p className="weft-hint">
-            {tr("ui.uploaded_fonts_are_available_in_the")}
-          </p>
         </div>
       </Collapsible>
 

@@ -38,6 +38,7 @@ import {
 import type { FolderPeer } from "../../../core/collab/folder/folderSync";
 import { presenceColor, usePresence } from "../../../core/collab/presence";
 import { PersonAvatar } from "../PersonAvatar";
+import { Collapsible } from "../Collapsible";
 import { useDirectConnection } from "../../../core/collab/webrtcAdapter";
 import { COLLAB_SERVER_KEY, readSetting } from "../../../core/collab/settings";
 import {
@@ -639,7 +640,6 @@ function CollaborationField() {
 
   return (
     <div className="weft-field">
-      <span>{tr("ui.collaboration")}</span>
       <label className="weft-field weft-field-inline">
         <input
           type="checkbox"
@@ -704,92 +704,89 @@ export function SettingsTab() {
   const content = useDocumentStore((s) => s.doc.content);
 
   return (
-    <div className="weft-tab-panel">
-      <label className="weft-field">
-        <span>{tr("ui.title")}</span>
-        <input value={content.title} onChange={(e) => setModuleTitle(e.target.value)} />
-      </label>
+    <div className="weft-tab-panel weft-settings-cards">
+      <Collapsible title={tr("ui.main_settings")}>
+        <label className="weft-field">
+          <span>{tr("ui.title")}</span>
+          <input value={content.title} onChange={(e) => setModuleTitle(e.target.value)} />
+        </label>
 
-      <AspectRatioField />
+        <AspectRatioField />
 
-      <CoverField />
+        <CoverField />
 
-      <div className="weft-divider" />
+        <label className="weft-field weft-field-inline">
+          <input
+            type="checkbox"
+            checked={content.keyboardNavigationEnabled}
+            onChange={(e) => setKeyboardNavigationEnabled(e.target.checked)}
+          />
+          <span>{tr("ui.navigation_with_keyboard_and_tapping_space")}</span>
+        </label>
 
-      <LanguagesField />
+        <div className="weft-divider" />
 
-      <div className="weft-divider" />
+        <LanguagesField />
+      </Collapsible>
 
-      <ColorSchemeField />
+      <Collapsible title={tr("ui.appearance")}>
+        <ColorSchemeField />
 
-      <div className="weft-divider" />
+        <div className="weft-divider" />
 
-      <div className="weft-field">
-        <span>{tr("ui.own_fonts")}</span>
-        {content.customFonts.length > 0 && (
-          <div className="weft-custom-font-list">
-            {content.customFonts.map((font) => (
-              <div key={font.id} className="weft-custom-font-row">
-                <span className="weft-custom-font-row-label">{font.family}</span>
-                <span className="weft-custom-font-row-preview" style={{ fontFamily: font.family }}>
-                  Abc
-                </span>
-                <button
-                  type="button"
-                  title={tr("ui.remove")}
-                  onClick={() => {
-                    void confirmDestructive(tr("ui.really_remove_the_font", { family: font.family }), tr("ui.remove_font")).then(
-                      (ok) => {
-                        if (ok) removeCustomFont(font.id);
-                      },
-                    );
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        <button
-          type="button"
-          className="weft-ghost-button weft-full-width"
-          onClick={() => {
-            void pickFontFile().then((file) => {
-              if (file) addCustomFont(file);
-            });
-          }}
-        >
-          {tr("ui.upload_your_own_font_2")}
-        </button>
-        <p className="weft-hint">
-          {tr("ui.uploaded_fonts_are_available_in_the")}
-        </p>
-      </div>
+        <div className="weft-field">
+          <span>{tr("ui.own_fonts")}</span>
+          {content.customFonts.length > 0 && (
+            <div className="weft-custom-font-list">
+              {content.customFonts.map((font) => (
+                <div key={font.id} className="weft-custom-font-row">
+                  <span className="weft-custom-font-row-label">{font.family}</span>
+                  <span className="weft-custom-font-row-preview" style={{ fontFamily: font.family }}>
+                    Abc
+                  </span>
+                  <button
+                    type="button"
+                    title={tr("ui.remove")}
+                    onClick={() => {
+                      void confirmDestructive(tr("ui.really_remove_the_font", { family: font.family }), tr("ui.remove_font")).then(
+                        (ok) => {
+                          if (ok) removeCustomFont(font.id);
+                        },
+                      );
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            className="weft-ghost-button weft-full-width"
+            onClick={() => {
+              void pickFontFile().then((file) => {
+                if (file) addCustomFont(file);
+              });
+            }}
+          >
+            {tr("ui.upload_your_own_font_2")}
+          </button>
+          <p className="weft-hint">
+            {tr("ui.uploaded_fonts_are_available_in_the")}
+          </p>
+        </div>
+      </Collapsible>
 
-      <div className="weft-divider" />
+      <Collapsible title={tr("ui.settings_card_collaboration")}>
+        <CollaborationField />
 
-      <label className="weft-field weft-field-inline">
-        <input
-          type="checkbox"
-          checked={content.keyboardNavigationEnabled}
-          onChange={(e) => setKeyboardNavigationEnabled(e.target.checked)}
-        />
-        <span>{tr("ui.navigation_with_keyboard_and_tapping_space")}</span>
-      </label>
-      <p className="weft-hint">
-        {tr("ui.space_and_the_arrow_keys_go")}
-      </p>
+        <HistoryField />
 
-      <div className="weft-divider" />
+        <div className="weft-divider" />
 
-      <CollaborationField />
-
-      <HistoryField />
-
-      <div className="weft-divider" />
-
-      <FolderSyncField />
+        <FolderSyncField />
+      </Collapsible>
     </div>
   );
 }

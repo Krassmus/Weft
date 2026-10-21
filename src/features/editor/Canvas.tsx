@@ -519,7 +519,32 @@ function useStageZoom() {
     wrap.scrollLeft = PAN_X;
     wrap.scrollTop = PAN_Y;
   }
-  useLayoutEffect(centerStage, []);
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    centerStage();
+    // A work area that suddenly gets much larger (maximizing the window) is scrolled back by the webview of the Mac app for a moment: it
+    // limits the scroll position to what the content has before the margins around the slide - which are in units of the work area's
+    // size - are worked out again for the new size. Scrolls that come with a change of size are therefore not the author's: the position
+    // the author left the slide at is put back once the size is settled.
+    let author = { x: wrap.scrollLeft, y: wrap.scrollTop };
+    let size = { width: wrap.clientWidth, height: wrap.clientHeight };
+    const onScroll = () => {
+      if (wrap.clientWidth === size.width && wrap.clientHeight === size.height) author = { x: wrap.scrollLeft, y: wrap.scrollTop };
+    };
+    wrap.addEventListener("scroll", onScroll, { passive: true });
+    const observer = new ResizeObserver(() => {
+      size = { width: wrap.clientWidth, height: wrap.clientHeight };
+      // (A limit only ever lowers the position - a position that is higher is a scroll whose event has not come yet.)
+      if (wrap.scrollLeft < author.x) wrap.scrollLeft = author.x;
+      if (wrap.scrollTop < author.y) wrap.scrollTop = author.y;
+    });
+    observer.observe(wrap);
+    return () => {
+      wrap.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+    };
+  }, []);
 
   return {
     zoom,

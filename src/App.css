@@ -1200,6 +1200,10 @@ img.weft-thumb-block {
   background-position: center, center;
   /* Same reasoning as .weft-sidebar-content above. */
   overscroll-behavior: contain;
+  /* The slide's margins change with the size of the window (it is centered by them). Scroll anchoring would answer that by scrolling
+     the work area to keep the slide where it was on the screen - and so moved the slide from the middle, to the left and to the top,
+     in the webview of the Mac app, with every step of a window being resized. */
+  overflow-anchor: none;
   /* Lets .weft-canvas-stage-zoom's own margin:auto (see its own comment) center it on BOTH axes
      instead of only horizontally - plain block flow (the default, without this) only ever
      auto-centers a block child left/right, never top/bottom, which is why the slide used to sit

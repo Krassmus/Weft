@@ -513,12 +513,17 @@ function useStageZoom() {
   // The slide stands in the middle of the work area when the work area is scrolled to the margin around it (PAN_SHARE of the area, see
   // --pan-x/--pan-y in App.css). It stays where the author scrolled it to - but follows the middle while that is where it is (a window
   // that changes its size).
+  // The middle is a scroll position that depends on the size of the work area - so whether the slide is in it is always asked for the
+  // size it was last put there at (a scroll event is delivered a frame later, and by then a window that is being dragged has a new size:
+  // measured against that, a slide that had just been centered looked scrolled away, and stopped following).
+  const centeredAtRef = useRef({ width: 0, height: 0 });
+  const middleOf = (size: number) => (size - 2 * STAGE_WRAP_PADDING) * PAN_SHARE;
   function centerStage() {
     const wrap = wrapRef.current;
     if (!wrap) return;
-    const content = (size: number) => size - 2 * STAGE_WRAP_PADDING;
-    wrap.scrollLeft = content(wrap.clientWidth) * PAN_SHARE;
-    wrap.scrollTop = content(wrap.clientHeight) * PAN_SHARE;
+    centeredAtRef.current = { width: wrap.clientWidth, height: wrap.clientHeight };
+    wrap.scrollLeft = middleOf(wrap.clientWidth);
+    wrap.scrollTop = middleOf(wrap.clientHeight);
   }
   useLayoutEffect(() => {
     const wrap = wrapRef.current;
@@ -526,9 +531,8 @@ function useStageZoom() {
     centerStage();
     let centered = true;
     const isCentered = () => {
-      const x = (wrap.clientWidth - 2 * STAGE_WRAP_PADDING) * PAN_SHARE;
-      const y = (wrap.clientHeight - 2 * STAGE_WRAP_PADDING) * PAN_SHARE;
-      return Math.abs(wrap.scrollLeft - x) < 3 && Math.abs(wrap.scrollTop - y) < 3;
+      const { width, height } = centeredAtRef.current;
+      return Math.abs(wrap.scrollLeft - middleOf(width)) < 3 && Math.abs(wrap.scrollTop - middleOf(height)) < 3;
     };
     const onScroll = () => {
       centered = isCentered();
@@ -536,6 +540,7 @@ function useStageZoom() {
     wrap.addEventListener("scroll", onScroll, { passive: true });
     const observer = new ResizeObserver(() => {
       if (centered) centerStage();
+      else centeredAtRef.current = { width: wrap.clientWidth, height: wrap.clientHeight };
     });
     observer.observe(wrap);
     return () => {

@@ -15,7 +15,9 @@ import {
   removeCustomFont,
   removePaletteColor,
   setPaletteColor,
+  setAccentColor,
   setAspectRatio,
+  setBrightness,
   setKeyboardNavigationEnabled,
   setModuleTitle,
 } from "../../../core/document/actions";
@@ -699,6 +701,41 @@ function CollaborationField() {
   );
 }
 
+/** The look of the standard elements (WeftModule.brightness and accentColor): whether the slides are light or dark, by and large, and the
+ * colour of the buttons and of what marks a chosen answer - the rest of the quiz, the cloze, the buttons follows from the two. */
+const DEFAULT_ACCENT = "#3b82f6";
+
+function LookFields() {
+  const brightness = useDocumentStore((s) => s.doc.content.brightness) ?? "light";
+  const accentColor = useDocumentStore((s) => s.doc.content.accentColor);
+  return (
+    <>
+      <div className="weft-field">
+        <span>{tr("ui.brightness_mode")}</span>
+        <div className="weft-format-row">
+          {(["light", "dark"] as const).map((mode) => (
+            <label key={mode} className="weft-field weft-field-inline">
+              <input type="radio" name="weft-brightness" checked={brightness === mode} onChange={() => setBrightness(mode)} />
+              <span>{mode === "light" ? tr("ui.brightness_light") : tr("ui.brightness_dark")}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="weft-field">
+        <span>{tr("ui.accent_colour")}</span>
+        <div className="weft-button-look-row">
+          <ColorField value={accentColor ?? DEFAULT_ACCENT} ariaLabel={tr("ui.accent_colour")} onChange={(color) => setAccentColor(color)} />
+          {accentColor !== undefined && (
+            <button type="button" className="weft-ghost-button" onClick={() => setAccentColor(null)}>
+              {tr("ui.reset")}
+            </button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function SettingsTab() {
   const content = useDocumentStore((s) => s.doc.content);
 
@@ -729,6 +766,10 @@ export function SettingsTab() {
       </Collapsible>
 
       <Collapsible title={tr("ui.appearance")}>
+        <LookFields />
+
+        <div className="weft-divider" />
+
         <ColorSchemeField />
 
         <div className="weft-divider" />

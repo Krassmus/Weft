@@ -447,16 +447,17 @@ export interface ClozeBlock extends BaseBlock {
   onIncorrect: VariableEffect[];
 }
 
-/** How a button looks (ButtonBlock.appearance). Lengths are cqw (percent of the slide's width); a button without it has the
- * defaults of DEFAULT_BUTTON_APPEARANCE (core/document/buttonAppearance.ts). The colour of the letters is part of the label. */
+/** How a button looks (ButtonBlock.appearance). Lengths are cqw (percent of the slide's width). A part that is missing is what the
+ * module's look gives it (the accent colour for the background and the border, see WeftModule.accentColor) and the defaults of
+ * DEFAULT_BUTTON_APPEARANCE (core/document/buttonAppearance.ts). The colour of the letters is part of the label. */
 export interface ButtonAppearance {
   /** null: no background. */
-  background: string | null;
-  borderColor: string;
+  background?: string | null;
+  borderColor?: string;
   /** 0: no border. */
-  borderWidth: number;
+  borderWidth?: number;
   /** How round the corners are. */
-  radius: number;
+  radius?: number;
 }
 
 export interface ButtonBlock extends BaseBlock {
@@ -1058,6 +1059,13 @@ export interface WeftModule {
    * reason to turn it off: without it, nothing stops a learner from pressing ← to back up past a
    * quiz they've already answered and retake it. */
   keyboardNavigationEnabled: boolean;
+  /** Whether the slides have a light or a dark background, by and large (the module's settings, "Aussehen"): the plain slide, its
+   * standard text and the standard elements - quiz, cloze, button, language switch, files - are styled to suit it. Missing: "light". */
+  brightness?: "light" | "dark";
+  /** The accent colour "#rrggbb" of the standard elements: the buttons (a button block that has no colour of its own, a quiz's submit
+   * button) and what marks a chosen answer. Everything else of theirs (border, hover, tints) follows from it and from `brightness`.
+   * Missing, in a module saved before this existed: what they looked like before - blue quiz, dark buttons. */
+  accentColor?: string;
 }
 
 /**

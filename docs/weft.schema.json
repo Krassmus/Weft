@@ -449,7 +449,7 @@
     },
     "ButtonAppearance": {
       "additionalProperties": false,
-      "description": "How a button looks (ButtonBlock.appearance). Lengths are cqw (percent of the slide's width); a button without it has the defaults of DEFAULT_BUTTON_APPEARANCE (core/document/buttonAppearance.ts). The colour of the letters is part of the label.",
+      "description": "How a button looks (ButtonBlock.appearance). Lengths are cqw (percent of the slide's width). A part that is missing is what the module's look gives it (the accent colour for the background and the border, see WeftModule.accentColor) and the defaults of DEFAULT_BUTTON_APPEARANCE (core/document/buttonAppearance.ts). The colour of the letters is part of the label.",
       "properties": {
         "background": {
           "description": "null: no background.",
@@ -470,12 +470,6 @@
           "type": "number"
         }
       },
-      "required": [
-        "background",
-        "borderColor",
-        "borderWidth",
-        "radius"
-      ],
       "type": "object"
     },
     "ButtonBlock": {
@@ -2937,6 +2931,10 @@
     "WeftModule": {
       "additionalProperties": false,
       "properties": {
+        "accentColor": {
+          "description": "The accent colour \"#rrggbb\" of the standard elements: the buttons (a button block that has no colour of its own, a quiz's submit button) and what marks a chosen answer. Everything else of theirs (border, hover, tints) follows from it and from `brightness`. Missing, in a module saved before this existed: what they looked like before - blue quiz, dark buttons.",
+          "type": "string"
+        },
         "aspectRatio": {
           "$ref": "#/definitions/AspectRatio"
         },
@@ -2945,6 +2943,14 @@
             "$ref": "#/definitions/AssetMeta"
           },
           "type": "array"
+        },
+        "brightness": {
+          "description": "Whether the slides have a light or a dark background, by and large (the module's settings, \"Aussehen\"): the plain slide, its standard text and the standard elements - quiz, cloze, button, language switch, files - are styled to suit it. Missing: \"light\".",
+          "enum": [
+            "light",
+            "dark"
+          ],
+          "type": "string"
         },
         "colorPalette": {
           "description": "The module's colour scheme: colours that come up again and again, managed under the module's settings and offered in every colour picker (features/editor/ColorField.tsx). Missing in modules saved before this existed - read it as empty. A block that uses one of them just carries the hex value, so changing a scheme colour later does not recolour what already uses it.",

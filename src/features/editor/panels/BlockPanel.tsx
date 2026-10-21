@@ -95,7 +95,7 @@ import { listPageTriggerEvents, listTriggerableNodes, nodeLabel } from "../Timel
 import { OutgoingTriggersSection } from "./TriggerSections";
 import { pageChoices } from "./pageChoices";
 import { PageMiniature } from "../PageMiniature";
-import { buttonAppearanceOf } from "../../../core/document/buttonAppearance";
+import { buttonAppearanceOf, defaultButtonColor } from "../../../core/document/buttonAppearance";
 import { placeholderOfText, textsWithOtherFormatting } from "../../../core/document/placeholders";
 import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from "../../../core/document/actions";
 import { FontSelect } from "./FontSelect";
@@ -2203,8 +2203,12 @@ function ButtonActionSection({
 }
 
 function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Page; onUpdate: BlockPanelProps["onUpdate"] }) {
-  const look = buttonAppearanceOf(block);
-  const setLook = (patch: Partial<ButtonAppearance>) => onUpdate({ appearance: { ...look, ...patch } });
+  const brightness = useDocumentStore((s) => s.doc.content.brightness);
+  const accentColor = useDocumentStore((s) => s.doc.content.accentColor);
+  const moduleLook = { brightness, accentColor };
+  const look = buttonAppearanceOf(block, moduleLook);
+  // Only what is changed is written: the rest stays what the module's look makes of it (the accent colour, say).
+  const setLook = (patch: Partial<ButtonAppearance>) => onUpdate({ appearance: { ...block.appearance, ...patch } });
 
   return (
     <>
@@ -2221,7 +2225,7 @@ function ButtonEditor({ block, page, onUpdate }: { block: ButtonBlock; page?: Pa
           <span>{tr("ui.background")}</span>
           <div className="weft-button-look-row">
             <label className="weft-field weft-field-inline">
-              <input type="checkbox" checked={look.background === null} onChange={(e) => setLook({ background: e.target.checked ? null : "#18181b" })} />
+              <input type="checkbox" checked={look.background === null} onChange={(e) => setLook({ background: e.target.checked ? null : defaultButtonColor(moduleLook) })} />
               <span>{tr("ui.no_background")}</span>
             </label>
             {look.background !== null && (

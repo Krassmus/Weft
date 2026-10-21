@@ -75,7 +75,8 @@ body {
    picture rather than reflowing its contents at a fixed pixel width. */
 .weft-stage {
   position: relative;
-  background: #ffffff;
+  background: var(--slide-bg);
+  color: var(--slide-fg);
   overflow: hidden;
   aspect-ratio: var(--ar-w) / var(--ar-h);
   width: min(100vw, 100vh * var(--ar-w) / var(--ar-h));
@@ -100,7 +101,7 @@ body {
 .weft-done-message {
   font-size: 20px;
   font-size: 2.2cqw;
-  color: #52525b;
+  color: color-mix(in srgb, var(--slide-fg) 75%, var(--slide-bg));
 }
 
 /* Extra-specific (not just .weft-done-restart) so this reliably beats .weft-block-button-el's
@@ -171,28 +172,28 @@ body {
   min-width: 3ch;
   max-width: 100%;
   padding: 0.05em 0.35em;
-  border: 0.06em solid #a1a1aa;
+  border: 0.06em solid var(--slide-line-strong);
   border-radius: 0.25em;
-  background: #fff;
+  background: var(--slide-surface);
   text-align: center;
   vertical-align: baseline;
 }
 
 .weft-cloze-input:focus {
-  outline: 0.12em solid #93c5fd;
+  outline: 0.12em solid var(--slide-accent-line);
   outline-offset: 0.06em;
 }
 
 .weft-cloze-input.is-correct {
-  border-color: #16a34a;
-  background: #f0fdf4;
-  color: #166534;
+  border-color: var(--slide-ok);
+  background: var(--slide-ok-soft);
+  color: var(--slide-ok-text);
 }
 
 .weft-cloze-input.is-incorrect {
-  border-color: #dc2626;
-  background: #fef2f2;
-  color: #991b1b;
+  border-color: var(--slide-bad);
+  background: var(--slide-bad-soft);
+  color: var(--slide-bad-text);
 }
 
 .weft-cloze-mark {
@@ -201,11 +202,11 @@ body {
 }
 
 .weft-cloze-mark.is-correct {
-  color: #16a34a;
+  color: var(--slide-ok);
 }
 
 .weft-cloze-mark.is-incorrect {
-  color: #dc2626;
+  color: var(--slide-bad);
 }
 
 /* A list (ListBlock): kept in step by hand with .weft-edit-block-list* / .weft-thumb-block-list* in App.css. */
@@ -329,14 +330,14 @@ body {
   align-items: center;
   gap: 0.5em;
   padding: 0.4em 0.6em;
-  border: 0.06em solid #e4e4e7;
+  border: 0.06em solid var(--slide-line);
   border-radius: 0.35em;
   cursor: pointer;
 }
 
 .weft-quiz-option:has(input:checked) {
-  border-color: #93c5fd;
-  background: #eff6ff;
+  border-color: var(--slide-accent-line);
+  background: var(--slide-accent-soft);
 }
 
 .weft-quiz-option:has(input:disabled) {
@@ -365,12 +366,12 @@ body {
   display: block;
   width: 100%;
   height: 100%;
-  color: #a1a1aa;
+  color: var(--slide-line-strong);
 }
 
 .weft-quiz-option-checkbox-icon-checked {
   display: none;
-  color: #3b82f6;
+  color: var(--slide-accent-color);
 }
 
 .weft-quiz-option:has(input:checked) .weft-quiz-option-checkbox-icon-unchecked {
@@ -413,8 +414,8 @@ body {
   padding: 0.4em 1em;
   border: none;
   border-radius: 0.35em;
-  background: #3b82f6;
-  color: #fff;
+  background: var(--slide-accent-color);
+  color: var(--slide-accent-text);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -429,13 +430,13 @@ body {
 }
 
 .weft-quiz-submit:hover {
-  background: #2563eb;
+  background: var(--slide-accent-hover);
 }
 
 .weft-quiz-submit-icon {
   width: 0.85em;
   height: 0.85em;
-  color: #fff;
+  color: var(--slide-accent-text);
 }
 
 .weft-quiz-submit-icon svg,
@@ -475,21 +476,21 @@ body {
 }
 
 .weft-quiz-feedback.is-correct {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
-  color: #16a34a;
+  background: var(--slide-ok-soft);
+  border-color: var(--slide-ok-line);
+  color: var(--slide-ok);
 }
 
 .weft-quiz-feedback.is-thanks {
-  background: #eff6ff;
-  border-color: #bfdbfe;
-  color: #2563eb;
+  background: var(--slide-accent-soft);
+  border-color: var(--slide-accent-line);
+  color: var(--slide-accent-color);
 }
 
 .weft-quiz-feedback.is-incorrect {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #dc2626;
+  background: var(--slide-bad-soft);
+  border-color: var(--slide-bad-line);
+  color: var(--slide-bad);
 }
 
 .weft-block-button {
@@ -515,10 +516,10 @@ body {
   height: 100%;
   padding: 0 12px;
   text-align: center;
-  border: 1px solid #18181b;
+  border: 1px solid var(--slide-button-bg);
   border-radius: 6px;
-  background: #18181b;
-  color: #fff;
+  background: var(--slide-button-bg);
+  color: var(--slide-button-fg);
   font-size: 14px;
   font-size: 1.5cqw;
   cursor: pointer;
@@ -742,10 +743,10 @@ body {
   height: 100%;
   box-sizing: border-box;
   padding: 0 0.5em;
-  border: 1px solid #d4d4d8;
+  border: 1px solid var(--slide-line-strong);
   border-radius: 0.3em;
-  background: #fff;
-  color: #18181b;
+  background: var(--slide-surface);
+  color: var(--slide-fg);
   font: inherit;
   cursor: pointer;
 }
@@ -757,10 +758,10 @@ body {
   height: 100%;
   overflow: auto;
   padding: 1em;
-  border: 1px solid #d4d4d8;
+  border: 1px solid var(--slide-line-strong);
   border-radius: 8px;
-  background: #fafafa;
-  color: #18181b;
+  background: var(--slide-surface-quiet);
+  color: var(--slide-fg);
   font-size: 14px;
   font-size: 1.5cqw;
 }
@@ -781,7 +782,7 @@ body {
   align-items: center;
   gap: 0.8em;
   padding: 0.35em 0;
-  border-top: 1px solid #e4e4e7;
+  border-top: 1px solid var(--slide-line);
 }
 
 .weft-files-row:first-child {
@@ -797,17 +798,17 @@ body {
 }
 
 .weft-files-size {
-  color: #71717a;
+  color: var(--slide-muted);
   white-space: nowrap;
 }
 
 .weft-files-download,
 .weft-files-unlock {
   padding: 0.25em 0.8em;
-  border: 1px solid #18181b;
+  border: 1px solid var(--slide-button-bg);
   border-radius: 6px;
-  background: #18181b;
-  color: #fff;
+  background: var(--slide-button-bg);
+  color: var(--slide-button-fg);
   font: inherit;
   text-decoration: none;
   white-space: nowrap;
@@ -829,15 +830,17 @@ body {
   flex: 1;
   min-width: 0;
   padding: 0.25em 0.5em;
-  border: 1px solid #a1a1aa;
+  border: 1px solid var(--slide-line-strong);
   border-radius: 6px;
+  background: var(--slide-surface);
+  color: var(--slide-fg);
   font: inherit;
 }
 
 .weft-files-message {
   min-height: 1.2em;
   margin-bottom: 0.4em;
-  color: #b91c1c;
+  color: var(--slide-bad-text);
 }
 
 /* debug(...) of a logic block: a small window over the page, listing what the scripts say (see debugShow in player.runtime.js). */
@@ -906,9 +909,9 @@ video:focus-visible,
 audio:focus-visible,
 summary:focus-visible,
 [tabindex]:focus-visible {
-  outline: 3px solid #1d4ed8;
+  outline: 3px solid var(--slide-accent-hover, #1d4ed8);
   outline-offset: 2px;
-  box-shadow: 0 0 0 2px #fff;
+  box-shadow: 0 0 0 2px var(--slide-bg, #fff);
 }
 
 .weft-stage-wrap:focus,
@@ -919,9 +922,9 @@ summary:focus-visible,
 
 /* The quiz's check box is invisible (the card and its icon draw it): the card shows the focus. */
 .weft-quiz-option:has(.weft-quiz-option-input:focus-visible) {
-  outline: 3px solid #1d4ed8;
+  outline: 3px solid var(--slide-accent-hover, #1d4ed8);
   outline-offset: 2px;
-  box-shadow: 0 0 0 2px #fff;
+  box-shadow: 0 0 0 2px var(--slide-bg, #fff);
 }
 
 /* What is only for screen readers: the live region, and the navigation (Zurück / Weiter) - hidden until a button of it has the focus, like a

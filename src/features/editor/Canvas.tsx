@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ActionPathOverlay } from "./ActionPathOverlay";
 import { StagePageContext } from "./blocks/stagePage";
+import { stageThemeProps } from "./stageTheme";
 import type { CSSProperties, DragEvent as ReactDragEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, RefObject } from "react";
 import playIconSvg from "../../../mockups/icons/play.svg?raw";
 import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
@@ -798,6 +799,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
       : undefined;
   if (target?.kind === "page") lastPageIdRef.current = target.page.id;
   const aspect = aspectRatioCss(doc.content.aspectRatio);
+  const stageTheme = stageThemeProps(doc.content.brightness, doc.content.accentColor);
   // Move-snapping candidates for a page block: the (locked, read-only) layout blocks showing
   // through underneath it are visually part of the same slide, so they're worth snapping against
   // too, not just the page's own blocks.
@@ -1150,7 +1152,8 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
           <div className="weft-canvas-stage-zoom" ref={zoomBoxRef}>
             <div
               className={"weft-stage weft-stage-edit" + (dragOver ? " is-drag-over" : "")}
-              style={{ aspectRatio: aspect }}
+              data-weft-theme={stageTheme["data-weft-theme"]}
+              style={{ aspectRatio: aspect, ...stageTheme.style }}
               onClick={() => {
                 if (!pressStartedInBlockRef.current) select({ type: "layout", layoutId: target.layout.id });
               }}
@@ -1202,7 +1205,8 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
             <div
               ref={stageRef}
               className={"weft-stage weft-stage-edit" + (dragOver ? " is-drag-over" : "")}
-              style={{ aspectRatio: aspect }}
+              data-weft-theme={stageTheme["data-weft-theme"]}
+              style={{ aspectRatio: aspect, ...stageTheme.style }}
               // The slide as one place for the keyboard: Tab stops here when no element of it is selected, and from here (or from an
               // element) goes from element to element in reading order - then on, out of the slide.
               role="group"

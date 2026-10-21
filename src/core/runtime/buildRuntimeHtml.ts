@@ -8,6 +8,7 @@ import imageGeometrySource from "./imageGeometry.js?raw";
 import filesCryptoSource from "./filesCrypto.js?raw";
 import playerRuntimeSource from "./player.runtime.js?raw";
 import playerRuntimeCss from "./player.runtime.css?raw";
+import stageThemeCss from "./stageTheme.css?raw";
 import { toRuntimeModule } from "./runtimeModule";
 import { parseExpression } from "../document/expressions";
 import { autonymLabel } from "../i18n/languages";
@@ -82,6 +83,7 @@ export async function buildRuntimeHtml(
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(module.title)}</title>
+<style>${stageThemeCss}</style>
 <style>${playerRuntimeCss}</style>
 <style>${fontFaceCss}</style>
 ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` : ""}${hasTex ? `<style>${buildKatexCss()}</style>\n` : ""}</head>

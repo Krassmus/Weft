@@ -307,10 +307,11 @@
     var look = block.appearance;
     if (!look) return "";
     var css = "";
+    // (No background of its own: the stylesheet's, which is the module's accent colour - see stageTheme.css.)
     if (look.background !== undefined) css += "background:" + (look.background || "transparent") + ";";
     var width = look.borderWidth !== undefined ? look.borderWidth : 0.1;
     if (look.borderWidth !== undefined || look.borderColor !== undefined) {
-      css += width > 0 ? "border:" + width + "cqw solid " + (look.borderColor || "#18181b") + ";" : "border:none;";
+      css += width > 0 ? "border:" + width + "cqw solid " + (look.borderColor || "var(--slide-button-bg)") + ";" : "border:none;";
     }
     if (look.radius !== undefined) css += "border-radius:" + look.radius + "cqw;";
     return css;
@@ -1157,7 +1158,15 @@
 
   function stageStyle() {
     var ratio = parseAspectRatio();
-    return "--ar-w:" + ratio[0] + ";--ar-h:" + ratio[1] + ";";
+    var css = "--ar-w:" + ratio[0] + ";--ar-h:" + ratio[1] + ";";
+    // The module's look (see stageTheme.css): the accent colour and the colour of what stands on it; the rest is worked out there.
+    if (module.accentColor) css += "--slide-accent:" + module.accentColor + ";--slide-accent-fg:" + revealerSignColor(module.accentColor) + ";";
+    return css;
+  }
+
+  // Light or dark slides (WeftModule.brightness).
+  function stageTheme() {
+    return module.brightness === "dark" ? "dark" : "light";
   }
 
   function assetSrc(assetId) {
@@ -3213,7 +3222,7 @@
     progressBars = [];
     var page = module.pages[pageId];
     setUpGraph(page);
-    var stage = el("div", { class: "weft-stage", style: stageStyle() }, []);
+    var stage = el("div", { class: "weft-stage", style: stageStyle(), "data-weft-theme": stageTheme() }, []);
     var layout = page.layoutId ? module.layouts[page.layoutId] : null;
     // Every block of the stage with its place in the stacking order (the layout's blocks lie under the page's own): the blocks are put
     // into the page in reading order (see readingOrder), and the stacking is kept by z-index.
@@ -3255,7 +3264,7 @@
         document.createTextNode(uiString("restart")),
       ]);
       restartBtn.addEventListener("click", restart);
-      var doneStage = el("div", { class: "weft-stage weft-stage-done", style: stageStyle() }, [
+      var doneStage = el("div", { class: "weft-stage weft-stage-done", style: stageStyle(), "data-weft-theme": stageTheme() }, [
         el("div", { class: "weft-done-message" }, [document.createTextNode(uiString("done"))]),
         restartBtn,
       ]);

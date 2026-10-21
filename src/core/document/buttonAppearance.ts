@@ -1,27 +1,46 @@
-import type { ButtonAppearance, ButtonBlock } from "../types";
+import type { ButtonAppearance, ButtonBlock, WeftModule } from "../types";
 
-/** What a button looks like when nothing was set: the dark button it has always been (1px border, 6px corners on a 960px slide). */
-export const DEFAULT_BUTTON_APPEARANCE: ButtonAppearance = {
-  background: "#18181b",
-  borderColor: "#18181b",
+/** What a button looks like when nothing was set about its border: 1px on a 960px slide, 6px corners. (The colour is the module's accent
+ * colour, or what it was before there was one: a dark button, a light one on a dark module - see defaultButtonColor.) */
+export const DEFAULT_BUTTON_APPEARANCE = {
   borderWidth: 0.1,
   radius: 0.6,
 };
 
-export function buttonAppearanceOf(block: Pick<ButtonBlock, "appearance">): ButtonAppearance {
-  return { ...DEFAULT_BUTTON_APPEARANCE, ...block.appearance };
+/** The colour of a button's background and border when the block has none of its own: the accent colour of the module's look, and without
+ * one the dark button it has always been (a light one on a dark module). */
+export function defaultButtonColor(look: Pick<WeftModule, "brightness" | "accentColor"> | undefined): string {
+  return look?.accentColor ?? (look?.brightness === "dark" ? "#f4f4f5" : "#18181b");
 }
 
-/** The look as CSS (background, border, corners) - the editor's canvas and the thumbnails; the player writes the same by hand. */
+/** The look of a button with the parts it has no setting for filled in - for the editing panel (`look` is the module's: the colours). */
+export function buttonAppearanceOf(
+  block: Pick<ButtonBlock, "appearance">,
+  look?: Pick<WeftModule, "brightness" | "accentColor">,
+): Required<ButtonAppearance> {
+  const color = defaultButtonColor(look);
+  const set = block.appearance ?? {};
+  return {
+    background: set.background === undefined ? color : set.background,
+    borderColor: set.borderColor ?? color,
+    borderWidth: set.borderWidth ?? DEFAULT_BUTTON_APPEARANCE.borderWidth,
+    radius: set.radius ?? DEFAULT_BUTTON_APPEARANCE.radius,
+  };
+}
+
+/** The look as CSS (background, border, corners) - the editor's canvas and the thumbnails; the player writes the same by hand. What the
+ * block has no setting for is the stage's colour (`--slide-button-bg`, see stageTheme.css), which is the module's accent colour. */
 export function buttonAppearanceCss(block: Pick<ButtonBlock, "appearance">): {
   background: string;
   border: string;
   borderRadius: string;
 } {
-  const look = buttonAppearanceOf(block);
+  const set = block.appearance ?? {};
+  const color = "var(--slide-button-bg)";
+  const width = set.borderWidth ?? DEFAULT_BUTTON_APPEARANCE.borderWidth;
   return {
-    background: look.background ?? "transparent",
-    border: look.borderWidth > 0 ? `${look.borderWidth}cqw solid ${look.borderColor}` : "none",
-    borderRadius: `${look.radius}cqw`,
+    background: set.background === undefined ? color : (set.background ?? "transparent"),
+    border: width > 0 ? `${width}cqw solid ${set.borderColor ?? color}` : "none",
+    borderRadius: `${set.radius ?? DEFAULT_BUTTON_APPEARANCE.radius}cqw`,
   };
 }

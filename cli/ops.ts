@@ -360,6 +360,21 @@ const HANDLERS: Record<string, Handler> = {
     actions.setAspectRatio(str(op.aspectRatio, "aspectRatio") as never);
     return { aspectRatio: ctx.content.aspectRatio };
   },
+  set_look(ctx, op) {
+    if (op.brightness !== undefined) {
+      if (op.brightness !== "light" && op.brightness !== "dark") fail('"brightness" ist "light" oder "dark".');
+      actions.setBrightness(op.brightness);
+    }
+    if (op.accentColor !== undefined) {
+      if (op.accentColor === null) actions.setAccentColor(null);
+      else {
+        const color = str(op.accentColor, "accentColor");
+        if (!/^#[0-9a-fA-F]{6}$/.test(color)) fail('"accentColor" ist eine Farbe wie "#3b82f6" (oder null: keine).');
+        actions.setAccentColor(color.toLowerCase());
+      }
+    }
+    return { brightness: ctx.content.brightness ?? "light", accentColor: ctx.content.accentColor ?? null };
+  },
   set_keyboard_navigation(_ctx, op) {
     actions.setKeyboardNavigationEnabled(op.enabled !== false);
     return { enabled: op.enabled !== false };

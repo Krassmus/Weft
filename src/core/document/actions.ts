@@ -138,6 +138,21 @@ export function setLanguages(languages: string[]) {
   });
 }
 
+/** Whether the slides are light or dark (WeftModule.brightness). */
+export function setBrightness(brightness: "light" | "dark") {
+  edit("Helligkeitsmodus ändern", (m) => {
+    m.brightness = brightness;
+  });
+}
+
+/** The accent colour of the standard elements (WeftModule.accentColor); null: none (the look from before there was one). */
+export function setAccentColor(color: string | null) {
+  edit("Akzentfarbe ändern", (m) => {
+    if (color === null) delete m.accentColor;
+    else m.accentColor = color;
+  });
+}
+
 export function setKeyboardNavigationEnabled(enabled: boolean) {
   edit("Tastatur-Navigation umschalten", (m) => {
     m.keyboardNavigationEnabled = enabled;

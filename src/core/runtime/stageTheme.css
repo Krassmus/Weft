@@ -1,0 +1,62 @@
+/* The look of the standard elements on a slide, as colours the stylesheets of the player (player.runtime.css) and of the editor (App.css:
+   canvas, thumbnails) share: this file is embedded into the exported page and imported by the editor.
+
+   Two settings of the module make them (WeftModule.brightness, WeftModule.accentColor):
+    - data-weft-theme="light" | "dark" on the stage: the plain slide and the colours that stand beside it (lines, fields, quiet surfaces, the
+      colours of right and wrong).
+    - --slide-accent (and --slide-accent-fg, the colour of what stands on it) on the stage, only if the module has an accent colour: the
+      buttons and what marks a chosen answer. Without one the standard elements look like they did before there was one - a blue quiz, a
+      dark button (a light one on a dark slide).
+   Everything else of the accent colour - the border of a chosen answer, its tint, the colour on hover - is mixed from it here, so a module
+   has just those two settings to choose from. */
+
+.weft-stage,
+.weft-thumb {
+  --slide-bg: #ffffff;
+  --slide-fg: #18181b;
+  --slide-muted: #71717a;
+  /* Lines around fields and answers, stronger ones (a checkbox, a field being filled in), and the surface of a field. */
+  --slide-line: #e4e4e7;
+  --slide-line-strong: #a1a1aa;
+  --slide-surface: #ffffff;
+  --slide-surface-quiet: #fafafa;
+  /* Right and wrong. */
+  --slide-ok: #16a34a;
+  --slide-ok-text: #166534;
+  --slide-bad: #dc2626;
+  --slide-bad-text: #991b1b;
+  /* The accent colour and what is made of it. */
+  --slide-accent-color: var(--slide-accent, #3b82f6);
+  --slide-accent-text: var(--slide-accent-fg, #ffffff);
+  --slide-button-bg: var(--slide-accent, #18181b);
+  --slide-button-fg: var(--slide-accent-fg, #ffffff);
+}
+
+.weft-stage[data-weft-theme="dark"],
+.weft-thumb[data-weft-theme="dark"] {
+  --slide-bg: #18181b;
+  --slide-fg: #f4f4f5;
+  --slide-muted: #a1a1aa;
+  --slide-line: #3f3f46;
+  --slide-line-strong: #71717a;
+  --slide-surface: #27272a;
+  --slide-surface-quiet: #202023;
+  --slide-ok: #4ade80;
+  --slide-ok-text: #86efac;
+  --slide-bad: #f87171;
+  --slide-bad-text: #fca5a5;
+  --slide-button-bg: var(--slide-accent, #f4f4f5);
+  --slide-button-fg: var(--slide-accent-fg, #18181b);
+}
+
+.weft-stage,
+.weft-thumb {
+  /* Mixed from the colours above, so that they follow the slide's brightness and the accent colour alike. */
+  --slide-accent-hover: color-mix(in srgb, var(--slide-accent-color) 85%, black);
+  --slide-accent-soft: color-mix(in srgb, var(--slide-accent-color) 10%, var(--slide-bg));
+  --slide-accent-line: color-mix(in srgb, var(--slide-accent-color) 45%, var(--slide-bg));
+  --slide-ok-soft: color-mix(in srgb, var(--slide-ok) 12%, var(--slide-bg));
+  --slide-ok-line: color-mix(in srgb, var(--slide-ok) 35%, var(--slide-bg));
+  --slide-bad-soft: color-mix(in srgb, var(--slide-bad) 12%, var(--slide-bg));
+  --slide-bad-line: color-mix(in srgb, var(--slide-bad) 35%, var(--slide-bg));
+}

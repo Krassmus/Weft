@@ -6,6 +6,7 @@ import { buttonAppearanceCss } from "../../core/document/buttonAppearance";
 import { resolveInlineAssets } from "./blocks/richText";
 import { useAssetStore } from "../../core/assets/assetStore";
 import { useDocumentStore } from "../../core/document/store";
+import { useStageTheme } from "./stageTheme";
 import type { Block } from "../../core/types";
 import { ArrowSvg } from "./blocks/ArrowSvg";
 import { FilesView } from "./blocks/FilesView";
@@ -67,6 +68,7 @@ export function SlideThumbnail({
 }) {
   const aspectRatio = useDocumentStore((s) => s.doc.content.aspectRatio);
   const numeric = aspectRatioNumeric(aspectRatio);
+  const theme = useStageTheme();
   // (Worked out only for a picture that has something to show it with; a declared variable of the same name wins, as when played.)
   const usesProgress = !!pageId && (blocks.some((b) => b.kind === "progress") || /\{\{\s*progress\s*\}\}/.test(JSON.stringify(blocks)));
   const progress = useDocumentStore((s) =>
@@ -84,7 +86,7 @@ export function SlideThumbnail({
   });
 
   return (
-    <div className="weft-thumb" style={{ aspectRatio: aspectRatioCss(aspectRatio), ...portraitCap }}>
+    <div className="weft-thumb" data-weft-theme={theme["data-weft-theme"]} style={{ aspectRatio: aspectRatioCss(aspectRatio), ...portraitCap, ...theme.style }}>
       <div className="weft-thumb-stage" ref={stageRef}>
         {blocks.map((block) => (
           <ThumbBlock key={block.id} block={block} exportPxPerCqw={exportPxPerCqw} qrSvg={qrSvgs?.[block.id]} imageUrl={imageUrls?.[block.id]} placeholderSlots={placeholderSlots} progress={progress} />

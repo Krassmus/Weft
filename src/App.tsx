@@ -9,6 +9,7 @@ import { useResolvedLanguage } from "./core/i18n/languageStore";
 import "./core/accessibility/accessibilityStore";
 import "./features/editor/coverSnapshot";
 import "./fonts.css";
+import "./core/runtime/stageTheme.css";
 import "./App.css";
 
 /** The settings window (see src-tauri/src/lib.rs's "weft-settings" menu handler) loads this

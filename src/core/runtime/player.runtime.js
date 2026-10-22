@@ -337,7 +337,7 @@
 
   // Blur what is behind a block (core/document/backdropBlur.ts: keep them in step).
   function backdropBlurStyle() {
-    return "-webkit-backdrop-filter:blur(0.8cqw);backdrop-filter:blur(0.8cqw);";
+    return "-webkit-backdrop-filter:blur(2cqw);backdrop-filter:blur(2cqw);";
   }
 
   // The corners of a rectangle's blur, as the shape draws them (backdropBlur.ts's shapeCornerCss).

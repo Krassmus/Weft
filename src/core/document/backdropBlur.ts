@@ -6,8 +6,8 @@ import type { Block, ShapeBlock } from "../types";
  * background is drawn first and blurred by hand (features/editor/exportCanvas.ts) - the browser filter is not something html2canvas can draw.
  */
 
-/** How strong the blur is, in cqw (percent of the slide's width): about 10px on a slide of 1280px. */
-export const BACKDROP_BLUR_CQW = 0.8;
+/** How strong the blur is, in cqw (percent of the slide's width): about 26px on a slide of 1280px. */
+export const BACKDROP_BLUR_CQW = 2;
 
 /** Whether `block` blurs what is behind it. */
 export function hasBackdropBlur(block: Block): boolean {

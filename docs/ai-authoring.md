@@ -75,10 +75,10 @@ Anders gewünscht? Dann mit `set_trigger` festlegen, was auslöst (das **ersetzt
 Wer ein Quiz falsch beantwortet, kann einen anderen Weg gehen als wer es richtig hatte. Dazu merkt sich das Quiz das Ergebnis in einer Variablen, und eine Verzweigung wählt danach den Zweig:
 
 ```json
-{"op": "add_variable", "name": "quizRichtig", "type": "boolean", "initialValue": false}
-{"op": "add_block", "page": "$quiz", "kind": "quiz", "set": {"…": "…", "onCorrect": [{"variableId": "quizRichtig", "op": "set", "value": true}], "onIncorrect": [{"variableId": "quizRichtig", "op": "set", "value": false}]}}
+{"op": "add_variable", "name": "quizCorrect", "type": "boolean", "initialValue": false}
+{"op": "add_block", "page": "$quiz", "kind": "quiz", "set": {"…": "…", "onCorrect": [{"variableId": "quizCorrect", "op": "set", "value": true}], "onIncorrect": [{"variableId": "quizCorrect", "op": "set", "value": false}]}}
 {"op": "add_logic", "layout": "$inhalt", "name": "Quiz richtig?", "as": "fork", "branches": [
-  {"label": "Richtig", "condition": {"variable": "quizRichtig", "comparator": "eq", "value": true}},
+  {"label": "Richtig", "condition": {"variable": "quizCorrect", "comparator": "eq", "value": true}},
   {"label": "Noch einmal genauer"}]}
 {"op": "add_page", "layout": "$inhalt", "branch": {"logic": "$fork", "branch": "Richtig"}, "as": "weiter1"}
 {"op": "remove_page", "page": "5.a.1"}

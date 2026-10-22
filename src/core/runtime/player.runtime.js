@@ -1160,7 +1160,12 @@
     var ratio = parseAspectRatio();
     var css = "--ar-w:" + ratio[0] + ";--ar-h:" + ratio[1] + ";";
     // The module's look (see stageTheme.css): the accent colour and the colour of what stands on it; the rest is worked out there.
-    if (module.accentColor) css += "--slide-accent:" + module.accentColor + ";--slide-accent-fg:" + revealerSignColor(module.accentColor) + ";";
+    if (module.accentColor) {
+      // (And the accent colour as it is drawn on the slide itself, in a colour that stands out from the slide - see accentContrast.js.)
+      var back = module.brightness === "dark" ? "#18181b" : "#ffffff";
+      css += "--slide-accent:" + module.accentColor + ";--slide-accent-fg:" + revealerSignColor(module.accentColor) + ";";
+      css += "--slide-accent-ink:" + accentInk(module.accentColor, back, 3) + ";--slide-accent-ink-text:" + accentInk(module.accentColor, back, 4.5) + ";";
+    }
     return css;
   }
 

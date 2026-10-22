@@ -56,8 +56,15 @@
 .weft-thumb {
   /* Mixed from the colours above, so that they follow the slide's brightness and the accent colour alike. */
   --slide-accent-hover: color-mix(in srgb, var(--slide-accent-color) 85%, black);
-  --slide-accent-soft: color-mix(in srgb, var(--slide-accent-color) 10%, var(--slide-bg));
-  --slide-accent-line: color-mix(in srgb, var(--slide-accent-color) 45%, var(--slide-bg));
+  /* What is drawn in the accent colour straight on the slide - a ticked check box, the border and the tint of a chosen answer, the letters of a
+     message, the ring of the keyboard focus - uses the accent colour as it stands out from the slide: the colour itself when it has the contrast
+     (3 for what is drawn, 4.5 for letters), else mixed with white (a dark slide) or black. The page sets --slide-accent-ink and
+     --slide-accent-ink-text for a module that has an accent colour (accentContrast.js); without one the accent is the blue below. */
+  --slide-accent-ink: var(--slide-accent-color);
+  --slide-accent-ink-text: var(--slide-accent-color);
+  --slide-accent-soft: color-mix(in srgb, var(--slide-accent-ink) 10%, var(--slide-bg));
+  --slide-accent-line: color-mix(in srgb, var(--slide-accent-ink) 45%, var(--slide-bg));
+  --slide-focus-ring: color-mix(in srgb, var(--slide-accent-ink) 80%, var(--slide-fg));
   --slide-ok-soft: color-mix(in srgb, var(--slide-ok) 12%, var(--slide-bg));
   --slide-ok-line: color-mix(in srgb, var(--slide-ok) 35%, var(--slide-bg));
   --slide-bad-soft: color-mix(in srgb, var(--slide-bad) 12%, var(--slide-bg));

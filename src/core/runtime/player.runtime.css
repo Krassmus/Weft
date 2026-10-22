@@ -381,7 +381,7 @@ body {
 
 .weft-quiz-option-checkbox-icon-checked {
   display: none;
-  color: var(--slide-accent-color);
+  color: var(--slide-accent-ink);
 }
 
 .weft-quiz-option:has(input:checked) .weft-quiz-option-checkbox-icon-unchecked {
@@ -495,7 +495,7 @@ body {
 .weft-quiz-feedback.is-thanks {
   background: var(--slide-accent-soft);
   border-color: var(--slide-accent-line);
-  color: var(--slide-accent-color);
+  color: var(--slide-accent-ink-text);
 }
 
 .weft-quiz-feedback.is-incorrect {
@@ -926,7 +926,7 @@ video:focus-visible,
 audio:focus-visible,
 summary:focus-visible,
 [tabindex]:focus-visible {
-  outline: 3px solid var(--slide-accent-hover, #1d4ed8);
+  outline: 3px solid var(--slide-focus-ring, #1d4ed8);
   outline-offset: 2px;
   box-shadow: 0 0 0 2px var(--slide-bg, #fff);
 }
@@ -939,7 +939,7 @@ summary:focus-visible,
 
 /* The quiz's check box is invisible (the card and its icon draw it): the card shows the focus. */
 .weft-quiz-option:has(.weft-quiz-option-input:focus-visible) {
-  outline: 3px solid var(--slide-accent-hover, #1d4ed8);
+  outline: 3px solid var(--slide-focus-ring, #1d4ed8);
   outline-offset: 2px;
   box-shadow: 0 0 0 2px var(--slide-bg, #fff);
 }
@@ -1193,7 +1193,7 @@ summary:focus-visible,
 }
 
 .weft-quiz-option:not(:has(input:disabled)):has(input:checked):hover {
-  --slide-option-line: var(--slide-accent-color);
+  --slide-option-line: var(--slide-accent-ink);
 }
 
 /* elegant: a fine ring of the letters' colour appears inside a button; an answer's border takes on the accent colour. */
@@ -1224,7 +1224,7 @@ summary:focus-visible,
 
 .weft-stage[data-weft-style="round"] .weft-quiz-option:not(:has(input:disabled)):hover {
   --slide-option-line: var(--slide-line);
-  background-color: color-mix(in srgb, var(--slide-accent-color) 6%, var(--slide-bg));
+  background-color: color-mix(in srgb, var(--slide-accent-ink) 6%, var(--slide-bg));
 }
 
 .weft-stage[data-weft-style="round"] .weft-quiz-option:not(:has(input:disabled)):has(input:checked):hover {
@@ -1244,8 +1244,8 @@ summary:focus-visible,
 }
 
 .weft-stage[data-weft-style="futuristic"] .weft-quiz-option:not(:has(input:disabled)):hover {
-  --slide-option-line: var(--slide-accent-color);
-  background-color: color-mix(in srgb, var(--slide-accent-color) 5%, var(--slide-bg));
+  --slide-option-line: var(--slide-accent-ink);
+  background-color: color-mix(in srgb, var(--slide-accent-ink) 5%, var(--slide-bg));
 }
 
 .weft-stage[data-weft-style="futuristic"] .weft-quiz-option:not(:has(input:disabled)):has(input:checked):hover {

@@ -742,7 +742,7 @@ img.weft-thumb-block {
 }
 
 .weft-thumb-block-quiz-option.is-correct .weft-thumb-block-quiz-option-checkbox {
-  color: var(--slide-accent-color);
+  color: var(--slide-accent-ink);
 }
 
 .weft-thumb-block-quiz-option-checkbox svg,
@@ -2453,7 +2453,7 @@ button.weft-timeline-node-icon:hover {
 }
 
 .weft-edit-block-quiz-option.is-correct .weft-edit-block-quiz-option-checkbox {
-  color: var(--slide-accent-color);
+  color: var(--slide-accent-ink);
 }
 
 .weft-edit-block-quiz-option-delete:hover {

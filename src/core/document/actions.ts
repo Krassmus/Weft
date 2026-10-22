@@ -100,6 +100,14 @@ export function setModuleTitle(title: string) {
   });
 }
 
+/** Marks the module as a template (WeftModule.template) or takes the mark off. */
+export function setTemplate(template: boolean) {
+  edit("Vorlage ändern", (m) => {
+    if (template) m.template = true;
+    else delete m.template;
+  });
+}
+
 /** The cover picture of the module (see WeftModule.coverAssetId): any picture, kept as a PNG. */
 export async function setCoverImage(file: File): Promise<void> {
   const png = await imageToPng(file);

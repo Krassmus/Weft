@@ -10,6 +10,7 @@ import { createBlankDocument } from "../../core/document/createEmptyDocument";
 import { plain } from "../../core/document/plain";
 import { useDocumentStore } from "../../core/document/store";
 import { createId } from "../../core/id";
+import { copyOfTemplate } from "../../core/document/template";
 import { usePlayerStore } from "../../core/player/playerStore";
 import { useCustomFontRegistration } from "../../core/fonts/registerCustomFonts";
 import { useSyncMenuLanguage } from "../../core/i18n/useSyncMenuLanguage";
@@ -792,9 +793,7 @@ export function EditorShell() {
   async function handleUseModule(bytes: Uint8Array) {
     try {
       if (!(await confirmLeave())) return;
-      const opened = unpackDocument(bytes);
-      const now = new Date().toISOString();
-      await startUnsavedDocument({ formatVersion: opened.formatVersion, content: { ...plain(opened.content), id: createId(), createdAt: now, modifiedAt: now } });
+      await startUnsavedDocument(copyOfTemplate(unpackDocument(bytes)));
     } catch (err) {
       alert(`${t("toolbar.openFailed")}\n${errorMessage(err)}`);
     }
@@ -837,6 +836,12 @@ export function EditorShell() {
    * new id first. That new id is not yet in the file: the document counts as changed, so that the autosave writes it.
    */
   async function loadFromFile(doc: WeftDocument, path: string | null) {
+    // A template is never worked on in its own file: it opens as a copy that has no file yet.
+    if (doc.content.template) {
+      setCopyNotice(null);
+      await startUnsavedDocument(copyOfTemplate(doc));
+      return;
+    }
     const { doc: reconciled, copyOf } = await reconcileOpenedDocument(doc, path);
     loadDocument(reconciled, path);
     if (copyOf && path) {

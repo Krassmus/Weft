@@ -1060,6 +1060,10 @@ export interface PaletteColor {
 export interface WeftModule {
   /** Set once with crypto.randomUUID() at creation and never reused, so an LMS can key progress on it forever. */
   id: UUID;
+  /** A template or an example that ships with Weft (or is passed on to be started from): opening it makes a copy of its own - a new id, no
+   * file, not yet saved anywhere, so it has to be given a place first - and that copy is not a template. The file itself is never
+   * changed by working on it. Absent or false: an ordinary module. */
+  template?: boolean;
   title: string;
   aspectRatio: AspectRatio;
   createdAt: string;

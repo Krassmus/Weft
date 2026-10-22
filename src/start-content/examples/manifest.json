@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "file": "durch-drei-teilbar.weft",
+    "title": {
+      "de": "Durch drei teilbare Zahlen",
+      "en": "Numbers divisible by three"
+    },
+    "description": {
+      "de": "Ein fertiges Lernmodul: Texte und Karten, die Schritt für Schritt erscheinen, Quiz und Lückentexte, eine Verzweigung, zwei Sprachen.",
+      "en": "A finished learning module: texts and cards that appear step by step, quizzes and gap texts, a branch, two languages."
+    }
+  }
+]

@@ -378,6 +378,10 @@ const HANDLERS: Record<string, Handler> = {
     actions.setModuleTitle(str(op.title, "title"));
     return { title: ctx.content.title };
   },
+  set_template(ctx, op) {
+    actions.setTemplate(op.template !== false);
+    return { template: !!ctx.content.template };
+  },
   set_languages(ctx, op) {
     const languages = op.languages;
     if (!Array.isArray(languages) || languages.some((l) => typeof l !== "string")) fail('"languages" ist eine Liste von Sprachcodes, zum Beispiel ["de_DE", "fr_FR"].');

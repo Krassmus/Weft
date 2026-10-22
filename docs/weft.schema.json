@@ -3173,6 +3173,10 @@
           "description": "The main sequence, by the id of the page / logic block each entry stands for; played in each entry's own `order` (see ordering.ts's orderedValues, and sequenceOf in document/sequence.ts).",
           "type": "object"
         },
+        "template": {
+          "description": "A template or an example that ships with Weft (or is passed on to be started from): opening it makes a copy of its own - a new id, no file, not yet saved anywhere, so it has to be given a place first - and that copy is not a template. The file itself is never changed by working on it. Absent or false: an ordinary module.",
+          "type": "boolean"
+        },
         "title": {
           "type": "string"
         },

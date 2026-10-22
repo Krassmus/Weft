@@ -1,6 +1,6 @@
 # Ein Lernmodul bauen (für KI und Skripte)
 
-Diese Seite ist die kurze Anleitung, wie man mit `weft` (Kommandozeile oder [MCP-Server](mcp.md)) ein Lernmodul baut, das gut aussieht und funktioniert. Sie sammelt, was man sonst durch Ausprobieren herausfindet. Die Befehle stehen in [cli.md](cli.md), die Operationen von `weft edit` in `weft_operations` (oder [mcp.md](mcp.md)). Ein fertiges Beispiel: [`examples/durch-drei-teilbar.weft`](../examples/durch-drei-teilbar.weft).
+Diese Seite ist die kurze Anleitung, wie man mit `weft` (Kommandozeile oder [MCP-Server](mcp.md)) ein Lernmodul baut, das gut aussieht und funktioniert. Sie sammelt, was man sonst durch Ausprobieren herausfindet. Die Befehle stehen in [cli.md](cli.md), die Operationen von `weft edit` in `weft_operations` (oder [mcp.md](mcp.md)). Ein fertiges Beispiel: [`src/start-content/examples/durch-drei-teilbar.weft`](../src/start-content/examples/durch-drei-teilbar.weft).
 
 ## Der Ablauf
 

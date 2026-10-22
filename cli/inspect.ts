@@ -59,6 +59,8 @@ export interface Outline {
   id: string;
   aspectRatio: string;
   languages: string[];
+  /** WeftModule.template */
+  template: boolean;
   counts: { pages: number; blocks: number; layouts: number; variables: number; assets: number };
   variables: { id: string; name: string; type: string; initialValue: unknown; expression?: string }[];
   layouts: { id: string; name: string; blocks: OutlineBlock[] }[];
@@ -186,6 +188,7 @@ export function buildOutline(loaded: LoadedWeft, options: { page?: string } = {}
     id: content.id,
     aspectRatio: aspect(content),
     languages: content.languages ?? [],
+    template: !!content.template,
     counts: {
       pages: Object.keys(content.pages).length,
       blocks: Object.values(content.pages).reduce((n, p) => n + blockCount(p), 0),
@@ -213,7 +216,7 @@ export function outlineMarkdown(outline: Outline, detailed: boolean): string {
   lines.push(`# ${outline.title || "(ohne Titel)"}`);
   lines.push("");
   lines.push(`- Datei: ${outline.file}`);
-  lines.push(`- Format ${outline.formatVersion}, Seitenverhältnis ${outline.aspectRatio}`);
+  lines.push(`- Format ${outline.formatVersion}, Seitenverhältnis ${outline.aspectRatio}${outline.template ? ", Vorlage (öffnet als Kopie ohne Datei)" : ""}`);
   lines.push(`- Sprachen: ${outline.languages.length > 0 ? outline.languages.join(", ") + " (die erste ist die Standardsprache)" : "eine (nicht mehrsprachig)"}`);
   lines.push(`- ${outline.counts.pages} Folien, ${outline.counts.blocks} Blöcke, ${outline.counts.layouts} Layouts, ${outline.counts.variables} Variablen, ${outline.counts.assets} Dateien`);
 

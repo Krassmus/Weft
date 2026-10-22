@@ -10,6 +10,11 @@ so a file only has to be dropped in next to its entry.
 | `examples/`  | "Beispiel erkunden" (the first entry is opened)  | a new, unsaved module that is a copy of the file     |
 | `tutorials/` | "Weft kennenlernen" (a row of cards)             | played in the player only - nothing can be edited    |
 
+Whichever way a module of these folders is opened, working on it never changes the file: it opens as a copy of its own (a new id, an
+editing history of its own) that has no file yet, so the first "Speichern" asks where to put it. The files carry `"template": true` in
+their `weft.json` (`weft edit` with `{"op": "set_template"}` sets it) - that is what makes Weft open one as a copy when it is opened
+from anywhere else too (File > Open, a double click), not only from the start screen. The copy is not a template any more.
+
 ## manifest.json
 
 A list of entries:

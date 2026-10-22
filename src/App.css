@@ -6035,8 +6035,12 @@ h2.weft-inspector-header {
   box-sizing: border-box;
   width: 28cqw;
   padding: calc(100% + 2.2cqw) 1.4cqw 1.4cqw;
-  border-radius: 1.2cqw;
-  font-size: 1.05cqw;
+  border-radius: var(--slide-ui-panel-radius);
+  /* The style of the interactive elements (stageTheme.css): the corners, the typeface. */
+  clip-path: var(--slide-ui-panel-clip);
+  font-family: var(--slide-ui-font);
+  letter-spacing: var(--slide-ui-spacing);
+  font-size: calc(1.05cqw * var(--slide-ui-scale));
   line-height: 1.45;
   text-align: left;
   pointer-events: none;
@@ -6048,6 +6052,7 @@ h2.weft-inspector-header {
 }
 
 .weft-edit-revealer-panel.is-dark {
+  --slide-revealer-line: rgba(255, 255, 255, 0.14);
   background: #1c2230;
   border: 1px solid rgba(255, 255, 255, 0.14);
   color: #d7deee;
@@ -6055,6 +6060,7 @@ h2.weft-inspector-header {
 }
 
 .weft-edit-revealer-panel.is-light {
+  --slide-revealer-line: rgba(0, 0, 0, 0.14);
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.14);
   color: #374151;
@@ -6063,8 +6069,8 @@ h2.weft-inspector-header {
 
 .weft-edit-revealer-title {
   margin: 0 0 0.5cqw;
-  font-size: 1.5cqw;
-  font-weight: 700;
+  font-size: calc(1.5cqw * var(--slide-ui-scale));
+  font-weight: var(--slide-ui-heading-weight);
   line-height: 1.25;
 }
 
@@ -6086,7 +6092,7 @@ h2.weft-inspector-header {
   width: 100%;
   max-height: 14cqw;
   margin: 0 0 0.9cqw;
-  border-radius: 0.6cqw;
+  border-radius: var(--slide-ui-inner-radius);
   object-fit: cover;
 }
 
@@ -6097,8 +6103,9 @@ h2.weft-inspector-header {
 
 .weft-edit-revealer-button {
   padding: 0.55cqw 1.3cqw;
-  border-radius: 0.6cqw;
-  font-weight: 600;
+  border-radius: var(--slide-ui-radius);
+  clip-path: var(--slide-ui-clip);
+  font-weight: var(--slide-ui-weight);
 }
 
 .weft-edit-revealer-close {

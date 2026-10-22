@@ -86,6 +86,12 @@
   /* The corners cut off (futuristic): the shape of a button or an answer. */
   --slide-ui-clip: none;
   --slide-ui-cut: 0.6em;
+  --slide-ui-heading-weight: 700;
+  /* The window of a revealer and what stands in it: corners of the window and of its picture, and the cut-off corners of the window. */
+  --slide-ui-panel-radius: 1.2cqw;
+  --slide-ui-inner-radius: 0.6cqw;
+  --slide-ui-panel-clip: none;
+  --slide-ui-panel-cut: 1.7cqw;
 }
 
 .weft-stage[data-weft-style="elegant"],
@@ -95,6 +101,8 @@
   --slide-ui-scale: 1.14;
   --slide-ui-spacing: 0.02em;
   --slide-ui-radius: 0.2em;
+  --slide-ui-panel-radius: 0.45cqw;
+  --slide-ui-inner-radius: 0.2cqw;
 }
 
 .weft-stage[data-weft-style="round"],
@@ -103,6 +111,9 @@
   --slide-ui-radius: 999px;
   --slide-ui-pad-x: 1.3em;
   --slide-ui-option-pad-x: 1em;
+  /* The window is rounded all round, but not a pill: its corners stay corners. */
+  --slide-ui-panel-radius: 2.6cqw;
+  --slide-ui-inner-radius: 1.4cqw;
 }
 
 .weft-stage[data-weft-style="futuristic"],
@@ -110,6 +121,17 @@
   --slide-ui-font: "Share Tech", "Segoe UI", system-ui, sans-serif;
   /* (Share Tech has one weight only: bold would be made up by the browser.) */
   --slide-ui-weight: 400;
+  --slide-ui-heading-weight: 400;
+  --slide-ui-panel-radius: 0;
+  --slide-ui-inner-radius: 0;
+  --slide-ui-panel-clip: polygon(
+    var(--slide-ui-panel-cut) 0,
+    100% 0,
+    100% calc(100% - var(--slide-ui-panel-cut)),
+    calc(100% - var(--slide-ui-panel-cut)) 100%,
+    0 100%,
+    0 var(--slide-ui-panel-cut)
+  );
   --slide-ui-scale: 1.06;
   --slide-ui-spacing: 0.04em;
   --slide-ui-radius: 0;
@@ -145,4 +167,16 @@
   background-position: 0 0, 100% 100%;
   background-size: var(--slide-ui-cut) var(--slide-ui-cut), var(--slide-ui-cut) var(--slide-ui-cut);
   background-repeat: no-repeat;
+}
+
+/* The window of a revealer in the futuristic style has a border too, which the cut would take away at the corners: it is drawn along the cuts
+   (--slide-revealer-line is the colour of the border, set by the window itself - light or dark). */
+:is(.weft-stage, .weft-thumb)[data-weft-style="futuristic"] :is(.weft-revealer-panel, .weft-edit-revealer-panel) {
+  background-image:
+    linear-gradient(135deg, transparent 50%, var(--slide-revealer-line) 50%, var(--slide-revealer-line) calc(50% + 1px), transparent calc(50% + 1px)),
+    linear-gradient(315deg, transparent 50%, var(--slide-revealer-line) 50%, var(--slide-revealer-line) calc(50% + 1px), transparent calc(50% + 1px));
+  background-position: 0 0, 100% 100%;
+  background-size: var(--slide-ui-panel-cut) var(--slide-ui-panel-cut), var(--slide-ui-panel-cut) var(--slide-ui-panel-cut);
+  background-repeat: no-repeat;
+  background-origin: border-box;
 }

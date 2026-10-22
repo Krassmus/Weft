@@ -485,6 +485,23 @@ export function validate(loaded: LoadedWeft): Finding[] {
           });
         }
       }
+      // An event with several triggers happens at the first of them (so the Weiter chain that every block with an Aufbau gets is still there
+      // when a block is also triggered by a quiz, say): worth a look, a warning when a Weiter is among them.
+      const incoming = new Map<string, { from: string; weiter: boolean }[]>();
+      for (const trigger of Object.values(page.timeline?.triggers ?? {})) {
+        if (!nodeIds.has(trigger.from) || !nodeIds.has(trigger.to)) continue;
+        incoming.set(trigger.to, [...(incoming.get(trigger.to) ?? []), { from: trigger.from, weiter: !!trigger.weiter }]);
+      }
+      const nodesById = new Map(listAllNodes(page).map((n) => [n.id, n]));
+      for (const [to, list] of incoming) {
+        if (list.length < 2 || !nodesById.get(to)) continue;
+        const name = (id: string) => (nodesById.get(id) ? eventLabel(page, nodesById.get(id)!, content, labels) : id);
+        const mixed = list.some((t) => t.weiter) && list.some((t) => !t.weiter);
+        add(mixed ? "warning" : "info", "event-multiple-triggers", `„${name(to)}" wird von ${list.length} Ereignissen ausgelöst: ${list.map((t) => `${name(t.from)}${t.weiter ? " (mit Weiter)" : ""}`).join(", ")} - es passiert beim ersten davon.`, {
+          page: ref,
+          hint: "Gewollt? Sonst mit set_trigger festlegen, was es auslöst (das ersetzt die anderen); mit remove_trigger einen entfernen.",
+        });
+      }
       const model = buildGraphModel(page);
       for (const node of model.nodes.flatMap((n) => [n, ...n.companions])) {
         if (!node.unreachable) continue;

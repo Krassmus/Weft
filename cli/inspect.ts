@@ -259,7 +259,12 @@ export function outlineMarkdown(outline: Outline, detailed: boolean): string {
       lines.push("", "Ereignisse:");
       for (const e of page.events) lines.push(`- ${e.label} [${e.id}]${e.unreachable ? " ⚠ passiert nie" : ""}`);
       lines.push("", "Auslöser:");
-      for (const t of page.triggers) lines.push(`- ${t.fromLabel} → ${t.toLabel}${t.weiter ? ", mit Weiter" : ""}${ms(t.delayMs)} [${t.id}]`);
+      const incoming = new Map<string, number>();
+      for (const t of page.triggers) incoming.set(t.to, (incoming.get(t.to) ?? 0) + 1);
+      for (const t of page.triggers) {
+        const several = (incoming.get(t.to) ?? 0) > 1 ? "  ⚠ mehrere Auslöser für dieses Ereignis" : "";
+        lines.push(`- ${t.fromLabel} → ${t.toLabel}${t.weiter ? ", mit Weiter" : ""}${ms(t.delayMs)} [${t.id}]${several}`);
+      }
       if (page.triggers.length === 0) lines.push("- (keine)");
     } else {
       const unreachable = page.events.filter((e) => e.unreachable).length;

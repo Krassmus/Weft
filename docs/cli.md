@@ -100,6 +100,33 @@ Zeichnet eine Folie als PNG mit dem Player des Moduls in einem headless Chrome (
 - `--width 1280` (Standard; die Höhe folgt aus dem Seitenverhältnis), `--lang fr_FR` für eine Sprache des Moduls.
 - Sprung-Folien werden nie gezeigt und lassen sich nicht zeichnen.
 
+## Durchspielen: `weft play`
+
+```bash
+npm run weft -- play modul.weft --page 4 --steps "tick 1 3 5; submit; weiter" -o spiel/
+```
+
+`weft render` zeichnet eine Folie in einem Zustand. `weft play` spielt das Modul wie eine Lernperson (der Player in einem Chrome, wie bei `render`) und sagt nach jedem Schritt in Worten, was sich geändert hat: welche Blöcke neu zu sehen sind oder verschwunden, auf welcher Folie man jetzt ist, was ein Quiz gemeldet hat. Dazu ein Bild je Schritt im Ordner `-o` (Standard `weft-spiel`).
+
+| Schritt | Was er tut |
+|---|---|
+| `weiter` · `zurueck` | → / ← drücken (die Tastaturbedienung des Moduls muss an sein) |
+| `click <Text>` | den ersten sichtbaren Button, die Antwort oder den Link mit diesem Text anklicken |
+| `tick <n> …` | die n-ten Antworten (ab 1) des ersten noch offenen Quiz ankreuzen |
+| `submit` | „Abschicken" des ersten noch offenen Quiz oder Lückentextes drücken |
+| `fill <Text> …` | die Lücken des ersten offenen Lückentextes der Reihe nach ausfüllen |
+| `key <Taste>` · `wait <ms>` · `shot` | eine Taste drücken · warten · nur ein Bild |
+
+`--page` sagt, mit welcher Folie das Spiel beginnt, `--lang` in welcher Sprache. Schritte stehen in `--steps` durch `;` getrennt (Wörter mit Leerzeichen in "Anführungszeichen").
+
+## Die Seite des Players: `weft html`
+
+```bash
+npm run weft -- html modul.weft -o ordner/ [--page 3]
+```
+
+Schreibt `index.html` mit Bildern, Videos und Schriften in einen Ordner, zum Ansehen im Browser oder zum Weiterprüfen mit eigenen Werkzeugen. Mit `--page` beginnt das Modul mit dieser Folie.
+
 ## Neu anlegen und ändern: `weft new` / `weft edit`
 
 ```bash

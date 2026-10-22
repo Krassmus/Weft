@@ -13,6 +13,9 @@ import { buildOutline, outlineMarkdown } from "./inspect";
 import { definitionJson, describeDefinition, fullSchema, listDefinitions } from "./schema";
 import { validate } from "./validate";
 import { checkLayout } from "./layout";
+import { playModule, splitSteps } from "./play";
+import { preparePlayer, resolvePages } from "./render";
+import { copyFileSync, cpSync } from "node:fs";
 import type { Finding } from "./validate";
 
 const HELP = `weft - ein Lernmodul (.weft) lesen und prüfen
@@ -42,6 +45,14 @@ Benutzung:
       Zeichnet eine Folie als PNG - mit dem Player in einem Chrome (muss installiert sein; Pfad sonst in WEFT_CHROME).
       Standard: die erste Folie, mit allem darauf (nichts wartet auf seinen Aufbau); --state start: so, wie sie beginnt.
       --all zeichnet alle Folien in den Ordner -o.
+  weft play <datei> --steps "weiter; tick 1 3; submit" [--page <nummer>] [-o <ordner>] [--lang fr_FR]
+      Spielt das Modul wie eine Lernperson und sagt nach jedem Schritt, was sich geändert hat (neue und verschwundene
+      Blöcke, die Meldung eines Quiz, die neue Folie); dazu ein Bild je Schritt im Ordner -o (Standard weft-spiel).
+      Schritte: weiter, zurueck, click <Text>, tick <n>… (Antworten des Quiz, ab 1), submit, fill <Text>… (Lücken),
+      key <Taste>, wait <ms>, shot. Chrome nötig, wie bei render.
+  weft html <datei> -o <ordner> [--page <nummer>]
+      Schreibt die Seite des Players (index.html mit Bildern, Videos und Schriften) in einen Ordner - zum Ansehen im Browser
+      oder zum Weiterprüfen. --page: das Modul beginnt mit dieser Folie.
   weft schema [<name>] [--list] [--json] [--full]
       Das Dateiformat. Ohne Name: die Arten von Blöcken. <name>: eine Definition oder die Art
       eines Blocks (zum Beispiel "quiz", "ButtonBlock", "Page").
@@ -64,7 +75,7 @@ function parseArgs(argv: string[]): Args {
     if (arg.startsWith("--")) {
       const name = arg.slice(2);
       const next = argv[i + 1];
-      if (["page", "format", "to", "from", "output", "title", "languages", "width", "lang", "state", "chrome"].includes(name) && next !== undefined && !next.startsWith("--")) {
+      if (["page", "format", "to", "from", "output", "title", "languages", "width", "lang", "state", "chrome", "steps"].includes(name) && next !== undefined && !next.startsWith("--")) {
         flags.set(name, next);
         i++;
       } else flags.set(name, true);
@@ -231,6 +242,45 @@ async function main(argv: string[]): Promise<number> {
         const target = output ?? `folie-${images[0].label}.png`;
         writeFileSync(target, images[0].png);
         console.log(`${target} (${images[0].width}×${images[0].height}, Folie ${images[0].label})`);
+      }
+      return 0;
+    }
+    case "play": {
+      if (!rest[0]) throw new CliError('Welche Datei? weft play <datei> --steps "weiter; weiter"');
+      const stepsText = typeof flags.get("steps") === "string" ? (flags.get("steps") as string) : "";
+      const steps = splitSteps(stepsText);
+      if (steps.length === 0) throw new CliError('Welche Schritte? --steps "weiter; tick 1 3; submit" (weft help zeigt sie).');
+      const folder = typeof flags.get("output") === "string" ? (flags.get("output") as string) : "weft-spiel";
+      mkdirSync(folder, { recursive: true });
+      const result = await playModule(rest[0], steps, {
+        page: typeof flags.get("page") === "string" ? (flags.get("page") as string) : undefined,
+        language: typeof flags.get("lang") === "string" ? (flags.get("lang") as string) : undefined,
+        chrome: typeof flags.get("chrome") === "string" ? (flags.get("chrome") as string) : undefined,
+      });
+      const all = [result.start, ...result.steps];
+      all.forEach((step, index) => {
+        const file = join(folder, `${String(index).padStart(2, "0")}-${step.step.split(" ")[0]}.png`);
+        writeFileSync(file, step.png);
+        console.log(`${String(index).padStart(2, "0")} ${step.step} → Folie ${step.page}  [${file}]`);
+        for (const change of step.changes) console.log(`     ${change}`);
+      });
+      return 0;
+    }
+    case "html": {
+      if (!rest[0]) throw new CliError("Welche Datei? weft html <datei> -o <ordner>");
+      const folder = typeof flags.get("output") === "string" ? (flags.get("output") as string) : null;
+      if (!folder) throw new CliError("Wohin? weft html <datei> -o <ordner>");
+      const player = await preparePlayer(rest[0]);
+      try {
+        const page = typeof flags.get("page") === "string" ? (flags.get("page") as string) : undefined;
+        const startId = page ? resolvePages(player.content, player.labels, [page])[0].id : null;
+        const htmlPath = await player.htmlFile(startId, { all: false });
+        mkdirSync(folder, { recursive: true });
+        cpSync(player.folder, folder, { recursive: true, filter: (source) => !/page-\d+\.html$/.test(source) && !source.endsWith("profile") });
+        copyFileSync(htmlPath, join(folder, "index.html"));
+        console.log(join(folder, "index.html"));
+      } finally {
+        player.cleanup();
       }
       return 0;
     }

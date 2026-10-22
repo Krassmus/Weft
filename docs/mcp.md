@@ -29,10 +29,11 @@ Der Server spricht MCP über Standard-Ein-/Ausgabe, braucht kein Netz und nichts
 | Werkzeug | Wofür |
 |---|---|
 | `weft_inspect` | Gliederung eines Moduls; mit `page` eine Folie ausführlich (Positionen, Effekte, Ereignisse, Auslöser) |
-| `weft_validate` | Prüfung mit Codes und Hinweisen (kaputte Verweise, Ereignisse die nie passieren, unbekannte Variablen ...) |
+| `weft_validate` | Prüfung mit Codes und Hinweisen (kaputte Verweise, Ereignisse die nie passieren, unbekannte Variablen ...); mit `layout` auch, ob der Inhalt in seinen Kasten passt |
 | `weft_schema` | Das Dateiformat: Arten von Blöcken, die Felder einer Art oder Definition |
 | `weft_text_export` / `weft_text_import` | Texte als flache Liste zum Übersetzen und zurück in ein neues Modul |
 | `weft_render` | Folien als Bild (PNG), wie der Player sie zeigt - der Assistent sieht sein Ergebnis |
+| `weft_play` | Das Modul wie eine Lernperson durchspielen (weiter, ankreuzen, abschicken, ausfüllen): nach jedem Schritt in Worten, was sich geändert hat, dazu Bilder |
 | `weft_new` | Ein neues leeres Modul |
 | `weft_edit` | Änderungen als Liste von Operationen (alles oder nichts) |
 | `weft_operations` | Beschreibung der Operationen mit Beispiel |

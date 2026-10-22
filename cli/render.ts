@@ -122,7 +122,7 @@ export interface PreparedPlayer {
   content: WeftModule;
   labels: Record<string, string>;
   folder: string;
-  htmlFile(pageId: string, options?: { all?: boolean; language?: string }): Promise<string>;
+  htmlFile(pageId: string | null, options?: { all?: boolean; language?: string }): Promise<string>;
   cleanup(): void;
 }
 

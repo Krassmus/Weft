@@ -7,6 +7,7 @@ import { definitionJson, describeDefinition, fullSchema, listDefinitions } from 
 import { writeFileSync as writeFile } from "node:fs";
 import { renderPages } from "./render";
 import { checkLayout } from "./layout";
+import { playModule } from "./play";
 import { editFile, exportTextsOf, importTextsFile, inspectFile, newFile, validateFile } from "./tools";
 import type { TextsFile } from "./texts";
 
@@ -294,6 +295,41 @@ const TOOLS: Tool[] = [
         content.push({ type: "text", text: `Folie ${image.label} (${image.width}×${image.height})` });
         content.push({ type: "image", data: Buffer.from(image.png).toString("base64"), mimeType: "image/png" });
       }
+      return { mcpContent: content };
+    },
+  },
+  {
+    name: "weft_play",
+    description:
+      "Spielt ein Lernmodul wie eine Lernperson durch und berichtet nach jedem Schritt, was sich geändert hat (neue und verschwundene " +
+      "Blöcke, die Meldung eines Quiz, die neue Folie). So lässt sich prüfen, was weft_render nicht zeigt: die Folie nach dem zweiten " +
+      "Weiter, ein Quiz nach dem Abschicken, einen Lückentext nach dem Ausfüllen. Schritte (je ein Text): weiter, zurueck, " +
+      'click <Text>, tick <n> <n> (Antworten des Quiz, ab 1), submit, fill <Text> <Text> (Lücken in Reihenfolge), key <Taste>, ' +
+      "wait <ms>, shot. Bilder gibt es für die Schritte `shot` und den letzten. Braucht Chrome/Chromium/Edge/Brave.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file: FILE,
+        steps: { type: "array", items: { type: "string" }, description: 'Die Schritte, z. B. ["weiter", "tick 1 3", "submit", "shot"].' },
+        page: { type: "string", description: "Folie, mit der das Spiel beginnt (Standard: die erste)." },
+        language: { type: "string", description: "Sprache des Moduls, in der gespielt wird." },
+        output_dir: { type: "string", description: "Ordner, in den die Bilder aller Schritte zusätzlich geschrieben werden." },
+      },
+      required: ["file", "steps"],
+    },
+    run: async (args) => {
+      if (!Array.isArray(args.steps) || args.steps.length === 0) throw new CliError('"steps" ist eine Liste von Schritten, z. B. ["weiter", "submit"].');
+      const steps = args.steps.map(String);
+      const result = await playModule(arg(args, "file"), steps, { page: optionalString(args, "page"), language: optionalString(args, "language") });
+      const outputDir = optionalString(args, "output_dir");
+      const content: unknown[] = [];
+      const all = [result.start, ...result.steps];
+      all.forEach((step, index) => {
+        if (outputDir) writeFile(`${outputDir}/${String(index).padStart(2, "0")}-${step.step.split(" ")[0]}.png`, step.png);
+        const last = index === all.length - 1;
+        content.push({ type: "text", text: `${index}. ${step.step} → Folie ${step.page}${step.changes.length ? "\n" + step.changes.map((c) => "   " + c).join("\n") : ""}` });
+        if (last || step.step === "shot") content.push({ type: "image", data: Buffer.from(step.png).toString("base64"), mimeType: "image/png" });
+      });
       return { mcpContent: content };
     },
   },

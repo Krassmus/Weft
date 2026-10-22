@@ -501,13 +501,16 @@ body.weft-dragging .weft-block-list button {
   box-sizing: border-box;
   background: var(--slide-button-bg);
   color: var(--slide-button-fg);
-  border-radius: 2px;
+  border-radius: var(--slide-ui-radius);
+  clip-path: var(--slide-ui-clip);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
+  font-family: var(--slide-ui-font);
+  font-weight: var(--slide-ui-weight);
+  letter-spacing: var(--slide-ui-spacing);
   font-size: 5px;
-  font-size: 2cqw;
+  font-size: calc(2cqw * var(--slide-ui-scale));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -713,14 +716,22 @@ img.weft-thumb-block {
   display: flex;
   align-items: center;
   gap: 0.5em;
-  padding: 0.4em 0.6em;
-  border: 0.046em solid var(--slide-line);
-  border-radius: 0.28em;
+  --slide-option-line: var(--slide-line);
+  --slide-ui-line-width: 0.046em;
+  font-family: var(--slide-ui-font);
+  font-size: calc(1em * var(--slide-ui-scale));
+  letter-spacing: var(--slide-ui-spacing);
+  padding: 0.4em var(--slide-ui-option-pad-x);
+  border: 0.046em solid var(--slide-option-line);
+  border-radius: var(--slide-ui-radius);
+  clip-path: var(--slide-ui-clip);
+  background-origin: border-box;
+  background-color: transparent;
 }
 
 .weft-thumb-block-quiz-option.is-correct {
-  border-color: var(--slide-accent-line);
-  background: var(--slide-accent-soft);
+  --slide-option-line: var(--slide-accent-line);
+  background-color: var(--slide-accent-soft);
 }
 
 .weft-thumb-block-quiz-option-checkbox {
@@ -758,11 +769,15 @@ img.weft-thumb-block {
   display: flex;
   align-items: center;
   gap: 0.4em;
-  padding: 0.4em 1em;
-  border-radius: 0.28em;
+  padding: 0.4em var(--slide-ui-pad-x);
+  border-radius: var(--slide-ui-radius);
+  clip-path: var(--slide-ui-clip);
   background: var(--slide-accent-color);
   color: var(--slide-accent-text);
-  font-weight: 600;
+  font-family: var(--slide-ui-font);
+  font-size: calc(1em * var(--slide-ui-scale));
+  font-weight: var(--slide-ui-weight);
+  letter-spacing: var(--slide-ui-spacing);
 }
 
 .weft-thumb-block-quiz-submit-icon {
@@ -2312,12 +2327,15 @@ button.weft-timeline-node-icon:hover {
   /* The look (background, border, corners) is the block's own, written inline (see buttonAppearanceCss); these are the defaults. */
   /* The quiz's submit button, without the tick (see .weft-quiz-submit in player.runtime.css). */
   border: none;
-  border-radius: 0.35em;
+  border-radius: var(--slide-ui-radius);
+  clip-path: var(--slide-ui-clip);
   background: var(--slide-button-bg);
   color: var(--slide-button-fg);
+  font-family: var(--slide-ui-font);
   font-size: 16px;
-  font-size: 1.7cqw;
-  font-weight: 600;
+  font-size: calc(1.7cqw * var(--slide-ui-scale));
+  font-weight: var(--slide-ui-weight);
+  letter-spacing: var(--slide-ui-spacing);
   text-align: center;
   cursor: default;
 }
@@ -2395,15 +2413,23 @@ button.weft-timeline-node-icon:hover {
   display: flex;
   align-items: center;
   gap: 0.5em;
-  padding: 0.4em 0.6em;
-  border: 0.06em solid var(--slide-line);
-  border-radius: 0.35em;
-  background: var(--slide-surface-quiet);
+  --slide-option-line: var(--slide-line);
+  --slide-ui-line-width: 0.06em;
+  font-family: var(--slide-ui-font);
+  font-size: calc(1em * var(--slide-ui-scale));
+  letter-spacing: var(--slide-ui-spacing);
+  padding: 0.4em var(--slide-ui-option-pad-x);
+  border: 0.06em solid var(--slide-option-line);
+  border-radius: var(--slide-ui-radius);
+  /* The style of the interactive elements (stageTheme.css). */
+  clip-path: var(--slide-ui-clip);
+  background-origin: border-box;
+  background-color: var(--slide-surface-quiet);
 }
 
 .weft-edit-block-quiz-option.is-correct {
-  border-color: var(--slide-accent-line);
-  background: var(--slide-accent-soft);
+  --slide-option-line: var(--slide-accent-line);
+  background-color: var(--slide-accent-soft);
 }
 
 /* Real, clickable buttons now (not a static SVG) - reset to plain glyphs so neither looks like a
@@ -2462,11 +2488,15 @@ button.weft-timeline-node-icon:hover {
   display: flex;
   align-items: center;
   gap: 0.4em;
-  padding: 0.4em 1em;
-  border-radius: 0.35em;
+  padding: 0.4em var(--slide-ui-pad-x);
+  border-radius: var(--slide-ui-radius);
+  clip-path: var(--slide-ui-clip);
   background: var(--slide-accent-color);
   color: var(--slide-accent-text);
-  font-weight: 600;
+  font-family: var(--slide-ui-font);
+  font-size: calc(1em * var(--slide-ui-scale));
+  font-weight: var(--slide-ui-weight);
+  letter-spacing: var(--slide-ui-spacing);
 }
 
 .weft-edit-block-quiz-submit-icon {

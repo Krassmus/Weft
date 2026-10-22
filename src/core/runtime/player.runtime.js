@@ -1169,6 +1169,11 @@
     return module.brightness === "dark" ? "dark" : "light";
   }
 
+  // How buttons and answers look (WeftModule.interactiveStyle): "plain", "elegant", "round" or "futuristic".
+  function stageUiStyle() {
+    return module.interactiveStyle || "plain";
+  }
+
   function assetSrc(assetId) {
     if (assetUrlOverrides[assetId]) return assetUrlOverrides[assetId];
     var meta = module.assets.filter(function (a) {
@@ -3222,7 +3227,7 @@
     progressBars = [];
     var page = module.pages[pageId];
     setUpGraph(page);
-    var stage = el("div", { class: "weft-stage", style: stageStyle(), "data-weft-theme": stageTheme() }, []);
+    var stage = el("div", { class: "weft-stage", style: stageStyle(), "data-weft-theme": stageTheme(), "data-weft-style": stageUiStyle() }, []);
     var layout = page.layoutId ? module.layouts[page.layoutId] : null;
     // Every block of the stage with its place in the stacking order (the layout's blocks lie under the page's own): the blocks are put
     // into the page in reading order (see readingOrder), and the stacking is kept by z-index.
@@ -3264,7 +3269,7 @@
         document.createTextNode(uiString("restart")),
       ]);
       restartBtn.addEventListener("click", restart);
-      var doneStage = el("div", { class: "weft-stage weft-stage-done", style: stageStyle(), "data-weft-theme": stageTheme() }, [
+      var doneStage = el("div", { class: "weft-stage weft-stage-done", style: stageStyle(), "data-weft-theme": stageTheme(), "data-weft-style": stageUiStyle() }, [
         el("div", { class: "weft-done-message" }, [document.createTextNode(uiString("done"))]),
         restartBtn,
       ]);

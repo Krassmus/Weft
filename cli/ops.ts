@@ -373,7 +373,11 @@ const HANDLERS: Record<string, Handler> = {
         actions.setAccentColor(color.toLowerCase());
       }
     }
-    return { brightness: ctx.content.brightness ?? "light", accentColor: ctx.content.accentColor ?? null };
+    if (op.interactiveStyle !== undefined) {
+      if (!["plain", "elegant", "round", "futuristic"].includes(op.interactiveStyle as string)) fail('"interactiveStyle" ist "plain", "elegant", "round" oder "futuristic".');
+      actions.setInteractiveStyle(op.interactiveStyle as never);
+    }
+    return { brightness: ctx.content.brightness ?? "light", accentColor: ctx.content.accentColor ?? null, interactiveStyle: ctx.content.interactiveStyle ?? "plain" };
   },
   set_keyboard_navigation(_ctx, op) {
     actions.setKeyboardNavigationEnabled(op.enabled !== false);

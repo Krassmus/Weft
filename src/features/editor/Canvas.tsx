@@ -799,7 +799,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
       : undefined;
   if (target?.kind === "page") lastPageIdRef.current = target.page.id;
   const aspect = aspectRatioCss(doc.content.aspectRatio);
-  const stageTheme = stageThemeProps(doc.content.brightness, doc.content.accentColor);
+  const stageTheme = stageThemeProps(doc.content.brightness, doc.content.accentColor, doc.content.interactiveStyle);
   // Move-snapping candidates for a page block: the (locked, read-only) layout blocks showing
   // through underneath it are visually part of the same slide, so they're worth snapping against
   // too, not just the page's own blocks.
@@ -1153,6 +1153,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
             <div
               className={"weft-stage weft-stage-edit" + (dragOver ? " is-drag-over" : "")}
               data-weft-theme={stageTheme["data-weft-theme"]}
+              data-weft-style={stageTheme["data-weft-style"]}
               style={{ aspectRatio: aspect, ...stageTheme.style }}
               onClick={() => {
                 if (!pressStartedInBlockRef.current) select({ type: "layout", layoutId: target.layout.id });
@@ -1206,6 +1207,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
               ref={stageRef}
               className={"weft-stage weft-stage-edit" + (dragOver ? " is-drag-over" : "")}
               data-weft-theme={stageTheme["data-weft-theme"]}
+              data-weft-style={stageTheme["data-weft-style"]}
               style={{ aspectRatio: aspect, ...stageTheme.style }}
               // The slide as one place for the keyboard: Tab stops here when no element of it is selected, and from here (or from an
               // element) goes from element to element in reading order - then on, out of the slide.

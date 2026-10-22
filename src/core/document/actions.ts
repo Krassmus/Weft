@@ -24,6 +24,7 @@ import type {
   UUID,
   VariableCondition,
   VariableDef,
+  InteractiveStyle,
   VariableType,
   WeftModule,
 } from "../types";
@@ -150,6 +151,13 @@ export function setAccentColor(color: string | null) {
   edit("Akzentfarbe ändern", (m) => {
     if (color === null) delete m.accentColor;
     else m.accentColor = color;
+  });
+}
+
+/** How buttons and quiz answers look (WeftModule.interactiveStyle). */
+export function setInteractiveStyle(style: InteractiveStyle) {
+  edit("Stil interaktiver Elemente ändern", (m) => {
+    m.interactiveStyle = style;
   });
 }
 

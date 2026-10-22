@@ -86,7 +86,7 @@ export function SlideThumbnail({
   });
 
   return (
-    <div className="weft-thumb" data-weft-theme={theme["data-weft-theme"]} style={{ aspectRatio: aspectRatioCss(aspectRatio), ...portraitCap, ...theme.style }}>
+    <div className="weft-thumb" data-weft-theme={theme["data-weft-theme"]} data-weft-style={theme["data-weft-style"]} style={{ aspectRatio: aspectRatioCss(aspectRatio), ...portraitCap, ...theme.style }}>
       <div className="weft-thumb-stage" ref={stageRef}>
         {blocks.map((block) => (
           <ThumbBlock key={block.id} block={block} exportPxPerCqw={exportPxPerCqw} qrSvg={qrSvgs?.[block.id]} imageUrl={imageUrls?.[block.id]} placeholderSlots={placeholderSlots} progress={progress} />

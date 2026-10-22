@@ -6,6 +6,10 @@
       colours of right and wrong).
     - --slide-accent (and --slide-accent-fg, the colour of what stands on it) on the stage, only if the module has an accent colour: the
       buttons and what marks a chosen answer. Without one it is the blue the quiz has always had.
+   The style of the interactive elements (WeftModule.interactiveStyle) is data-weft-style="plain" | "elegant" | "round" | "futuristic" on the
+   stage: the typeface, corners and padding of the buttons and the answers of a quiz, as the --slide-ui-* values below (their hover looks are
+   in player.runtime.css).
+
    Everything else of the accent colour - the border of a chosen answer, its tint, the colour on hover - is mixed from it here, so a module
    has just those two settings to choose from. */
 
@@ -58,4 +62,80 @@
   --slide-ok-line: color-mix(in srgb, var(--slide-ok) 35%, var(--slide-bg));
   --slide-bad-soft: color-mix(in srgb, var(--slide-bad) 12%, var(--slide-bg));
   --slide-bad-line: color-mix(in srgb, var(--slide-bad) 35%, var(--slide-bg));
+}
+
+/* ---- The style of buttons and quiz answers ---- */
+
+.weft-stage,
+.weft-thumb {
+  /* plain: as they have always been. */
+  --slide-ui-font: inherit;
+  --slide-ui-weight: 600;
+  --slide-ui-scale: 1;
+  --slide-ui-spacing: normal;
+  --slide-ui-radius: 0.35em;
+  --slide-ui-pad-x: 1em;
+  --slide-ui-option-pad-x: 0.6em;
+  /* The corners cut off (futuristic): the shape of a button or an answer. */
+  --slide-ui-clip: none;
+  --slide-ui-cut: 0.6em;
+}
+
+.weft-stage[data-weft-style="elegant"],
+.weft-thumb[data-weft-style="elegant"] {
+  --slide-ui-font: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  /* The serif has a small x-height: a little larger to read as big as the rest. */
+  --slide-ui-scale: 1.14;
+  --slide-ui-spacing: 0.02em;
+  --slide-ui-radius: 0.2em;
+}
+
+.weft-stage[data-weft-style="round"],
+.weft-thumb[data-weft-style="round"] {
+  /* A pill: more than half the height, so the two ends are half circles whatever the height. */
+  --slide-ui-radius: 999px;
+  --slide-ui-pad-x: 1.3em;
+  --slide-ui-option-pad-x: 1em;
+}
+
+.weft-stage[data-weft-style="futuristic"],
+.weft-thumb[data-weft-style="futuristic"] {
+  --slide-ui-font: "Share Tech", "Segoe UI", system-ui, sans-serif;
+  /* (Share Tech has one weight only: bold would be made up by the browser.) */
+  --slide-ui-weight: 400;
+  --slide-ui-scale: 1.06;
+  --slide-ui-spacing: 0.04em;
+  --slide-ui-radius: 0;
+  --slide-ui-clip: polygon(
+    var(--slide-ui-cut) 0,
+    100% 0,
+    100% calc(100% - var(--slide-ui-cut)),
+    calc(100% - var(--slide-ui-cut)) 100%,
+    0 100%,
+    0 var(--slide-ui-cut)
+  );
+}
+
+/* An answer has a border, which the cut would take away at the corners: it is drawn along the cuts as a line the width of the border
+   (--slide-ui-line-width), in the colour of the border (--slide-option-line - set on the answer itself, which is why this is not a value
+   of the stage like the others). */
+:is(.weft-stage, .weft-thumb)[data-weft-style="futuristic"] :is(.weft-quiz-option, .weft-edit-block-quiz-option, .weft-thumb-block-quiz-option) {
+  background-image:
+    linear-gradient(
+      135deg,
+      transparent 50%,
+      var(--slide-option-line) 50%,
+      var(--slide-option-line) calc(50% + var(--slide-ui-line-width)),
+      transparent calc(50% + var(--slide-ui-line-width))
+    ),
+    linear-gradient(
+      315deg,
+      transparent 50%,
+      var(--slide-option-line) 50%,
+      var(--slide-option-line) calc(50% + var(--slide-ui-line-width)),
+      transparent calc(50% + var(--slide-ui-line-width))
+    );
+  background-position: 0 0, 100% 100%;
+  background-size: var(--slide-ui-cut) var(--slide-ui-cut), var(--slide-ui-cut) var(--slide-ui-cut);
+  background-repeat: no-repeat;
 }

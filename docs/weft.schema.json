@@ -1216,6 +1216,15 @@
       ],
       "type": "string"
     },
+    "InteractiveStyle": {
+      "enum": [
+        "plain",
+        "elegant",
+        "round",
+        "futuristic"
+      ],
+      "type": "string"
+    },
     "JumpTarget": {
       "additionalProperties": false,
       "description": "One way out of a jump page: where to go if `condition` holds.",
@@ -2975,6 +2984,10 @@
         "id": {
           "$ref": "#/definitions/UUID",
           "description": "Set once with crypto.randomUUID() at creation and never reused, so an LMS can key progress on it forever."
+        },
+        "interactiveStyle": {
+          "$ref": "#/definitions/InteractiveStyle",
+          "description": "How the buttons and the answers of a quiz look (the module's settings, \"Aussehen\"), apart from their colours: \"plain\" (missing: as they have always been), \"elegant\" (a serif face), \"round\" (pill-shaped), \"futuristic\" (angular, two corners cut, a technical face). Each also has its own, subtle look for when the pointer is over a clickable element."
         },
         "keyboardNavigationEnabled": {
           "description": "On by default (matches every module saved before this existed - see unpack.ts's migration). Switched off, the player ignores Space/←/→ entirely - only an author-placed button block or a quiz's own onCorrect/onIncorrect effects can move the learner forward or back. The main reason to turn it off: without it, nothing stops a learner from pressing ← to back up past a quiz they've already answered and retake it.",

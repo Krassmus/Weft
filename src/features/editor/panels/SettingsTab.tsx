@@ -18,10 +18,12 @@ import {
   setAccentColor,
   setAspectRatio,
   setBrightness,
+  setInteractiveStyle,
   setKeyboardNavigationEnabled,
   setModuleTitle,
 } from "../../../core/document/actions";
 import { useDocumentStore } from "../../../core/document/store";
+import type { InteractiveStyle } from "../../../core/types";
 import { clearCoverImage, setCoverImage, setLanguages } from "../../../core/document/actions";
 import { useAssetStore } from "../../../core/assets/assetStore";
 import { buildLanguageCatalog, flagForLocale, languageName } from "../../../core/i18n/languages";
@@ -708,6 +710,7 @@ const DEFAULT_ACCENT = "#3b82f6";
 function LookFields() {
   const brightness = useDocumentStore((s) => s.doc.content.brightness) ?? "light";
   const accentColor = useDocumentStore((s) => s.doc.content.accentColor);
+  const interactiveStyle = useDocumentStore((s) => s.doc.content.interactiveStyle) ?? "plain";
   return (
     <>
       <div className="weft-field">
@@ -732,6 +735,15 @@ function LookFields() {
           )}
         </div>
       </div>
+      <label className="weft-field">
+        <span>{tr("ui.interactive_style")}</span>
+        <select value={interactiveStyle} onChange={(e) => setInteractiveStyle(e.target.value as InteractiveStyle)}>
+          <option value="plain">{tr("ui.interactive_style_plain")}</option>
+          <option value="elegant">{tr("ui.interactive_style_elegant")}</option>
+          <option value="round">{tr("ui.interactive_style_round")}</option>
+          <option value="futuristic">{tr("ui.interactive_style_futuristic")}</option>
+        </select>
+      </label>
     </>
   );
 }

@@ -1066,7 +1066,13 @@ export interface WeftModule {
    * button) and what marks a chosen answer. Everything else of theirs (border, hover, tints) follows from it and from `brightness`.
    * Missing: the blue of the quiz's submit button (a module saved before this existed had dark buttons - they are blue now, like the quiz's). */
   accentColor?: string;
+  /** How the buttons and the answers of a quiz look (the module's settings, "Aussehen"), apart from their colours: "plain" (missing: as they
+   * have always been), "elegant" (a serif face), "round" (pill-shaped), "futuristic" (angular, two corners cut, a technical face). Each also
+   * has its own, subtle look for when the pointer is over a clickable element. */
+  interactiveStyle?: InteractiveStyle;
 }
+
+export type InteractiveStyle = "plain" | "elegant" | "round" | "futuristic";
 
 /**
  * The root object that is serialized to weft.json. Save format and export format are the

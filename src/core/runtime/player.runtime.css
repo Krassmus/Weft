@@ -329,15 +329,25 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5em;
-  padding: 0.4em 0.6em;
-  border: 0.06em solid var(--slide-line);
-  border-radius: 0.35em;
+  --slide-option-line: var(--slide-line);
+  --slide-ui-line-width: 0.06em;
+  font-family: var(--slide-ui-font);
+  font-size: calc(1em * var(--slide-ui-scale));
+  letter-spacing: var(--slide-ui-spacing);
+  padding: 0.4em var(--slide-ui-option-pad-x);
+  border: 0.06em solid var(--slide-option-line);
+  border-radius: var(--slide-ui-radius);
+  /* The style of the interactive elements (stageTheme.css): its shape, and the lines along the cut corners; the colour is under them. */
+  clip-path: var(--slide-ui-clip);
+  background-origin: border-box;
+  background-color: transparent;
+  transition: background-color 0.15s, border-color 0.15s;
   cursor: pointer;
 }
 
 .weft-quiz-option:has(input:checked) {
-  border-color: var(--slide-accent-line);
-  background: var(--slide-accent-soft);
+  --slide-option-line: var(--slide-accent-line);
+  background-color: var(--slide-accent-soft);
 }
 
 .weft-quiz-option:has(input:disabled) {
@@ -411,13 +421,18 @@ body {
   display: flex;
   align-items: center;
   gap: 0.4em;
-  padding: 0.4em 1em;
+  padding: 0.4em var(--slide-ui-pad-x);
   border: none;
-  border-radius: 0.35em;
+  border-radius: var(--slide-ui-radius);
+  clip-path: var(--slide-ui-clip);
   background: var(--slide-accent-color);
   color: var(--slide-accent-text);
   font: inherit;
-  font-weight: 600;
+  font-family: var(--slide-ui-font);
+  font-size: calc(1em * var(--slide-ui-scale));
+  font-weight: var(--slide-ui-weight);
+  letter-spacing: var(--slide-ui-spacing);
+  transition: background-color 0.15s, box-shadow 0.15s, transform 0.15s, filter 0.15s;
   cursor: pointer;
 }
 
@@ -427,10 +442,6 @@ body {
    silently do nothing and leave the button visible right on top of the feedback replacing it. */
 .weft-quiz-submit[hidden] {
   display: none;
-}
-
-.weft-quiz-submit:hover {
-  background: var(--slide-accent-hover);
 }
 
 .weft-quiz-submit-icon {
@@ -518,18 +529,17 @@ body {
   text-align: center;
   /* The quiz's submit button (.weft-quiz-submit), without the tick: same colours, letters, corners, no border. */
   border: none;
-  border-radius: 0.35em;
+  border-radius: var(--slide-ui-radius);
+  clip-path: var(--slide-ui-clip);
   background: var(--slide-button-bg);
   color: var(--slide-button-fg);
-  font-family: inherit;
+  font-family: var(--slide-ui-font);
   font-size: 16px;
-  font-size: 1.7cqw;
-  font-weight: 600;
+  font-size: calc(1.7cqw * var(--slide-ui-scale));
+  font-weight: var(--slide-ui-weight);
+  letter-spacing: var(--slide-ui-spacing);
+  transition: background-color 0.15s, box-shadow 0.15s, transform 0.15s, filter 0.15s;
   cursor: pointer;
-}
-
-.weft-block-button-el:not(:disabled):hover {
-  background: var(--slide-button-hover);
 }
 
 .weft-block-button-el:disabled {
@@ -1162,4 +1172,103 @@ summary:focus-visible,
 .weft-progress-fill {
   height: 100%;
   width: 0;
+}
+
+/* ---- What a clickable element does when the pointer is over it: one subtle look per style (WeftModule.interactiveStyle) ----
+   The buttons (a button block, a quiz's submit button, the restart button) and a quiz's answers - not an answer that is locked after the
+   quiz was submitted. */
+
+/* plain: a button turns a shade darker, an answer's border a shade stronger. */
+.weft-block-button-el:not(:disabled):hover,
+.weft-quiz-submit:hover {
+  background: var(--slide-button-hover);
+}
+
+.weft-quiz-submit:hover {
+  background: var(--slide-accent-hover);
+}
+
+.weft-quiz-option:not(:has(input:disabled)):hover {
+  --slide-option-line: var(--slide-line-strong);
+}
+
+.weft-quiz-option:not(:has(input:disabled)):has(input:checked):hover {
+  --slide-option-line: var(--slide-accent-color);
+}
+
+/* elegant: a fine ring of the letters' colour appears inside a button; an answer's border takes on the accent colour. */
+.weft-stage[data-weft-style="elegant"] .weft-block-button-el:not(:disabled):hover {
+  box-shadow: inset 0 0 0 0.07em color-mix(in srgb, var(--slide-button-fg) 55%, transparent);
+}
+
+.weft-stage[data-weft-style="elegant"] .weft-quiz-submit:hover {
+  box-shadow: inset 0 0 0 0.07em color-mix(in srgb, var(--slide-accent-text) 55%, transparent);
+}
+
+.weft-stage[data-weft-style="elegant"] .weft-quiz-option:not(:has(input:disabled)):hover {
+  --slide-option-line: var(--slide-accent-line);
+}
+
+/* round: a button rises a hair and casts a soft shadow in its colour; an answer takes on a faint tint of the accent colour. */
+.weft-stage[data-weft-style="round"] .weft-block-button-el:not(:disabled):hover {
+  background: var(--slide-button-bg);
+  transform: translateY(-0.08em);
+  box-shadow: 0 0.3em 0.8em color-mix(in srgb, var(--slide-button-bg) 40%, transparent);
+}
+
+.weft-stage[data-weft-style="round"] .weft-quiz-submit:hover {
+  background: var(--slide-accent-color);
+  transform: translateY(-0.08em);
+  box-shadow: 0 0.3em 0.8em color-mix(in srgb, var(--slide-accent-color) 40%, transparent);
+}
+
+.weft-stage[data-weft-style="round"] .weft-quiz-option:not(:has(input:disabled)):hover {
+  --slide-option-line: var(--slide-line);
+  background-color: color-mix(in srgb, var(--slide-accent-color) 6%, var(--slide-bg));
+}
+
+.weft-stage[data-weft-style="round"] .weft-quiz-option:not(:has(input:disabled)):has(input:checked):hover {
+  --slide-option-line: var(--slide-accent-line);
+  background-color: var(--slide-accent-soft);
+}
+
+/* futuristic: a button gets brighter (a shadow would be cut off by its corners); an answer's border lights up in the accent colour. */
+.weft-stage[data-weft-style="futuristic"] .weft-block-button-el:not(:disabled):hover {
+  background: var(--slide-button-bg);
+  filter: brightness(1.14);
+}
+
+.weft-stage[data-weft-style="futuristic"] .weft-quiz-submit:hover {
+  background: var(--slide-accent-color);
+  filter: brightness(1.14);
+}
+
+.weft-stage[data-weft-style="futuristic"] .weft-quiz-option:not(:has(input:disabled)):hover {
+  --slide-option-line: var(--slide-accent-color);
+  background-color: color-mix(in srgb, var(--slide-accent-color) 5%, var(--slide-bg));
+}
+
+.weft-stage[data-weft-style="futuristic"] .weft-quiz-option:not(:has(input:disabled)):has(input:checked):hover {
+  background-color: var(--slide-accent-soft);
+}
+
+/* A cut shape would cut off the ring that shows where the keyboard is: with the focus the element is a plain rectangle. */
+.weft-stage[data-weft-style="futuristic"] .weft-block-button-el:focus-visible,
+.weft-stage[data-weft-style="futuristic"] .weft-quiz-submit:focus-visible,
+.weft-stage[data-weft-style="futuristic"] .weft-quiz-option:has(.weft-quiz-option-input:focus-visible) {
+  clip-path: none;
+  background-image: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weft-block-button-el,
+  .weft-quiz-submit,
+  .weft-quiz-option {
+    transition: none;
+  }
+
+  .weft-stage .weft-block-button-el:hover,
+  .weft-stage .weft-quiz-submit:hover {
+    transform: none;
+  }
 }

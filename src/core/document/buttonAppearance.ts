@@ -33,7 +33,7 @@ export function buttonAppearanceOf(
 export function buttonAppearanceCss(block: Pick<ButtonBlock, "appearance">): {
   background: string;
   border: string;
-  borderRadius: string;
+  borderRadius?: string;
 } {
   const set = block.appearance ?? {};
   const color = "var(--slide-button-bg)";
@@ -41,6 +41,7 @@ export function buttonAppearanceCss(block: Pick<ButtonBlock, "appearance">): {
   return {
     background: set.background === undefined ? color : (set.background ?? "transparent"),
     border: width > 0 ? `${width}cqw solid ${set.borderColor ?? color}` : "none",
-    borderRadius: `${set.radius ?? DEFAULT_BUTTON_APPEARANCE.radius}cqw`,
+    // (Without one of its own the corners are the style of the interactive elements', see stageTheme.css.)
+    borderRadius: set.radius === undefined ? undefined : `${set.radius}cqw`,
   };
 }

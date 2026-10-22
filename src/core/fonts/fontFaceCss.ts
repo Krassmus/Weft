@@ -8,6 +8,15 @@ import type { CuratedFont } from "./curatedFonts";
  * explicitly sets a font would silently lose its default in export. */
 export const DEFAULT_FONT_FAMILY = "Open Sans";
 
+/** The typeface the interactive elements get from the module's style (WeftModule.interactiveStyle) - to be bundled into an export even
+ * when no text of the module names it. Keep the families in step with stageTheme.css. */
+const INTERACTIVE_STYLE_FONTS: Record<NonNullable<WeftModule["interactiveStyle"]>, string | null> = {
+  plain: null,
+  elegant: "Cormorant Garamond",
+  round: null,
+  futuristic: "Share Tech",
+};
+
 /** All rich-HTML in the module carrying a font-family/font-face value applied via richText.ts's
  * applyFormat - text block HTML (pages and layouts alike), plus a quiz block's question and its
  * options (quiz blocks only ever live on pages, never layouts - see StaticBlock/Block in
@@ -44,7 +53,8 @@ function allTextHtml(module: WeftModule): string {
  * into every single export regardless of use. */
 export function usedCuratedFonts(module: WeftModule): CuratedFont[] {
   const html = allTextHtml(module);
-  return CURATED_FONTS.filter((font) => font.family === DEFAULT_FONT_FAMILY || html.includes(`face="${font.family}"`));
+  const styleFont = INTERACTIVE_STYLE_FONTS[module.interactiveStyle ?? "plain"];
+  return CURATED_FONTS.filter((font) => font.family === DEFAULT_FONT_FAMILY || font.family === styleFont || html.includes(`face="${font.family}"`));
 }
 
 /**

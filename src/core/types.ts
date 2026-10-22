@@ -1064,7 +1064,7 @@ export interface WeftModule {
   brightness?: "light" | "dark";
   /** The accent colour "#rrggbb" of the standard elements: the buttons (a button block that has no colour of its own, a quiz's submit
    * button) and what marks a chosen answer. Everything else of theirs (border, hover, tints) follows from it and from `brightness`.
-   * Missing, in a module saved before this existed: what they looked like before - blue quiz, dark buttons. */
+   * Missing: the blue of the quiz's submit button (a module saved before this existed had dark buttons - they are blue now, like the quiz's). */
   accentColor?: string;
 }
 

@@ -1,22 +1,22 @@
 import type { ButtonAppearance, ButtonBlock, WeftModule } from "../types";
 
-/** What a button looks like when nothing was set about its border: 1px on a 960px slide, 6px corners. (The colour is the module's accent
- * colour, or what it was before there was one: a dark button, a light one on a dark module - see defaultButtonColor.) */
+/** What a button looks like when nothing was set about its border: none, and the quiz's submit button's corners (0.35em at its type
+ * size of 1.7cqw). (The colour is the module's accent colour - see defaultButtonColor.) */
 export const DEFAULT_BUTTON_APPEARANCE = {
-  borderWidth: 0.1,
-  radius: 0.6,
+  borderWidth: 0,
+  radius: 0.595,
 };
 
-/** The colour of a button's background and border when the block has none of its own: the accent colour of the module's look, and without
- * one the dark button it has always been (a light one on a dark module). */
-export function defaultButtonColor(look: Pick<WeftModule, "brightness" | "accentColor"> | undefined): string {
-  return look?.accentColor ?? (look?.brightness === "dark" ? "#f4f4f5" : "#18181b");
+/** The colour of a button's background and border when the block has none of its own: the accent colour of the module's look, and
+ * without one the blue of the quiz's submit button. */
+export function defaultButtonColor(look: Pick<WeftModule, "accentColor"> | undefined): string {
+  return look?.accentColor ?? "#3b82f6";
 }
 
 /** The look of a button with the parts it has no setting for filled in - for the editing panel (`look` is the module's: the colours). */
 export function buttonAppearanceOf(
   block: Pick<ButtonBlock, "appearance">,
-  look?: Pick<WeftModule, "brightness" | "accentColor">,
+  look?: Pick<WeftModule, "accentColor">,
 ): Required<ButtonAppearance> {
   const color = defaultButtonColor(look);
   const set = block.appearance ?? {};

@@ -516,13 +516,20 @@ body {
   height: 100%;
   padding: 0 12px;
   text-align: center;
-  border: 1px solid var(--slide-button-bg);
-  border-radius: 6px;
+  /* The quiz's submit button (.weft-quiz-submit), without the tick: same colours, letters, corners, no border. */
+  border: none;
+  border-radius: 0.35em;
   background: var(--slide-button-bg);
   color: var(--slide-button-fg);
-  font-size: 14px;
-  font-size: 1.5cqw;
+  font-family: inherit;
+  font-size: 16px;
+  font-size: 1.7cqw;
+  font-weight: 600;
   cursor: pointer;
+}
+
+.weft-block-button-el:not(:disabled):hover {
+  background: var(--slide-button-hover);
 }
 
 .weft-block-button-el:disabled {

@@ -309,7 +309,7 @@
     var css = "";
     // (No background of its own: the stylesheet's, which is the module's accent colour - see stageTheme.css.)
     if (look.background !== undefined) css += "background:" + (look.background || "transparent") + ";";
-    var width = look.borderWidth !== undefined ? look.borderWidth : 0.1;
+    var width = look.borderWidth !== undefined ? look.borderWidth : 0;
     if (look.borderWidth !== undefined || look.borderColor !== undefined) {
       css += width > 0 ? "border:" + width + "cqw solid " + (look.borderColor || "var(--slide-button-bg)") + ";" : "border:none;";
     }

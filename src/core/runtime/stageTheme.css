@@ -5,8 +5,7 @@
     - data-weft-theme="light" | "dark" on the stage: the plain slide and the colours that stand beside it (lines, fields, quiet surfaces, the
       colours of right and wrong).
     - --slide-accent (and --slide-accent-fg, the colour of what stands on it) on the stage, only if the module has an accent colour: the
-      buttons and what marks a chosen answer. Without one the standard elements look like they did before there was one - a blue quiz, a
-      dark button (a light one on a dark slide).
+      buttons and what marks a chosen answer. Without one it is the blue the quiz has always had.
    Everything else of the accent colour - the border of a chosen answer, its tint, the colour on hover - is mixed from it here, so a module
    has just those two settings to choose from. */
 
@@ -28,8 +27,10 @@
   /* The accent colour and what is made of it. */
   --slide-accent-color: var(--slide-accent, #3b82f6);
   --slide-accent-text: var(--slide-accent-fg, #ffffff);
-  --slide-button-bg: var(--slide-accent, #18181b);
-  --slide-button-fg: var(--slide-accent-fg, #ffffff);
+  /* A button block without a look of its own is the quiz's submit button (without the tick). */
+  --slide-button-bg: var(--slide-accent-color);
+  --slide-button-fg: var(--slide-accent-text);
+  --slide-button-hover: var(--slide-accent-hover);
 }
 
 .weft-stage[data-weft-theme="dark"],
@@ -45,8 +46,6 @@
   --slide-ok-text: #86efac;
   --slide-bad: #f87171;
   --slide-bad-text: #fca5a5;
-  --slide-button-bg: var(--slide-accent, #f4f4f5);
-  --slide-button-fg: var(--slide-accent-fg, #18181b);
 }
 
 .weft-stage,

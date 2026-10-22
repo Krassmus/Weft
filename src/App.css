@@ -505,6 +505,7 @@ body.weft-dragging .weft-block-list button {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: 600;
   font-size: 5px;
   font-size: 2cqw;
   white-space: nowrap;
@@ -2309,12 +2310,14 @@ button.weft-timeline-node-icon:hover {
   padding: 0 12px;
   overflow: hidden;
   /* The look (background, border, corners) is the block's own, written inline (see buttonAppearanceCss); these are the defaults. */
-  border: 1px solid var(--slide-button-bg);
-  border-radius: 6px;
+  /* The quiz's submit button, without the tick (see .weft-quiz-submit in player.runtime.css). */
+  border: none;
+  border-radius: 0.35em;
   background: var(--slide-button-bg);
   color: var(--slide-button-fg);
-  font-size: 14px;
-  font-size: 1.5cqw;
+  font-size: 16px;
+  font-size: 1.7cqw;
+  font-weight: 600;
   text-align: center;
   cursor: default;
 }

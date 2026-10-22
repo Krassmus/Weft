@@ -6,6 +6,7 @@ import arrowRightIconSvg from "../../../mockups/icons/arr_1right.svg?raw";
 import acceptIconSvg from "../../../mockups/icons/accept.svg?raw";
 import declineIconSvg from "../../../mockups/icons/decline.svg?raw";
 import hand2IconSvg from "../../../mockups/icons/hand2.svg?raw";
+import cursorIconRaw from "../../../mockups/icons/cursor.svg?raw";
 import video2IconSvg from "../../../mockups/icons/video2.svg?raw";
 import stopIconSvg from "../../../mockups/icons/stop.svg?raw";
 import infoIconSvgRaw from "../../../mockups/icons/info-circle-full.svg?raw";
@@ -73,10 +74,13 @@ const EVENT_LABELS: Record<TimelineEventType, string> = {
   get "script-run"() { return tr("ui.script_block"); },
 };
 
+// The cursor (cursor.svg) has its colour fixed in the file; the graph colours its icons itself (currentColor, see App.css).
+const cursorIconSvg = cursorIconRaw.replace(/fill:rgb\([^)]*\);/, "");
+
 // "richtig" keeps the checkmark; "falsch" gets its own (decline.svg) rather than sharing accept.svg
 // - the two outcome lanes should read apart from each other at a glance, not just by their label.
 const EVENT_ICONS: Record<TimelineEventType, string> = {
-  "quiz-fill-start": hand2IconSvg,
+  "quiz-fill-start": cursorIconSvg,
   "quiz-submit": acceptIconSvg,
   "quiz-submit-correct": acceptIconSvg,
   "quiz-submit-incorrect": declineIconSvg,

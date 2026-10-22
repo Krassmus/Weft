@@ -71,6 +71,14 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
       if (block.explanation?.trim()) items.push({ key: `${id}#explanation`, source: plainToHtml(block.explanation), role: "Erklärung nach dem Abschicken" });
       return items;
     }
+    case "revealer": {
+      const items: { key: string; source: string; role: string }[] = [];
+      if (block.title.trim()) items.push({ key: `${id}#title`, source: plainToHtml(block.title), role: "Überschrift" });
+      if (block.body.trim()) items.push({ key: `${id}#body`, source: plainToHtml(block.body), role: "Text des Fensters" });
+      if (block.button?.text.trim()) items.push({ key: `${id}#button`, source: plainToHtml(block.button.text), role: "Button des Fensters" });
+      if (block.imageAlt.trim()) items.push({ key: `${id}#alt`, source: plainToHtml(block.imageAlt), role: "Bildbeschreibung" });
+      return items;
+    }
     case "list":
       return block.items
         .map((item, index) => ({ key: `${id}#item:${item.id}`, source: item.html, role: `Punkt ${index + 1}` }))
@@ -103,16 +111,18 @@ function htmlToPlain(html: string): string {
     .trim();
 }
 
-const KIND_NAMES: Record<string, string> = { text: "Text", cloze: "Lückentext", quiz: "Quiz", list: "Liste", button: "Button" };
+const KIND_NAMES: Record<string, string> = { text: "Text", cloze: "Lückentext", quiz: "Quiz", list: "Liste", button: "Button", revealer: "Info-Symbol" };
 
 /** The text a block has in `language`, if it has been translated (the block's own wording is not a translation). */
 function existingTranslation(block: Block, key: string, language: string): string {
-  const translation = (block as { translations?: Record<string, { html?: string; questionHtml?: string; options?: Record<string, string>; items?: Record<string, string>; text?: string; explanation?: string }> }).translations?.[language];
+  const translation = (block as { translations?: Record<string, { html?: string; questionHtml?: string; options?: Record<string, string>; items?: Record<string, string>; text?: string; explanation?: string; title?: string; body?: string; alt?: string }> }).translations?.[language];
   if (!translation) return "";
   const part = key.slice(key.indexOf("#") + 1);
   if (part === "html" || part === "label") return translation.html ?? (part === "label" ? (translation.text ?? "") : "");
   if (part === "question") return translation.questionHtml ?? "";
   if (part === "explanation") return translation.explanation ? plainToHtml(translation.explanation) : "";
+  if (part === "title" || part === "body" || part === "alt") return translation[part] ? plainToHtml(translation[part] as string) : "";
+  if (part === "button") return translation.text ? plainToHtml(translation.text) : "";
   if (part.startsWith("option:")) return translation.options?.[part.slice(7)] ?? "";
   if (part.startsWith("item:")) return translation.items?.[part.slice(5)] ?? "";
   return "";
@@ -262,7 +272,7 @@ export function checkTranslation(source: string, translated: string, isCloze: bo
 }
 
 type MutableBlock = Block & {
-  translations?: Record<string, { html?: string; questionHtml?: string; options?: Record<string, string>; items?: Record<string, string>; text?: string; explanation?: string }>;
+  translations?: Record<string, { html?: string; questionHtml?: string; options?: Record<string, string>; items?: Record<string, string>; text?: string; explanation?: string; title?: string; body?: string; alt?: string }>;
 };
 
 /** Writes the translations of `file` into `content` (changed in place). Nothing is written for a text that has a problem that is an
@@ -337,6 +347,8 @@ export function importTexts(content: WeftModule, file: TextsFile): ImportReport 
         target.text = plainTextOfHtml(translated);
       } else if (part === "question") target.questionHtml = translated;
       else if (part === "explanation") target.explanation = htmlToPlain(translated);
+      else if (part === "title" || part === "body" || part === "alt") target[part] = htmlToPlain(translated);
+      else if (part === "button") target.text = htmlToPlain(translated);
       else if (part.startsWith("option:")) (target.options ??= {})[part.slice(7)] = translated;
       else if (part.startsWith("item:")) (target.items ??= {})[part.slice(5)] = translated;
       report.applied++;

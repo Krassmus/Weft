@@ -118,9 +118,13 @@ export async function checkLayout(file: string, refs?: string[], options: { chro
     const playable = Object.entries(player.labels)
       .filter(([id]) => player.content.pages[id] && !player.content.pages[id].jump)
       .map(([, label]) => label);
-    for (const page of resolvePages(player.content, player.labels, refs ?? playable)) {
-      await session.load(await player.htmlFile(page.id));
+    // A module with several languages is checked in each of them (a translation is often longer than the original).
+    const languages = player.content.languages.length > 1 ? player.content.languages : [undefined];
+    const pages = resolvePages(player.content, player.labels, refs ?? playable);
+    for (const language of languages) for (const page of pages) {
+      await session.load(await player.htmlFile(page.id, language ? { language } : undefined));
       const measured = await session.eval<Measured[]>(MEASURE);
+      const inLanguage = language ? `[${language}] ` : "";
       for (const m of measured) {
         if (m.overflowY === 0 && m.overflowX === 0) continue;
         const where = { page: { label: page.label, id: page.id }, blockId: m.blockId };
@@ -132,7 +136,7 @@ export async function checkLayout(file: string, refs?: string[], options: { chro
             severity: "warning",
             code: "block-overflow",
             ...where,
-            message: `${m.kind}-Block ${name}: der Inhalt ist ${Math.round(m.overflowY)} px höher als sein Kasten und wird unten abgeschnitten.`,
+            message: `${inLanguage}${m.kind}-Block ${name}: der Inhalt ist ${Math.round(m.overflowY)} px höher als sein Kasten und wird unten abgeschnitten.`,
             hint: `Den Block höher machen (er braucht mindestens ${needed} % der Folienhöhe, hat ${have} %) oder die Schrift verkleinern.`,
           });
         }
@@ -141,7 +145,7 @@ export async function checkLayout(file: string, refs?: string[], options: { chro
             severity: "warning",
             code: "block-overflow",
             ...where,
-            message: `${m.kind}-Block ${name}: der Inhalt ist ${Math.round(m.overflowX)} px breiter als sein Kasten.`,
+            message: `${inLanguage}${m.kind}-Block ${name}: der Inhalt ist ${Math.round(m.overflowX)} px breiter als sein Kasten.`,
             hint: "Den Block breiter machen oder die Schrift verkleinern (ein sehr langes Wort bricht nicht um).",
           });
         }

@@ -76,7 +76,7 @@ npm run weft -- text import modul.weft texte.json -o modul.fr.weft
 
 **Export** (`--to` eine oder mehrere Sprachen, durch Komma getrennt; `--from` nur nötig, wenn das Modul noch keine Sprache eingestellt hat; `--missing` nur, was noch keine Übersetzung hat):
 
-- Eine JSON-Datei mit allen Texten, die einer Lernperson gezeigt werden: Texte, Lückentexte, Fragen und Antworten von Quizzen, Listenpunkte und Button-Beschriftungen, auch die der Layouts. Gelöschte Folien sind nicht dabei.
+- Eine JSON-Datei mit allen Texten, die einer Lernperson gezeigt werden: Texte, Lückentexte, Fragen und Antworten von Quizzen, Listenpunkte und Button-Beschriftungen, Überschrift und Text der Info-Symbole, auch die der Layouts. Gelöschte Folien sind nicht dabei.
 - Jeder Eintrag in `items` hat einen `key` (`<Block-Id>#<Teil>`), die `source` (HTML mit Formatierung), die Fundstelle als `context` („Folie 2.a.1 · Quiz · Antwort 2") und `translations` mit einem leeren Feld je Zielsprache. Dort steht die Übersetzung, ausgefüllt von Person oder KI. Schon vorhandene Übersetzungen sind eingetragen.
 - Die Datei enthält in `instructions` eine kurze Anleitung für den, der übersetzt: Tags und `{{Variablen}}` bleiben, in Lückentexten werden die Antworten in `[[ ]]` mitübersetzt, Schlüssel und Quelle nicht ändern.
 

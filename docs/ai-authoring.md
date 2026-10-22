@@ -89,6 +89,18 @@ Wer ein Quiz falsch beantwortet, kann einen anderen Weg gehen als wer es richtig
 - Nach der Verzweigung läuft die Hauptfolge weiter; alle Zweige treffen sich dort wieder.
 - `weft play modul.weft --page 4 --steps "tick 2; submit; weiter"` geht einen Zweig durch.
 
+## Mehrsprachig
+
+Ein Modul in zwei Sprachen entsteht aus dem fertigen in der ersten Sprache:
+
+1. `weft text export modul.weft --from de_DE --to en_US -o texte.json`: alle Texte als Liste (auch Quiz-Erklärungen und Info-Symbole).
+2. Die Einträge übersetzen: das HTML bleibt, nur die Wörter ändern sich; `[[Antworten]]` in Lückentexten werden mit übersetzt. Zahlen schreibt man in der Zielsprache (4 827 → 4,827).
+3. `weft text import modul.weft texte.json -o modul.zwei.weft`.
+4. **Einen Sprachumschalter einbauen** (`add_block` mit `kind: "language"`, am besten in das Layout, oben rechts), sonst können die Lernenden die Sprache nicht wählen.
+5. `weft validate --layout` prüft die Folien in jeder Sprache; eine Übersetzung ist oft länger als das Original (`block-overflow` mit der Sprache davor). `weft render --lang en_US` und `weft play --lang en_US` zeigen die Folien in einer Sprache.
+
+Was Weft selbst zeigt („Abschicken", „Das war richtig!") kommt in der Sprache des Players; Namen von Blöcken, Variablen und Zweigen werden nicht übersetzt.
+
 ## Die typischen Fallen
 
 | Falle | Woran man sie merkt |

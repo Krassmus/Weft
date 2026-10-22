@@ -636,7 +636,7 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
         ...base,
         kind,
         position: { x: 10, y: 28, width: 80, height: 45 },
-        html: tr("ui.the_capital_of_germany_is_berlin"),
+        html: tr("ui.cloze_sample_text"),
         onEachCorrect: [],
         onCorrect: [],
         onIncorrect: [],

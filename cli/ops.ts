@@ -1,5 +1,8 @@
 import "./domShim";
 import * as actions from "../src/core/document/actions";
+import { DEFAULT_TEXT_BOX } from "../src/core/document/textBox";
+import { buildTextHtml, estimateHeightPercent } from "./markup";
+import type { TextSpec } from "./markup";
 import { applyPlaceholderStyle, plainParagraphs } from "../src/core/document/placeholders";
 import { pageLabels } from "../src/core/document/pageLabels";
 import {
@@ -246,6 +249,30 @@ function resolveSet(ctx: Context, value: unknown, key?: string): unknown {
     return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, resolveSet(ctx, v, k)]));
   }
   return value;
+}
+
+// A block's fields that are objects (position, fill, stroke, entranceEffect ...) are merged with what the block has, not replaced: setting
+// {"fill": {"color": "#fbbf24"}} keeps the rest of the fill, and {"position": {"y": 40}} the rest of the position. (Lists are replaced.)
+const isPlain = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value);
+
+function mergeDeep(current: unknown, patch: unknown): unknown {
+  if (isPlain(current) && isPlain(patch)) {
+    const merged: Record<string, unknown> = { ...current };
+    for (const [key, value] of Object.entries(patch)) merged[key] = key in current ? mergeDeep(current[key], value) : value;
+    return merged;
+  }
+  return patch;
+}
+
+function mergePatch(block: unknown, patch: unknown): unknown {
+  if (!isPlain(patch)) return patch;
+  const current = JSON.parse(JSON.stringify(block)) as Record<string, unknown>;
+  const merged: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(patch)) {
+    // A text box that is not there yet starts from the standard one.
+    merged[key] = key === "box" && current.box === undefined && isPlain(value) ? mergeDeep(DEFAULT_TEXT_BOX, value) : mergeDeep(current[key], value);
+  }
+  return merged;
 }
 
 interface AssetInfo {
@@ -510,21 +537,69 @@ const HANDLERS: Record<string, Handler> = {
     if (op.layout !== undefined) {
       const layout = layoutId(ctx, op.layout);
       id = actions.addBlockToLayout(layout, kind as never);
-      if (op.set) actions.updateLayoutBlock(layout, id, resolveSet(ctx, op.set) as never);
+      if (op.set) actions.updateLayoutBlock(layout, id, mergePatch(ctx.content.layouts[layout].blocks[id], resolveSet(ctx, op.set)) as never);
     } else {
       const page = pageId(ctx, op.page);
       if (ctx.content.pages[page].jump) fail("Auf eine Sprung-Folie lassen sich keine Blöcke legen.");
       if (kind === "placeholder") fail("Ein Platzhalter-Text gehört in ein Layout (mit \"layout\"), nicht auf eine Folie.");
       id = actions.addBlockToPage(page, kind);
-      if (op.set) actions.updateBlock(page, id, resolveSet(ctx, op.set) as never);
+      if (op.set) actions.updateBlock(page, id, mergePatch(ctx.content.pages[page].blocks[id], resolveSet(ctx, op.set)) as never);
     }
     remember(ctx, op, id);
     return { block: id };
   },
+  // A text from a plain description (the markup is the editor's, see markup.ts): add_text {page | layout, text | paragraphs | html,
+  // x, y, width, height | "auto", size, color, bold, italic, align, font, lineHeight, gap, box, effect, as}
+  add_text(ctx, op) {
+    const container = op.layout !== undefined ? { layout: op.layout } : { page: op.page };
+    let html: string;
+    if (typeof op.html === "string") html = op.html;
+    else if (op.text !== undefined || op.paragraphs !== undefined) html = buildTextHtml(op as TextSpec);
+    else return fail('add_text braucht "text" (Zeilen = Absätze), "paragraphs" (Absätze aus Teilen mit eigener Farbe/Größe) oder "html".');
+    const num = (value: unknown, fallback: number) => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
+    const width = num(op.width, 50);
+    const height = typeof op.height === "number" ? op.height : estimateHeightPercent(op as TextSpec, width, aspectRatioNumeric(ctx.content.aspectRatio), num((op.box as { padding?: number } | undefined)?.padding, 0.8));
+    const set: Record<string, unknown> = { html, position: { x: num(op.x, 10), y: num(op.y, 10), width, height: Math.round(height * 100) / 100 } };
+    for (const key of ["box", "scrollable", "name"]) if (op[key] !== undefined) set[key] = op[key];
+    if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
+    const result = HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "text", set, as: op.as });
+    return { ...result, height: set.height as number };
+  },
+  // A shape from a plain description: add_shape {page | layout, shape: rectangle | ellipse | polygon | star, x, y, width, height, color, opacity,
+  // gradient: {kind, angle, stops: [[color, offset, opacity?], ...]}, radius (0-50, a rectangle's corners), stroke: {color, width, opacity,
+  // style}, shadow: true | {...}, sides, points, effect, as}
+  add_shape(ctx, op) {
+    const container = op.layout !== undefined ? { layout: op.layout } : { page: op.page };
+    const num = (value: unknown, fallback: number) => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
+    const set: Record<string, unknown> = {
+      position: { x: num(op.x, 30), y: num(op.y, 30), width: num(op.width, 40), height: num(op.height, 40) },
+    };
+    if (op.shape !== undefined) set.shapeKind = op.shape;
+    if (op.gradient && typeof op.gradient === "object") {
+      const g = op.gradient as { kind?: string; angle?: number; stops?: unknown[] };
+      const stops = (g.stops ?? []).map((stop, i) => {
+        const [color, offset, opacity] = stop as [string, number, number?];
+        return { id: `s${i}`, color, offset: offset ?? (i === 0 ? 0 : 100), opacity: opacity ?? 1 };
+      });
+      if (stops.length < 2) fail('Ein Verlauf braucht mindestens zwei Stopps: "stops": [["#0b1124", 0], ["#1c1a4d", 100]].');
+      set.fill = { type: "gradient", color: stops[0].color, opacity: 1, gradient: { kind: g.kind ?? "linear", angle: g.angle ?? 90, stops } };
+    } else if (op.color === null || op.fill === "none") set.fill = { type: "none" };
+    else if (typeof op.color === "string") set.fill = { type: "solid", color: op.color, ...(op.opacity !== undefined ? { opacity: op.opacity } : {}) };
+    else if (op.opacity !== undefined) set.fill = { opacity: op.opacity };
+    if (typeof op.radius === "number") set.cornerRadii = { topLeft: op.radius, topRight: op.radius, bottomLeft: op.radius, bottomRight: op.radius };
+    if (op.stroke && typeof op.stroke === "object") set.stroke = { enabled: true, ...(op.stroke as object) };
+    if (op.shadow === true) set.shadow = { enabled: true };
+    else if (op.shadow && typeof op.shadow === "object") set.shadow = { enabled: true, ...(op.shadow as object) };
+    if (typeof op.sides === "number") set.sides = op.sides;
+    if (typeof op.points === "number") set.starPoints = op.points;
+    for (const key of ["name"]) if (op[key] !== undefined) set[key] = op[key];
+    if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
+    return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "shape", set, as: op.as });
+  },
   update_block(ctx, op) {
     const { block, container } = findBlock(ctx, op.block);
     if (!op.set || typeof op.set !== "object") fail('"set" fehlt: die Felder, die der Block bekommen soll ({"html": "<p>…</p>"}).');
-    const patch = resolveSet(ctx, op.set) as never;
+    const patch = mergePatch(block, resolveSet(ctx, op.set)) as never;
     if (container.kind === "page") actions.updateBlock(container.id, block.id, patch);
     else actions.updateLayoutBlock(container.id, block.id, patch);
     return { block: block.id };

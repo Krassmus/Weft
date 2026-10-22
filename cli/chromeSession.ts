@@ -142,7 +142,14 @@ export class ChromeSession {
       // already closed
     }
     this.child?.kill("SIGKILL");
-    if (this.profile) rmSync(this.profile, { recursive: true, force: true });
+    // Chrome's helper processes may still be writing into the profile for a moment: try again, and never fail over a temporary folder.
+    if (this.profile) {
+      try {
+        rmSync(this.profile, { recursive: true, force: true, maxRetries: 8, retryDelay: 150 });
+      } catch {
+        // left in the temporary folder
+      }
+    }
   }
 }
 

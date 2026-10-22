@@ -35,8 +35,9 @@ Benutzung:
   weft text import <datei> <texte.json> [-o <ziel.weft>] [--dry-run] [--force]
       Schreibt die übersetzten Texte in ein NEUES Modul (nie in die Quelle): Standard
       <name>.<sprache>.weft neben der Datei. Fehlende Sprachen werden dem Modul hinzugefügt.
-  weft new <ziel.weft> [--title <text>] [--languages de_DE,fr_FR] [--demo] [--force]
-      Ein neues, leeres Modul (oder mit --demo das kleine Beispiel).
+  weft new <ziel.weft> [--title <text>] [--languages de_DE,fr_FR] [--demo | --empty] [--force]
+      Ein neues Modul: ein Layout "Standard" mit Titel-Platzhalter und eine leere Folie; mit --empty gar nichts (kein Layout, keine
+      Folie: add_layout und add_page legen sie an), mit --demo das kleine Beispiel.
   weft edit <datei> <operationen.json> [-o <ziel.weft>] [--dry-run] [--allow-errors]
       Ändert das Modul mit einer Liste von Operationen (die Aktionen des Editors) in einer Arbeitskopie
       <name>.ai.weft - die Quelle bleibt unverändert. Schreibt nur, wenn die Änderungen keine Fehler erzeugen.
@@ -186,7 +187,7 @@ async function main(argv: string[]): Promise<number> {
       if (!rest[0]) throw new CliError("Wohin? weft new <ziel.weft>");
       const languages = typeof flags.get("languages") === "string" ? (flags.get("languages") as string).split(",").map((l) => l.trim()).filter(Boolean) : undefined;
       const title = typeof flags.get("title") === "string" ? (flags.get("title") as string) : undefined;
-      const { target } = newFile(rest[0], { title, languages, demo: flags.has("demo"), force: flags.has("force") });
+      const { target } = newFile(rest[0], { title, languages, demo: flags.has("demo"), empty: flags.has("empty"), force: flags.has("force") });
       console.log(`Angelegt: ${target}`);
       return 0;
     }

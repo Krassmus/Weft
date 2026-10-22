@@ -131,6 +131,7 @@ Schreibt `index.html` mit Bildern, Videos und Schriften in einen Ordner, zum Ans
 
 ```bash
 npm run weft -- new raum.weft --title "Escape Room" --languages de_DE
+npm run weft -- new leer.weft --empty                 # ohne Layout und Folie (add_layout, add_page legen sie an)
 npm run weft -- edit raum.weft operationen.json      # schreibt raum.ai.weft
 ```
 

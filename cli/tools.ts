@@ -99,7 +99,7 @@ export function editFile(
 
 // ---- a new module -------------------------------------------------------------------------------------------------------------
 
-export function createModule(options: { title?: string; languages?: string[]; aspectRatio?: string; demo?: boolean }): WeftFileJson {
+export function createModule(options: { title?: string; languages?: string[]; aspectRatio?: string; demo?: boolean; empty?: boolean }): WeftFileJson {
   const doc = createEmptyDocument();
   const content = doc.content;
   if (!options.demo) {
@@ -110,18 +110,23 @@ export function createModule(options: { title?: string; languages?: string[]; as
     ensureBuiltinVariables(content.variables);
     const layout = Object.values(content.layouts)[0];
     layout.blocks = {};
-    setCurrentModule(content);
-    try {
-      // The one layout has a placeholder for the title of each page, then one empty page to begin with.
-      const placeholder = actions.addBlockToLayout(layout.id, "placeholder");
-      actions.updateLayoutBlock(layout.id, placeholder, {
-        label: "Titel",
-        position: { x: 5, y: 5, width: 90, height: 15 },
-        html: "<h1>Titel der Folie</h1>",
-      } as never);
-      actions.addPageToSequence(-1, layout.id);
-    } finally {
-      setCurrentModule(null);
+    if (options.empty) {
+      // Nothing at all to start from: no layout, no page (add_layout and add_page make them).
+      content.layouts = {};
+    } else {
+      setCurrentModule(content);
+      try {
+        // The one layout has a placeholder for the title of each page, then one empty page to begin with.
+        const placeholder = actions.addBlockToLayout(layout.id, "placeholder");
+        actions.updateLayoutBlock(layout.id, placeholder, {
+          label: "Titel",
+          position: { x: 5, y: 5, width: 90, height: 15 },
+          html: "<h1>Titel der Folie</h1>",
+        } as never);
+        actions.addPageToSequence(-1, layout.id);
+      } finally {
+        setCurrentModule(null);
+      }
     }
   }
   if (options.title) content.title = options.title;

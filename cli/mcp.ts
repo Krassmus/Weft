@@ -207,6 +207,7 @@ const TOOLS: Tool[] = [
         languages: { type: "array", items: { type: "string" }, description: "Sprachcodes, die erste ist die Standardsprache. Leer: nicht mehrsprachig." },
         aspect_ratio: { type: "string", description: '"16:9" (Standard), "4:3" ...' },
         demo: { type: "boolean", description: "Statt leer das kleine Beispielmodul (mit Quiz und Verzweigung)." },
+        empty: { type: "boolean", description: "Gar nichts vorgegeben: kein Layout, keine Folie (add_layout und add_page legen sie an). Sonst gibt es ein Layout „Standard“ und eine leere Folie." },
         force: { type: "boolean", description: "Eine vorhandene Datei überschreiben." },
       },
       required: ["output"],
@@ -217,6 +218,7 @@ const TOOLS: Tool[] = [
         languages: Array.isArray(args.languages) ? args.languages.map(String) : undefined,
         aspectRatio: optionalString(args, "aspect_ratio"),
         demo: args.demo === true,
+        empty: args.empty === true,
         force: args.force === true,
       });
       return `Angelegt: ${out.target}. Mit weft_inspect ansehen, mit weft_edit füllen.`;
@@ -346,7 +348,7 @@ const OPERATIONS_DOC = `# Operationen von weft_edit
 Bezeichnungen wie in der Übersicht: Folien mit Nummer ("3", "2.a.1") oder Id, Layouts mit Namen oder Id, Variablen mit Namen oder Id,
 Blöcke mit Id. Jede Operation kann mit "as" einen Namen für das Angelegte vergeben, der danach als "$name" gilt.
 
-- set_title {title} · set_languages {languages:["de_DE","fr_FR"]} · set_aspect_ratio {aspectRatio} · set_look {brightness?:"light"|"dark", accentColor?:"#rrggbb"|null, interactiveStyle?:"plain"|"elegant"|"round"|"futuristic"} · set_keyboard_navigation {enabled}
+- set_transition {page | "all" | [pages], type ("none" | "fade" | "move" | "iris" | "cube" | "blur" | "horror" | "wheel"), durationMs?, direction?, contentOnly?, hardEdge?} · set_palette {colors:["#fbbf24", …]} (die Farbwahl des Moduls, ersetzt die vorhandene) · set_title {title} · set_languages {languages:["de_DE","fr_FR"]} · set_aspect_ratio {aspectRatio} · set_look {brightness?:"light"|"dark", accentColor?:"#rrggbb"|null, interactiveStyle?:"plain"|"elegant"|"round"|"futuristic"} · set_keyboard_navigation {enabled}
 - add_variable {name, type:"number"|"boolean"|"string"|"computed", initialValue?, expression?, as?} · update_variable {variable, set} · remove_variable {variable}
 - add_layout {name, as?} · rename_layout {layout, name}
 - add_page {after?:"start"|"end"|"3", layout?, branch?:{logic, branch, after?}, as?}  → {page, label}

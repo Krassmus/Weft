@@ -53,6 +53,7 @@ export interface OperationResult {
   result: Record<string, unknown>;
 }
 
+const TRANSITION_TYPES = ["none", "fade", "move", "iris", "cube", "blur", "horror", "wheel"];
 const COMPARATORS = ["eq", "neq", "gt", "gte", "lt", "lte"] as const;
 
 /** A file that goes into the archive along with the changes (a picture, a video): the module only lists it (assets). */
@@ -405,6 +406,30 @@ const HANDLERS: Record<string, Handler> = {
       actions.setInteractiveStyle(op.interactiveStyle as never);
     }
     return { brightness: ctx.content.brightness ?? "light", accentColor: ctx.content.accentColor ?? null, interactiveStyle: ctx.content.interactiveStyle ?? "plain" };
+  },
+  // The slide transition (how a page goes away): set_transition {page | "all" | [pages], type, durationMs?, direction?, contentOnly?, hardEdge?,
+  // end? (the "Nächste Folie" of a quiz outcome; default the plain one)}
+  set_transition(ctx, op) {
+    const type = str(op.type, "type");
+    if (!TRANSITION_TYPES.includes(type)) fail(`„${type}" ist kein Übergang. Möglich: ${TRANSITION_TYPES.join(", ")}.`);
+    const refs = op.page === "all" ? Object.entries(pageLabels(ctx.content)).filter(([id]) => ctx.content.pages[id] && !ctx.content.pages[id].jump).map(([id]) => id) : (Array.isArray(op.page) ? op.page : [op.page]).map((ref) => pageId(ctx, ref));
+    const endId = typeof op.end === "string" ? op.end : "end";
+    for (const id of refs) {
+      if (!ctx.content.pages[id].timeline.ends[endId]) fail(`Die Folie hat kein „${endId}" (Nächste Folie).`);
+      actions.setEndTransitionType(id, endId, type as never);
+      if (typeof op.durationMs === "number") actions.setEndTransitionDuration(id, endId, op.durationMs);
+      const options: Record<string, unknown> = {};
+      for (const key of ["direction", "contentOnly", "hardEdge", "irisCenter", "background"]) if (op[key] !== undefined) options[key] = op[key];
+      if (Object.keys(options).length > 0) actions.updateEndTransition(id, endId, options as never);
+    }
+    return { pages: refs.length, type };
+  },
+  // The colour scheme of the module (the colours every colour picker offers): set_palette {colors: ["#fbbf24", ...]} replaces it.
+  set_palette(ctx, op) {
+    if (!Array.isArray(op.colors) || op.colors.some((c) => typeof c !== "string" || !/^#[0-9a-fA-F]{6}$/.test(c))) fail('"colors" ist eine Liste von Farben wie ["#fbbf24", "#2dd4bf"].');
+    for (const entry of [...(ctx.content.colorPalette ?? [])]) actions.removePaletteColor(entry.id);
+    for (const color of op.colors as string[]) actions.addPaletteColor(color);
+    return { colors: (ctx.content.colorPalette ?? []).map((c) => c.color) };
   },
   set_keyboard_navigation(_ctx, op) {
     actions.setKeyboardNavigationEnabled(op.enabled !== false);

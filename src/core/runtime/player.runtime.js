@@ -2996,8 +2996,8 @@
     return previous[b.length];
   }
 
-  function clozeNormalise(text, caseSensitive, ignoreSpaces) {
-    var trimmed = ignoreSpaces ? String(text).replace(/\s+/g, "") : String(text).trim().replace(/\s+/g, " ");
+  function clozeNormalise(text, caseSensitive) {
+    var trimmed = String(text).replace(/\s+/g, "");
     return caseSensitive ? trimmed : trimmed.toLocaleLowerCase();
   }
 
@@ -3007,11 +3007,11 @@
     return answerLength > tolerance * 2 ? tolerance : 0;
   }
 
-  function clozeIsRight(given, answers, caseSensitive, tolerance, ignoreSpaces) {
-    var typed = clozeNormalise(given, caseSensitive, ignoreSpaces);
+  function clozeIsRight(given, answers, caseSensitive, tolerance) {
+    var typed = clozeNormalise(given, caseSensitive);
     if (!typed.length) return false;
     return answers.some(function (answer) {
-      var wanted = clozeNormalise(answer, caseSensitive, ignoreSpaces);
+      var wanted = clozeNormalise(answer, caseSensitive);
       return clozeLevenshtein(typed, wanted) <= clozeAllowedSlips(wanted.length, tolerance);
     });
   }
@@ -3124,7 +3124,7 @@
       var tolerance = block.tolerance || 0;
       var allRight = blanks.length > 0;
       blanks.forEach(function (blank) {
-        var right = clozeIsRight(blank.input.value, blank.answers, caseSensitive, tolerance, !!block.ignoreSpaces);
+        var right = clozeIsRight(blank.input.value, blank.answers, caseSensitive, tolerance);
         if (!right) allRight = false;
         blank.input.disabled = true;
         if (!right) blank.input.setAttribute("aria-invalid", "true");

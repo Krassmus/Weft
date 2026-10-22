@@ -1790,10 +1790,6 @@ function ClozeEditor({ block, page, onUpdate }: { block: ClozeBlock; page?: Page
           <input type="checkbox" checked={!!block.caseSensitive} onChange={(e) => onUpdate({ caseSensitive: e.target.checked })} />
           <span>{tr("ui.case_sensitive")}</span>
         </label>
-        <label className="weft-field weft-field-inline">
-          <input type="checkbox" checked={!!block.ignoreSpaces} onChange={(e) => onUpdate({ ignoreSpaces: e.target.checked })} />
-          <span>{tr("ui.ignore_spaces")}</span>
-        </label>
         <label className="weft-field">
           <span>{tr("ui.tolerance_for_typos")}</span>
           <select value={block.tolerance ?? 0} onChange={(e) => onUpdate({ tolerance: Number(e.target.value) })}>

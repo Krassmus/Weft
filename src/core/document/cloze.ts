@@ -55,8 +55,9 @@ export function levenshtein(a: string, b: string): number {
   return previous[b.length];
 }
 
-function normalise(text: string, caseSensitive: boolean, ignoreSpaces = false): string {
-  const trimmed = ignoreSpaces ? text.replace(/\s+/g, "") : text.trim().replace(/\s+/g, " ");
+/** What counts as the same: spaces do not count at all (1 714 is 1714, "New York" is "NewYork"), capital letters only if they are asked for. */
+function normalise(text: string, caseSensitive: boolean): string {
+  const trimmed = text.replace(/\s+/g, "");
   return caseSensitive ? trimmed : trimmed.toLocaleLowerCase();
 }
 
@@ -68,11 +69,11 @@ export function allowedSlips(answerLength: number, tolerance: number): number {
 }
 
 /** Whether `given` is one of the right `answers`. */
-export function clozeIsRight(given: string, answers: string[], caseSensitive: boolean, tolerance: number, ignoreSpaces = false): boolean {
-  const typed = normalise(given, caseSensitive, ignoreSpaces);
+export function clozeIsRight(given: string, answers: string[], caseSensitive: boolean, tolerance: number): boolean {
+  const typed = normalise(given, caseSensitive);
   if (typed.length === 0) return false;
   return answers.some((answer) => {
-    const wanted = normalise(answer, caseSensitive, ignoreSpaces);
+    const wanted = normalise(answer, caseSensitive);
     return levenshtein(typed, wanted) <= allowedSlips(wanted.length, tolerance);
   });
 }

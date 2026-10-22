@@ -67,7 +67,7 @@ Anders gewünscht? Dann mit `set_trigger` festlegen, was auslöst (das **ersetzt
 ## Quiz und Lückentext
 
 - Quiz: `questionHtml`, `options` (`id`, `html`), `correctOptionIds`. **`explanation`** ist ein Text, der nach dem Abschicken unter „richtig/falsch" steht – dafür braucht es keinen Umweg über Auslöser. Mehrere richtige Antworten sind möglich.
-- Lückentext: die Antworten stehen als `[[Antwort]]` im Text, mehrere richtige mit `|` (`[[Shakespeare|Shakespear]]`). `caseSensitive`, `tolerance` (Tippfehler, 0 bis 2) und `ignoreSpaces` (1 714 ist 1714) steuern, was als richtig gilt.
+- Lückentext: die Antworten stehen als `[[Antwort]]` im Text, mehrere richtige mit `|` (`[[Shakespeare|Shakespear]]`). `caseSensitive` und `tolerance` (Tippfehler, 0 bis 2) steuern, was als richtig gilt. Leerzeichen zählen nie (1 714 ist 1714).
 - Beide brauchen Platz für ihre Rückmeldung unter dem Button: `validate --layout` misst sie mit.
 
 ## Die typischen Fallen

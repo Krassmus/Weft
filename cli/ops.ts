@@ -593,6 +593,14 @@ const HANDLERS: Record<string, Handler> = {
     const triggers = Object.keys(ctx.content.pages[page].timeline.triggers);
     return { page, trigger: triggers[triggers.length - 1] };
   },
+  // What triggers an event, replacing what did (the way "Ausgelöst durch" does in the editor): from = null for "nothing" ("Gar nicht").
+  set_trigger(ctx, op) {
+    const page = pageId(ctx, op.page);
+    const from = op.from === null || op.from === undefined ? null : eventId(ctx, op.from, "from");
+    const to = eventId(ctx, op.to, "to");
+    actions.setEventTrigger(page, to, from, typeof op.delayMs === "number" ? op.delayMs : 0, op.weiter === true ? "advance" : "timed");
+    return { page, to, from };
+  },
   remove_trigger(ctx, op) {
     const page = pageId(ctx, op.page);
     const id = str(op.trigger, "trigger");

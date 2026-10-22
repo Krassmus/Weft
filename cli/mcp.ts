@@ -309,7 +309,7 @@ Blöcke mit Id. Jede Operation kann mit "as" einen Namen für das Angelegte verg
 - add_block {page | layout, kind, set?:{…Felder…}, as?}  → {block}   (kind: text, list, quiz, cloze, button, image, video, audio, code, tex, iframe, shape, arrow, files, language, script (Logikblock mit JavaScript, nur auf Folien); im Layout auch placeholder). Felder und Bedeutung: weft_schema <kind>.
 - update_block {block, set:{…}} · remove_block {block}
 - fill_placeholder {page, placeholder?, text | html}  (der Text der Folie für einen Platzhalter des Layouts, formatiert wie dieser; text: Zeilen = Absätze)
-- add_trigger {page, from, to, delayMs?, weiter?} · remove_trigger {page, trigger}
+- add_trigger {page, from, to, delayMs?, weiter?} · set_trigger {page, to, from|null, delayMs?, weiter?} (ersetzt, was "to" auslöste - wie „Ausgelöst durch" im Editor; ohne weiter: nach delayMs, mit weiter: bei der nächsten Weiter-Eingabe nach "from") · remove_trigger {page, trigger}
   Ereignisse: "start", "end" (Nächste Folie), "entrance:<Block>", "exit:<Block>", "click:<Button>", "quiz-fill:<Quiz>", "quiz-submit:<Quiz>",
   "quiz-correct:<Quiz>", "quiz-incorrect:<Quiz>", "quiz-correct-end:<Quiz>", "video-start:<Video>", "video-end:<Video>" oder die echte Id aus weft_inspect.
 

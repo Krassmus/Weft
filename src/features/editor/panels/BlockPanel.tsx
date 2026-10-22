@@ -2242,6 +2242,10 @@ function TextBoxEditor({ block, onUpdate }: { block: TextBlock; onUpdate: BlockP
               <StepperSlider label={tr("ui.opacity")} value={Math.round(box.fillOpacity * 100)} min={0} max={100} step={5} onChange={(value) => set({ fillOpacity: Math.min(100, value) / 100 })} />
             </div>
           )}
+          <label className="weft-field weft-field-inline">
+            <input type="checkbox" checked={!!box.blur} onChange={(e) => set({ blur: e.target.checked })} />
+            <span>{tr("ui.blur_behind")}</span>
+          </label>
           <div className="weft-field">
             <span>{tr("ui.border_thickness_of_the_slide_width")}</span>
             <StepperSlider
@@ -2637,6 +2641,12 @@ function ShapeEditor({ block, onUpdate }: { block: ShapeBlock; onUpdate: BlockPa
 
       <Collapsible title={tr("ui.fill")}>
         <ShapeFillEditor fill={block.fill} onChange={(fill) => onUpdate({ fill })} />
+        {(block.shapeKind === "rectangle" || block.shapeKind === "ellipse") && (
+          <label className="weft-field weft-field-inline">
+            <input type="checkbox" checked={!!block.blurBehind} onChange={(e) => onUpdate({ blurBehind: e.target.checked })} />
+            <span>{tr("ui.blur_behind")}</span>
+          </label>
+        )}
       </Collapsible>
 
       <Collapsible title={tr("ui.outline")} defaultOpen={false}>

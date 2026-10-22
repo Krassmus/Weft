@@ -6279,3 +6279,10 @@ h2.weft-inspector-header {
 .weft-thumb-block-progress.is-rounded {
   border-radius: 999px;
 }
+
+/* The glass of a rectangle or ellipse that blurs what is behind it (backdropBlur.ts): under the shape, over the rest of the slide. */
+.weft-shape-glass {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}

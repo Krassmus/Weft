@@ -36,6 +36,7 @@ import { playerStringsFor } from "../../../core/i18n/playerStrings";
 import { useEditingLanguage } from "../useEditingLanguage";
 import { useAssetStore } from "../../../core/assets/assetStore";
 import { textBoxCss } from "../../../core/document/textBox";
+import { hasBackdropBlur, shapeBackdropCss } from "../../../core/document/backdropBlur";
 import { pageProgress } from "../../../core/document/pageProgress";
 import { useStagePageId } from "./stagePage";
 import { useDocumentStore } from "../../../core/document/store";
@@ -662,6 +663,7 @@ export function BlockView({
         onPointerMove={handlePointerMoveHover}
         onPointerLeave={() => setNearEdge(false)}
       >
+        {block.kind === "shape" && hasBackdropBlur(block) && <div className="weft-shape-glass" style={shapeBackdropCss(block, slideAspect)} />}
         <div
           className={
             "weft-edit-block-inner" +

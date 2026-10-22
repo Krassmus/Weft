@@ -592,7 +592,7 @@ const HANDLERS: Record<string, Handler> = {
   },
   // A shape from a plain description: add_shape {page | layout, shape: rectangle | ellipse | polygon | star, x, y, width, height, color, opacity,
   // gradient: {kind, angle, stops: [[color, offset, opacity?], ...]}, radius (0-50, a rectangle's corners), stroke: {color, width, opacity,
-  // style}, shadow: true | {...}, sides, points, effect, as}
+  // style}, shadow: true | {...}, blur (a rectangle or ellipse lets what is behind it show through, blurred), sides, points, effect, as}
   add_shape(ctx, op) {
     const container = op.layout !== undefined ? { layout: op.layout } : { page: op.page };
     const num = (value: unknown, fallback: number) => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
@@ -615,6 +615,10 @@ const HANDLERS: Record<string, Handler> = {
     if (op.stroke && typeof op.stroke === "object") set.stroke = { enabled: true, ...(op.stroke as object) };
     if (op.shadow === true) set.shadow = { enabled: true };
     else if (op.shadow && typeof op.shadow === "object") set.shadow = { enabled: true, ...(op.shadow as object) };
+    if (op.blur !== undefined) {
+      if (op.shape !== undefined && op.shape !== "rectangle" && op.shape !== "ellipse") fail('"blur" geht nur bei einem Rechteck oder einer Ellipse.');
+      set.blurBehind = !!op.blur;
+    }
     if (typeof op.sides === "number") set.sides = op.sides;
     if (typeof op.points === "number") set.starPoints = op.points;
     for (const key of ["name"]) if (op[key] !== undefined) set[key] = op[key];

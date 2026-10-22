@@ -331,7 +331,25 @@
     var css = "box-sizing:border-box;";
     if (box.fill) css += "background:" + mix(box.fill, box.fillOpacity) + ";";
     if (box.borderColor && box.borderWidth > 0) css += "border:" + box.borderWidth + "cqw solid " + mix(box.borderColor, box.borderOpacity) + ";";
-    return css + "border-radius:" + box.radius + "cqw;padding:" + box.padding + "cqw;";
+    css += "border-radius:" + box.radius + "cqw;padding:" + box.padding + "cqw;";
+    return box.blur ? css + backdropBlurStyle() : css;
+  }
+
+  // Blur what is behind a block (core/document/backdropBlur.ts: keep them in step).
+  function backdropBlurStyle() {
+    return "-webkit-backdrop-filter:blur(0.8cqw);backdrop-filter:blur(0.8cqw);";
+  }
+
+  // The corners of a rectangle's blur, as the shape draws them (backdropBlur.ts's shapeCornerCss).
+  function shapeBlurCorners(block) {
+    if (block.shapeKind === "ellipse") return "50%";
+    var shorter = Math.min(block.position.width, block.position.height / slideAspectNumeric());
+    var r = block.cornerRadii || {};
+    return [r.topLeft, r.topRight, r.bottomRight, r.bottomLeft]
+      .map(function (percent) {
+        return Math.round(((percent || 0) / 100) * shorter * 1000) / 1000 + "cqw";
+      })
+      .join(" ");
   }
 
   // One of the player's own fixed texts in the current language.
@@ -2418,6 +2436,10 @@
       }
     } else if (block.kind === "shape") {
       wrap.innerHTML = shapeSvgMarkup(block);
+      if (block.blurBehind && (block.shapeKind === "rectangle" || block.shapeKind === "ellipse")) {
+        // On the block itself (not a child of it): a fade-in of the block then does not cut off what is behind it.
+        wrap.style.cssText += backdropBlurStyle() + "border-radius:" + shapeBlurCorners(block) + ";";
+      }
     } else if (block.kind === "files") {
       wrap.appendChild(filesBoxElement(block));
     } else if (block.kind === "arrow") {

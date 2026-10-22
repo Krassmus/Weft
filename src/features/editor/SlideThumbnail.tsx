@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 import { pageProgress } from "../../core/document/pageProgress";
 import { textBoxCss } from "../../core/document/textBox";
+import { backdropBlurCss, hasBackdropBlur, shapeCornerCss } from "../../core/document/backdropBlur";
 import { revealerIconSvg } from "../../core/runtime/revealerGeometry.js";
 import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
 import { buttonAppearanceCss } from "../../core/document/buttonAppearance";
@@ -50,6 +51,7 @@ export function SlideThumbnail({
   exportPxPerCqw,
   qrSvgs,
   imageUrls,
+  backdrops,
   placeholderSlots = false,
   pageId,
 }: {
@@ -66,6 +68,8 @@ export function SlideThumbnail({
   /** For the PDF: the picture of an image block that has a mask or an effect as a data: address (an SVG that is drawn as a
    * picture of its own cannot reach a blob: address), by block id. */
   imageUrls?: Record<string, string>;
+  /** For the PDF: the picture of what is behind a block that blurs it (backdropBlur.ts), already blurred, by block id. */
+  backdrops?: Record<string, string>;
 }) {
   const aspectRatio = useDocumentStore((s) => s.doc.content.aspectRatio);
   const numeric = aspectRatioNumeric(aspectRatio);
@@ -90,14 +94,58 @@ export function SlideThumbnail({
     <div className="weft-thumb" data-weft-theme={theme["data-weft-theme"]} data-weft-style={theme["data-weft-style"]} style={{ aspectRatio: aspectRatioCss(aspectRatio), ...portraitCap, ...theme.style }}>
       <div className="weft-thumb-stage" ref={stageRef}>
         {blocks.map((block) => (
-          <ThumbBlock key={block.id} block={block} exportPxPerCqw={exportPxPerCqw} qrSvg={qrSvgs?.[block.id]} imageUrl={imageUrls?.[block.id]} placeholderSlots={placeholderSlots} progress={progress} />
+          <ThumbBlock key={block.id} block={block} exportPxPerCqw={exportPxPerCqw} qrSvg={qrSvgs?.[block.id]} imageUrl={imageUrls?.[block.id]} backdrop={backdrops?.[block.id]} placeholderSlots={placeholderSlots} progress={progress} />
         ))}
       </div>
     </div>
   );
 }
 
-function ThumbBlock({
+/** A block, with the glass behind it if it blurs what is behind it: CSS where the browser draws it; for the PDF (where html2canvas cannot) the
+ * picture of the background that was made for it, laid under the block. */
+function ThumbBlock(props: ThumbBlockProps) {
+  const { block, exportPxPerCqw, backdrop } = props;
+  const slideAspect = useDocumentStore((s) => aspectRatioNumeric(s.doc.content.aspectRatio));
+  const glass = hasBackdropBlur(block) && (backdrop || !exportPxPerCqw) && block.kind !== "text";
+  const forPdf = hasBackdropBlur(block) && !!backdrop;
+  let glassElement = null;
+  if (glass || forPdf) {
+    const position = block.position;
+    const corners = block.kind === "text" ? `${block.box?.radius ?? 0}cqw` : block.kind === "shape" ? shapeCornerCss(block, slideAspect) : undefined;
+    glassElement = (
+      <div
+        className="weft-thumb-block"
+        style={{
+          left: `${position.x}%`,
+          top: `${position.y}%`,
+          width: `${position.width}%`,
+          height: `${position.height}%`,
+          transform: position.rotation ? `rotate(${position.rotation}deg)` : undefined,
+          borderRadius: corners,
+          ...(backdrop ? { backgroundImage: `url(${backdrop})`, backgroundSize: "100% 100%" } : backdropBlurCss()),
+        }}
+      />
+    );
+  }
+  return (
+    <>
+      {glassElement}
+      <ThumbBlockBody {...props} />
+    </>
+  );
+}
+
+interface ThumbBlockProps {
+  block: Block;
+  progress: number | null;
+  exportPxPerCqw?: number;
+  qrSvg?: string;
+  imageUrl?: string;
+  backdrop?: string;
+  placeholderSlots?: boolean;
+}
+
+function ThumbBlockBody({
   block,
   exportPxPerCqw,
   qrSvg,

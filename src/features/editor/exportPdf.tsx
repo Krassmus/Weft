@@ -1,6 +1,6 @@
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { drawHolder } from "./exportCanvas";
+import { drawSlide } from "./exportCanvas";
 import QRCode from "qrcode";
 import { useAssetStore } from "../../core/assets/assetStore";
 import { orderedValues } from "../../core/document/ordering";
@@ -115,9 +115,15 @@ export async function exportModuleAsPdf(
         const blob = useAssetStore.getState().blobs.get(block.assetId);
         if (blob) imageUrls[block.id] = await blobToDataUrl(blob);
       }
-      flushSync(() => root.render(<SlideThumbnail blocks={blocks} pageId={pageIds[i]} exportPxPerCqw={RENDER_WIDTH_PX / 100} qrSvgs={qrSvgs} imageUrls={imageUrls} />));
-      await whenSettled(holder);
-      const canvas = await drawHolder(holder, { scale: RENDER_SCALE, width: RENDER_WIDTH_PX, height: Math.round(RENDER_WIDTH_PX / aspect) });
+      const canvas = await drawSlide(
+        holder,
+        blocks,
+        async (shown, backdrops) => {
+          flushSync(() => root.render(<SlideThumbnail blocks={shown} pageId={pageIds[i]} exportPxPerCqw={RENDER_WIDTH_PX / 100} qrSvgs={qrSvgs} imageUrls={imageUrls} backdrops={backdrops} />));
+          await whenSettled(holder);
+        },
+        { scale: RENDER_SCALE, width: RENDER_WIDTH_PX, height: Math.round(RENDER_WIDTH_PX / aspect) },
+      );
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY));
       if (!blob) throw new Error(tr("ui.a_slide_could_not_be_turned"));
       // The addresses on the page are links (where they stand in the picture).

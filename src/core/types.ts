@@ -167,6 +167,8 @@ export interface TextBox {
   radius: number;
   /** The room between the border and the text. */
   padding: number;
+  /** Blur what is behind the block (CSS backdrop-filter): the background shows through, out of focus - frosted glass. See backdropBlur.ts. */
+  blur?: boolean;
 }
 
 export interface TextBlock extends BaseBlock {
@@ -644,6 +646,8 @@ export interface ShapeBlock extends BaseBlock {
   fill: ShapeFill;
   stroke: ShapeStroke;
   shadow: ShapeShadow;
+  /** Blur what is behind the shape (frosted glass): only for a rectangle or an ellipse. See backdropBlur.ts. */
+  blurBehind?: boolean;
 }
 
 /** How an arrow is drawn: a plain line, as if drawn by hand, or in the curls of Art Nouveau. */

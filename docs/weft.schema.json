@@ -2192,6 +2192,10 @@
           },
           "type": "array"
         },
+        "blurBehind": {
+          "description": "Blur what is behind the shape (frosted glass): only for a rectangle or an ellipse. See backdropBlur.ts.",
+          "type": "boolean"
+        },
         "cornerRadii": {
           "$ref": "#/definitions/ShapeCornerRadii",
           "description": "Only meaningful for \"rectangle\"."
@@ -2646,6 +2650,10 @@
       "additionalProperties": false,
       "description": "The background and border of a text block (TextBlock.box). Colours are \"#rrggbb\"; lengths are cqw (percent of the slide's width).",
       "properties": {
+        "blur": {
+          "description": "Blur what is behind the block (CSS backdrop-filter): the background shows through, out of focus - frosted glass. See backdropBlur.ts.",
+          "type": "boolean"
+        },
         "borderColor": {
           "description": "The colour of the border; null: none.",
           "type": [

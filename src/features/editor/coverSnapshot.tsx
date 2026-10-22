@@ -1,6 +1,6 @@
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { drawHolder } from "./exportCanvas";
+import { drawSlide } from "./exportCanvas";
 import { useAssetStore } from "../../core/assets/assetStore";
 import { aspectRatioNumeric } from "../../core/aspectRatio";
 import { eventTimes } from "../../core/document/readingOrder";
@@ -60,9 +60,15 @@ const renderer: CoverRenderer = {
         const blob = useAssetStore.getState().blobs.get(block.assetId);
         if (blob) imageUrls[block.id] = await blobToDataUrl(blob);
       }
-      flushSync(() => root.render(<SlideThumbnail blocks={blocks} pageId={pageId} exportPxPerCqw={COVER_WIDTH_PX / 100} imageUrls={imageUrls} />));
-      await whenSettled(holder);
-      const canvas = await drawHolder(holder, { scale: 1, width: COVER_WIDTH_PX, height: Math.round(COVER_WIDTH_PX / aspect) });
+      const canvas = await drawSlide(
+        holder,
+        blocks,
+        async (shown, backdrops) => {
+          flushSync(() => root.render(<SlideThumbnail blocks={shown} pageId={pageId} exportPxPerCqw={COVER_WIDTH_PX / 100} imageUrls={imageUrls} backdrops={backdrops} />));
+          await whenSettled(holder);
+        },
+        { scale: 1, width: COVER_WIDTH_PX, height: Math.round(COVER_WIDTH_PX / aspect) },
+      );
       return await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
     } finally {
       root.unmount();

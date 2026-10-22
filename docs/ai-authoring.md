@@ -29,7 +29,7 @@ Die Befehle 3 bis 5 brauchen Chrome, Chromium, Edge oder Brave (sonst `WEFT_CHRO
  "size": 2.4, "color": "#f8fafc", "gap": 1, "box": {"fillOpacity": 0.1, "radius": 2, "padding": 2}, "effect": "fade"}
 ```
 
-`text` (Zeilen = Absätze) oder `paragraphs` (Absätze aus Teilen mit eigener Farbe, Größe, Schrift) oder rohes `html`. Mit `box` bekommt der Text einen **Hintergrund mit Rand**: eine Karte in einem Block (Füllung, Rand, Rundung, Abstand). Das ist besser als eine Form unter einem Text: ein Aufbau, ein Objekt zum Kopieren.
+`text` (Zeilen = Absätze) oder `paragraphs` (Absätze aus Teilen mit eigener Farbe, Größe, Schrift) oder rohes `html`. Mit `box` bekommt der Text einen **Hintergrund mit Rand**: eine Karte in einem Block (Füllung, Rand, Rundung, Abstand; mit `"blur": true` scheint der Hintergrund unscharf durch, wie Milchglas). Das ist besser als eine Form unter einem Text: ein Aufbau, ein Objekt zum Kopieren.
 
 Wenn man HTML selbst schreibt:
 
@@ -41,7 +41,7 @@ Wenn man HTML selbst schreibt:
 
 ## Formen und Aussehen
 
-- `add_shape`: Rechteck, Ellipse, Vieleck, Stern, mit `color`/`opacity` oder `gradient` (`{"kind": "linear", "angle": 135, "stops": [["#0b1124", 0], ["#1c1a4d", 100]]}`), `radius`, `stroke`, `shadow`. Ein Hintergrund über die ganze Folie gehört in ein **Layout**, nicht auf jede Folie.
+- `add_shape`: Rechteck, Ellipse, Vieleck, Stern, mit `color`/`opacity` oder `gradient` (`{"kind": "linear", "angle": 135, "stops": [["#0b1124", 0], ["#1c1a4d", 100]]}`), `radius`, `stroke`, `shadow`, `blur` (nur Rechteck und Ellipse: lässt den Hintergrund unscharf durchscheinen). Ein Hintergrund über die ganze Folie gehört in ein **Layout**, nicht auf jede Folie.
 - `set` in `add_block`/`update_block` führt Objekte mit dem Vorhandenen zusammen: `{"position": {"y": 40}}` lässt `x`, `width` und `height`.
 - `set_look {brightness, accentColor, interactiveStyle}`: hell/dunkel, die Akzentfarbe (Buttons, Quiz, Markierung) und der Stil von Buttons und Antworten (`plain`, `elegant`, `round`, `futuristic`). Das ist alles, was für die Standardelemente einzustellen ist.
 - `set_palette {colors}` legt die Farben des Moduls in jede Farbwahl; `set_transition {page: "all", type, durationMs}` setzt den Folienübergang.

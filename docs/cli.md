@@ -139,6 +139,8 @@ npm run weft -- edit raum.weft operationen.json      # schreibt raum.ai.weft
 
 ## Wie eine KI damit arbeiten kann
 
+Wie man ein Lernmodul baut, das gut aussieht (Raster, Textgrößen, Weiter-Ketten, Fallen), steht in [ai-authoring.md](ai-authoring.md).
+
 1. `weft inspect datei.weft` - einen Überblick holen, ohne die ganze Datei zu lesen.
 2. `weft schema <Art>` - nachlesen, wie ein Block aussieht, bevor man einen schreibt.
 3. Übersetzen: `weft text export`, die Einträge übersetzen, `weft text import` - ohne die Struktur des Moduls kennen zu müssen.

@@ -48,6 +48,8 @@ Der Server spricht MCP über Standard-Ein-/Ausgabe, braucht kein Netz und nichts
 
 ## Ein Ablauf
 
+(Wie man ein Lernmodul baut, das gut aussieht - Raster, Textgrößen, Weiter-Ketten, typische Fallen -: [ai-authoring.md](ai-authoring.md).)
+
 1. `weft_inspect` - verstehen, was da ist.
 2. `weft_schema <Art>` - nachlesen, wie ein Block aussieht, bevor man einen schreibt.
 3. `weft_edit` mit einer Liste von Operationen.

@@ -12,6 +12,7 @@ import type { TextsFile } from "./texts";
 import { buildOutline, outlineMarkdown } from "./inspect";
 import { definitionJson, describeDefinition, fullSchema, listDefinitions } from "./schema";
 import { validate } from "./validate";
+import { checkLayout } from "./layout";
 import type { Finding } from "./validate";
 
 const HELP = `weft - ein Lernmodul (.weft) lesen und prüfen
@@ -20,9 +21,11 @@ Benutzung:
   weft inspect <datei> [--page <nummer>] [--json]
       Gliederung: Layouts, Variablen, Folien mit ihren Blöcken, Ereignisse und Auslöser.
       --page 2.a.1   eine Folie ausführlich (Positionen, Effekte, Ereignisse, Auslöser)
-  weft validate <datei> [--json] [--strict]
+  weft validate <datei> [--json] [--strict] [--layout [--page <nummer>]]
       Prüft Struktur und Inhalt (Verweise, Dateien, Auslöser, Variablen, Übersetzungen ...).
       Ende mit Status 1, wenn es Fehler gibt (mit --strict auch bei Warnungen).
+      --layout zeichnet die Folien zusätzlich mit dem Player (Chrome nötig) und meldet Inhalt, der nicht in seinen Kasten
+      passt (block-overflow: Text, der unten oder rechts abgeschnitten wird).
   weft text export <datei> --to <sprache[,sprache]> [--from <sprache>] [--missing] [-o <texte.json>]
       Alle Texte des Moduls als Liste zum Übersetzen (HTML mit Schlüssel, Quelle, Fundstelle).
       Ohne -o auf der Standardausgabe. --missing: nur, was noch keine Übersetzung hat.
@@ -243,6 +246,10 @@ async function main(argv: string[]): Promise<number> {
       if (!rest[0]) throw new CliError("Welche Datei? weft validate <datei>");
       const loaded = loadWeft(rest[0]);
       const findings = validate(loaded);
+      if (flags.has("layout")) {
+        const page = typeof flags.get("page") === "string" ? (flags.get("page") as string) : undefined;
+        findings.push(...(await checkLayout(rest[0], page ? [page] : undefined, { chrome: typeof flags.get("chrome") === "string" ? (flags.get("chrome") as string) : undefined })));
+      }
       if (json) {
         console.log(JSON.stringify({ file: rest[0], findings }, null, 2));
       } else {

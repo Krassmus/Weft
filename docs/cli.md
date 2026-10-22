@@ -48,6 +48,10 @@ Jede Meldung hat `severity` (`error`, `warning`, `info`), `code`, `message`, wo 
 
 Ein Hinweis zu gelöschten Folien: Beim Löschen einer Folie verschwindet nur ihr Platz in der Folienübersicht; das Objekt bleibt in der Datei. `weft` ignoriert solche Folien und meldet sie einmal als `page-deleted`.
 
+### Passt der Inhalt in seinen Kasten? `weft validate --layout`
+
+Die Prüfung oben liest nur die Datei. Ob ein Text in seinen Kasten passt, sagt erst ein Browser: `weft validate <datei> --layout [--page 3]` zeichnet die Folien mit dem Player des Moduls (Chrome, Chromium, Edge oder Brave nötig, wie bei `weft render`) und misst. Was nicht passt, meldet es als `block-overflow` mit dem Hinweis, wie hoch der Block mindestens sein müsste. Gemessen werden Texte, Listen, Buttons, Quizze und Lückentexte; bei den beiden letzten mit der Rückmeldung, die nach dem Abschicken den Button ersetzt. Ein paar Pixel unter der Schrift (Platz für Unterlängen) gelten nicht als abgeschnitten.
+
 ## `weft schema [<name>] [--list] [--json] [--full]`
 
 Das Dateiformat. Ohne Name: die Arten von Blöcken mit je einem Satz, wofür sie da sind. Mit Name (eine Art wie `quiz` oder eine Definition wie `Page`, `BlockEffect`): alle Felder mit Typ, Pflicht und Beschreibung. `--json` gibt die Definition als JSON-Schema aus, `--full` das ganze Schema.

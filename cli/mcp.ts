@@ -6,6 +6,7 @@ import type { Operation } from "./ops";
 import { definitionJson, describeDefinition, fullSchema, listDefinitions } from "./schema";
 import { writeFileSync as writeFile } from "node:fs";
 import { renderPages } from "./render";
+import { checkLayout } from "./layout";
 import { editFile, exportTextsOf, importTextsFile, inspectFile, newFile, validateFile } from "./tools";
 import type { TextsFile } from "./texts";
 
@@ -83,10 +84,24 @@ const TOOLS: Tool[] = [
     name: "weft_validate",
     description:
       "Prüft ein Lernmodul: kaputte Verweise (Layout, Zweige, Sprungziele, Variablen, Dateien), Ereignisse die nie passieren, Quizze ohne " +
-      "richtige Antwort, unbekannte {{Variablen}}, fehlende Übersetzungen. Jede Meldung hat einen Code, einen Hinweis und die Stelle.",
-    inputSchema: { type: "object", properties: { file: FILE }, required: ["file"] },
-    run: (args) => {
-      const { findings } = validateFile(arg(args, "file"));
+      "richtige Antwort, unbekannte {{Variablen}}, fehlende Übersetzungen. Jede Meldung hat einen Code, einen Hinweis und die Stelle. " +
+      "Mit `layout` werden die Folien zusätzlich gezeichnet (Chrome nötig) und gemeldet, was nicht in seinen Kasten passt (block-overflow).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file: FILE,
+        layout: { type: "boolean", description: "Auch prüfen, ob Text in seinen Kasten passt (zeichnet die Folien mit dem Player)." },
+        pages: { type: "array", items: { type: "string" }, description: "Mit layout: nur diese Folien (Nummern wie 3 oder 2.a.1)." },
+      },
+      required: ["file"],
+    },
+    run: async (args) => {
+      const file = arg(args, "file");
+      const { findings } = validateFile(file);
+      if (args.layout === true) {
+        const pages = Array.isArray(args.pages) && args.pages.length > 0 ? args.pages.map(String) : undefined;
+        findings.push(...(await checkLayout(file, pages)));
+      }
       return { summary: summariseFindings(findings), findings };
     },
   },

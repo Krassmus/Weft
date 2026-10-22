@@ -8,6 +8,7 @@ import { aspectRatioNumeric } from "../src/core/aspectRatio";
 import { buildFontFaceCss } from "../src/core/fonts/fontFaceCss";
 import { pageLabels } from "../src/core/document/pageLabels";
 import { buildRuntimeHtml } from "../src/core/runtime/buildRuntimeHtml";
+import type { WeftModule } from "../src/core/types";
 import { CliError, loadWeft } from "./load";
 
 /**
@@ -115,25 +116,29 @@ export interface RenderOptions {
   chrome?: string;
 }
 
-export async function renderPages(file: string, refs: string[], options: RenderOptions = {}): Promise<RenderedPage[]> {
-  const loaded = loadWeft(file);
-  const { content } = loaded;
-  const labels = pageLabels(content);
-  const width = Math.max(320, Math.min(options.width ?? 1280, 3840));
-  const height = Math.round(width / aspectRatioNumeric(content.aspectRatio));
-  const chrome = findChrome(options.chrome);
-  if (options.language && !(content.languages ?? []).includes(options.language)) {
-    throw new CliError(`Das Modul hat die Sprache „${options.language}" nicht (es hat: ${(content.languages ?? []).join(", ") || "keine"}).`);
-  }
+/** A module made ready to be shown by its player in a Chrome: its pictures, videos and fonts unpacked where the page looks for them, and the
+ * fonts as CSS. `htmlFile` writes the player's page for one slide and says where it is. */
+export interface PreparedPlayer {
+  content: WeftModule;
+  labels: Record<string, string>;
+  folder: string;
+  htmlFile(pageId: string, options?: { all?: boolean; language?: string }): Promise<string>;
+  cleanup(): void;
+}
 
-  // The pages asked for.
-  const wanted = refs.map((ref) => {
+export function resolvePages(content: WeftModule, labels: Record<string, string>, refs: string[]): { ref: string; id: string; label: string }[] {
+  return refs.map((ref) => {
     const id = content.pages[ref] ? ref : Object.entries(labels).find(([, label]) => label === ref)?.[0];
     if (!id) throw new CliError(`Es gibt keine Folie „${ref}". Folien heißen wie in der Übersicht (3, 2.a.1).`);
     if (content.pages[id].jump) throw new CliError(`Folie ${labels[id]} ist eine Sprung-Folie: sie wird nie gezeigt, es gibt nichts zu zeichnen.`);
     return { ref, id, label: labels[id] ?? ref };
   });
+}
 
+export async function preparePlayer(file: string): Promise<PreparedPlayer> {
+  const loaded = loadWeft(file);
+  const { content } = loaded;
+  const labels = pageLabels(content);
   const folder = mkdtempSync(join(tmpdir(), "weft-render-"));
   try {
     // The archive's pictures, videos and fonts, where the page looks for them (assets/<id>_<name>).
@@ -156,16 +161,44 @@ export async function renderPages(file: string, refs: string[], options: RenderO
         return existsSync(path) ? `data:font/ttf;base64,${readFileSync(path).toString("base64")}` : "";
       },
     );
+    let counter = 0;
+    return {
+      content,
+      labels,
+      folder,
+      async htmlFile(pageId, options = {}) {
+        let html = await buildRuntimeHtml(content, {}, fontFaceCss, pageId, options.language ?? null);
+        if (options.all !== false) {
+          html = html.replace('<script id="weft-start-page"', '<script id="weft-render-mode" type="application/json">{"all":true}</script>\n<script id="weft-start-page"');
+        }
+        const path = join(folder, `page-${counter++}.html`);
+        writeFileSync(path, html);
+        return path;
+      },
+      cleanup: () => rmSync(folder, { recursive: true, force: true }),
+    };
+  } catch (error) {
+    rmSync(folder, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+export async function renderPages(file: string, refs: string[], options: RenderOptions = {}): Promise<RenderedPage[]> {
+  const player = await preparePlayer(file);
+  try {
+    const { content, labels, folder } = player;
+    const width = Math.max(320, Math.min(options.width ?? 1280, 3840));
+    const height = Math.round(width / aspectRatioNumeric(content.aspectRatio));
+    const chrome = findChrome(options.chrome);
+    if (options.language && !(content.languages ?? []).includes(options.language)) {
+      throw new CliError(`Das Modul hat die Sprache „${options.language}" nicht (es hat: ${(content.languages ?? []).join(", ") || "keine"}).`);
+    }
+    const wanted = resolvePages(content, labels, refs);
 
     const results: RenderedPage[] = [];
     for (const [index, page] of wanted.entries()) {
-      let html = await buildRuntimeHtml(content, {}, fontFaceCss, page.id, options.language ?? null);
-      if (options.state !== "start") {
-        html = html.replace('<script id="weft-start-page"', '<script id="weft-render-mode" type="application/json">{"all":true}</script>\n<script id="weft-start-page"');
-      }
-      const htmlPath = join(folder, `page-${index}.html`);
+      const htmlPath = await player.htmlFile(page.id, { all: options.state !== "start", language: options.language });
       const pngPath = join(folder, `page-${index}.png`);
-      writeFileSync(htmlPath, html);
       try {
         await takeScreenshot(
           chrome,
@@ -194,6 +227,6 @@ export async function renderPages(file: string, refs: string[], options: RenderO
     }
     return results;
   } finally {
-    rmSync(folder, { recursive: true, force: true });
+    player.cleanup();
   }
 }

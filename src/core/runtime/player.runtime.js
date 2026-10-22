@@ -2166,7 +2166,7 @@
   }
 
   function renderStaticBlock(block, page) {
-    var wrap = el("div", { class: "weft-block weft-block-" + block.kind, style: positionStyle(block.position) });
+    var wrap = el("div", { class: "weft-block weft-block-" + block.kind, "data-weft-block": block.id, style: positionStyle(block.position) });
     if (block.kind === "text") {
       if (block.scrollable) wrap.classList.add("is-scrollable");
       var fillText = function () {
@@ -2587,7 +2587,7 @@
     );
     var wrap = el(
       "div",
-      { class: "weft-block weft-block-progress", style: positionStyle(block.position), role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-label": block.variable || "progress" },
+      { class: "weft-block weft-block-progress", "data-weft-block": block.id, style: positionStyle(block.position), role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-label": block.variable || "progress" },
       [track],
     );
     var target = progressTarget(block);
@@ -2619,7 +2619,7 @@
   // The window opens with a click on the icon or with a trigger to its event (`revealer-open:<id>`), and closes with its x or Escape. Its button is an
   // event of its own (`revealer-button:<id>`) that does what a button block does. The icon is drawn by revealerIconSvg (revealerGeometry.js).
   function renderRevealerBlock(block) {
-    var wrap = el("div", { class: "weft-block weft-block-revealer", style: positionStyle(block.position) });
+    var wrap = el("div", { class: "weft-block weft-block-revealer", "data-weft-block": block.id, style: positionStyle(block.position) });
     // The icon is a square as large as fits in the block's box - at its top left; the window opens around it.
     var size = Math.min(block.position.width, block.position.height / slideAspectNumeric());
     wrap.style.width = size + "cqw";
@@ -2742,7 +2742,7 @@
   var REVEALER_PAD_CQW = 1.4;
 
   function renderButtonBlock(block) {
-    var wrap = el("div", { class: "weft-block weft-block-button", style: positionStyle(block.position) });
+    var wrap = el("div", { class: "weft-block weft-block-button", "data-weft-block": block.id, style: positionStyle(block.position) });
     var button = el("button", { type: "button", class: "weft-block-button-el", style: buttonLookStyle(block) }, []);
     var fillButton = function () {
       // A label with no words in it is the player's own "Weiter".
@@ -2812,7 +2812,7 @@
     '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="geometricPrecision" fill="#28497c"><path d="M13.055 5.848 11.28 4.073 6.972 8.379 4.715 6.127 2.946 7.899l4.027 4.026z"/><path d="M14.5 1.5v13h-13v-13zM16 0H0v16h16z"/></svg>';
 
   function renderQuizBlock(block) {
-    var wrap = el("div", { class: "weft-block weft-block-quiz", style: positionStyle(block.position) });
+    var wrap = el("div", { class: "weft-block weft-block-quiz", "data-weft-block": block.id, style: positionStyle(block.position) });
     var form = el("form", { class: "weft-quiz" }, []);
 
     var question = el("div", { class: "weft-quiz-question", id: "weft-question-" + block.id }, []);
@@ -2994,7 +2994,7 @@
   }
 
   function renderClozeBlock(block) {
-    var wrap = el("div", { class: "weft-block weft-block-cloze", style: positionStyle(block.position) });
+    var wrap = el("div", { class: "weft-block weft-block-cloze", "data-weft-block": block.id, style: positionStyle(block.position) });
     var box = el("div", { class: "weft-cloze" }, []);
     var text = el("div", { class: "weft-cloze-text" }, []);
     box.appendChild(text);
@@ -3232,7 +3232,7 @@
     progressBars = [];
     var page = module.pages[pageId];
     setUpGraph(page);
-    var stage = el("div", { class: "weft-stage", style: stageStyle(), "data-weft-theme": stageTheme(), "data-weft-style": stageUiStyle() }, []);
+    var stage = el("div", { class: "weft-stage", "data-weft-page": pageId, style: stageStyle(), "data-weft-theme": stageTheme(), "data-weft-style": stageUiStyle() }, []);
     var layout = page.layoutId ? module.layouts[page.layoutId] : null;
     // Every block of the stage with its place in the stacking order (the layout's blocks lie under the page's own): the blocks are put
     // into the page in reading order (see readingOrder), and the stacking is kept by z-index.

@@ -9,6 +9,7 @@ import { isTranslated, plainTextOfHtml } from "../src/core/document/translations
 import { placeholderSources } from "../src/core/document/variablePlaceholders";
 import { virtualVariablesFor } from "../src/core/document/virtualVariables";
 import { actionEffectProblem, listAllNodes } from "../src/core/document/pageTimeline";
+import { CURATED_FONTS } from "../src/core/fonts/curatedFonts";
 import { CURRENT_FORMAT_VERSION } from "../src/core/types";
 import type { Block, Page, TimelineNode, VariableEffect, WeftModule } from "../src/core/types";
 import type { LoadedWeft } from "./load";
@@ -249,6 +250,7 @@ export function validate(loaded: LoadedWeft): Finding[] {
   findings.push(...schemaFindings(loaded, labels));
 
   const variableIds = new Set(content.variables.map((v) => v.id));
+  const knownFonts = new Set([...CURATED_FONTS.map((f) => f.family), ...(content.customFonts ?? []).map((f) => f.family)]);
   const variableNames = new Set([...content.variables.map((v) => v.name), ...virtualVariablesFor(content.languages ?? []).map((v) => v.name)]);
 
   // Variables.
@@ -430,6 +432,36 @@ export function validate(loaded: LoadedWeft): Finding[] {
     // {{placeholders}}.
     const problems = [...new Set(placeholderSources(block).flatMap((html) => placeholderProblems(html, variableNames)))];
     for (const problem of problems) add("warning", "placeholder-variable", problem, here);
+
+    // The markup of the texts: a colour in <font color> that is not a hex colour is not read (the text comes out in its own colour), a typeface
+    // that is not in the list falls back to the standard one.
+    const markupProblems = new Set<string>();
+    for (const html of placeholderSources(block)) {
+      for (const m of html.matchAll(/<font\b[^>]*?\scolor="([^"]*)"/gi)) {
+        const value = m[1].trim();
+        if (!/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value) && !/^[a-z]+$/i.test(value)) {
+          markupProblems.add(`color:${value}`);
+        }
+      }
+      for (const m of html.matchAll(/<font\b[^>]*?\sface="([^"]*)"/gi)) {
+        const family = m[1].trim();
+        if (!knownFonts.has(family)) markupProblems.add(`face:${family}`);
+      }
+    }
+    for (const problem of markupProblems) {
+      const [kind, value] = [problem.slice(0, problem.indexOf(":")), problem.slice(problem.indexOf(":") + 1)];
+      if (kind === "color") {
+        add("warning", "html-color-invalid", `<font color="${value}"> ist keine Farbe, die Weft liest: der Text bekommt seine eigene Farbe, nicht diese.`, {
+          ...here,
+          hint: 'In <font color> nur #rrggbb (oder #rgb) schreiben. Eine durchscheinende Farbe geht mit <span style="color:rgba(251,191,36,0.4)">.',
+        });
+      } else {
+        add("warning", "html-font-unknown", `Die Schrift „${value}" gibt es nicht (nicht in der Schriftenliste, nicht im Modul): der Text erscheint in der Standardschrift.`, {
+          ...here,
+          hint: "Eine Schrift der Liste nehmen (docs/ai-authoring.md) oder die eigene Schrift im Editor in die Einstellungen laden.",
+        });
+      }
+    }
 
     // Translations.
     if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {

@@ -41,7 +41,7 @@ Prüft die Datei auf
 | Verweise | `layout-missing`, `sequence-page-missing`, `branch-page-missing`, `condition-variable-missing`, `jump-target-missing`, `button-target-missing`, `button-target-empty`, `effect-variable-missing`, `quiz-correct-missing`, `group-block-missing`, `placeholder-link-broken`, `placeholder-on-page` |
 | Dateien | `asset-missing` (nicht in der Liste), `asset-file-missing` (nicht im Archiv), `media-empty` |
 | Ereignisse | `event-unreachable` (nichts löst es aus), `event-multiple-triggers` (mehrere Auslöser - zum Beispiel Weiter-Kette und Quiz; Warnung, wenn ein Weiter dabei ist), `page-no-exit` („Nächste Folie" nicht erreichbar), `trigger-dangling` (Auslöser zwischen Ereignissen, die es nicht gibt) |
-| Inhalt | `placeholder-variable` (unbekannte `{{Variable}}` oder Formatierung mitten im Namen), `quiz-no-correct`, `quiz-few-options`, `cloze-no-blanks`, `translation-missing`, `block-off-slide`, `block-no-size` |
+| Inhalt | `placeholder-variable` (unbekannte `{{Variable}}` oder Formatierung mitten im Namen), `html-color-invalid` (`<font color>` ohne #rrggbb, zum Beispiel rgba), `html-font-unknown` (Schrift nicht in der Liste), `quiz-no-correct`, `quiz-few-options`, `cloze-no-blanks`, `translation-missing`, `block-off-slide`, `block-no-size` |
 | Hinweise | `image-no-alt`, `button-no-text`, `variable-unused`, `variable-duplicate`, `page-deleted` |
 
 Jede Meldung hat `severity` (`error`, `warning`, `info`), `code`, `message`, wo sinnvoll `hint` (was zu tun ist) und die Stelle (`page` mit Nummer und Id, `layout`, `blockId`).

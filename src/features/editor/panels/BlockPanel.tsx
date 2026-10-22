@@ -179,14 +179,14 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, onSetAudio
       {/* Same formatting toolbar for both - a quiz's question and options are rich text edited
           directly on the canvas exactly like a text block's own content, just several regions
           sharing one block instead of one filling it (see EditableRichText in BlockView.tsx). */}
+      {/* (Not for a button: its look comes from the module's style - see "Stil interaktiver Elemente" - and only its words are the author's.) */}
       {(block.kind === "text" ||
         block.kind === "placeholder" ||
         block.kind === "quiz" ||
         block.kind === "list" ||
-        block.kind === "cloze" ||
-        block.kind === "button") && (
+        block.kind === "cloze") && (
         <TextEditor
-          block={block.kind === "text" || block.kind === "button" ? block : undefined}
+          block={block.kind === "text" ? block : undefined}
           onUpdate={onUpdate}
           // A text a page has for a placeholder of its layout: its formatting can be brought back to the placeholder's.
           onResetStyle={fromPlaceholder && page ? () => resetPlaceholderFormatting(page.id, block.id) : undefined}

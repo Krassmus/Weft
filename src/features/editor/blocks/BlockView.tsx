@@ -869,8 +869,9 @@ function BlockContent({
         </div>
       );
     case "button": {
-      // The label is edited right here, formatted like a text (the sidebar's toolbar is the same one). A label with no words in
-      // it stands for the player's own "Weiter" - shown as long as the button is not being edited.
+      // The label is edited right here - only its words: its typeface and size are the module's style of interactive elements, so the keys
+      // for bold, italic and underline do nothing here. A label with no words in it stands for the player's own "Weiter" - shown as long as
+      // the button is not being edited.
       const hasWords = buttonText(block, lang, defaultLang).trim() !== "";
       return (
         <div className="weft-edit-block-button" style={buttonAppearanceCss(block)}>
@@ -881,6 +882,9 @@ function BlockContent({
             editable={selected && editing}
             wholeMode={selected && !editing}
             frameSelect={frameSelect}
+            onKeyDown={(event) => {
+              if ((event.metaKey || event.ctrlKey) && ["b", "i", "u"].includes(event.key.toLowerCase())) event.preventDefault();
+            }}
             onCommit={(html) => onUpdate?.(buttonHtmlPatch(block, lang, defaultLang, html))}
           />
         </div>

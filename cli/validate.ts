@@ -188,7 +188,7 @@ export function eventLabel(page: Page, node: TimelineNode, content: WeftModule, 
   if (node.kind === "start") return "Start der Folie";
   if (node.kind === "end") return "Nächste Folie";
   const block = node.sourceBlockId ? (page.blocks[node.sourceBlockId] ?? undefined) : undefined;
-  const summary = block ? blockSummary(block, content, labels) : "";
+  const summary = block ? block.name?.trim() || blockSummary(block, content, labels) : "";
   const what = block ? ` (${summary.length > 40 ? `${summary.slice(0, 39)}…` : summary})` : "";
   const names: Record<string, string> = {
     "block-entrance": "Aufbau",

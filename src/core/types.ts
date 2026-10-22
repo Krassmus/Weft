@@ -108,6 +108,9 @@ export interface ActionEffect {
 
 interface BaseBlock {
   id: UUID;
+  /** What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in
+   * what `weft inspect` says, and a way for tools to refer to it. Never shown to learners. */
+  name?: string;
   /** Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts. */
   order: OrderKey;
   position: BlockPosition;

@@ -5,6 +5,8 @@ import type { Block } from "../../core/types";
 
 /** What to call a block in a list of the page's elements: its kind and, where it has words, the first of them. */
 export function blockTitle(block: Block, t: (key: TranslationKey) => string): string {
+  const name = block.name?.trim();
+  if (name) return name;
   if (block.kind === "revealer") {
     const kindName = t(BLOCK_KIND_KEYS[block.kind]);
     const title = block.title.trim();

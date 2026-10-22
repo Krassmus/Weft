@@ -128,7 +128,7 @@ export function PagePanel({ page }: { page: Page }) {
                             {...listHoverProps([memberId])}
                           >
                             <BlockKindIcon kind={memberBlock.kind} size={16} />
-                            {t(BLOCK_KIND_KEYS[memberBlock.kind])}
+                            {memberBlock.name?.trim() || t(BLOCK_KIND_KEYS[memberBlock.kind])}
                           </button>
                           <button
                             type="button"
@@ -171,7 +171,7 @@ export function PagePanel({ page }: { page: Page }) {
                   {...dragAttrs}
                 >
                   <BlockKindIcon kind={block.kind} size={16} />
-                  {t(BLOCK_KIND_KEYS[block.kind])}
+                  {block.name?.trim() || t(BLOCK_KIND_KEYS[block.kind])}
                 </button>
                 <button
                   type="button"

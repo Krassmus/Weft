@@ -402,6 +402,15 @@ function PositionCollapsible({ block, onUpdate }: { block: Block; onUpdate: Bloc
   const { t } = useTranslation();
   return (
     <Collapsible title={`${t("panel.element")} · ${t(BLOCK_KIND_KEYS[block.kind])}`}>
+      <label className="weft-field">
+        <span>{tr("ui.block_name")}</span>
+        <input
+          value={block.name ?? ""}
+          placeholder={t(BLOCK_KIND_KEYS[block.kind])}
+          title={tr("ui.block_name_hint")}
+          onChange={(e) => onUpdate({ name: e.target.value === "" ? undefined : e.target.value })}
+        />
+      </label>
       <PositionEditor block={block} onUpdate={onUpdate} />
       <RotationEditor block={block} onUpdate={onUpdate} />
     </Collapsible>

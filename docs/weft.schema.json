@@ -82,6 +82,10 @@
           "const": "arrow",
           "type": "string"
         },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
+          "type": "string"
+        },
         "order": {
           "$ref": "#/definitions/OrderKey",
           "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
@@ -218,6 +222,10 @@
         },
         "loop": {
           "type": "boolean"
+        },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
+          "type": "string"
         },
         "order": {
           "$ref": "#/definitions/OrderKey",
@@ -514,6 +522,10 @@
           "const": "button",
           "type": "string"
         },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
+          "type": "string"
+        },
         "onClick": {
           "description": "Changes to variables that every click makes, whatever the action is (set, add, append - like the effects of a quiz).",
           "items": {
@@ -597,6 +609,10 @@
         },
         "kind": {
           "const": "cloze",
+          "type": "string"
+        },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
           "type": "string"
         },
         "onCorrect": {
@@ -687,6 +703,10 @@
         },
         "language": {
           "description": "A highlight.js language id (see CODE_LANGUAGES in core/code/highlight.ts), or \"auto\" to let the highlighter guess.",
+          "type": "string"
+        },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
           "type": "string"
         },
         "order": {
@@ -803,6 +823,10 @@
           "const": "files",
           "type": "string"
         },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
+          "type": "string"
+        },
         "order": {
           "$ref": "#/definitions/OrderKey",
           "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
@@ -892,6 +916,10 @@
         },
         "kind": {
           "const": "iframe",
+          "type": "string"
+        },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
           "type": "string"
         },
         "order": {
@@ -992,6 +1020,10 @@
             }
           ],
           "description": "Step one of editing: only the part inside the mask is shown. null/absent: the whole picture."
+        },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
+          "type": "string"
         },
         "order": {
           "$ref": "#/definitions/OrderKey",
@@ -1273,6 +1305,10 @@
           "const": "language",
           "type": "string"
         },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
+          "type": "string"
+        },
         "order": {
           "$ref": "#/definitions/OrderKey",
           "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
@@ -1368,6 +1404,10 @@
         "markerSize": {
           "description": "marker \"image\": the height of the picture, in em of the text (default 1.2).",
           "type": "number"
+        },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
+          "type": "string"
         },
         "order": {
           "$ref": "#/definitions/OrderKey",
@@ -1665,6 +1705,10 @@
           "description": "What it is for (\"Titel\", \"Untertitel\", ...): shown in the slot on the pages.",
           "type": "string"
         },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
+          "type": "string"
+        },
         "order": {
           "$ref": "#/definitions/OrderKey",
           "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
@@ -1717,6 +1761,10 @@
         },
         "kind": {
           "const": "progress",
+          "type": "string"
+        },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
           "type": "string"
         },
         "order": {
@@ -1783,6 +1831,10 @@
         },
         "kind": {
           "const": "quiz",
+          "type": "string"
+        },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
           "type": "string"
         },
         "onCorrect": {
@@ -1933,6 +1985,10 @@
           "const": "revealer",
           "type": "string"
         },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
+          "type": "string"
+        },
         "order": {
           "$ref": "#/definitions/OrderKey",
           "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
@@ -2048,6 +2104,10 @@
           "const": "script",
           "type": "string"
         },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
+          "type": "string"
+        },
         "order": {
           "$ref": "#/definitions/OrderKey",
           "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
@@ -2144,6 +2204,10 @@
         },
         "kind": {
           "const": "shape",
+          "type": "string"
+        },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
           "type": "string"
         },
         "order": {
@@ -2473,6 +2537,10 @@
           "const": "tex",
           "type": "string"
         },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
+          "type": "string"
+        },
         "order": {
           "$ref": "#/definitions/OrderKey",
           "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
@@ -2526,6 +2594,10 @@
         },
         "kind": {
           "const": "text",
+          "type": "string"
+        },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
           "type": "string"
         },
         "order": {
@@ -2918,6 +2990,10 @@
         "muted": {
           "description": "Autoplay only ever actually starts when this is true too (every browser's autoplay policy requires it) - BlockPanel.tsx keeps the two in sync in the UI so that's never a silent trap.",
           "type": "boolean"
+        },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
+          "type": "string"
         },
         "order": {
           "$ref": "#/definitions/OrderKey",

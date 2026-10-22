@@ -201,6 +201,11 @@ const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
   get script() { return tr("ui.script_block"); },
 };
 
+/** What a block is called in the graph: the author's name for it, else its kind. */
+export function blockNameOf(block: Block): string {
+  return block.name?.trim() || BLOCK_KIND_LABELS[block.kind];
+}
+
 /** Kept in sync by hand with player.runtime.js's own blockEffectEventId - see that file's header
  * for why it can't just import this. */
 export function blockEffectNodeId(blockId: string, phase: "entrance" | "exit"): string {
@@ -213,7 +218,7 @@ function makeBlockEffectNode(block: Block, phase: "entrance" | "exit"): Timeline
     kind: "event",
     sourceBlockId: block.id,
     eventType: phase === "entrance" ? "block-entrance" : "block-exit",
-    label: `${BLOCK_KIND_LABELS[block.kind]} ${phase === "entrance" ? "erscheint" : "verschwindet"}`,
+    label: `${blockNameOf(block)} ${phase === "entrance" ? "erscheint" : "verschwindet"}`,
   };
 }
 
@@ -297,7 +302,7 @@ function makeBlockActionNode(page: Page, block: Block, effect: ActionEffect): Ti
     kind: "event",
     sourceBlockId: block.id,
     eventType: ACTION_EVENT_TYPES[effect.type],
-    label: tr(effect.type === "move" ? "ui.action_moves" : effect.type === "shake" ? "ui.action_shakes" : "ui.action_blinks", { n0: BLOCK_KIND_LABELS[block.kind] }),
+    label: tr(effect.type === "move" ? "ui.action_moves" : effect.type === "shake" ? "ui.action_shakes" : "ui.action_blinks", { n0: blockNameOf(block) }),
     ...(problem ? { problem } : {}),
   };
 }
@@ -329,7 +334,7 @@ export function scriptRunNodeId(blockId: string): string {
 }
 
 function makeScriptNode(block: Block): TimelineNode {
-  return { id: scriptRunNodeId(block.id), kind: "event", sourceBlockId: block.id, eventType: "script-run", label: BLOCK_KIND_LABELS[block.kind] };
+  return { id: scriptRunNodeId(block.id), kind: "event", sourceBlockId: block.id, eventType: "script-run", label: blockNameOf(block) };
 }
 
 /** The event of a button being clicked (a user event: nothing can make it happen but the learner). */
@@ -364,7 +369,8 @@ function makeRevealerNodes(block: RevealerBlock): TimelineNode[] {
 }
 
 function makeButtonNode(block: Block): TimelineNode {
-  return { id: buttonClickNodeId(block.id), kind: "event", sourceBlockId: block.id, eventType: "button-click" };
+  const name = block.name?.trim();
+  return { id: buttonClickNodeId(block.id), kind: "event", sourceBlockId: block.id, eventType: "button-click", ...(name ? { label: tr("ui.named_clicked", { n0: name }) } : {}) };
 }
 
 function makeGroupEffectNode(group: BlockGroup, phase: "entrance" | "exit"): TimelineNode {

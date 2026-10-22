@@ -612,7 +612,7 @@ function TimelineGraph({ page }: { page: Page }) {
             const top = Math.min(...points.map((p) => p.y)) - FRAME_TOP - ICON / 2;
             return (
               <span key={blockId} className="weft-eg-block-label" style={{ left: left + 10, top: top + 4 }}>
-                {BLOCK_FRAME_LABELS[frame.kind] ?? ""}
+                {page.blocks[blockId]?.name?.trim() || (BLOCK_FRAME_LABELS[frame.kind] ?? "")}
               </span>
             );
           })}

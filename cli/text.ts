@@ -19,6 +19,11 @@ export function pageBlocks(content: WeftModule, page: Page): { block: Block; fro
 
 /** One line that says what a block is: its words, its question, its picture. */
 export function blockSummary(block: Block, content: WeftModule, labels: Record<string, string>): string {
+  const name = block.name?.trim();
+  return name ? `„${name}": ${blockContent(block, content, labels)}` : blockContent(block, content, labels);
+}
+
+function blockContent(block: Block, content: WeftModule, labels: Record<string, string>): string {
   switch (block.kind) {
     case "text":
       return words(block.html) || "(leer)";

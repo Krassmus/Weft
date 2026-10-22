@@ -102,7 +102,7 @@ const EVENT_ICONS: Record<TimelineEventType, string> = {
   "block-action-move": moveActionIconSvg,
   "block-action-shake": shakeActionIconSvg,
   "block-action-blink": blinkActionIconSvg,
-  "button-click": hand2IconSvg,
+  "button-click": cursorIconSvg,
   "revealer-open": infoIconSvg,
   "revealer-button": hand2IconSvg,
   "group-entrance": animationIconSvg,

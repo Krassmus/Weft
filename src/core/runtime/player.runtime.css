@@ -49,6 +49,10 @@ body {
   align-items: center;
   justify-content: center;
   background-color: var(--vanillalm-background-color, black);
+  /* Its own stacking context: the z-index of the blocks inside (their stacking, see player.runtime.js) must not reach out over the
+     slide that is lying on top of this one during a transition - the outgoing slide of a Fade was hidden by the opaque layout
+     background of the incoming one, so the next slide seemed to appear at once. */
+  isolation: isolate;
 }
 
 /* Applied only while animateTransition() is running (see player.runtime.js) - stacks the outgoing

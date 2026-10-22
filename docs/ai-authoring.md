@@ -70,6 +70,25 @@ Anders gewünscht? Dann mit `set_trigger` festlegen, was auslöst (das **ersetzt
 - Lückentext: die Antworten stehen als `[[Antwort]]` im Text, mehrere richtige mit `|` (`[[Shakespeare|Shakespear]]`). `caseSensitive` und `tolerance` (Tippfehler, 0 bis 2) steuern, was als richtig gilt. Leerzeichen zählen nie (1 714 ist 1714).
 - Beide brauchen Platz für ihre Rückmeldung unter dem Button: `validate --layout` misst sie mit.
 
+## Verzweigungen
+
+Wer ein Quiz falsch beantwortet, kann einen anderen Weg gehen als wer es richtig hatte. Dazu merkt sich das Quiz das Ergebnis in einer Variablen, und eine Verzweigung wählt danach den Zweig:
+
+```json
+{"op": "add_variable", "name": "quizRichtig", "type": "boolean", "initialValue": false}
+{"op": "add_block", "page": "$quiz", "kind": "quiz", "set": {"…": "…", "onCorrect": [{"variableId": "quizRichtig", "op": "set", "value": true}], "onIncorrect": [{"variableId": "quizRichtig", "op": "set", "value": false}]}}
+{"op": "add_logic", "layout": "$inhalt", "name": "Quiz richtig?", "as": "fork", "branches": [
+  {"label": "Richtig", "condition": {"variable": "quizRichtig", "comparator": "eq", "value": true}},
+  {"label": "Noch einmal genauer"}]}
+{"op": "add_page", "layout": "$inhalt", "branch": {"logic": "$fork", "branch": "Richtig"}, "as": "weiter1"}
+{"op": "remove_page", "page": "5.a.1"}
+```
+
+- Der letzte Zweig ist das „sonst" und hat keine Bedingung.
+- **Jeder Zweig kommt mit einer leeren Folie.** Die eigenen Folien mit `add_page` und `branch` hinzufügen und die leere danach mit `remove_page` (Nummer wie `5.a.1`) wieder entfernen – die Nummern zählt `weft inspect`. Die gelöschte Folie bleibt als Hinweis `page-deleted` in der Datei; wer das nicht will, füllt stattdessen die leere Folie (ihre Id steht in der Antwort von `add_logic`) in einem zweiten `weft edit`.
+- Nach der Verzweigung läuft die Hauptfolge weiter; alle Zweige treffen sich dort wieder.
+- `weft play modul.weft --page 4 --steps "tick 2; submit; weiter"` geht einen Zweig durch.
+
 ## Die typischen Fallen
 
 | Falle | Woran man sie merkt |

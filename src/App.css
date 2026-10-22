@@ -1390,6 +1390,12 @@ img.weft-thumb-block {
   fill: currentColor;
 }
 
+/* The cursor of "Ausfüllen" (cursor.svg): a tall, narrow drawing - larger than the rest, as far as the circle lets it be. */
+.weft-timeline-node-icon svg.weft-cursor-icon {
+  width: 18px;
+  height: 18px;
+}
+
 /* The icon of a kind of element (BlockKindIcon) is drawn with lines, not filled. */
 .weft-timeline-node-icon svg.weft-kind-icon {
   fill: none;

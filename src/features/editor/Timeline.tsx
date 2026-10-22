@@ -74,8 +74,11 @@ const EVENT_LABELS: Record<TimelineEventType, string> = {
   get "script-run"() { return tr("ui.script_block"); },
 };
 
-// The cursor (cursor.svg) has its colour fixed in the file; the graph colours its icons itself (currentColor, see App.css).
-const cursorIconSvg = cursorIconRaw.replace(/fill:rgb\([^)]*\);/, "");
+// The cursor (cursor.svg) has its colour fixed in the file; the graph colours its icons itself (currentColor, see App.css). It is cut to its
+// drawing (the file has a margin around it) and drawn larger than the other icons (.weft-cursor-icon in App.css): at their size it is too small to read.
+const cursorIconSvg = cursorIconRaw
+  .replace(/fill:rgb\([^)]*\);/, "")
+  .replace('viewBox="0 0 50 50"', 'viewBox="5.7 2 35 46" class="weft-cursor-icon"');
 
 // "richtig" keeps the checkmark; "falsch" gets its own (decline.svg) rather than sharing accept.svg
 // - the two outcome lanes should read apart from each other at a glance, not just by their label.

@@ -83,8 +83,15 @@ export function findChrome(given?: string): string {
   );
 }
 
-/** The folder public/fonts of the Weft checkout this tool was built in. */
+/** The folder public/fonts of the Weft checkout this tool was built in: found by going up from the built file (it may stand in cli/dist or, as
+ * a chunk of it, in cli/dist/assets). */
 function curatedFontsFolder(): string {
+  let folder = dirname(fileURLToPath(import.meta.url));
+  for (let level = 0; level < 6; level++) {
+    const candidate = join(folder, "public", "fonts");
+    if (existsSync(candidate)) return candidate;
+    folder = dirname(folder);
+  }
   return resolve(dirname(fileURLToPath(import.meta.url)), "../../public/fonts");
 }
 

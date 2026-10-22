@@ -486,6 +486,18 @@ body {
   height: 1.4em;
 }
 
+/* What is told about the answer after submitting (QuizBlock.explanation): plain text, its lines kept. */
+.weft-quiz-explanation {
+  padding: 0.2em 0.1em 0;
+  white-space: pre-line;
+  color: var(--slide-fg);
+  opacity: 0.9;
+}
+
+.weft-quiz-explanation[hidden] {
+  display: none;
+}
+
 .weft-quiz-feedback.is-correct {
   background: var(--slide-ok-soft);
   border-color: var(--slide-ok-line);

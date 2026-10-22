@@ -278,6 +278,11 @@
     return t && t.questionHtml !== undefined ? t.questionHtml : block.questionHtml;
   }
 
+  function quizExplanationText(block) {
+    var t = currentTranslation(block);
+    return t && t.explanation !== undefined ? t.explanation : block.explanation || "";
+  }
+
   function quizOptionHtml(block, option) {
     var t = currentTranslation(block);
     return t && t.options && t.options[option.id] !== undefined ? t.options[option.id] : option.html;
@@ -2911,6 +2916,10 @@
     feedback.appendChild(feedbackIcon);
     feedback.appendChild(feedbackTitle);
     form.appendChild(feedback);
+    // What is told about the answer, under the feedback (the text is there from the start, shown with the feedback).
+    var explanation = el("div", { class: "weft-quiz-explanation", hidden: "" }, []);
+    explanation.textContent = quizExplanationText(block);
+    form.appendChild(explanation);
 
     form.addEventListener("submit", function (event) {
       event.preventDefault();
@@ -2958,6 +2967,7 @@
       showFeedbackTitle();
       feedback.className = "weft-quiz-feedback " + (open ? "is-thanks" : correct ? "is-correct" : "is-incorrect");
       feedback.hidden = false;
+      explanation.hidden = !explanation.textContent;
       announce(feedbackTitle.textContent);
     });
 
@@ -2986,8 +2996,8 @@
     return previous[b.length];
   }
 
-  function clozeNormalise(text, caseSensitive) {
-    var trimmed = String(text).trim().replace(/\s+/g, " ");
+  function clozeNormalise(text, caseSensitive, ignoreSpaces) {
+    var trimmed = ignoreSpaces ? String(text).replace(/\s+/g, "") : String(text).trim().replace(/\s+/g, " ");
     return caseSensitive ? trimmed : trimmed.toLocaleLowerCase();
   }
 
@@ -2997,11 +3007,11 @@
     return answerLength > tolerance * 2 ? tolerance : 0;
   }
 
-  function clozeIsRight(given, answers, caseSensitive, tolerance) {
-    var typed = clozeNormalise(given, caseSensitive);
+  function clozeIsRight(given, answers, caseSensitive, tolerance, ignoreSpaces) {
+    var typed = clozeNormalise(given, caseSensitive, ignoreSpaces);
     if (!typed.length) return false;
     return answers.some(function (answer) {
-      var wanted = clozeNormalise(answer, caseSensitive);
+      var wanted = clozeNormalise(answer, caseSensitive, ignoreSpaces);
       return clozeLevenshtein(typed, wanted) <= clozeAllowedSlips(wanted.length, tolerance);
     });
   }
@@ -3114,7 +3124,7 @@
       var tolerance = block.tolerance || 0;
       var allRight = blanks.length > 0;
       blanks.forEach(function (blank) {
-        var right = clozeIsRight(blank.input.value, blank.answers, caseSensitive, tolerance);
+        var right = clozeIsRight(blank.input.value, blank.answers, caseSensitive, tolerance, !!block.ignoreSpaces);
         if (!right) allRight = false;
         blank.input.disabled = true;
         if (!right) blank.input.setAttribute("aria-invalid", "true");

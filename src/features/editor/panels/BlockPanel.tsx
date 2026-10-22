@@ -103,7 +103,7 @@ import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from ".
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
+import { quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
 import type { RevealerWording } from "../../../core/document/translations";
 import { revealerIconSvg } from "../../../core/runtime/revealerGeometry";
 import { clozeBlanks } from "../../../core/document/cloze";
@@ -1790,6 +1790,10 @@ function ClozeEditor({ block, page, onUpdate }: { block: ClozeBlock; page?: Page
           <input type="checkbox" checked={!!block.caseSensitive} onChange={(e) => onUpdate({ caseSensitive: e.target.checked })} />
           <span>{tr("ui.case_sensitive")}</span>
         </label>
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={!!block.ignoreSpaces} onChange={(e) => onUpdate({ ignoreSpaces: e.target.checked })} />
+          <span>{tr("ui.ignore_spaces")}</span>
+        </label>
         <label className="weft-field">
           <span>{tr("ui.tolerance_for_typos")}</span>
           <select value={block.tolerance ?? 0} onChange={(e) => onUpdate({ tolerance: Number(e.target.value) })}>
@@ -3089,6 +3093,17 @@ function QuizEditor({ block, page, onUpdate }: { block: QuizBlock; page?: Page; 
         >
           {tr("ui.option")}
         </button>
+      </Collapsible>
+
+      <Collapsible title={tr("ui.quiz_explanation")} defaultOpen={quizExplanation(block, lang, defaultLang).trim() !== ""}>
+        <p className="weft-hint">{tr("ui.quiz_explanation_hint")}</p>
+        <LanguageSelect block={block} />
+        <textarea
+          rows={4}
+          aria-label={tr("ui.quiz_explanation")}
+          value={quizExplanation(block, lang, defaultLang)}
+          onChange={(e) => onUpdate(quizExplanationPatch(block, lang, defaultLang, e.target.value))}
+        />
       </Collapsible>
 
       <Collapsible title={block.open ? tr("ui.after_submitting") : tr("ui.on_a_correct_answer")} defaultOpen={false}>

@@ -125,6 +125,15 @@ export function textHtmlPatch(block: TextBlock | ClozeBlock, language: string | 
   return wordingPatch(block, language, defaultLanguage, { html }, (t) => ({ ...t, html }));
 }
 
+/** The explanation a quiz tells after submitting (plain text) in `language`. */
+export function quizExplanation(block: QuizBlock, language: string | null, defaultLanguage: string | null): string {
+  return translationOf(block.translations, language, defaultLanguage)?.explanation ?? block.explanation ?? "";
+}
+
+export function quizExplanationPatch(block: QuizBlock, language: string | null, defaultLanguage: string | null, text: string) {
+  return wordingPatch(block, language, defaultLanguage, { explanation: text }, (t) => ({ ...t, explanation: text })) as Partial<QuizBlock>;
+}
+
 export function quizQuestionPatch(block: QuizBlock, language: string | null, defaultLanguage: string | null, html: string) {
   return wordingPatch(block, language, defaultLanguage, { questionHtml: html }, (t) => ({
     ...t,
@@ -310,6 +319,8 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       outgoing.questionHtml = block.questionHtml;
       outgoing.options = Object.fromEntries(block.options.map((o) => [o.id, o.html]));
       if (incoming?.questionHtml !== undefined) block.questionHtml = incoming.questionHtml;
+      if (block.explanation !== undefined) outgoing.explanation = block.explanation;
+      if (incoming?.explanation !== undefined) block.explanation = incoming.explanation;
       for (const option of block.options) {
         const translated = incoming?.options?.[option.id];
         if (translated !== undefined) option.html = translated;

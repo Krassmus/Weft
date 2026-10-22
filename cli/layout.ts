@@ -71,6 +71,7 @@ const MEASURE = `(() => {
       const title = feedback.querySelector('.weft-quiz-feedback-title');
       if (title && !title.textContent.trim()) title.textContent = 'Das war leider nicht richtig.';
     }
+    for (const explanation of block.querySelectorAll('.weft-quiz-explanation')) if (explanation.textContent.trim()) explanation.hidden = false;
     const candidates = new Set([block, ...block.querySelectorAll(':scope > *')]);
     for (const element of block.querySelectorAll('*')) {
       const overflow = getComputedStyle(element).overflowY;

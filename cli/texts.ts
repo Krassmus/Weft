@@ -68,6 +68,7 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
       block.options.forEach((option, index) => {
         if (hasWords(option.html)) items.push({ key: `${id}#option:${option.id}`, source: option.html, role: `Antwort ${index + 1}` });
       });
+      if (block.explanation?.trim()) items.push({ key: `${id}#explanation`, source: plainToHtml(block.explanation), role: "Erklärung nach dem Abschicken" });
       return items;
     }
     case "list":
@@ -83,15 +84,35 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
   }
 }
 
+/** A plain text (lines) as paragraphs of HTML - the form every text of the list has - and back. */
+function plainToHtml(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => `<p>${line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`)
+    .join("");
+}
+
+function htmlToPlain(html: string): string {
+  return html
+    .replace(/<\/p>\s*<p[^>]*>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .trim();
+}
+
 const KIND_NAMES: Record<string, string> = { text: "Text", cloze: "Lückentext", quiz: "Quiz", list: "Liste", button: "Button" };
 
 /** The text a block has in `language`, if it has been translated (the block's own wording is not a translation). */
 function existingTranslation(block: Block, key: string, language: string): string {
-  const translation = (block as { translations?: Record<string, { html?: string; questionHtml?: string; options?: Record<string, string>; items?: Record<string, string>; text?: string }> }).translations?.[language];
+  const translation = (block as { translations?: Record<string, { html?: string; questionHtml?: string; options?: Record<string, string>; items?: Record<string, string>; text?: string; explanation?: string }> }).translations?.[language];
   if (!translation) return "";
   const part = key.slice(key.indexOf("#") + 1);
   if (part === "html" || part === "label") return translation.html ?? (part === "label" ? (translation.text ?? "") : "");
   if (part === "question") return translation.questionHtml ?? "";
+  if (part === "explanation") return translation.explanation ? plainToHtml(translation.explanation) : "";
   if (part.startsWith("option:")) return translation.options?.[part.slice(7)] ?? "";
   if (part.startsWith("item:")) return translation.items?.[part.slice(5)] ?? "";
   return "";
@@ -241,7 +262,7 @@ export function checkTranslation(source: string, translated: string, isCloze: bo
 }
 
 type MutableBlock = Block & {
-  translations?: Record<string, { html?: string; questionHtml?: string; options?: Record<string, string>; items?: Record<string, string>; text?: string }>;
+  translations?: Record<string, { html?: string; questionHtml?: string; options?: Record<string, string>; items?: Record<string, string>; text?: string; explanation?: string }>;
 };
 
 /** Writes the translations of `file` into `content` (changed in place). Nothing is written for a text that has a problem that is an
@@ -315,6 +336,7 @@ export function importTexts(content: WeftModule, file: TextsFile): ImportReport 
         target.html = translated;
         target.text = plainTextOfHtml(translated);
       } else if (part === "question") target.questionHtml = translated;
+      else if (part === "explanation") target.explanation = htmlToPlain(translated);
       else if (part.startsWith("option:")) (target.options ??= {})[part.slice(7)] = translated;
       else if (part.startsWith("item:")) (target.items ??= {})[part.slice(5)] = translated;
       report.applied++;

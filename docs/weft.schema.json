@@ -376,6 +376,10 @@
         "body": {
           "type": "string"
         },
+        "explanation": {
+          "description": "QuizBlock: the explanation shown after submitting (plain text).",
+          "type": "string"
+        },
         "html": {
           "description": "TextBlock, ButtonBlock (its formatted label).",
           "type": "string"
@@ -606,6 +610,10 @@
         },
         "id": {
           "$ref": "#/definitions/UUID"
+        },
+        "ignoreSpaces": {
+          "description": "Spaces do not count (1 714 is 1714, \"New York\" is \"NewYork\"). Default: they are put up with only as far as there is one or more between words and at the ends are none.",
+          "type": "boolean"
         },
         "kind": {
           "const": "cloze",
@@ -1825,6 +1833,10 @@
         "exitEffect": {
           "$ref": "#/definitions/BlockEffect",
           "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "explanation": {
+          "description": "What is told after submitting, under the \"right\" / \"wrong\": an explanation of the answer (plain text, lines are kept; translations in BlockTranslation.explanation). Absent or empty: nothing.",
+          "type": "string"
         },
         "id": {
           "$ref": "#/definitions/UUID"

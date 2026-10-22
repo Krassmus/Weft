@@ -148,6 +148,8 @@ export interface BlockTranslation {
   title?: string;
   body?: string;
   alt?: string;
+  /** QuizBlock: the explanation shown after submitting (plain text). */
+  explanation?: string;
 }
 
 /** The background and border of a text block (TextBlock.box). Colours are "#rrggbb"; lengths are cqw (percent of the slide's width). */
@@ -443,6 +445,9 @@ export interface QuizBlock extends BaseBlock {
   /** What happens once the quiz as a whole was answered right / wrong (all options as they should be / not). */
   onCorrect: VariableEffect[];
   onIncorrect: VariableEffect[];
+  /** What is told after submitting, under the "right" / "wrong": an explanation of the answer (plain text, lines are kept; translations in
+   * BlockTranslation.explanation). Absent or empty: nothing. */
+  explanation?: string;
 }
 
 /**
@@ -459,6 +464,9 @@ export interface ClozeBlock extends BaseBlock {
   translations?: Record<string, BlockTranslation>;
   /** Whether capital and small letters have to be as written (default: they don't). */
   caseSensitive?: boolean;
+  /** Spaces do not count (1 714 is 1714, "New York" is "NewYork"). Default: they are put up with only as far as there is one or more between
+   * words and at the ends are none. */
+  ignoreSpaces?: boolean;
   /** How many characters of an answer may be wrong (Levenshtein distance, 0-2; default 0). Very short answers are always exact. */
   tolerance?: number;
   /** What happens for every blank that was answered right. */

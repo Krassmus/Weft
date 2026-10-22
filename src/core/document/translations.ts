@@ -291,6 +291,7 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       if (incomingWords?.alt !== undefined) block.imageAlt = incomingWords.alt;
       if (block.button && incomingWords?.text !== undefined) block.button.text = incomingWords.text;
       block.translations = { ...block.translations, [oldDefault]: outgoingWords };
+      delete block.translations[newDefault];
       continue;
     }
     if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "list") continue;

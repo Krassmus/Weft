@@ -1,6 +1,6 @@
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import html2canvas from "html2canvas";
+import { drawHolder } from "./exportCanvas";
 import { useAssetStore } from "../../core/assets/assetStore";
 import { aspectRatioNumeric } from "../../core/aspectRatio";
 import { eventTimes } from "../../core/document/readingOrder";
@@ -62,14 +62,7 @@ const renderer: CoverRenderer = {
       }
       flushSync(() => root.render(<SlideThumbnail blocks={blocks} pageId={pageId} exportPxPerCqw={COVER_WIDTH_PX / 100} imageUrls={imageUrls} />));
       await whenSettled(holder);
-      const canvas = await html2canvas(holder, {
-        scale: 1,
-        backgroundColor: "#ffffff",
-        logging: false,
-        useCORS: true,
-        width: COVER_WIDTH_PX,
-        height: Math.round(COVER_WIDTH_PX / aspect),
-      });
+      const canvas = await drawHolder(holder, { scale: 1, width: COVER_WIDTH_PX, height: Math.round(COVER_WIDTH_PX / aspect) });
       return await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
     } finally {
       root.unmount();

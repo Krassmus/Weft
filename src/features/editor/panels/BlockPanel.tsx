@@ -78,6 +78,7 @@ import type {
   ShapeShadow,
   ShapeStroke,
   TextBlock,
+  TextBox,
   TimelineEdgeKind,
   VariableDef,
   VariableEffect,
@@ -96,6 +97,7 @@ import { OutgoingTriggersSection } from "./TriggerSections";
 import { pageChoices } from "./pageChoices";
 import { PageMiniature } from "../PageMiniature";
 import { buttonAppearanceOf, defaultButtonColor } from "../../../core/document/buttonAppearance";
+import { DEFAULT_TEXT_BOX } from "../../../core/document/textBox";
 import { placeholderOfText, textsWithOtherFormatting } from "../../../core/document/placeholders";
 import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from "../../../core/document/actions";
 import { FontSelect } from "./FontSelect";
@@ -200,6 +202,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, onSetAudio
           appliesToCount={deviating}
         />
       )}
+      {block.kind === "text" && <TextBoxEditor key={block.id} block={block} onUpdate={onUpdate} />}
       {block.kind === "placeholder" && (
         <Collapsible title={tr("ui.placeholder")}>
           <label className="weft-field">
@@ -2199,6 +2202,71 @@ function ButtonActionSection({
         {variables.length === 0 && <p className="weft-hint">{tr("ui.there_are_no_variables_yet_create")}</p>}
       </Collapsible>
     </>
+  );
+}
+
+/** The background and border of a text (TextBlock.box): a card in one block. */
+function TextBoxEditor({ block, onUpdate }: { block: TextBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const box = block.box;
+  const set = (patch: Partial<TextBox>) => onUpdate({ box: { ...(box ?? DEFAULT_TEXT_BOX), ...patch } });
+  return (
+    <Collapsible title={tr("ui.text_box")} defaultOpen={box !== undefined}>
+      <label className="weft-field weft-field-inline">
+        <input type="checkbox" checked={box !== undefined} onChange={(e) => onUpdate({ box: e.target.checked ? { ...DEFAULT_TEXT_BOX } : undefined })} />
+        <span>{tr("ui.text_box_show")}</span>
+      </label>
+      {box && (
+        <>
+          <div className="weft-field">
+            <span>{tr("ui.background")}</span>
+            <div className="weft-button-look-row">
+              <label className="weft-field weft-field-inline">
+                <input type="checkbox" checked={box.fill === null} onChange={(e) => set({ fill: e.target.checked ? null : DEFAULT_TEXT_BOX.fill })} />
+                <span>{tr("ui.no_background")}</span>
+              </label>
+              {box.fill !== null && <ColorField value={box.fill} ariaLabel={tr("ui.background_colour")} onChange={(color) => set({ fill: color })} />}
+            </div>
+          </div>
+          {box.fill !== null && (
+            <div className="weft-field">
+              <span>{tr("ui.opacity_2")}</span>
+              <StepperSlider label={tr("ui.opacity")} value={Math.round(box.fillOpacity * 100)} min={0} max={100} step={5} onChange={(value) => set({ fillOpacity: Math.min(100, value) / 100 })} />
+            </div>
+          )}
+          <div className="weft-field">
+            <span>{tr("ui.border_thickness_of_the_slide_width")}</span>
+            <StepperSlider
+              label={tr("ui.border_thickness")}
+              value={Math.round(box.borderWidth * 100) / 100}
+              min={0}
+              max={2}
+              step={0.05}
+              onChange={(value) => set({ borderWidth: Math.round(value * 100) / 100, borderColor: box.borderColor ?? DEFAULT_TEXT_BOX.borderColor })}
+            />
+          </div>
+          {box.borderWidth > 0 && box.borderColor !== null && (
+            <>
+              <label className="weft-field">
+                <span>{tr("ui.border_colour")}</span>
+                <ColorField value={box.borderColor} ariaLabel={tr("ui.border_colour")} onChange={(color) => set({ borderColor: color })} />
+              </label>
+              <div className="weft-field">
+                <span>{tr("ui.border_opacity")}</span>
+                <StepperSlider label={tr("ui.border_opacity")} value={Math.round(box.borderOpacity * 100)} min={0} max={100} step={5} onChange={(value) => set({ borderOpacity: Math.min(100, value) / 100 })} />
+              </div>
+            </>
+          )}
+          <div className="weft-field">
+            <span>{tr("ui.rounding_of_the_corners_of_the")}</span>
+            <StepperSlider label={tr("ui.rounding_of_the_corners")} value={Math.round(box.radius * 100) / 100} min={0} max={8} step={0.1} onChange={(value) => set({ radius: Math.round(value * 100) / 100 })} />
+          </div>
+          <div className="weft-field">
+            <span>{tr("ui.text_box_padding")}</span>
+            <StepperSlider label={tr("ui.text_box_padding")} value={Math.round(box.padding * 100) / 100} min={0} max={10} step={0.1} onChange={(value) => set({ padding: Math.round(value * 100) / 100 })} />
+          </div>
+        </>
+      )}
+    </Collapsible>
   );
 }
 

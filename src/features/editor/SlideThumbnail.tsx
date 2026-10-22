@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import { pageProgress } from "../../core/document/pageProgress";
+import { textBoxCss } from "../../core/document/textBox";
 import { revealerIconSvg } from "../../core/runtime/revealerGeometry.js";
 import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
 import { buttonAppearanceCss } from "../../core/document/buttonAppearance";
@@ -138,7 +139,13 @@ function ThumbBlock({
     ) : null;
   }
   if (block.kind === "text") {
-    return <div className="weft-thumb-block weft-thumb-block-text" style={style} dangerouslySetInnerHTML={{ __html: shown(textHtml(block, lang, defaultLang)) }} />;
+    return (
+      <div
+        className="weft-thumb-block weft-thumb-block-text"
+        style={{ ...style, ...textBoxCss(block.box) }}
+        dangerouslySetInnerHTML={{ __html: shown(textHtml(block, lang, defaultLang)) }}
+      />
+    );
   }
   if (block.kind === "cloze") {
     return (

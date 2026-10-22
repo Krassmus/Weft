@@ -317,6 +317,18 @@
     return css;
   }
 
+  // The background and border of a text block (core/document/textBox.ts: keep them in step).
+  function textBoxStyle(box) {
+    if (!box) return "";
+    var mix = function (color, opacity) {
+      return "color-mix(in srgb," + color + " " + Math.round(Math.max(0, Math.min(1, opacity)) * 100) + "%,transparent)";
+    };
+    var css = "box-sizing:border-box;";
+    if (box.fill) css += "background:" + mix(box.fill, box.fillOpacity) + ";";
+    if (box.borderColor && box.borderWidth > 0) css += "border:" + box.borderWidth + "cqw solid " + mix(box.borderColor, box.borderOpacity) + ";";
+    return css + "border-radius:" + box.radius + "cqw;padding:" + box.padding + "cqw;";
+  }
+
   // One of the player's own fixed texts in the current language.
   function uiString(key) {
     var strings = uiStrings[currentLanguage || ""] || uiStrings[""] || {};
@@ -2169,6 +2181,7 @@
     var wrap = el("div", { class: "weft-block weft-block-" + block.kind, "data-weft-block": block.id, style: positionStyle(block.position) });
     if (block.kind === "text") {
       if (block.scrollable) wrap.classList.add("is-scrollable");
+      if (block.box) wrap.style.cssText += textBoxStyle(block.box);
       var fillText = function () {
         wrap.innerHTML = blockHtml(block);
         applyVariablesToNode(wrap);

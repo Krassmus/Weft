@@ -2506,6 +2506,10 @@
           },
           "type": "array"
         },
+        "box": {
+          "$ref": "#/definitions/TextBox",
+          "description": "A background and border behind the text - a card, in one block (instead of a shape under a text, which is two blocks, one Aufbau each, to keep together when copying). Absent: none, as every text before this existed."
+        },
         "entranceEffect": {
           "$ref": "#/definitions/BlockEffect",
           "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
@@ -2555,6 +2559,55 @@
         "kind",
         "order",
         "position"
+      ],
+      "type": "object"
+    },
+    "TextBox": {
+      "additionalProperties": false,
+      "description": "The background and border of a text block (TextBlock.box). Colours are \"#rrggbb\"; lengths are cqw (percent of the slide's width).",
+      "properties": {
+        "borderColor": {
+          "description": "The colour of the border; null: none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "borderOpacity": {
+          "type": "number"
+        },
+        "borderWidth": {
+          "description": "0: no border.",
+          "type": "number"
+        },
+        "fill": {
+          "description": "The background colour; null: none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fillOpacity": {
+          "description": "0 to 1.",
+          "type": "number"
+        },
+        "padding": {
+          "description": "The room between the border and the text.",
+          "type": "number"
+        },
+        "radius": {
+          "description": "How round the corners are.",
+          "type": "number"
+        }
+      },
+      "required": [
+        "fill",
+        "fillOpacity",
+        "borderColor",
+        "borderOpacity",
+        "borderWidth",
+        "radius",
+        "padding"
       ],
       "type": "object"
     },

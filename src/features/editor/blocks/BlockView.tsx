@@ -35,6 +35,7 @@ import { autonymLabel } from "../../../core/i18n/languages";
 import { playerStringsFor } from "../../../core/i18n/playerStrings";
 import { useEditingLanguage } from "../useEditingLanguage";
 import { useAssetStore } from "../../../core/assets/assetStore";
+import { textBoxCss } from "../../../core/document/textBox";
 import { pageProgress } from "../../../core/document/pageProgress";
 import { useStagePageId } from "./stagePage";
 import { useDocumentStore } from "../../../core/document/store";
@@ -773,6 +774,7 @@ function BlockContent({
       return (
         <EditableRichText
           className={"weft-edit-block-text" + (block.scrollable ? " is-scrollable" : "")}
+          style={textBoxCss(block.box)}
           html={textHtml(block, lang, defaultLang)}
           editable={selected && editing}
           wholeMode={selected && !editing}
@@ -1479,6 +1481,7 @@ function withoutCaretPlaceholder(html: string): string {
 
 function EditableRichText({
   className,
+  style,
   html,
   editable,
   wholeMode = false,
@@ -1488,6 +1491,7 @@ function EditableRichText({
   onCommit,
 }: {
   className: string;
+  style?: CSSProperties;
   html: string;
   editable: boolean;
   /** The block is selected but not edited: the sidebar shows and changes the formatting of the whole text (see richText.ts). */
@@ -1570,6 +1574,7 @@ function EditableRichText({
     <div
       ref={ref}
       className={className}
+      style={style}
       contentEditable={editable}
       role={editable ? "textbox" : undefined}
       aria-multiline={editable ? true : undefined}

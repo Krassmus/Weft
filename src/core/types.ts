@@ -147,6 +147,23 @@ export interface BlockTranslation {
   alt?: string;
 }
 
+/** The background and border of a text block (TextBlock.box). Colours are "#rrggbb"; lengths are cqw (percent of the slide's width). */
+export interface TextBox {
+  /** The background colour; null: none. */
+  fill: string | null;
+  /** 0 to 1. */
+  fillOpacity: number;
+  /** The colour of the border; null: none. */
+  borderColor: string | null;
+  borderOpacity: number;
+  /** 0: no border. */
+  borderWidth: number;
+  /** How round the corners are. */
+  radius: number;
+  /** The room between the border and the text. */
+  padding: number;
+}
+
 export interface TextBlock extends BaseBlock {
   kind: "text";
   html: string;
@@ -156,6 +173,9 @@ export interface TextBlock extends BaseBlock {
    * and absent on every block saved before this existed, which therefore stay unscrollable: the
    * overflowing text is simply cut off at the block's edge. */
   scrollable?: boolean;
+  /** A background and border behind the text - a card, in one block (instead of a shape under a text, which is two blocks, one Aufbau each, to
+   * keep together when copying). Absent: none, as every text before this existed. */
+  box?: TextBox;
   /** Set on a text a page has for a placeholder of its layout (see PlaceholderBlock): the id of that layout block. The text is the
    * page's own - it can be edited and formatted like any text - but where it stands is the placeholder's, and "reset" brings back the
    * placeholder's formatting. When the layout has no such placeholder any more (another layout was chosen, it was removed) it is a

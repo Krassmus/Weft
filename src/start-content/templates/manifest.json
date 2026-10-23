@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "file": "elegant.weft",
+    "title": {
+      "de": "Elegant",
+      "en": "Elegant"
+    },
+    "description": {
+      "de": "Ruhig und klassisch: cremeweißer Grund, tiefes Grün und warmes Braun, Überschriften in einer Serifenschrift. Mit Titelfolie, Textfolie, Bildfolie und einer Aufzählung, deren Punkte nacheinander erscheinen.",
+      "en": "Calm and classic: a cream ground, deep green and warm brown, headings in a serif typeface. With a title slide, a text slide, a picture slide and a list whose points appear one after the other."
+    }
+  }
+]

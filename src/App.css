@@ -6319,7 +6319,16 @@ h2.weft-inspector-header {
 /* The names of the module's JavaScript libraries in a logic block's panel (the list itself is in the settings). */
 .weft-script-library-list {
   margin: 0;
-  padding-left: 18px;
+  padding: 0;
+  list-style: none;
   font-size: 12px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.weft-script-library-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0;
 }

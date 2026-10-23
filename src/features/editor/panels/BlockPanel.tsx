@@ -11,7 +11,7 @@ import { useImageBoxAspect } from "../blocks/ImageSvg";
 import { CODE_THEMES } from "../../../core/code/codeThemes";
 import { AUTO_LANGUAGE, CODE_LANGUAGES } from "../../../core/code/highlight";
 import { createId } from "../../../core/id";
-import { addCustomFont, addScriptLibrary, addTrigger, removeTrigger, setDisappearsOnResumeOf, setEventTrigger, setQuizAdvance, setStopPointShows, updateTrigger } from "../../../core/document/actions";
+import { addCustomFont, addScriptLibrary, addTrigger, removeScriptLibrary, removeTrigger, setDisappearsOnResumeOf, setEventTrigger, setQuizAdvance, setStopPointShows, updateTrigger } from "../../../core/document/actions";
 import type { VideoUploadResult } from "../../../core/document/actions";
 import {
   blockEffectNodeId,
@@ -948,7 +948,22 @@ function ScriptLibrariesField() {
       {libraries.length > 0 ? (
         <ul className="weft-script-library-list">
           {libraries.map((library) => (
-            <li key={library.id}>{library.fileName}</li>
+            <li key={library.id}>
+              <span>{library.fileName}</span>
+              <button
+                type="button"
+                className="weft-icon-button"
+                title={tr("ui.script_library_remove")}
+                aria-label={`${tr("ui.script_library_remove")}: ${library.fileName}`}
+                onClick={() => {
+                  void confirmDestructive(tr("ui.script_library_really_remove", { name: library.fileName }), tr("ui.script_library_remove")).then((ok) => {
+                    if (ok) removeScriptLibrary(library.id);
+                  });
+                }}
+              >
+                ×
+              </button>
+            </li>
           ))}
         </ul>
       ) : (

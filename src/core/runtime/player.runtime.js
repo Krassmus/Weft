@@ -2841,8 +2841,9 @@
     languageRefreshers.push(fill);
     if (href) {
       link.setAttribute("href", href);
-      // (A page opens in a new tab, and so does a download - an address on another site cannot be saved from here, only opened; a mail or phone link
-      // hands over to the program that does it, without an empty tab.)
+      // A download is saved by the browser (the attribute) - for a file on the same site; one on another site it only opens, which is why the tab is
+      // new in either case: the player is not left. A mail or phone link hands over to the program that does it, without an empty tab.
+      if (block.download) link.setAttribute("download", "");
       if (/^https?:/i.test(href)) link.setAttribute("target", "_blank");
       link.setAttribute("rel", "noopener noreferrer");
       // In the editor's preview and the player of a player file the page lives in a sandboxed frame that cannot open a tab: the window around it

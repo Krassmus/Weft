@@ -401,6 +401,8 @@ export function EditorShell() {
   const handleExportPdfRef = useRef<() => void>(() => {});
   const handleOpenRef = useRef<() => void>(() => {});
   const handleNewRef = useRef<() => void>(() => {});
+  // (Declared up here with the other refs: a hook below the early return for the presentation would crash Abspielen - see the comment at the top.)
+  const handleUseModuleRef = useRef<(bytes: Uint8Array, title?: string) => Promise<void>>(async () => undefined);
   const showStartRef = useRef<() => void>(() => {});
   const handleDuplicateRef = useRef<() => void>(() => {});
   const handleOpenRecentRef = useRef<(path: string) => Promise<void> | void>(() => {});
@@ -809,7 +811,6 @@ export function EditorShell() {
 
   // A module that comes with Weft (a template, an example - see features/start/) becomes a module of its own: a copy under a new id and
   // with an editing history of its own, not yet saved anywhere.
-  const handleUseModuleRef = useRef<(bytes: Uint8Array, title?: string) => Promise<void>>(async () => undefined);
   async function handleUseModule(bytes: Uint8Array, title?: string) {
     try {
       if (!(await confirmLeave())) return;

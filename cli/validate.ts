@@ -418,7 +418,7 @@ export function validate(loaded: LoadedWeft): Finding[] {
 
     // Link.
     if (block.kind === "link") {
-      if (block.url.trim() === "" || block.url.trim() === "https://") add("warning", "link-no-target", "Der Link hat noch keine Adresse.", { ...here, hint: "url auf eine Adresse mit https://, mailto: oder tel: setzen." });
+      if ((block.url ?? "").trim() === "" || block.url.trim() === "https://") add("warning", "link-no-target", "Der Link hat noch keine Adresse.", { ...here, hint: "url auf eine Adresse mit https://, mailto: oder tel: setzen." });
       else if (safeLinkUrl(block.url) === null) add("error", "link-url-invalid", `Der Link führt zu „${block.url}", dahin kann ein Link nicht führen.`, { ...here, hint: "Nur Adressen mit http(s)://, mailto: oder tel: sind erlaubt." });
     }
 

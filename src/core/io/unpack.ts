@@ -163,6 +163,24 @@ function migrateLegacyShapeCornerRadius(doc: WeftDocument) {
   for (const layout of Object.values(doc.content.layouts)) migrateBlocks(Object.values(layout.blocks));
 }
 
+// A link (LinkBlock) once had a target - a page or a file of the module - and an icon, colours and a background of its own. Now it has an address
+// (`url`) and a `download` flag, and looks like a button of the module's style: a page keeps its address; a file of the module has no address any
+// more, so such a link starts empty ("https://") and is flagged by validate as having none.
+function migrateLegacyLinks(doc: WeftDocument) {
+  function migrateBlocks(blocks: Block[]) {
+    for (const block of blocks) {
+      if (block.kind !== "link") continue;
+      const legacy = block as unknown as Record<string, unknown> & { target?: { type?: string; url?: string } };
+      if (typeof block.url !== "string") block.url = legacy.target?.type === "url" && typeof legacy.target.url === "string" ? legacy.target.url : "https://";
+      if (typeof block.download !== "boolean") block.download = false;
+      if (typeof block.text !== "string") block.text = "";
+      for (const key of ["target", "icon", "fontSize", "background", "backgroundOpacity", "color", "radius"]) delete legacy[key];
+    }
+  }
+  for (const page of Object.values(doc.content.pages)) migrateBlocks(Object.values(page.blocks));
+  for (const layout of Object.values(doc.content.layouts)) migrateBlocks(Object.values(layout.blocks));
+}
+
 // Every save predating the quiz/video timeline events (or made with an older build's actions,
 // before some edit forgot to resync) may have quiz/video blocks its timeline doesn't reflect yet -
 // reconcile once on load rather than trust whatever's already in the file (see
@@ -412,6 +430,7 @@ export function unpackDocument(zipBytes: Uint8Array, options: { importAssets?: b
   migrateMissingBlockEffects(doc);
   if (fileVersion < 4) migrateBlockEffectTriggers(doc);
   migrateLegacyShapeCornerRadius(doc);
+  migrateLegacyLinks(doc);
   migrateMissingGroups(doc);
   // Older saves predate languages: a single-language module.
   doc.content.languages ??= [];

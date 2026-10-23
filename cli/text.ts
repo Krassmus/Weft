@@ -81,7 +81,7 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
     case "arrow":
       return `${block.points.length} Punkte`;
     case "link":
-      return `„${words(block.text, 40) || "(ohne Text)"}" → ${block.url}${block.download ? " (Download)" : ""}`;
+      return `„${words(block.text, 40) || "(ohne Text)"}" → ${block.url ?? "(ohne Adresse)"}${block.download ? " (Download)" : ""}`;
     case "files":
       return `${block.files.length} Dateien${block.protection ? ", geschützt" : ""}`;
     case "language":

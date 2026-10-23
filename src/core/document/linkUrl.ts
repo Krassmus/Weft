@@ -3,8 +3,8 @@
  * phone number (tel:). Anything else (javascript:, data:, a bare word) is not a link. An address typed without its scheme ("example.org/page")
  * becomes https. Null when there is nothing usable. player.runtime.js checks the same on its own (linkHref): keep them in step.
  */
-export function safeLinkUrl(raw: string): string | null {
-  const text = raw.trim();
+export function safeLinkUrl(raw: string | undefined): string | null {
+  const text = (raw ?? "").trim();
   if (!text) return null;
   if (/^(mailto:|tel:)\S+$/i.test(text)) return text;
   const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(text) ? text : /^[^\s/]+\.[^\s/]+/.test(text) ? `https://${text}` : "";

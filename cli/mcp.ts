@@ -1,4 +1,5 @@
 import { TOOL_VERSION, versionInfo, versionText } from "./version";
+import { liveCopy, liveStatus, openInApp } from "./live";
 import { guideLanguage, guideText, isGuideTopic } from "./guide";
 import { readFileSync, writeFileSync } from "node:fs";
 import { setFixedLanguage } from "../src/core/i18n/tr";
@@ -10,7 +11,7 @@ import { writeFileSync as writeFile } from "node:fs";
 import { renderPages } from "./render";
 import { checkLayout } from "./layout";
 import { playModule } from "./play";
-import { editFile, exportTextsOf, importTextsFile, inspectFile, newFile, validateFile } from "./tools";
+import { editFile, exportTextsOf, importTextsFile, inspectFile, newFile, validateFile, editLive } from "./tools";
 import type { TextsFile } from "./texts";
 
 /**
@@ -46,7 +47,7 @@ async function firstPlayablePage(file: string): Promise<string> {
   return first[1];
 }
 
-const FILE = { type: "string", description: "Pfad einer .weft-Datei (oder eines weft.json)." };
+const FILE = { type: "string", description: "Pfad einer .weft-Datei (oder eines weft.json). Ohne Angabe: das Modul, das in der Weft-App gerade offen ist (live; die App muss laufen)." };
 
 function text(value: unknown): string {
   return typeof value === "string" ? value : JSON.stringify(value, null, 2);
@@ -69,6 +70,42 @@ function summariseFindings(findings: { severity: string }[]): string {
   return `${counts.error} Fehler, ${counts.warning} Warnungen, ${counts.info} Hinweise`;
 }
 
+
+// ---- the module that is open in the Weft app ---------------------------------------------------------------------------------------
+
+const LIVE_LABEL = "(offenes Modul in Weft)";
+/** The tools that read a module and take its file: without a file they work on the module that is open in the app (see live.ts). */
+const READS_FILE = new Set(["weft_inspect", "weft_validate", "weft_text_export", "weft_render", "weft_play"]);
+
+/** Runs a tool; when it reads a file and none was given, on a temporary copy of the module that is open in the Weft app. */
+async function withLiveSource(name: string, args: Record<string, unknown>, run: Tool["run"]): Promise<unknown> {
+  if (name === "weft_edit" && !optionalString(args, "file")) {
+    if (!Array.isArray(args.operations)) throw new CliError('"operations" ist eine Liste von Operationen.');
+    const outcome = await editLive(args.operations as Operation[], { dryRun: args.dry_run === true, allowErrors: args.allow_errors === true });
+    return {
+      changedInApp: outcome.wrote,
+      ...(outcome.refused ? { notChanged: outcome.refused } : {}),
+      ...(outcome.wrote ? { note: "Im offenen Modul in Weft geändert (ein Schritt im Verlauf der App, dort mit Rückgängig zu nehmen)." } : {}),
+      ...(outcome.skipped ? { skippedBecauseTheSpotIsGone: outcome.skipped } : {}),
+      results: outcome.results,
+      newFindings: outcome.introduced,
+      totals: outcome.totals,
+    };
+  }
+  if (!READS_FILE.has(name) || optionalString(args, "file")) return run(args);
+  const needsBytes = name === "weft_render" || name === "weft_play" || args.layout === true;
+  const copy = await liveCopy({ assets: needsBytes });
+  try {
+    const result = await run({ ...args, file: copy.path });
+    // (The temporary file's name means nothing to whoever reads the answer.)
+    if (typeof result === "string") return result.split(copy.path).join(LIVE_LABEL);
+    if (result && typeof result === "object" && !("mcpContent" in result)) return JSON.parse(JSON.stringify(result).split(JSON.stringify(copy.path).slice(1, -1)).join(LIVE_LABEL));
+    return result;
+  } finally {
+    copy.cleanup();
+  }
+}
+
 const TOOLS: Tool[] = [
   {
     name: "weft_inspect",
@@ -79,7 +116,6 @@ const TOOLS: Tool[] = [
     inputSchema: {
       type: "object",
       properties: { file: FILE, page: { type: "string", description: "Folien-Nummer (2.a.1) oder Id für die Einzelansicht." } },
-      required: ["file"],
     },
     run: (args) => inspectFile(arg(args, "file"), { page: optionalString(args, "page") }).markdown,
   },
@@ -96,7 +132,6 @@ const TOOLS: Tool[] = [
         layout: { type: "boolean", description: "Auch prüfen, ob Text in seinen Kasten passt (zeichnet die Folien mit dem Player)." },
         pages: { type: "array", items: { type: "string" }, description: "Mit layout: nur diese Folien (Nummern wie 3 oder 2.a.1)." },
       },
-      required: ["file"],
     },
     run: async (args) => {
       const file = arg(args, "file");
@@ -143,7 +178,7 @@ const TOOLS: Tool[] = [
         only_missing: { type: "boolean", description: "Nur Texte ohne Übersetzung." },
         output: { type: "string", description: "Pfad einer .json-Datei, in die die Liste geschrieben wird." },
       },
-      required: ["file", "to"],
+      required: ["to"],
     },
     run: (args) => {
       const to = args.to;
@@ -245,7 +280,7 @@ const TOOLS: Tool[] = [
         dry_run: { type: "boolean", description: "Nur prüfen, nichts schreiben." },
         allow_errors: { type: "boolean", description: "Auch schreiben, wenn die Änderungen Fehler erzeugen." },
       },
-      required: ["file", "operations"],
+      required: ["operations"],
     },
     run: (args) => {
       if (!Array.isArray(args.operations)) throw new CliError('"operations" ist eine Liste von Operationen.');
@@ -280,7 +315,6 @@ const TOOLS: Tool[] = [
         state: { type: "string", enum: ["all", "start"] },
         output_dir: { type: "string", description: "Ordner, in den die PNG-Dateien zusätzlich geschrieben werden." },
       },
-      required: ["file"],
     },
     run: async (args) => {
       const pages = Array.isArray(args.pages) && args.pages.length > 0 ? args.pages.map(String) : [];
@@ -319,7 +353,7 @@ const TOOLS: Tool[] = [
         language: { type: "string", description: "Sprache des Moduls, in der gespielt wird." },
         output_dir: { type: "string", description: "Ordner, in den die Bilder aller Schritte zusätzlich geschrieben werden." },
       },
-      required: ["file", "steps"],
+      required: ["steps"],
     },
     run: async (args) => {
       if (!Array.isArray(args.steps) || args.steps.length === 0) throw new CliError('"steps" ist eine Liste von Schritten, z. B. ["weiter", "submit"].');
@@ -342,6 +376,34 @@ const TOOLS: Tool[] = [
     description: "Describes the operations of weft_edit with parameters and an example (English; lang \"de\" for German).",
     inputSchema: { type: "object", properties: { lang: { type: "string", enum: ["en", "de"], description: "Language of the description (default en)." } } },
     run: (args) => guideText("ops", guideLanguage(args.lang)),
+  },
+  {
+    name: "weft_status",
+    description:
+      "Whether the Weft app is running on this computer and which learning module is open in it. If one is, the other tools (weft_inspect, " +
+      "weft_validate, weft_render, weft_play, weft_text_export and weft_edit) work on THAT module when called WITHOUT `file` - live: " +
+      "what weft_edit changes shows up in the app at once, as one step of its undo history, and what the person types there is what you " +
+      "read next. The person decides in the app's settings whether an assistant may look, look and change, or nothing.",
+    inputSchema: { type: "object", properties: {} },
+    run: async () => {
+      try {
+        return await liveStatus();
+      } catch (error) {
+        return { running: false, message: error instanceof CliError ? error.message : String(error) };
+      }
+    },
+  },
+  {
+    name: "weft_open",
+    description:
+      "Shows a module (a .weft file, for instance one made with weft_new and weft_edit) in the running Weft app - as a new module of its own " +
+      "that is not saved anywhere yet; the file is not touched. If the person has unsaved changes open, the app asks them first. After that " +
+      "the tools work on it live (without `file`).",
+    inputSchema: { type: "object", properties: { file: { type: "string", description: "The .weft file to show." } }, required: ["file"] },
+    run: async (args) => {
+      await openInApp(arg(args, "file"));
+      return "Opened in the Weft app as a new, unsaved module. Work on it with the tools without `file`.";
+    },
   },
   {
     name: "weft_version",
@@ -403,7 +465,7 @@ function handle(request: Request): void {
         capabilities: { tools: {} },
         serverInfo: SERVER,
         instructions:
-          "Weft makes presentations and interactive learning modules (.weft files). Read weft_guide first (how to build a module that looks " +
+          "Weft makes presentations and interactive learning modules (.weft files). If the person has the Weft app open, weft_status says so and the tools work on the open module live when called without `file`. Read weft_guide first (how to build a module that looks " +
           "good), then weft_inspect to see what is there, weft_schema before writing a block, weft_edit to change (operations: weft_operations), " +
           "afterwards weft_validate with layout and weft_render / weft_play to look at the result. Changes go to a working copy (<name>.ai.weft) " +
           "- the source is never overwritten. The messages of the tools are in German; their codes are not.",
@@ -424,8 +486,7 @@ function handle(request: Request): void {
         respondError(id, -32602, `Unbekanntes Werkzeug „${name}".`);
         return;
       }
-      Promise.resolve()
-        .then(() => tool.run(args))
+      withLiveSource(name, args, tool.run)
         .then((result) => {
           const raw = (result as { mcpContent?: unknown[] } | null)?.mcpContent;
           respond(id, { content: Array.isArray(raw) ? raw : [{ type: "text", text: text(result) }] });

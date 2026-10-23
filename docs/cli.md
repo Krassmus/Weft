@@ -32,6 +32,19 @@ Die Version des Werkzeugs (die der Weft-App, aus der es gebaut ist), das Dateifo
 
 **Dateien eines anderen Formats:** Das Werkzeug wandelt nichts um. Eine Datei mit **neuerem** Format (mit einer neueren Weft-Version gespeichert) kann es nur mit Vorbehalt lesen; `inspect`, `render`, `play`, `html` und `text export` sagen das als Hinweis auf der Fehlerausgabe, `validate` meldet `format-version` als Fehler, und **ändern** (`edit`, `text import`) lehnt es ab. Eine Datei mit **älterem** Format wird gelesen (mit Hinweis, `validate` warnt), aber nicht geändert - sie einmal in Weft öffnen und speichern, dann geht es. So beschädigt ein altes Werkzeug keine neuere Datei, und ein neues schreibt keine Mischung aus alter und neuer Form.
 
+## Das in der App offene Modul: ohne Datei, `weft status`, `weft open`
+
+Läuft die Weft-App (Desktop), arbeiten `inspect`, `validate`, `render`, `play`, `html` und `text export` **ohne Dateiangabe** an dem Modul, das dort offen ist. `weft edit operationen.json` (nur die Operationen, keine Datei) **ändert es live**: Die Änderungen erscheinen sofort in der App, als ein Schritt im Verlauf (Cmd+Z / Strg+Z), und was die Person inzwischen selbst geändert hat, bleibt.
+
+```bash
+weft status                        # läuft die App, was ist offen, was darf die KI
+weft inspect                       # das offene Modul
+weft edit operationen.json         # live ändern
+weft open modul.weft               # eine Datei in der App zeigen (als neues, noch nicht gespeichertes Modul)
+```
+
+Die Person bestimmt in den Einstellungen der App (KI-Assistenten), ob das erlaubt ist: nichts, nur ansehen, ansehen und ändern. Die App öffnet dafür einen Zugang nur für diesen Computer (ein Socket auf 127.0.0.1, Port und Passwort in `control.json` im Datenordner der App, nur für diesen Benutzer lesbar); `WEFT_CONTROL_FILE` zeigt auf eine andere `control.json` (zum Beispiel für eine zweite App-Kopie). Auf dem iPad und iPhone gibt es das nicht, auch nicht in der Store-Fassung (sie liegt in einem eigenen Datenordner).
+
 ## `weft inspect <datei> [--page <nummer>] [--json]`
 
 Gliederung des Moduls: Titel, Sprachen, Variablen, Layouts mit ihren Blöcken, dann alle Folien in der Reihenfolge, in der sie gespielt werden (mit Verzweigungen und Sprung-Folien). Jeder Block steht in einer Zeile mit Art, Inhalt und Id.

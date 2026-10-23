@@ -108,6 +108,17 @@ A module in two languages is made from the finished one in the first language:
 
 What Weft itself shows ("Submit", "That was correct!") comes in the language of the player; names of blocks, variables and branches are not translated. The first language of `set_languages` is the default: the blocks' own fields are in it, the others are translations (`set_languages` with another first language turns them around).
 
+## Live in the open app
+
+When the Weft app (desktop) is running on the person's computer, you can **work on the module that is open there** - without a file, and the person sees every change at once:
+
+1. `weft status` (MCP: `weft_status`): is the app running, what is open, and what may the AI do (the person sets that in the settings under "KI-Assistenten": nothing, look only, look and change).
+2. Every command without a file works on the open module: `weft inspect`, `weft validate --layout`, `weft render`, `weft play`, `weft text export` - and `weft edit operations.json` changes it **live**. All the operations of one file are one step of the app's history: the person takes them back with Cmd+Z / Ctrl+Z.
+3. No module open (the start page), or a module should go in: build it as a file first, then `weft open module.weft` (MCP: `weft_open`) - it appears in the app as a new module that is not saved yet. If the person has unsaved changes open, the app asks them first.
+4. The person keeps working while you change: look again (`inspect`) before every step instead of changing from memory. What the person deleted between your look and your change is skipped and reported (`skipped`); nothing is forced.
+
+On an iPad this does not work (the AI does not run there, and an app cannot drive another app).
+
 ## The typical traps
 
 | Trap | How you notice |

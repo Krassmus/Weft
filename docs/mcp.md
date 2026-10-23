@@ -36,6 +36,8 @@ Der Server spricht MCP über Standard-Ein-/Ausgabe, braucht kein Netz und nichts
 | `weft_play` | Das Modul wie eine Lernperson durchspielen (weiter, ankreuzen, abschicken, ausfüllen): nach jedem Schritt in Worten, was sich geändert hat, dazu Bilder |
 | `weft_new` | Ein neues leeres Modul |
 | `weft_edit` | Änderungen als Liste von Operationen (alles oder nichts) |
+| `weft_status` | Läuft die Weft-App, was ist offen, was darf die KI. Ist ein Modul offen, arbeiten `weft_inspect`, `weft_validate`, `weft_render`, `weft_play`, `weft_text_export` und `weft_edit` **ohne `file`** daran - live (Änderungen erscheinen in der App, als ein Schritt im Verlauf) |
+| `weft_open` | Eine .weft-Datei in der App zeigen, als neues, noch nicht gespeichertes Modul |
 | `weft_version` | Version des Werkzeugs, Dateiformat, das es liest und schreibt, Node, gefundener Browser |
 | `weft_guide` | **Zuerst lesen:** die Anleitung zum Bauen eines Lernmoduls (`topic`: `authoring`, `ops`, `cli`; englisch, `lang: "de"` deutsch) - dieselben Texte wie `weft guide` |
 | `weft_operations` | Beschreibung der Operationen mit Beispiel (englisch, `lang: "de"` deutsch; steht in [operations.md](operations.md)) |
@@ -114,7 +116,8 @@ npm run tauri build -- --config src-tauri/tauri.cli.conf.json
 **Zeichnen ohne Chrome**
 - Die App selbst könnte als Zeichner dienen (ein Befehl, der die Folie in der eigenen Webansicht headless zeichnet). Das wäre die Lösung für Rechner ohne Chrome, ist aber deutlich mehr Arbeit.
 
-**Die KI als Teilnehmerin der Live-Zusammenarbeit**
+**Die KI als Teilnehmerin der Live-Zusammenarbeit (für das Tablet)**
+- Am Computer gibt es das Arbeiten am offenen Modul schon, ohne Zusammenarbeit: `weft status` / `weft edit` ohne Datei (siehe `cli.md`). Für das Tablet bleibt der Weg über die Zusammenarbeit:
 - Ein Programm auf einem Mac oder Server tritt per Einladungslink bei, bearbeitet das Modul mit denselben Operationen und zeichnet die Folien selbst. Der Mensch sieht die Änderungen live, ohne etwas auszulösen (auch auf dem iPad). Dazu bräuchte es das Beitreten ohne Browser (WebRTC in Node oder über den Sync-Server `scripts/collab-server.mjs`), das Einlesen von Änderungen und eine Regel, wann die KI „fertig" ist.
 
 **Kleinere Lücken**

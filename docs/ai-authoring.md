@@ -101,6 +101,17 @@ Ein Modul in zwei Sprachen entsteht aus dem fertigen in der ersten Sprache:
 
 Was Weft selbst zeigt („Abschicken", „Das war richtig!") kommt in der Sprache des Players; Namen von Blöcken, Variablen und Zweigen werden nicht übersetzt.
 
+## Live in der offenen App
+
+Läuft die Weft-App (Desktop) auf dem Computer der Person, kann man **an dem Modul arbeiten, das dort offen ist** - ohne Datei, und die Person sieht jede Änderung sofort:
+
+1. `weft status` (MCP: `weft_status`): läuft die App, was ist offen, und was darf die KI (die Person stellt das in den Einstellungen unter „KI-Assistenten" ein: nichts, nur ansehen, ansehen und ändern).
+2. Alle Befehle ohne Datei arbeiten am offenen Modul: `weft inspect`, `weft validate --layout`, `weft render`, `weft play`, `weft text export` - und `weft edit operationen.json` ändert es **live**. Alle Operationen einer Datei sind ein Schritt im Verlauf der App: die Person nimmt sie mit Cmd+Z / Strg+Z zurück.
+3. Ist kein Modul offen (Startseite), oder soll ein Modul neu hinein: erst als Datei bauen, dann `weft open modul.weft` (MCP: `weft_open`) - es erscheint in der App als neues, noch nicht gespeichertes Modul. Hat die Person ungespeicherte Änderungen offen, fragt die App sie erst.
+4. Die Person arbeitet weiter, während man ändert: vor jedem Schritt neu ansehen (`inspect`) statt aus dem Gedächtnis zu ändern. Was zwischen Ansehen und Ändern von der Person gelöscht wurde, wird übersprungen und gemeldet (`skipped`), nichts wird erzwungen.
+
+Auf dem iPad geht das nicht (die KI läuft dort nicht, und eine App kann eine andere nicht steuern).
+
 ## Die typischen Fallen
 
 | Falle | Woran man sie merkt |

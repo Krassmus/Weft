@@ -8,13 +8,14 @@ import type { Outline } from "./inspect";
 import { CliError, formatNotice, loadWeft, requireCurrentFormat } from "./load";
 import type { LoadedWeft } from "./load";
 import { runOperations } from "./ops";
-import type { Operation, OperationResult } from "./ops";
+import type { Operation, OperationResult, PendingAsset } from "./ops";
 import { setCurrentModule } from "./storeStub";
 import { exportTexts, importTexts, isKnownLocale } from "./texts";
 import type { ImportReport, TextsFile } from "./texts";
 import { validate } from "./validate";
 import type { Finding } from "./validate";
 import { writeWeft } from "./write";
+import { applyLive, liveCopy } from "./live";
 
 /**
  * What the command line tool (main.ts) and the MCP server (mcp.ts) both do - one place, so that they cannot differ.
@@ -64,14 +65,18 @@ export interface EditOutcome {
   refused?: string;
 }
 
-/** Runs `operations` on a copy of the module in `file`, checks the result and writes it (see targetFor). Nothing is written when
- * an operation fails, or when the operations introduce errors (unless `allowErrors`), or on `dryRun`. */
-export function editFile(
-  file: string,
-  operations: Operation[],
-  options: { output?: string; dryRun?: boolean; allowErrors?: boolean; force?: boolean } = {},
-): EditOutcome {
-  const loaded = loadWeft(file);
+/** What running `operations` on a module comes to (nothing is written yet). */
+export interface EditPlan {
+  content: WeftModule;
+  assets: PendingAsset[];
+  results: OperationResult[];
+  next: LoadedWeft;
+  introduced: Finding[];
+  totals: { error: number; warning: number; info: number };
+}
+
+/** Runs `operations` on a copy of the module and checks the result. Throws when an operation fails. */
+export function planEdit(loaded: LoadedWeft, operations: Operation[]): EditPlan {
   requireCurrentFormat(loaded, "geändert");
   const before = new Set(validate(loaded).map(findingKey));
   const content = structuredClone(loaded.content);
@@ -84,6 +89,18 @@ export function editFile(
   const introduced = after.filter((f) => !before.has(findingKey(f)));
   const totals = { error: 0, warning: 0, info: 0 };
   for (const f of after) totals[f.severity]++;
+  return { content, assets, results, next, introduced, totals };
+}
+
+/** Runs `operations` on a copy of the module in `file`, checks the result and writes it (see targetFor). Nothing is written when
+ * an operation fails, or when the operations introduce errors (unless `allowErrors`), or on `dryRun`. */
+export function editFile(
+  file: string,
+  operations: Operation[],
+  options: { output?: string; dryRun?: boolean; allowErrors?: boolean; force?: boolean } = {},
+): EditOutcome {
+  const loaded = loadWeft(file);
+  const { results, assets, introduced, totals, next } = planEdit(loaded, operations);
   const { target, inPlace } = targetFor(file, options.output);
   const outcome: EditOutcome = { target, wrote: false, results, introduced, totals };
   if (options.dryRun) {
@@ -97,6 +114,30 @@ export function editFile(
   writeWeft(file, next.json, target, options.force || inPlace, assets);
   outcome.wrote = true;
   return outcome;
+}
+
+/** The same on the module that is open in the Weft app: the changes go into the app as one step of its undo history (see live.ts). */
+export async function editLive(operations: Operation[], options: { dryRun?: boolean; allowErrors?: boolean } = {}): Promise<EditOutcome & { skipped?: number }> {
+  const copy = await liveCopy({ assets: false });
+  try {
+    const loaded = loadWeft(copy.path);
+    const { results, assets, introduced, totals, content } = planEdit(loaded, operations);
+    const outcome: EditOutcome & { skipped?: number } = { target: "offenes Modul in Weft", wrote: false, results, introduced, totals };
+    if (options.dryRun) {
+      outcome.refused = "Probelauf: nichts geändert.";
+      return outcome;
+    }
+    if (introduced.some((f) => f.severity === "error") && !options.allowErrors) {
+      outcome.refused = "Die Änderungen erzeugen Fehler; nichts geändert. Mit allow_errors/--allow-errors trotzdem ändern.";
+      return outcome;
+    }
+    const applied = await applyLive(loaded.content, content, assets, `Änderung durch KI (${operations.length} ${operations.length === 1 ? "Operation" : "Operationen"})`);
+    outcome.wrote = true;
+    outcome.skipped = applied.skipped;
+    return outcome;
+  } finally {
+    copy.cleanup();
+  }
 }
 
 // ---- a new module -------------------------------------------------------------------------------------------------------------

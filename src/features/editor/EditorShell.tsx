@@ -10,6 +10,7 @@ import { createBlankDocument } from "../../core/document/createEmptyDocument";
 import { plain } from "../../core/document/plain";
 import { useDocumentStore } from "../../core/document/store";
 import { createId } from "../../core/id";
+import { setControlHost, startControlBridge } from "../../core/control/bridge";
 import { copyOfTemplate } from "../../core/document/template";
 import { usePlayerStore } from "../../core/player/playerStore";
 import { useCustomFontRegistration } from "../../core/fonts/registerCustomFonts";
@@ -288,6 +289,23 @@ export function EditorShell() {
   useEffect(() => {
     if (isTauri()) void invoke("set_player_mode", { active: player !== null || phase !== "editor" }).catch(() => undefined);
   }, [player !== null, phase !== "editor"]);
+
+  // The local interface for AI assistants (the command line tool, `weft` without a file): requests come in as events (src-tauri/src/control.rs).
+  useEffect(() => {
+    if (!isTauri()) return;
+    let stop: (() => void) | undefined;
+    let gone = false;
+    setControlHost({ openModule: (bytes) => handleUseModuleRef.current(bytes) });
+    void startControlBridge().then((off) => {
+      if (gone) off();
+      else stop = off;
+    });
+    return () => {
+      gone = true;
+      setControlHost(null);
+      stop?.();
+    };
+  }, []);
 
   // The launch. The app opens on the start screen (see features/start/) - with one exception: a module that was never saved but
   // worked on has its recovery copy (see core/io/fileIO.ts), and that is picked up where it left off rather than left behind a
@@ -790,6 +808,7 @@ export function EditorShell() {
 
   // A module that comes with Weft (a template, an example - see features/start/) becomes a module of its own: a copy under a new id and
   // with an editing history of its own, not yet saved anywhere.
+  const handleUseModuleRef = useRef<(bytes: Uint8Array) => Promise<void>>(async () => undefined);
   async function handleUseModule(bytes: Uint8Array) {
     try {
       if (!(await confirmLeave())) return;
@@ -798,6 +817,8 @@ export function EditorShell() {
       alert(`${t("toolbar.openFailed")}\n${errorMessage(err)}`);
     }
   }
+
+  handleUseModuleRef.current = handleUseModule;
 
   // A tutorial is only played (nothing of the module that is open is touched: the start screen comes back with "Start").
   async function handlePlayModule(bytes: Uint8Array) {

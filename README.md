@@ -16,6 +16,8 @@ node cli/dist/weft.mjs guide      # the guide to building a module that looks go
 node cli/dist/weft.mjs help       # every command
 ```
 
+With the Weft desktop app open, the tool can work on the module that is open there, live (`weft status`, then `weft edit operations.json` without a file; the person sees every change at once and can undo it).
+
 Guides: [docs/ai-authoring.en.md](docs/ai-authoring.en.md), [docs/operations.en.md](docs/operations.en.md), [docs/cli.en.md](docs/cli.en.md),
 [docs/mcp.md](docs/mcp.md) (MCP, German); short version for agents: [AGENTS.md](AGENTS.md), [llms.txt](llms.txt). Auf Deutsch:
 [docs/ai-authoring.md](docs/ai-authoring.md), [docs/cli.md](docs/cli.md). Die Desktop-App (Mac, Windows, Linux) bringt das Werkzeug mit eigenem Node mit

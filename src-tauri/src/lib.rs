@@ -6,6 +6,8 @@
 // set_menu_language for how mobile still compiles (and behaves correctly - Settings lives in the
 // in-app sidebar tab there instead, needing no native menu item to open it) without any of it.
 mod cli_tool;
+#[cfg(desktop)]
+mod control;
 mod color_sampler;
 mod open_files;
 #[cfg(target_os = "ios")]
@@ -397,6 +399,13 @@ fn read_clipboard_file_paths() -> Vec<String> {
     }
 }
 
+/// The page answers a request of the local interface for AI assistants (src/core/control/bridge.ts) - desktop only; elsewhere nothing asks.
+#[tauri::command]
+fn control_reply(#[cfg_attr(not(desktop), allow(unused_variables))] id: u64, #[cfg_attr(not(desktop), allow(unused_variables))] ok: bool, #[cfg_attr(not(desktop), allow(unused_variables))] payload: serde_json::Value) {
+    #[cfg(desktop)]
+    control::deliver_reply(id, ok, payload);
+}
+
 /// The gear of the start screen (src/features/start/): the settings window, as the menu's "Einstellungen…" opens it.
 #[tauri::command]
 fn open_settings_window(#[cfg_attr(not(desktop), allow(unused_variables))] app: AppHandle) {
@@ -525,6 +534,7 @@ pub fn run() {
             close_audience_window,
             open_files::take_pending_open_files,
             read_clipboard_file_paths,
+            control_reply,
             cli_tool::cli_info,
             cli_tool::install_cli_link,
             color_sampler::screen_color_picker_available,
@@ -534,6 +544,8 @@ pub fn run() {
         ])
         .setup(|_app| {
             open_files::set_app(_app.handle());
+            #[cfg(desktop)]
+            control::start(_app.handle());
             // The iPad: let the page reach the whole screen. A WKWebView keeps its content out of the status bar and the home
             // indicator on its own (`contentInsetAdjustmentBehavior` automatic) - and then the page's `viewport-fit=cover` and
             // `env(safe-area-inset-*)` (see index.html and App.css) do nothing: the app ends above the screen's rounded edge.

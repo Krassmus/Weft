@@ -34,6 +34,19 @@ The version of the tool (that of the Weft app it is built from), the file format
 
 **Files of another format:** the tool converts nothing. A file with a **newer** format (saved by a newer Weft) can only be read with reservations; `inspect`, `render`, `play`, `html` and `text export` say so as a notice on stderr, `validate` reports `format-version` as an error, and **changing** (`edit`, `text import`) is refused. A file with an **older** format is read (with a notice, `validate` warns) but not changed - open it in Weft once and save, then it works. That way an old tool never damages a newer file, and a new one never writes a mixture of the old and the new shape.
 
+## The module that is open in the app: without a file, `weft status`, `weft open`
+
+When the Weft app (desktop) is running, `inspect`, `validate`, `render`, `play`, `html` and `text export` work **without a file** on the module that is open there. `weft edit operations.json` (only the operations, no file) **changes it live**: the changes appear in the app at once, as one step of its history (Cmd+Z / Ctrl+Z), and whatever the person changed themselves meanwhile stays.
+
+```bash
+weft status                        # is the app running, what is open, what may the AI do
+weft inspect                       # the open module
+weft edit operations.json          # change it live
+weft open module.weft              # show a file in the app (as a new module that is not saved yet)
+```
+
+The person decides in the app's settings (KI-Assistenten) whether that is allowed: nothing, look only, look and change. The app opens a door for this computer only (a socket on 127.0.0.1, port and password in `control.json` in the app's data folder, readable by this user only); `WEFT_CONTROL_FILE` points to another `control.json` (a second copy of the app, say). There is none on an iPad or iPhone, nor in the App Store version (it keeps its data in a folder of its own).
+
 ## `weft inspect <file> [--page <number>] [--json]`
 
 The outline of the module: title, languages, variables, layouts with their blocks, then all slides in the order in which they are played (with forks and jump slides). Every block is one line with kind, content and id.

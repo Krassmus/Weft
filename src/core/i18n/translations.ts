@@ -102,6 +102,13 @@ const baseEn = {
   "settings.ai.version": "Version {version}",
   "settings.ai.error": "That did not work: {message}",
   "settings.ai.missing": "This copy of Weft does not contain the command line tool (a development build, or the version from the App Store). It comes with the downloaded desktop app, and with the repository (see AGENTS.md).",
+  "settings.ai.live.legend": "Working on the open module",
+  "settings.ai.live.hint": "While Weft is open, an assistant that has the tool can work on the module you have open - without a file: what it changes appears here at once, as one step you can undo (Cmd+Z / Ctrl+Z).",
+  "settings.ai.live.off": "Nothing - assistants may not touch the open module",
+  "settings.ai.live.read": "Look only",
+  "settings.ai.live.edit": "Look and change",
+  "settings.ai.live.copy": "Copy a text for the assistant",
+  "settings.ai.live.prompt": "The Weft app is open on my computer with a learning module. Use the tool `weft` (or the MCP server `weft-mcp`): `weft status` shows what is open, read `weft guide` first. Without a file name, `weft inspect`, `weft validate`, `weft render`, `weft play` and `weft edit <operations.json>` work directly on the module I have open; what you change appears on my screen at once (I can undo it). What I want: ",
   "settings.ai.web": "The command line tool comes with the desktop app for Mac, Windows and Linux.",
 } as const;
 
@@ -192,6 +199,13 @@ const baseDe: Record<keyof typeof baseEn, string> = {
   "settings.ai.version": "Version {version}",
   "settings.ai.error": "Das hat nicht geklappt: {message}",
   "settings.ai.missing": "Diese Weft-Fassung enthält das Kommandozeilenwerkzeug nicht (eine Entwicklungsfassung oder die Version aus dem App Store). Es gehört zur heruntergeladenen Desktop-App und zum Repository (siehe AGENTS.md).",
+  "settings.ai.live.legend": "Am offenen Modul arbeiten",
+  "settings.ai.live.hint": "Solange Weft offen ist, kann ein Assistent mit dem Werkzeug an dem Modul arbeiten, das du offen hast - ohne Datei: Was er ändert, erscheint sofort hier, als ein Schritt, den du zurücknehmen kannst (Cmd+Z / Strg+Z).",
+  "settings.ai.live.off": "Nichts - Assistenten dürfen das offene Modul nicht anfassen",
+  "settings.ai.live.read": "Nur ansehen",
+  "settings.ai.live.edit": "Ansehen und ändern",
+  "settings.ai.live.copy": "Text für den Assistenten kopieren",
+  "settings.ai.live.prompt": "Die Weft-App ist auf meinem Computer mit einem Lernmodul geöffnet. Benutze das Werkzeug `weft` (oder den MCP-Server `weft-mcp`): `weft status` zeigt, was offen ist, lies zuerst `weft guide`. Ohne Dateiname arbeiten `weft inspect`, `weft validate`, `weft render`, `weft play` und `weft edit <operationen.json>` direkt an dem Modul, das ich offen habe; was du änderst, erscheint sofort auf meinem Bildschirm (ich kann es zurücknehmen). Was ich möchte: ",
   "settings.ai.web": "Das Kommandozeilenwerkzeug gehört zur Desktop-App für Mac, Windows und Linux.",
 };
 

@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { readControlMode, writeControlMode } from "../../core/control/bridge";
+import type { ControlMode } from "../../core/control/bridge";
 import { invoke } from "@tauri-apps/api/core";
 import {
   COLLAB_RELAYS_KEY,
@@ -135,6 +137,53 @@ function CopyBlock({ text }: { text: string }) {
   );
 }
 
+/** What an assistant may do with the module that is open in the app (the local interface, see core/control/bridge.ts). */
+function LiveSettings() {
+  const { t } = useTranslation();
+  const [mode, setMode] = useState<ControlMode>(readControlMode);
+  const [copied, setCopied] = useState(false);
+  const options: { value: ControlMode; label: string }[] = [
+    { value: "edit", label: t("settings.ai.live.edit") },
+    { value: "read", label: t("settings.ai.live.read") },
+    { value: "off", label: t("settings.ai.live.off") },
+  ];
+  return (
+    <>
+      <span className="weft-settings-subtitle">{t("settings.ai.live.legend")}</span>
+      <p className="weft-hint">{t("settings.ai.live.hint")}</p>
+      {options.map((option) => (
+        <label key={option.value} className="weft-field weft-field-inline">
+          <input
+            type="radio"
+            name="control-mode"
+            checked={mode === option.value}
+            onChange={() => {
+              setMode(option.value);
+              writeControlMode(option.value);
+            }}
+          />
+          <span>{option.label}</span>
+        </label>
+      ))}
+      <div className="weft-field">
+        <button
+          type="button"
+          className="weft-ghost-button"
+          disabled={mode === "off"}
+          onClick={() => {
+            void navigator.clipboard?.writeText(t("settings.ai.live.prompt")).then(() => {
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 1500);
+            });
+          }}
+        >
+          {copied ? t("settings.ai.copied") : t("settings.ai.live.copy")}
+        </button>
+      </div>
+    </>
+  );
+}
+
 /** The command line tool and the MCP server for AI assistants: shipped inside the desktop app, with a Node of their own. */
 function AiSettings() {
   const { t } = useTranslation();
@@ -161,6 +210,7 @@ function AiSettings() {
   return (
     <fieldset className="weft-settings-field">
       <legend>{t("settings.ai.legend")}</legend>
+      {isTauri() && <LiveSettings />}
       {!isTauri() ? (
         <p className="weft-hint">{t("settings.ai.web")}</p>
       ) : !info ? null : !info.available ? (

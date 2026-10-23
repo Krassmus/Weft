@@ -6,10 +6,11 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { OPERATION_NAMES } from "./ops";
 import { TOOL_VERSION, versionInfo, versionText } from "./version";
+import { liveCopy, liveStatus, liveStatusText, openInApp } from "./live";
 import { GUIDE_TOPICS, guideLanguage, guideText, guideTopicList, isGuideTopic } from "./guide";
 import { renderPages } from "./render";
 import type { Operation } from "./ops";
-import { editFile, exportTextsOf, importTextsFile, newFile } from "./tools";
+import { editFile, editLive, exportTextsOf, importTextsFile, newFile } from "./tools";
 import type { TextsFile } from "./texts";
 import { buildOutline, outlineMarkdown } from "./inspect";
 import { definitionJson, describeDefinition, fullSchema, listDefinitions } from "./schema";
@@ -59,6 +60,12 @@ Benutzung:
   weft schema [<name>] [--list] [--json] [--full]
       Das Dateiformat. Ohne Name: die Arten von Blöcken. <name>: eine Definition oder die Art
       eines Blocks (zum Beispiel "quiz", "ButtonBlock", "Page").
+  weft status [--json]
+      Ob die Weft-App läuft und was darin offen ist. Ohne Datei arbeiten inspect, validate, render, play, html, text export und
+      edit <operationen.json> an dem in der App offenen Modul (live; Änderungen sind ein Schritt im Verlauf der App).
+  weft open <datei.weft>
+      Zeigt ein Modul in der laufenden Weft-App, als neues, noch nicht gespeichertes Modul (die Datei bleibt unverändert; hat die App
+      ungespeicherte Änderungen offen, fragt sie die Person erst).
   weft version [--json]
       Die Version des Werkzeugs, das Dateiformat, das es liest und schreibt, Node und der gefundene Browser. Auch: weft --version
   weft guide [authoring | ops | cli] [--lang en|de]
@@ -126,7 +133,32 @@ function printFindings(findings: Finding[], file: string): void {
 // are - WEFT_LANG=en for English.
 setFixedLanguage(process.env.WEFT_LANG === "en" ? "en" : "de");
 
+/** What a command that is not given a file works on instead: the module that is open in the Weft app (see live.ts). */
+const LIVE_LABEL = "(offenes Modul in Weft)";
+let liveActive = false;
+
+/**
+ * `weft inspect`, `weft validate` ... without a file work on the module that is open in the Weft app: it is fetched into a temporary file,
+ * which the command then reads like any other. (`weft edit <operations.json>` with no file changes the open module itself, see below.)
+ */
 async function main(argv: string[]): Promise<number> {
+  const { positional, flags } = parseArgs(argv);
+  const [command, ...rest] = positional;
+  const readsFile = ["inspect", "validate", "render", "play", "html"].includes(command ?? "");
+  const textExport = command === "text" && rest[0] === "export" && rest.length === 1;
+  if (!(readsFile && rest.length === 0) && !textExport) return run(argv);
+  const needsBytes = ["render", "play", "html"].includes(command) || flags.has("layout");
+  const copy = await liveCopy({ assets: needsBytes });
+  liveActive = true;
+  try {
+    const tail = argv.slice(argv.indexOf(command) + (textExport ? 2 : 1));
+    return await run(textExport ? ["text", "export", copy.path, ...tail] : [command, copy.path, ...tail]);
+  } finally {
+    copy.cleanup();
+  }
+}
+
+async function run(argv: string[]): Promise<number> {
   const { positional, flags } = parseArgs(argv);
   const [first, ...rest] = positional;
   // (`weft --version` is a flag to the parser, not a word.)
@@ -152,6 +184,17 @@ async function main(argv: string[]): Promise<number> {
     case "--help": {
       console.log(HELP);
       return command === undefined ? 2 : 0;
+    }
+    case "open": {
+      if (!rest[0]) throw new CliError("Welche Datei? weft open <datei.weft>");
+      await openInApp(rest[0]);
+      console.log("In Weft geöffnet (als neues, noch nicht gespeichertes Modul - die Datei bleibt unverändert). Weiter mit weft edit <operationen.json> ohne Datei.");
+      return 0;
+    }
+    case "status": {
+      const status = await liveStatus();
+      console.log(json ? JSON.stringify(status, null, 2) : liveStatusText(status));
+      return 0;
     }
     case "version":
     case "--version":
@@ -237,20 +280,28 @@ async function main(argv: string[]): Promise<number> {
         console.log(`Operations: ${OPERATION_NAMES.join(", ")}\n\n${guideText("ops", guideLanguage(flags.get("lang")))}`);
         return 0;
       }
-      if (!rest[0] || !rest[1]) throw new CliError("weft edit <datei> <operationen.json>");
+      // With only the operations (no file): the module that is open in the Weft app is changed, live.
+      const live = rest.length === 1;
+      if (!rest[0] || (!live && !rest[1])) throw new CliError("weft edit <datei> <operationen.json>   (ohne Datei: weft edit <operationen.json> ändert das in Weft offene Modul)");
+      const opsFile = live ? rest[0] : rest[1];
       let operations: Operation[];
       try {
-        const parsed = JSON.parse(readFileSync(rest[1], "utf8")) as Operation[] | { operations: Operation[] };
+        const parsed = JSON.parse(readFileSync(opsFile, "utf8")) as Operation[] | { operations: Operation[] };
         operations = Array.isArray(parsed) ? parsed : parsed.operations;
       } catch (error) {
-        throw new CliError(`Die Operationen in „${rest[1]}" lassen sich nicht lesen: ${(error as Error).message}`);
+        throw new CliError(`Die Operationen in „${opsFile}" lassen sich nicht lesen: ${(error as Error).message}`);
       }
       if (!Array.isArray(operations)) throw new CliError("Die Datei enthält keine Liste von Operationen.");
       const output = typeof flags.get("output") === "string" ? (flags.get("output") as string) : undefined;
-      const outcome = editFile(rest[0], operations, { output, dryRun: flags.has("dry-run"), allowErrors: flags.has("allow-errors"), force: flags.has("force") });
+      const outcome = live
+        ? await editLive(operations, { dryRun: flags.has("dry-run"), allowErrors: flags.has("allow-errors") })
+        : editFile(rest[0], operations, { output, dryRun: flags.has("dry-run"), allowErrors: flags.has("allow-errors"), force: flags.has("force") });
       for (const r of outcome.results) console.log(`${r.index + 1}. ${r.op}: ${JSON.stringify(r.result)}`);
       for (const f of outcome.introduced) console.log(`${f.severity === "error" ? "FEHLER " : f.severity === "warning" ? "Warnung" : "Hinweis"} [${f.code}] ${f.message}`);
-      if (outcome.wrote) console.log(`Geschrieben: ${outcome.target}`);
+      if (outcome.wrote && live) {
+        const skipped = (outcome as { skipped?: number }).skipped ?? 0;
+        console.log(`Im offenen Modul in Weft geändert (ein Schritt im Verlauf, mit Cmd+Z / Strg+Z zurückzunehmen).${skipped > 0 ? ` ${skipped} Änderungen passten nicht mehr dorthin (die Stelle wurde inzwischen gelöscht) und wurden übersprungen.` : ""}`);
+      } else if (outcome.wrote) console.log(`Geschrieben: ${outcome.target}`);
       else console.log(outcome.refused ?? "Nichts geschrieben.");
       return outcome.refused && !flags.has("dry-run") ? 1 : 0;
     }
@@ -331,6 +382,7 @@ async function main(argv: string[]): Promise<number> {
       const loaded = loadWeft(rest[0]);
       const page = typeof flags.get("page") === "string" ? (flags.get("page") as string) : undefined;
       const outline = buildOutline(loaded, { page });
+      if (liveActive) outline.file = LIVE_LABEL;
       console.log(json ? JSON.stringify(outline, null, 2) : outlineMarkdown(outline, page !== undefined));
       return 0;
     }
@@ -343,9 +395,9 @@ async function main(argv: string[]): Promise<number> {
         findings.push(...(await checkLayout(rest[0], page ? [page] : undefined, { chrome: typeof flags.get("chrome") === "string" ? (flags.get("chrome") as string) : undefined })));
       }
       if (json) {
-        console.log(JSON.stringify({ file: rest[0], findings }, null, 2));
+        console.log(JSON.stringify({ file: liveActive ? LIVE_LABEL : rest[0], findings }, null, 2));
       } else {
-        printFindings(findings, rest[0]);
+        printFindings(findings, liveActive ? LIVE_LABEL : rest[0]);
       }
       const errors = findings.some((f) => f.severity === "error");
       const warnings = findings.some((f) => f.severity === "warning");

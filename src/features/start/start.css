@@ -227,6 +227,43 @@
   cursor: default;
 }
 
+/* The whole tile is the button: the button's own area is stretched over it (the tile is its positioning parent), so that there is still just one
+   real button for the keyboard and for screen readers - and nothing is nested in anything else. */
+.weft-start-tile-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.weft-start-tile:has(.weft-start-tile-button:not(:disabled)) {
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+/* What hovering the button does (above) also happens when the pointer is anywhere on the tile, and the tile lifts a little. */
+.weft-start-tile:has(.weft-start-tile-button:not(:disabled)):hover {
+  border-color: var(--tone);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--tone) 22%, transparent);
+}
+
+.weft-start-tile:has(.weft-start-tile-button:not(:disabled)):hover .weft-start-tile-button {
+  background: color-mix(in srgb, var(--tone) 25%, transparent);
+}
+
+.weft-start-tile.is-blue:has(.weft-start-tile-button:not(:disabled)):hover .weft-start-tile-button {
+  background: var(--weft-accent-hover);
+}
+
+/* The ring of the keyboard focus goes around the tile, where the click goes. */
+.weft-start-tile:has(.weft-start-tile-button:focus-visible) {
+  outline: 2px solid var(--tone);
+  outline-offset: 2px;
+}
+
+.weft-start-tile-button:focus-visible {
+  outline: none;
+}
+
 .weft-start-tile-hint {
   color: var(--weft-text-faint);
   font-size: 12px;

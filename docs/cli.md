@@ -45,6 +45,8 @@ weft open modul.weft               # eine Datei in der App zeigen (als neues, no
 
 Die Person bestimmt in den Einstellungen der App (KI-Assistenten), ob das erlaubt ist: nichts, nur ansehen, ansehen und ändern. Die App öffnet dafür einen Zugang nur für diesen Computer (ein Socket auf 127.0.0.1, Port und Passwort in `control.json` im Datenordner der App, nur für diesen Benutzer lesbar); `WEFT_CONTROL_FILE` zeigt auf eine andere `control.json` (zum Beispiel für eine zweite App-Kopie). Auf dem iPad und iPhone gibt es das nicht, auch nicht in der Store-Fassung (sie liegt in einem eigenen Datenordner).
 
+**Stand:** Die Einstellungsseite „KI-Assistenten" ist zurzeit ausgeblendet (`AI_SETTINGS_VISIBLE` in `src/core/control/bridge.ts`), und solange sie es ist, ist der Zugang **aus**. Zum Ausprobieren in der Webansicht der App `localStorage["weft.control.mode"] = "edit"` setzen (oder `"read"`).
+
 ## `weft inspect <datei> [--page <nummer>] [--json]`
 
 Gliederung des Moduls: Titel, Sprachen, Variablen, Layouts mit ihren Blöcken, dann alle Folien in der Reihenfolge, in der sie gespielt werden (mit Verzweigungen und Sprung-Folien). Jeder Block steht in einer Zeile mit Art, Inhalt und Id.

@@ -86,6 +86,8 @@ Wichtig zum Aufbau: Eine Sprung-Folie führt zu einer Folie, danach läuft die F
 
 ## In der App und zum Ausliefern
 
+**Stand:** Die Einstellungsseite „KI-Assistenten" (Installationsknopf, Konfiguration zum Kopieren, Auswahl nichts / ansehen / ändern) ist gebaut, aber zurzeit ausgeblendet (`AI_SETTINGS_VISIBLE` in `src/core/control/bridge.ts`); solange sie es ist, ist der Zugang zum offenen Modul aus. Was unten über die Einstellungen steht, gilt, sobald sie wieder sichtbar ist.
+
 **Aus der Desktop-App (Mac, Windows, Linux):** Das Werkzeug steckt in der App, mit einem eigenen Node - wer die App herunterlädt, braucht weder Node noch das Repository. In den Einstellungen (Abschnitt „KI-Assistenten") legt „Kommandozeilenwerkzeug installieren" Links `weft` und `weft-mcp` in `~/.local/bin` an (unter Windows zeigt der Abschnitt den Pfad) und zeigt die Konfiguration für einen MCP-Client zum Kopieren. Die Links zeigen ins App-Paket: **jedes App-Update aktualisiert das Werkzeug mit**, es passt immer zur App (`weft version`).
 
 **So wird es gebaut** (Release-Rechner, einmal je Zielplattform):

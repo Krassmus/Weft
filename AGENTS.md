@@ -21,7 +21,7 @@ nothing) → `weft validate module.weft --layout` (also tells what does not fit 
 and `weft render module.weft --all -o pictures/` (look at the result) → repeat. `weft inspect` shows what is in a module, `weft schema <kind>`
 how a block looks, `weft text export` / `weft text import` translate it.
 
-**Live in the open app:** if the person has the Weft desktop app open, `weft status` (MCP: `weft_status`) says so, and `weft inspect`, `weft validate`, `weft render`, `weft play` and `weft edit operations.json` called WITHOUT a file work on the module that is open there - every change shows up in the app at once as one undoable step. `weft open module.weft` puts a file into the app. The person allows this in the app's settings (KI-Assistenten).
+**Live in the open app:** if the person has the Weft desktop app open, `weft status` (MCP: `weft_status`) says so, and `weft inspect`, `weft validate`, `weft render`, `weft play` and `weft edit operations.json` called WITHOUT a file work on the module that is open there - every change shows up in the app at once as one undoable step. `weft open module.weft` puts a file into the app. The person allows this in the app's settings (KI-Assistenten) - that section is hidden for now, and while it is the door is off (see `docs/cli.md`).
 
 Good to know: a file of a newer format than the tool knows is refused for changes, an older one too (open and save it in Weft once); the tool never overwrites its source (`weft edit` writes `<name>.ai.weft` or the file given with `-o`); its messages are in German,
 their `code`s and the `--json` output are not; a finished example is `src/start-content/examples/durch-drei-teilbar.weft`. As an MCP server:

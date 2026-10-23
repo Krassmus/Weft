@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { readControlMode, writeControlMode } from "../../core/control/bridge";
+import { AI_SETTINGS_VISIBLE, readControlMode, writeControlMode } from "../../core/control/bridge";
 import type { ControlMode } from "../../core/control/bridge";
 import { invoke } from "@tauri-apps/api/core";
 import {
@@ -356,7 +356,7 @@ export function SettingsWindow() {
         </div>
         <p className="weft-hint">{t("settings.profile.hint")}</p>
       </fieldset>
-      <AiSettings />
+      {AI_SETTINGS_VISIBLE && <AiSettings />}
       <NetworkSettings />
     </div>
   );

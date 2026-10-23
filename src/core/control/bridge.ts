@@ -16,11 +16,18 @@ import type { JsonPatch } from "./jsonPatches";
  */
 export type ControlMode = "off" | "read" | "edit";
 
+/**
+ * Whether the settings show the section "KI-Assistenten" (the command line tool, and what an assistant may do with the open module). It is
+ * hidden for now - the way to hand the tool out is not decided yet - and while it is, the person has no way to allow anything: the
+ * interface is OFF unless `localStorage["weft.control.mode"]` is set to "read" or "edit" by hand (for trying it out).
+ */
+export const AI_SETTINGS_VISIBLE = false;
+
 const MODE_KEY = "weft.control.mode";
 
 export function readControlMode(): ControlMode {
-  const value = readSetting(MODE_KEY, "edit");
-  return value === "off" || value === "read" ? value : "edit";
+  const value = readSetting(MODE_KEY, AI_SETTINGS_VISIBLE ? "edit" : "off");
+  return value === "off" || value === "read" || value === "edit" ? value : "off";
 }
 
 export function writeControlMode(mode: ControlMode): void {
@@ -77,14 +84,17 @@ interface ApplyParams {
 const handlers: Record<string, (params: any) => unknown | Promise<unknown>> = {
   status: () => {
     const { doc, filePath } = useDocumentStore.getState();
+    const mode = readControlMode();
+    // (While the interface is off, nothing of what is open is given away - not even its title.)
+    const open = mode !== "off" && editing();
     return {
       app: "weft",
       version: packageJson.version,
-      mode: readControlMode(),
-      editing: editing(),
-      title: editing() ? doc.content.title : null,
-      filePath: editing() ? filePath : null,
-      moduleId: editing() ? doc.content.id : null,
+      mode,
+      editing: open,
+      title: open ? doc.content.title : null,
+      filePath: open ? filePath : null,
+      moduleId: open ? doc.content.id : null,
       formatVersion: doc.formatVersion,
     };
   },

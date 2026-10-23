@@ -98,6 +98,7 @@ export function liveStatus(): Promise<LiveStatus> {
 /** A readable summary of the status, for `weft status`. */
 export function liveStatusText(status: LiveStatus): string {
   const mode = { off: "aus", read: "nur lesen", edit: "lesen und ändern" }[status.mode];
+  if (status.mode === "off") return `Weft ${status.version} läuft, aber die Schnittstelle für KI-Assistenten ist ausgeschaltet (sie ist es, bis die Person sie zulässt).`;
   return [
     `Weft ${status.version} läuft. Schnittstelle für KI-Assistenten: ${mode}.`,
     status.editing ? `Offen: „${status.title}"${status.filePath ? ` (${status.filePath})` : " (noch nicht gespeichert)"}, Dateiformat ${status.formatVersion}.` : "Es ist kein Lernmodul zum Bearbeiten offen (Startseite).",

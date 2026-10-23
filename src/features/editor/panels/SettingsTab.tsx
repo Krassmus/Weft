@@ -10,6 +10,9 @@ import {
 } from "../../../core/aspectRatio";
 import {
   addCustomFont,
+  addScriptLibrary,
+  moveScriptLibrary,
+  removeScriptLibrary,
   addPaletteColor,
   movePaletteColor,
   removeCustomFont,
@@ -28,7 +31,7 @@ import { clearCoverImage, setCoverImage, setLanguages } from "../../../core/docu
 import { useAssetStore } from "../../../core/assets/assetStore";
 import { buildLanguageCatalog, flagForLocale, languageName } from "../../../core/i18n/languages";
 import { useTranslation } from "../../../core/i18n/useTranslation";
-import { confirmDestructive, pickFontFile, pickImageFile, showWarning } from "../../../core/io/fileIO";
+import { confirmDestructive, pickFontFile, pickImageFile, pickScriptFile, showWarning } from "../../../core/io/fileIO";
 import { useAssetTransfers } from "../../../core/collab/assetSync";
 import { COMPACT_KEEP_BYTES, COMPACT_OFFER_BYTES, compactHistory, historyStats } from "../../../core/collab/compact";
 import type { HistoryStats } from "../../../core/collab/compact";
@@ -174,6 +177,7 @@ function unusedPaletteColor(taken: string[]): string {
 }
 
 const LANGUAGE_LIST_ID = "languages";
+const SCRIPT_LIBRARY_LIST_ID = "script-libraries";
 const COLOR_LIST_ID = "colors";
 
 /**
@@ -748,6 +752,62 @@ function LookFields() {
   );
 }
 
+/**
+ * The JavaScript libraries of the module (WeftModule.scriptLibraries): for the logic blocks, all of them. Listed in the order they are run
+ * in (dragging changes it), each removable. The card is only there when it has something to say: when the module has a logic block or a
+ * library - a module with neither never sees it. (Deleting a logic block leaves its libraries; this is where they go.)
+ */
+function ScriptLibrariesCard() {
+  const libraries = useDocumentStore((s) => s.doc.content.scriptLibraries) ?? [];
+  const hasLogicBlock = useDocumentStore((s) => Object.values(s.doc.content.pages).some((page) => Object.values(page.blocks).some((block) => block.kind === "script")));
+  const { bind } = useDragReorder();
+  if (libraries.length === 0 && !hasLogicBlock) return null;
+  return (
+    <Collapsible title={tr("ui.script_libraries")}>
+      {libraries.length > 0 ? (
+        <ul className="weft-language-list">
+          {libraries.map((library, index) => {
+            const { dragClassName, ...dragAttrs } = bind("language", SCRIPT_LIBRARY_LIST_ID, index, (_container, to) => moveScriptLibrary(library.id, to));
+            return (
+              <li key={library.id} className={"weft-language-row" + dragClassName} {...dragAttrs}>
+                <span className="weft-language-row-name">{library.fileName}</span>
+                <span className="weft-language-row-code">{Math.max(1, Math.round(library.code.length / 1024))} KB</span>
+                <button
+                  type="button"
+                  className="weft-icon-button"
+                  title={tr("ui.script_library_remove")}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => {
+                    void confirmDestructive(tr("ui.script_library_really_remove", { name: library.fileName }), tr("ui.script_library_remove")).then((ok) => {
+                      if (ok) removeScriptLibrary(library.id);
+                    });
+                  }}
+                >
+                  ×
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="weft-hint">{tr("ui.script_libraries_none")}</p>
+      )}
+      <button
+        type="button"
+        className="weft-ghost-button weft-full-width"
+        onClick={() => {
+          void pickScriptFile().then((file) => {
+            if (file) addScriptLibrary(file.fileName, file.code);
+          });
+        }}
+      >
+        {tr("ui.script_library_add")}
+      </button>
+      <p className="weft-hint">{tr("ui.script_libraries_settings_hint")}</p>
+    </Collapsible>
+  );
+}
+
 export function SettingsTab() {
   const content = useDocumentStore((s) => s.doc.content);
 
@@ -826,6 +886,8 @@ export function SettingsTab() {
           </button>
         </div>
       </Collapsible>
+
+      <ScriptLibrariesCard />
 
       <Collapsible title={tr("ui.settings_card_collaboration")}>
         <CollaborationField />

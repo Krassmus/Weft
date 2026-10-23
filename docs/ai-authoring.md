@@ -112,6 +112,12 @@ Läuft die Weft-App (Desktop) auf dem Computer der Person, kann man **an dem Mod
 
 Auf dem iPad geht das nicht (die KI läuft dort nicht, und eine App kann eine andere nicht steuern).
 
+## Logikblöcke (JavaScript)
+
+Ein Block der Art `script` führt JavaScript aus, wenn sein grünes Ereignis erreicht wird (standardmäßig mit Weiter; wann, bestimmt der Graph): `{"op": "add_block", "page": "$eins", "kind": "script", "set": {"code": "vars.score = vars.score + 1;"}}`. Im Code gibt es `vars` (Variablen über ihren Namen lesen und schreiben), `debug(...)`, `trigger("Titel")`, `jump("2.a.3", "fade")` und `VanillaLM`.
+
+Eigene Bibliotheken: `{"op": "add_script_library", "file": "mylib.js"}` (oder `name` und `code`) legt eine JavaScript-Datei **für das ganze Modul** ab. Sie läuft einmal beim Start, in der Reihenfolge des Hinzufügens (eine, die eine andere braucht, kommt danach), im globalen Bereich - was sie definiert (auch ein `const` oberhalb), kann der Code jedes Logikblocks benutzen. Löscht man einen Logikblock, bleibt die Bibliothek; `remove_script_library` entfernt sie. `weft inspect` listet sie.
+
 ## Die typischen Fallen
 
 | Falle | Woran man sie merkt |

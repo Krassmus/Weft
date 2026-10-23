@@ -384,6 +384,29 @@ export async function pickFontFile(): Promise<File | null> {
   });
 }
 
+/** Lets the person pick a JavaScript file (a library for the logic blocks) and returns its name and text. */
+export async function pickScriptFile(): Promise<{ fileName: string; code: string } | null> {
+  if (isTauri()) {
+    const path = await open({
+      title: tr("ui.script_library_choose"),
+      multiple: false,
+      filters: [{ name: "JavaScript", extensions: ["js", "mjs", "cjs"] }],
+    });
+    if (!path || Array.isArray(path)) return null;
+    return { fileName: path.split(/[\\/]/).pop() ?? "library.js", code: new TextDecoder().decode(await readFile(path)) };
+  }
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".js,.mjs,.cjs,text/javascript";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      resolve(file ? { fileName: file.name, code: await file.text() } : null);
+    };
+    input.click();
+  });
+}
+
 /**
  * Confirmation prompt for a destructive action - Tauri's own dialog plugin when running as the
  * desktop app, not the browser's built-in window.confirm(). WKWebView (the macOS webview Tauri

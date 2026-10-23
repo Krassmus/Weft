@@ -2017,6 +2017,49 @@ export function removePaletteColor(id: string) {
   });
 }
 
+// ---- JavaScript libraries for the logic blocks (WeftModule.scriptLibraries) ----
+
+/** Adds a library - or, when one of that file name is there already, puts the new code in its place (the usual way to bring in a changed
+ * file). Returns its id. */
+export function addScriptLibrary(fileName: string, code: string): string {
+  const name = fileName.trim() || "library.js";
+  const existing = (useDocumentStore.getState().doc.content.scriptLibraries ?? []).find((library) => library.fileName === name);
+  if (existing) {
+    edit("JavaScript-Bibliothek ersetzen", (m) => {
+      const library = m.scriptLibraries?.find((l) => l.id === existing.id);
+      if (library) library.code = code;
+    });
+    return existing.id;
+  }
+  const id = createId();
+  edit("JavaScript-Bibliothek hinzufügen", (m) => {
+    // (Not `(m.scriptLibraries ??= []).push(...)`: the value of that is the plain array that was put in, not the list of the document - the push would be lost.)
+    if (!m.scriptLibraries) m.scriptLibraries = [];
+    m.scriptLibraries.push({ id, fileName: name, code });
+  });
+  return id;
+}
+
+export function removeScriptLibrary(id: string) {
+  edit("JavaScript-Bibliothek entfernen", (m) => {
+    if (m.scriptLibraries) removeWhere(m.scriptLibraries, (l) => l.id === id);
+  });
+}
+
+/** Moves a library to position `toIndex` of the list without it (the order is the order they are run in: one may need another). */
+export function moveScriptLibrary(id: string, toIndex: number) {
+  edit("JavaScript-Bibliothek verschieben", (m) => {
+    const list = m.scriptLibraries;
+    if (!list) return;
+    const from = list.findIndex((l) => l.id === id);
+    if (from < 0) return;
+    // (A list entry of the document can't be put in again as it is: it is made anew.)
+    const moved = { id: list[from].id, fileName: list[from].fileName, code: list[from].code };
+    list.splice(from, 1);
+    list.splice(Math.min(Math.max(toIndex, 0), list.length), 0, moved);
+  });
+}
+
 export function removeCustomFont(id: string) {
   edit("Schriftart entfernen", (m) => {
     removeWhere(m.customFonts, (f) => f.id === id);

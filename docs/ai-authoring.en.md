@@ -119,6 +119,12 @@ When the Weft app (desktop) is running on the person's computer, you can **work 
 
 On an iPad this does not work (the AI does not run there, and an app cannot drive another app).
 
+## Logic blocks (JavaScript)
+
+A block of the kind `script` runs JavaScript when its green event is reached (on Weiter by default; the graph says when): `{"op": "add_block", "page": "$one", "kind": "script", "set": {"code": "vars.score = vars.score + 1;"}}`. The code has `vars` (read and write variables by name), `debug(...)`, `trigger("Title")`, `jump("2.a.3", "fade")` and `VanillaLM`.
+
+Own libraries: `{"op": "add_script_library", "file": "mylib.js"}` (or `name` and `code`) puts a JavaScript file **in the whole module**. It runs once at the start, in the order added (one that another needs comes after it), in the global scope - what it defines (a top-level `const` too) is usable by the code of every logic block. Deleting a logic block leaves the library; `remove_script_library` removes it. `weft inspect` lists them.
+
 ## The typical traps
 
 | Trap | How you notice |

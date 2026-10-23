@@ -2085,7 +2085,7 @@
     },
     "ScriptBlock": {
       "additionalProperties": false,
-      "description": "A logic block (kind \"script\"): some JavaScript the page runs when the block's event of the page's graph is reached (see scriptRunNodeId in document/pageTimeline.ts) - a green event that, like the Aufbau of any block, is triggered by Weiter by default and can be triggered by anything else. In the editor it is a hexagon with a gear on the slide; the player shows nothing. The code has `vars` (read and write the module's variables by name), `debug(...)`, `trigger(name)` (an event of the page, by its title), `jump(slide, transition, options)` and `VanillaLM`; whoever writes it has to know what they do (see runScript in player.runtime.js). A page's block only - there are no events on a layout.",
+      "description": "A logic block (kind \"script\"): some JavaScript the page runs when the block's event of the page's graph is reached (see scriptRunNodeId in document/pageTimeline.ts) - a green event that, like the Aufbau of any block, is triggered by Weiter by default and can be triggered by anything else. In the editor it is a hexagon with a gear on the slide; the player shows nothing. The code has `vars` (read and write the module's variables by name), `debug(...)`, `trigger(name)` (an event of the page, by its title), `jump(slide, transition, options)` and `VanillaLM`; whoever writes it has to know what they do (see runScript in player.runtime.js). A page's block only - there are no events on a layout. What the module's script libraries (WeftModule.scriptLibraries) define is there too.",
       "properties": {
         "actionEffects": {
           "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
@@ -2132,6 +2132,29 @@
         "kind",
         "order",
         "position"
+      ],
+      "type": "object"
+    },
+    "ScriptLibrary": {
+      "additionalProperties": false,
+      "description": "A JavaScript library (the text of a .js file) for the logic blocks of the module: it is run once when the module starts - in the order of WeftModule.scriptLibraries, in the global scope, before any logic block's code - so what it defines (a function, an object on `window`, a top-level `const`) can be used by the code of every logic block. It belongs to the module, not to a block: deleting a logic block does not delete it.",
+      "properties": {
+        "code": {
+          "description": "The code, as it was in the file.",
+          "type": "string"
+        },
+        "fileName": {
+          "description": "The name of the file it came from (\"mylib.js\"): what it is called in the lists. Unique in the module.",
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        }
+      },
+      "required": [
+        "id",
+        "fileName",
+        "code"
       ],
       "type": "object"
     },
@@ -3165,6 +3188,13 @@
             "$ref": "#/definitions/Page"
           },
           "type": "object"
+        },
+        "scriptLibraries": {
+          "description": "JavaScript libraries the logic blocks can use (see ScriptLibrary). Absent: none.",
+          "items": {
+            "$ref": "#/definitions/ScriptLibrary"
+          },
+          "type": "array"
         },
         "sequence": {
           "additionalProperties": {

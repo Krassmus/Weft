@@ -946,6 +946,29 @@
     return found;
   }
 
+  // The module's JavaScript libraries (WeftModule.scriptLibraries): each one is run once, when the module starts, in the order of the list, as a
+  // classic script of the page - so that what it defines (also a top-level const) is global and the code of every logic block can use it. An error
+  // in one is shown in the debug window and the others still run.
+  function loadScriptLibraries() {
+    (module.scriptLibraries || []).forEach(function (library) {
+      var message = null;
+      var previous = window.onerror;
+      window.onerror = function (text, source, line, column, error) {
+        message = (error && error.message) || String(text);
+        return true;
+      };
+      try {
+        var script = document.createElement("script");
+        script.text = String(library.code || "") + "\n//# sourceURL=weft-library-" + String(library.fileName || "library.js").replace(/[^\w.-]+/g, "_");
+        document.head.appendChild(script);
+      } catch (error) {
+        message = error && error.message ? error.message : String(error);
+      }
+      window.onerror = previous;
+      if (message !== null) debugShow(["Library " + library.fileName + ":", message]);
+    });
+  }
+
   function runScript(block) {
     var generation = graphGeneration;
     // What was asked for happens right after the script, not in the middle of it - and not at all if the page is gone by then.
@@ -3878,6 +3901,7 @@
     }
   });
 
+  loadScriptLibraries();
   buildNavigation();
   goNext();
 })();

@@ -67,6 +67,8 @@ export interface Outline {
   /** The pages in the order they are played, with the branches where they are. */
   pages: OutlinePage[];
   assets: { id: string; fileName: string; mimeType: string; usedBy: number }[];
+  /** WeftModule.scriptLibraries: the JavaScript libraries of the logic blocks, in the order they run. */
+  scriptLibraries: { id: string; fileName: string; size: number }[];
 }
 
 function aspect(content: WeftModule): string {
@@ -189,6 +191,7 @@ export function buildOutline(loaded: LoadedWeft, options: { page?: string } = {}
     aspectRatio: aspect(content),
     languages: content.languages ?? [],
     template: !!content.template,
+    scriptLibraries: (content.scriptLibraries ?? []).map((l) => ({ id: l.id, fileName: l.fileName, size: l.code.length })),
     counts: {
       pages: Object.keys(content.pages).length,
       blocks: Object.values(content.pages).reduce((n, p) => n + blockCount(p), 0),
@@ -218,6 +221,7 @@ export function outlineMarkdown(outline: Outline, detailed: boolean): string {
   lines.push(`- Datei: ${outline.file}`);
   lines.push(`- Format ${outline.formatVersion}, Seitenverhältnis ${outline.aspectRatio}${outline.template ? ", Vorlage (öffnet als Kopie ohne Datei)" : ""}`);
   lines.push(`- Sprachen: ${outline.languages.length > 0 ? outline.languages.join(", ") + " (die erste ist die Standardsprache)" : "eine (nicht mehrsprachig)"}`);
+  if (outline.scriptLibraries.length > 0) lines.push(`- JavaScript-Bibliotheken (in dieser Reihenfolge beim Start): ${outline.scriptLibraries.map((l) => `${l.fileName} (${Math.max(1, Math.round(l.size / 1024))} KB)`).join(", ")}`);
   lines.push(`- ${outline.counts.pages} Folien, ${outline.counts.blocks} Blöcke, ${outline.counts.layouts} Layouts, ${outline.counts.variables} Variablen, ${outline.counts.assets} Dateien`);
 
   if (!detailed) {

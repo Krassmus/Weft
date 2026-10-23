@@ -241,10 +241,24 @@ export interface ListBlock extends BaseBlock {
  * can be triggered by anything else. In the editor it is a hexagon with a gear on the slide; the player shows nothing. The code has `vars`
  * (read and write the module's variables by name), `debug(...)`, `trigger(name)` (an event of the page, by its title), `jump(slide,
  * transition, options)` and `VanillaLM`; whoever writes it has to know what they do (see runScript in player.runtime.js). A page's
- * block only - there are no events on a layout.
+ * block only - there are no events on a layout. What the module's script libraries (WeftModule.scriptLibraries) define is there too.
  */
 export interface ScriptBlock extends BaseBlock {
   kind: "script";
+  code: string;
+}
+
+/**
+ * A JavaScript library (the text of a .js file) for the logic blocks of the module: it is run once when the module starts - in the
+ * order of WeftModule.scriptLibraries, in the global scope, before any logic block's code - so what it defines (a function, an object
+ * on `window`, a top-level `const`) can be used by the code of every logic block. It belongs to the module, not to a block: deleting
+ * a logic block does not delete it.
+ */
+export interface ScriptLibrary {
+  id: UUID;
+  /** The name of the file it came from ("mylib.js"): what it is called in the lists. Unique in the module. */
+  fileName: string;
+  /** The code, as it was in the file. */
   code: string;
 }
 
@@ -1081,6 +1095,8 @@ export interface WeftModule {
    * the first slide there instead (core/io/coverImage.ts). */
   coverAssetId?: UUID;
   customFonts: CustomFont[];
+  /** JavaScript libraries the logic blocks can use (see ScriptLibrary). Absent: none. */
+  scriptLibraries?: ScriptLibrary[];
   /** The module's colour scheme: colours that come up again and again, managed under the module's settings and offered in every
    * colour picker (features/editor/ColorField.tsx). Missing in modules saved before this existed - read it as empty. A block that
    * uses one of them just carries the hex value, so changing a scheme colour later does not recolour what already uses it. */

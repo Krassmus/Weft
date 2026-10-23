@@ -11,7 +11,7 @@ import { useImageBoxAspect } from "../blocks/ImageSvg";
 import { CODE_THEMES } from "../../../core/code/codeThemes";
 import { AUTO_LANGUAGE, CODE_LANGUAGES } from "../../../core/code/highlight";
 import { createId } from "../../../core/id";
-import { addCustomFont, addTrigger, removeTrigger, setDisappearsOnResumeOf, setEventTrigger, setQuizAdvance, setStopPointShows, updateTrigger } from "../../../core/document/actions";
+import { addCustomFont, addScriptLibrary, addTrigger, removeTrigger, setDisappearsOnResumeOf, setEventTrigger, setQuizAdvance, setStopPointShows, updateTrigger } from "../../../core/document/actions";
 import type { VideoUploadResult } from "../../../core/document/actions";
 import {
   blockEffectNodeId,
@@ -45,7 +45,7 @@ import { StepperSlider } from "./StepperSlider";
 import { ActionEffectsEditor } from "./ActionEffectsEditor";
 import { addFilesToBlock, removeFileFromBlock, setFilesPassword } from "../../../core/document/filesActions";
 import type { BlockContainerRef } from "../../../core/document/store";
-import { confirmDestructive, pickFilesFromDisk, pickFontFile, warnAboutVideoUploads } from "../../../core/io/fileIO";
+import { confirmDestructive, pickFilesFromDisk, pickFontFile, pickScriptFile, warnAboutVideoUploads } from "../../../core/io/fileIO";
 import { filesCheckPassword } from "../../../core/runtime/filesCrypto.js";
 import { formatFileSize } from "../blocks/FilesView";
 import { useTranscodeStatus } from "../../../core/io/videoTranscode";
@@ -938,6 +938,38 @@ function ImageEditTiles({ block, onUpdate }: { block: ImageBlock; onUpdate: Bloc
   );
 }
 
+/** The JavaScript libraries of the module, as far as a logic block needs to know: which there are, and the way to add one. They belong to the
+ * whole module (the list, the order and the removing are in the settings), not to this block. */
+function ScriptLibrariesField() {
+  const libraries = useDocumentStore((s) => s.doc.content.scriptLibraries) ?? [];
+  return (
+    <div className="weft-field">
+      <span>{tr("ui.script_libraries")}</span>
+      {libraries.length > 0 ? (
+        <ul className="weft-script-library-list">
+          {libraries.map((library) => (
+            <li key={library.id}>{library.fileName}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="weft-hint">{tr("ui.script_libraries_none")}</p>
+      )}
+      <button
+        type="button"
+        className="weft-ghost-button weft-full-width"
+        onClick={() => {
+          void pickScriptFile().then((file) => {
+            if (file) addScriptLibrary(file.fileName, file.code);
+          });
+        }}
+      >
+        {tr("ui.script_library_add")}
+      </button>
+      <p className="weft-hint">{tr("ui.script_libraries_hint")}</p>
+    </div>
+  );
+}
+
 /** The code of a logic block (ScriptBlock) and what it can use - and the way to its event in the graph, where it is triggered. */
 function ScriptEditor({ block, page, onUpdate }: { block: ScriptBlock; page?: Page; onUpdate: BlockPanelProps["onUpdate"] }) {
   const select = useDocumentStore((s) => s.select);
@@ -963,6 +995,7 @@ function ScriptEditor({ block, page, onUpdate }: { block: ScriptBlock; page?: Pa
         }}
       />
       <p className="weft-hint weft-script-api">{tr("ui.script_api_hint")}</p>
+      <ScriptLibrariesField />
       {page && (
         <button
           type="button"

@@ -1,4 +1,6 @@
 import "./domShim";
+import { readFileSync } from "node:fs";
+import { basename } from "node:path";
 import * as actions from "../src/core/document/actions";
 import { DEFAULT_TEXT_BOX } from "../src/core/document/textBox";
 import { buildTextHtml, estimateHeightPercent } from "./markup";
@@ -434,6 +436,33 @@ const HANDLERS: Record<string, Handler> = {
     for (const entry of [...(ctx.content.colorPalette ?? [])]) actions.removePaletteColor(entry.id);
     for (const color of op.colors as string[]) actions.addPaletteColor(color);
     return { colors: (ctx.content.colorPalette ?? []).map((c) => c.color) };
+  },
+  // A JavaScript library for the logic blocks (script blocks) of the module: add_script_library {file: "path/to/lib.js"} or {name: "lib.js", code: "..."},
+  // run once at the start, in the order they were added; one with the same name is replaced.
+  add_script_library(ctx, op) {
+    let name: string;
+    let code: string;
+    if (typeof op.file === "string") {
+      try {
+        code = readFileSync(op.file, "utf8");
+      } catch (error) {
+        return fail(`Die Datei „${op.file}" lässt sich nicht lesen: ${(error as Error).message}`);
+      }
+      name = typeof op.name === "string" && op.name !== "" ? op.name : basename(op.file);
+    } else {
+      name = str(op.name, "name");
+      code = str(op.code, "code");
+    }
+    const id = actions.addScriptLibrary(name, code);
+    remember(ctx, op, id);
+    return { library: id, fileName: name, size: code.length };
+  },
+  remove_script_library(ctx, op) {
+    const ref = alias(ctx, str(op.library, "library"));
+    const found = (ctx.content.scriptLibraries ?? []).find((l) => l.id === ref || l.fileName === ref);
+    if (!found) return fail(`Es gibt keine JavaScript-Bibliothek „${ref}". Es gibt: ${(ctx.content.scriptLibraries ?? []).map((l) => l.fileName).join(", ") || "keine"}.`);
+    actions.removeScriptLibrary(found.id);
+    return { library: found.id };
   },
   set_keyboard_navigation(_ctx, op) {
     actions.setKeyboardNavigationEnabled(op.enabled !== false);

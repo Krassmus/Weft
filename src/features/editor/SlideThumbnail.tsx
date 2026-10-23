@@ -375,7 +375,7 @@ function ThumbBlockBody({
   }
   if (block.kind === "link") {
     // (In the PDF a link is a link: where it stands in the picture, the address is clickable - see exportPdf.tsx.)
-    const address = block.target.type === "url" ? safeLinkUrl(block.target.url) : null;
+    const address = safeLinkUrl(block.url);
     return (
       <div className="weft-thumb-block weft-thumb-block-link" style={style} {...(address ? { "data-pdf-link": address } : {})}>
         <LinkView block={block} lang={lang} defaultLang={defaultLang} />

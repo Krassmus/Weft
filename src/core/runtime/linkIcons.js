@@ -1,22 +1,13 @@
-// The pictures of a LinkBlock's icon (see core/types.ts), shared by the editor and the player: this file is embedded into the exported page ahead of
-// player.runtime.js (buildRuntimeHtml.ts), so it has to be plain script with nothing to import. Drawn with lines in the colour of the text.
+// The two pictures of a LinkBlock (see core/types.ts), shared by the editor and the player: this file is embedded into the exported page ahead of
+// player.runtime.js (buildRuntimeHtml.ts), so it has to be plain script with nothing to import. They are mockups/icons/globe.svg (a link to a page)
+// and mockups/icons/download.svg (a file to download), filled in the colour of the text around them instead of their own blue.
 
-var LINK_ICON_SHAPES = {
-  link: '<rect x="2.5" y="8.5" width="12" height="7" rx="3.5" transform="rotate(-45 8.5 12)"/><rect x="9.5" y="8.5" width="12" height="7" rx="3.5" transform="rotate(-45 15.5 12)"/>',
-  external: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
-  download: '<path d="M12 4v11M7 11l5 5 5-5"/><path d="M5 20h14"/>',
-  arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
-  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
-  file: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/>',
-  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
-};
+var LINK_GLOBE_PATH = "M7.999.97a7.03 7.03 0 0 0 0 14.06 7.03 7.03 0 1 0 0-14.06M8.5 6.156c.493-.019 1-.064 1.496-.124q.063.684.082 1.468H8.5zm0-1.001V2.418q.448.042.872.152c.134.448.348 1.302.512 2.468-.462.056-.931.098-1.384.117m-1-.001c-.443-.02-.908-.063-1.371-.12.163-1.18.379-2.028.514-2.468a5.5 5.5 0 0 1 .857-.148zm0 1.001V7.5H5.938q.019-.789.08-1.472c.498.061 1.001.107 1.482.127M4.938 7.5h-2.52a5.6 5.6 0 0 1 .569-1.997c.505.11 1.231.256 2.038.385A25 25 0 0 0 4.938 7.5m-.002 1q.018.917.092 1.707c-.791.125-1.497.268-1.998.379A5.6 5.6 0 0 1 2.418 8.5zm1 0H7.5v1.447c-.487.019-.989.063-1.48.121A22 22 0 0 1 5.936 8.5M7.5 10.949v2.633a5.6 5.6 0 0 1-.886-.155c-.135-.47-.33-1.286-.481-2.363.457-.055.92-.096 1.367-.115m1 .001c.448.02.919.064 1.387.122a17 17 0 0 1-.479 2.348 5.6 5.6 0 0 1-.908.162zm0-1.001V8.5h1.581q-.017.849-.083 1.578A19 19 0 0 0 8.5 9.949M11.082 8.5h2.5a5.6 5.6 0 0 1-.614 2.09 37 37 0 0 0-1.976-.372q.072-.79.09-1.718m-.003-1a24 24 0 0 0-.09-1.606 34 34 0 0 0 2.025-.386 5.6 5.6 0 0 1 .568 1.993h-2.503zm1.372-2.895c-.438.092-.982.198-1.577.293a20 20 0 0 0-.353-1.899c.76.385 1.418.935 1.93 1.606M5.49 2.993c-.12.487-.246 1.127-.352 1.899A38 38 0 0 1 3.552 4.6 5.64 5.64 0 0 1 5.49 2.993m-1.875 8.492c.43-.09.957-.191 1.528-.282.1.716.216 1.319.329 1.795a5.6 5.6 0 0 1-1.857-1.513m6.942 1.499c.112-.469.225-1.061.323-1.769.557.09 1.075.188 1.501.275a5.6 5.6 0 0 1-1.824 1.494";
 
-/** The icons there are, in the order they are offered. */
-export var LINK_ICONS = ["link", "external", "download", "arrow", "globe", "file", "mail"];
+var LINK_DOWNLOAD_SHAPE = '<path d="M48 28.9v15H6v-15zm3-3H3v21h48z"/><circle cx="38.99" cy="34.9" r="3"/><path d="M41 7h-7.09L27 13.91 20.09 7H13l14 14z"/>';
 
-/** The SVG of an icon ("" for "none" or a name that is not known): one em square, in the colour of the text around it. */
-export function linkIconSvg(icon) {
-  var shape = LINK_ICON_SHAPES[icon];
-  if (!shape) return "";
-  return '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + shape + "</svg>";
+/** The SVG of a link's picture - a download symbol for a link that downloads, else a globe: one em square, in the colour of the text around it. */
+export function linkIconSvg(download) {
+  var open = '<svg viewBox="0 0 ' + (download ? "54 54" : "16 16") + '" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false">';
+  return open + (download ? LINK_DOWNLOAD_SHAPE : '<path d="' + LINK_GLOBE_PATH + '"/>') + "</svg>";
 }

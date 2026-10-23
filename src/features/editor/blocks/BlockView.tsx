@@ -896,7 +896,7 @@ function BlockContent({
       );
     }
     case "link":
-      return <LinkView block={block} lang={lang} defaultLang={defaultLang} showEmptyHint />;
+      return <LinkView block={block} lang={lang} defaultLang={defaultLang} />;
     case "quiz":
       return (
         <QuizBlockCanvas

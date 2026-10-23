@@ -723,31 +723,21 @@ export interface FilesBlock extends BaseBlock {
   protection: FilesProtection | null;
 }
 
-/** The pictures a link can have before its text (see linkIcons.js). */
-export type LinkIcon = "none" | "link" | "external" | "download" | "arrow" | "globe" | "file" | "mail";
-
 /**
- * A link on the slide: an element of its own (not a piece of a text) that leads somewhere when it is clicked - to a page on the internet, which
- * opens in a new tab (target="_blank"), or to a file of the module, which is downloaded. It has a text and/or an icon, and it may have a
- * background that sets it off from the slide; without one it is the text (and icon) in the accent colour, underlined.
+ * A link on the slide: an element of its own (not a piece of a text) that leads to an address on the internet when it is clicked - a page, which
+ * opens in a new tab (target="_blank"), or, with `download`, a file. It looks like a button of the module's style (a dark grey like the window of a
+ * revealer, the corners follow the style of the interactive elements) with a globe in front of its text - or a download symbol. It is no
+ * alternative to the Files block: a file that belongs to the module goes there.
  */
 export interface LinkBlock extends BaseBlock {
   kind: "link";
-  /** Where a click leads: the address of a page (http, https, mailto or tel), or a file of the module (its asset id; null: none chosen yet). */
-  target: { type: "url"; url: string } | { type: "file"; assetId: string | null };
-  /** The text of the link (plain); "" for an icon alone. */
+  /** Where a click leads: an address with http(s)://, mailto: or tel: (what is typed without a scheme becomes https). */
+  url: string;
+  /** The address is a file to download rather than a page to read: the symbol is a download symbol instead of a globe. */
+  download: boolean;
+  /** The text of the link (plain); "" for the symbol alone. */
   text: string;
   translations?: Record<string, BlockTranslation>;
-  icon: LinkIcon;
-  /** The size of the text, in cqw (percent of the slide's width) - the icon is as large as the text. */
-  fontSize: number;
-  /** A background colour (hex) that sets the link off from the slide, with its opacity (0-1); null: none. */
-  background: string | null;
-  backgroundOpacity: number;
-  /** The colour of text and icon (hex); null: the module's accent colour (on a background: the colour of the slide's text). */
-  color: string | null;
-  /** How round the corners of the background are, in cqw. */
-  radius: number;
 }
 
 /** Blocks a Layout may contain. Quiz (or any future graded/interactive block) is deliberately

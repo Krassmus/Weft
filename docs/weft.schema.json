@@ -1357,7 +1357,7 @@
     },
     "LinkBlock": {
       "additionalProperties": false,
-      "description": "A link on the slide: an element of its own (not a piece of a text) that leads somewhere when it is clicked - to a page on the internet, which opens in a new tab (target=\"_blank\"), or to a file of the module, which is downloaded. It has a text and/or an icon, and it may have a background that sets it off from the slide; without one it is the text (and icon) in the accent colour, underlined.",
+      "description": "A link on the slide: an element of its own (not a piece of a text) that leads to an address on the internet when it is clicked - a page, which opens in a new tab (target=\"_blank\"), or, with `download`, a file. It looks like a button of the module's style (a dark grey like the window of a revealer, the corners follow the style of the interactive elements) with a globe in front of its text - or a download symbol. It is no alternative to the Files block: a file that belongs to the module goes there.",
       "properties": {
         "actionEffects": {
           "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
@@ -1366,22 +1366,9 @@
           },
           "type": "array"
         },
-        "background": {
-          "description": "A background colour (hex) that sets the link off from the slide, with its opacity (0-1); null: none.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "backgroundOpacity": {
-          "type": "number"
-        },
-        "color": {
-          "description": "The colour of text and icon (hex); null: the module's accent colour (on a background: the colour of the slide's text).",
-          "type": [
-            "string",
-            "null"
-          ]
+        "download": {
+          "description": "The address is a file to download rather than a page to read: the symbol is a download symbol instead of a globe.",
+          "type": "boolean"
         },
         "entranceEffect": {
           "$ref": "#/definitions/BlockEffect",
@@ -1390,13 +1377,6 @@
         "exitEffect": {
           "$ref": "#/definitions/BlockEffect",
           "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
-        },
-        "fontSize": {
-          "description": "The size of the text, in cqw (percent of the slide's width) - the icon is as large as the text.",
-          "type": "number"
-        },
-        "icon": {
-          "$ref": "#/definitions/LinkIcon"
         },
         "id": {
           "$ref": "#/definitions/UUID"
@@ -1416,54 +1396,8 @@
         "position": {
           "$ref": "#/definitions/BlockPosition"
         },
-        "radius": {
-          "description": "How round the corners of the background are, in cqw.",
-          "type": "number"
-        },
-        "target": {
-          "anyOf": [
-            {
-              "additionalProperties": false,
-              "properties": {
-                "type": {
-                  "const": "url",
-                  "type": "string"
-                },
-                "url": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "type",
-                "url"
-              ],
-              "type": "object"
-            },
-            {
-              "additionalProperties": false,
-              "properties": {
-                "assetId": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "type": {
-                  "const": "file",
-                  "type": "string"
-                }
-              },
-              "required": [
-                "type",
-                "assetId"
-              ],
-              "type": "object"
-            }
-          ],
-          "description": "Where a click leads: the address of a page (http, https, mailto or tel), or a file of the module (its asset id; null: none chosen yet)."
-        },
         "text": {
-          "description": "The text of the link (plain); \"\" for an icon alone.",
+          "description": "The text of the link (plain); \"\" for the symbol alone.",
           "type": "string"
         },
         "translations": {
@@ -1471,39 +1405,24 @@
             "$ref": "#/definitions/BlockTranslation"
           },
           "type": "object"
+        },
+        "url": {
+          "description": "Where a click leads: an address with http(s)://, mailto: or tel: (what is typed without a scheme becomes https).",
+          "type": "string"
         }
       },
       "required": [
-        "background",
-        "backgroundOpacity",
-        "color",
+        "download",
         "entranceEffect",
         "exitEffect",
-        "fontSize",
-        "icon",
         "id",
         "kind",
         "order",
         "position",
-        "radius",
-        "target",
-        "text"
+        "text",
+        "url"
       ],
       "type": "object"
-    },
-    "LinkIcon": {
-      "description": "The pictures a link can have before its text (see linkIcons.js).",
-      "enum": [
-        "none",
-        "link",
-        "external",
-        "download",
-        "arrow",
-        "globe",
-        "file",
-        "mail"
-      ],
-      "type": "string"
     },
     "ListBlock": {
       "additionalProperties": false,

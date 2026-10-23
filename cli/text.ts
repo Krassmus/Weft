@@ -80,10 +80,8 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
       return block.shapeKind;
     case "arrow":
       return `${block.points.length} Punkte`;
-    case "link": {
-      const target = block.target.type === "url" ? block.target.url : block.target.assetId ? "Datei zum Herunterladen" : "(ohne Ziel)";
-      return `„${words(block.text, 40) || "(ohne Text)"}" → ${target}`;
-    }
+    case "link":
+      return `„${words(block.text, 40) || "(ohne Text)"}" → ${block.url}${block.download ? " (Download)" : ""}`;
     case "files":
       return `${block.files.length} Dateien${block.protection ? ", geschützt" : ""}`;
     case "language":

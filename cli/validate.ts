@@ -418,12 +418,8 @@ export function validate(loaded: LoadedWeft): Finding[] {
 
     // Link.
     if (block.kind === "link") {
-      if (block.target.type === "url") {
-        if (block.target.url.trim() === "" || block.target.url.trim() === "https://") add("warning", "link-no-target", "Der Link hat noch keine Adresse.", { ...here, hint: "target.url auf eine Adresse mit https://, mailto: oder tel: setzen." });
-        else if (safeLinkUrl(block.target.url) === null) add("error", "link-url-invalid", `Der Link führt zu „${block.target.url}", dahin kann ein Link nicht führen.`, { ...here, hint: "Nur Adressen mit http(s)://, mailto: oder tel: sind erlaubt." });
-      } else if (!block.target.assetId) add("warning", "link-no-target", "Der Link soll eine Datei herunterladen, hat aber keine.", { ...here, hint: "target.assetId auf eine Datei aus assets setzen." });
-      else if (!content.assets.some((a) => a.id === block.target.assetId)) add("error", "asset-missing", "Der Link verweist auf eine Datei, die nicht in assets steht.", here);
-      if (!block.text.trim() && block.icon === "none") add("info", "link-empty", "Der Link hat weder Text noch Icon: man sieht ihn nicht.", here);
+      if (block.url.trim() === "" || block.url.trim() === "https://") add("warning", "link-no-target", "Der Link hat noch keine Adresse.", { ...here, hint: "url auf eine Adresse mit https://, mailto: oder tel: setzen." });
+      else if (safeLinkUrl(block.url) === null) add("error", "link-url-invalid", `Der Link führt zu „${block.url}", dahin kann ein Link nicht führen.`, { ...here, hint: "Nur Adressen mit http(s)://, mailto: oder tel: sind erlaubt." });
     }
 
     // Quiz.

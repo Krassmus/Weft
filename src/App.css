@@ -6333,44 +6333,38 @@ h2.weft-inspector-header {
   padding: 2px 0;
 }
 
-/* A link (LinkBlock, blocks/LinkView.tsx; the player has the same in player.runtime.css): text and icon, in the accent colour and underlined -
-   or, with a background, in the colour of the slide's text on it. */
+/* A link (LinkBlock, blocks/LinkView.tsx; the player has the same in player.runtime.css): a button of the module's style - the dark grey of a
+   revealer's window, the corners and the typeface of the interactive elements - with a globe (or a download symbol) in front of the text. */
 .weft-link {
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45em;
+  gap: 0.5em;
   width: 100%;
   height: 100%;
+  padding: 0 var(--slide-ui-pad-x);
   overflow: hidden;
   white-space: nowrap;
+  border-radius: var(--slide-ui-radius);
+  clip-path: var(--slide-ui-clip);
+  background: #1c2230;
+  color: #d7deee;
+  font-family: var(--slide-ui-font);
+  font-size: calc(1.7cqw * var(--slide-ui-scale));
+  font-weight: var(--slide-ui-weight);
+  letter-spacing: var(--slide-ui-spacing);
   line-height: 1.2;
-  color: var(--slide-accent-ink-text, #2563eb);
-}
-
-.weft-link.has-background {
-  padding: 0 0.8em;
-  color: var(--slide-fg, inherit);
+  text-decoration: none;
 }
 
 .weft-link-icon {
   display: inline-flex;
   flex: none;
-  font-size: 1.1em;
+  font-size: 1.15em;
 }
 
 .weft-link-text {
-  text-decoration: underline;
-  text-underline-offset: 0.18em;
-}
-
-.weft-link.has-background .weft-link-text {
-  text-decoration: none;
-}
-
-.weft-link-empty {
-  font-size: 0.7em;
-  opacity: 0.55;
-  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

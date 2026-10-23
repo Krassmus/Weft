@@ -695,19 +695,7 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
     case "button":
       return { ...base, kind, position: { x: 35, y: 82, width: 30, height: 10 }, text: tr("ui.next"), action: "advance" };
     case "link":
-      return {
-        ...base,
-        kind,
-        position: { x: 35, y: 50, width: 30, height: 8 },
-        target: { type: "url", url: "https://" },
-        text: tr("ui.link_default_text"),
-        icon: "external",
-        fontSize: 2,
-        background: null,
-        backgroundOpacity: 0.15,
-        color: null,
-        radius: 1,
-      };
+      return { ...base, kind, position: { x: 35, y: 50, width: 30, height: 8 }, url: "https://", download: false, text: tr("ui.link_default_text") };
     case "revealer":
       return {
         ...base,

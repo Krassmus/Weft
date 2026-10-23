@@ -12,6 +12,7 @@ import { useDocumentStore } from "../../core/document/store";
 import { createId } from "../../core/id";
 import { setControlHost, startControlBridge } from "../../core/control/bridge";
 import { copyOfTemplate } from "../../core/document/template";
+import { resolveLanguage, useLanguageStore } from "../../core/i18n/languageStore";
 import { usePlayerStore } from "../../core/player/playerStore";
 import { useCustomFontRegistration } from "../../core/fonts/registerCustomFonts";
 import { useSyncMenuLanguage } from "../../core/i18n/useSyncMenuLanguage";
@@ -808,11 +809,11 @@ export function EditorShell() {
 
   // A module that comes with Weft (a template, an example - see features/start/) becomes a module of its own: a copy under a new id and
   // with an editing history of its own, not yet saved anywhere.
-  const handleUseModuleRef = useRef<(bytes: Uint8Array) => Promise<void>>(async () => undefined);
-  async function handleUseModule(bytes: Uint8Array) {
+  const handleUseModuleRef = useRef<(bytes: Uint8Array, title?: string) => Promise<void>>(async () => undefined);
+  async function handleUseModule(bytes: Uint8Array, title?: string) {
     try {
       if (!(await confirmLeave())) return;
-      await startUnsavedDocument(copyOfTemplate(unpackDocument(bytes)));
+      await startUnsavedDocument(copyOfTemplate(unpackDocument(bytes), { language: resolveLanguage(useLanguageStore.getState().preference), title }));
     } catch (err) {
       alert(`${t("toolbar.openFailed")}\n${errorMessage(err)}`);
     }
@@ -860,7 +861,7 @@ export function EditorShell() {
     // A template is never worked on in its own file: it opens as a copy that has no file yet.
     if (doc.content.template) {
       setCopyNotice(null);
-      await startUnsavedDocument(copyOfTemplate(doc));
+      await startUnsavedDocument(copyOfTemplate(doc, { language: resolveLanguage(useLanguageStore.getState().preference) }));
       return;
     }
     const { doc: reconciled, copyOf } = await reconcileOpenedDocument(doc, path);
@@ -968,7 +969,7 @@ export function EditorShell() {
             onNew: () => void handleNewRef.current(),
             onOpenFile: () => void handleOpenRef.current(),
             onOpenPath: async (path) => void (await handleOpenRecentRef.current(path)),
-            onUseModule: (bytes) => handleUseModule(bytes),
+            onUseModule: (bytes, title) => handleUseModule(bytes, title),
             onPlay: (bytes) => handlePlayModule(bytes),
             // (The desktop app has the settings in a window of their own, see show_settings_window in src-tauri/src/lib.rs.)
             onSettings: () => (hasNativeMenu() ? void invoke("open_settings_window").catch(() => undefined) : useCollabDialog.getState().show("settings")),

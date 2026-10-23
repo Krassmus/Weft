@@ -28,7 +28,8 @@ export interface StartActions {
   onOpenFile: () => void;
   onOpenPath: (path: string) => Promise<void>;
   /** A template or an example: a module of its own, made from a copy of the file. */
-  onUseModule: (bytes: Uint8Array) => Promise<void>;
+  /** `title`: the module's title in the language of the interface, where the catalogue has one (the module opens in that language). */
+  onUseModule: (bytes: Uint8Array, title?: string) => Promise<void>;
   /** A tutorial: played in the player, not editable. */
   onPlay: (bytes: Uint8Array) => Promise<void>;
   onSettings: () => void;
@@ -229,7 +230,7 @@ function Home({ actions }: { actions: StartActions }) {
   }
 
   async function use(module: BundledModule) {
-    await progress.run(module.url, await bundledSize(module), async () => actions.onUseModule(await loadBundledBytes(module)));
+    await progress.run(module.url, await bundledSize(module), async () => actions.onUseModule(await loadBundledBytes(module), localized(module.title, lang)));
   }
 
   return (

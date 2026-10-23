@@ -13,7 +13,7 @@ so a file only has to be dropped in next to its entry.
 Whichever way a module of these folders is opened, working on it never changes the file: it opens as a copy of its own (a new id, an
 editing history of its own) that has no file yet, so the first "Speichern" asks where to put it. The files carry `"template": true` in
 their `weft.json` (`weft edit` with `{"op": "set_template"}` sets it) - that is what makes Weft open one as a copy when it is opened
-from anywhere else too (File > Open, a double click), not only from the start screen. The copy is not a template any more.
+from anywhere else too (File > Open, a double click), not only from the start screen. The copy is not a template any more. A template that has its texts in several languages (the module's `languages`) opens in the language of the person who opens it: the language of Weft's interface becomes its default language - the blocks and the editor are in it - and the other languages stay as translations. The title comes from the manifest (`title` per language), since a module's title has no translations of its own. A template that lacks that language opens as it is.
 
 ## manifest.json
 

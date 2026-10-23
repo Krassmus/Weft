@@ -70,4 +70,24 @@ export function loadWeft(path: string): LoadedWeft {
   return { path, json: object as WeftFileJson, content: object.content as WeftModule, files, archive };
 }
 
+/**
+ * What to tell about a file whose format is not the one this tool writes (null: it is). The tool does not migrate: what it reads is what is
+ * in the file - so a newer file may have fields it does not know, and an older one has a shape the operations are not made for.
+ */
+export function formatNotice(formatVersion: number): string | null {
+  if (formatVersion > CURRENT_FORMAT_VERSION) {
+    return `Die Datei hat das neuere Format ${formatVersion}; dieses Werkzeug kennt bis ${CURRENT_FORMAT_VERSION}. Es kann Angaben nicht sehen oder falsch deuten - das Werkzeug auf die Version der Weft-App bringen, die die Datei gespeichert hat (weft version zeigt, welche es ist).`;
+  }
+  if (formatVersion < CURRENT_FORMAT_VERSION) {
+    return `Die Datei hat das ältere Format ${formatVersion} (aktuell ${CURRENT_FORMAT_VERSION}) und wird nicht umgewandelt: Meldungen können von dem abweichen, was Weft nach dem Öffnen zeigt. Zum Ändern die Datei einmal in Weft öffnen und speichern.`;
+  }
+  return null;
+}
+
+/** Changing a file of another format is refused: written back, it would be a mixture of its shape and the one of the operations. */
+export function requireCurrentFormat(loaded: LoadedWeft, what: string): void {
+  const notice = formatNotice(loaded.json.formatVersion);
+  if (notice) throw new CliError(`„${loaded.path}" wird nicht ${what}. ${notice}`);
+}
+
 export { CURRENT_FORMAT_VERSION };

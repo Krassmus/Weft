@@ -36,6 +36,7 @@ Der Server spricht MCP über Standard-Ein-/Ausgabe, braucht kein Netz und nichts
 | `weft_play` | Das Modul wie eine Lernperson durchspielen (weiter, ankreuzen, abschicken, ausfüllen): nach jedem Schritt in Worten, was sich geändert hat, dazu Bilder |
 | `weft_new` | Ein neues leeres Modul |
 | `weft_edit` | Änderungen als Liste von Operationen (alles oder nichts) |
+| `weft_version` | Version des Werkzeugs, Dateiformat, das es liest und schreibt, Node, gefundener Browser |
 | `weft_guide` | **Zuerst lesen:** die Anleitung zum Bauen eines Lernmoduls (`topic`: `authoring`, `ops`, `cli`; englisch, `lang: "de"` deutsch) - dieselben Texte wie `weft guide` |
 | `weft_operations` | Beschreibung der Operationen mit Beispiel (englisch, `lang: "de"` deutsch; steht in [operations.md](operations.md)) |
 

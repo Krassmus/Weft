@@ -13,6 +13,7 @@ npm install && npm run build:cli          # builds cli/dist/weft.mjs and cli/dis
 node cli/dist/weft.mjs guide              # READ THIS FIRST: how to build a module that looks good and works
 node cli/dist/weft.mjs guide ops          # every operation of `weft edit` with parameters and an example
 node cli/dist/weft.mjs help               # every command
+node cli/dist/weft.mjs version            # tool version, file format it reads and writes, Chrome found?
 ```
 
 The loop: `weft new module.weft --empty` → `weft edit module.weft operations.json -o module.weft` (a JSON list of operations; all or
@@ -20,7 +21,7 @@ nothing) → `weft validate module.weft --layout` (also tells what does not fit 
 and `weft render module.weft --all -o pictures/` (look at the result) → repeat. `weft inspect` shows what is in a module, `weft schema <kind>`
 how a block looks, `weft text export` / `weft text import` translate it.
 
-Good to know: the tool never overwrites its source (`weft edit` writes `<name>.ai.weft` or the file given with `-o`); its messages are in German,
+Good to know: a file of a newer format than the tool knows is refused for changes, an older one too (open and save it in Weft once); the tool never overwrites its source (`weft edit` writes `<name>.ai.weft` or the file given with `-o`); its messages are in German,
 their `code`s and the `--json` output are not; a finished example is `src/start-content/examples/durch-drei-teilbar.weft`. As an MCP server:
 `node cli/dist/weft-mcp.mjs` over stdio, start with the tool `weft_guide`.
 

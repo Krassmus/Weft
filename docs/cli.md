@@ -24,6 +24,12 @@ npm run weft -- schema quiz
 
 Statuscodes: `0` in Ordnung · `1` die Prüfung fand Fehler (mit `--strict` auch bei Warnungen) · `2` falscher Aufruf oder nicht lesbare Datei.
 
+## `weft version [--json]`
+
+Die Version des Werkzeugs (die der Weft-App, aus der es gebaut ist), das Dateiformat, das es liest und schreibt (heute 5), Node und der gefundene Browser zum Zeichnen. Auch `weft --version`.
+
+**Dateien eines anderen Formats:** Das Werkzeug wandelt nichts um. Eine Datei mit **neuerem** Format (mit einer neueren Weft-Version gespeichert) kann es nur mit Vorbehalt lesen; `inspect`, `render`, `play`, `html` und `text export` sagen das als Hinweis auf der Fehlerausgabe, `validate` meldet `format-version` als Fehler, und **ändern** (`edit`, `text import`) lehnt es ab. Eine Datei mit **älterem** Format wird gelesen (mit Hinweis, `validate` warnt), aber nicht geändert - sie einmal in Weft öffnen und speichern, dann geht es. So beschädigt ein altes Werkzeug keine neuere Datei, und ein neues schreibt keine Mischung aus alter und neuer Form.
+
 ## `weft inspect <datei> [--page <nummer>] [--json]`
 
 Gliederung des Moduls: Titel, Sprachen, Variablen, Layouts mit ihren Blöcken, dann alle Folien in der Reihenfolge, in der sie gespielt werden (mit Verzweigungen und Sprung-Folien). Jeder Block steht in einer Zeile mit Art, Inhalt und Id.

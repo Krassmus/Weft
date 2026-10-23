@@ -1,10 +1,11 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { pageLabels } from "../src/core/document/pageLabels";
 import { setFixedLanguage } from "../src/core/i18n/tr";
-import { loadWeft, CliError } from "./load";
+import { loadWeft, CliError, formatNotice } from "./load";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { OPERATION_NAMES } from "./ops";
+import { TOOL_VERSION, versionInfo, versionText } from "./version";
 import { GUIDE_TOPICS, guideLanguage, guideText, guideTopicList, isGuideTopic } from "./guide";
 import { renderPages } from "./render";
 import type { Operation } from "./ops";
@@ -58,6 +59,8 @@ Benutzung:
   weft schema [<name>] [--list] [--json] [--full]
       Das Dateiformat. Ohne Name: die Arten von Blöcken. <name>: eine Definition oder die Art
       eines Blocks (zum Beispiel "quiz", "ButtonBlock", "Page").
+  weft version [--json]
+      Die Version des Werkzeugs, das Dateiformat, das es liest und schreibt, Node und der gefundene Browser. Auch: weft --version
   weft guide [authoring | ops | cli] [--lang en|de]
       Die Anleitungen zum Werkzeug (Englisch, mit --lang de Deutsch): wie man ein Lernmodul baut, das gut aussieht (authoring, der
       Anfang), die Operationen von weft edit (ops), jeder Befehl im Einzelnen (cli). Ohne Datei, ohne Chrome.
@@ -125,8 +128,23 @@ setFixedLanguage(process.env.WEFT_LANG === "en" ? "en" : "de");
 
 async function main(argv: string[]): Promise<number> {
   const { positional, flags } = parseArgs(argv);
-  const [command, ...rest] = positional;
+  const [first, ...rest] = positional;
+  // (`weft --version` is a flag to the parser, not a word.)
+  const command = first ?? (flags.has("version") ? "version" : flags.has("help") ? "help" : undefined);
   const json = flags.has("json") || flags.get("format") === "json";
+
+  // A file of another format than this tool writes: said once, on stderr (validate says it as findings, edit refuses).
+  if (["inspect", "render", "play", "html"].includes(command ?? "") || (command === "text" && rest[0] === "export")) {
+    const file = command === "text" ? rest[1] : rest[0];
+    if (file) {
+      try {
+        const notice = formatNotice(loadWeft(file).json.formatVersion);
+        if (notice) console.error(`Hinweis: ${notice}`);
+      } catch {
+        // the command itself says what is wrong with the file
+      }
+    }
+  }
 
   switch (command) {
     case undefined:
@@ -134,6 +152,13 @@ async function main(argv: string[]): Promise<number> {
     case "--help": {
       console.log(HELP);
       return command === undefined ? 2 : 0;
+    }
+    case "version":
+    case "--version":
+    case "-v": {
+      const info = versionInfo();
+      console.log(json ? JSON.stringify(info, null, 2) : versionText(info));
+      return 0;
     }
     case "guide": {
       const language = guideLanguage(flags.get("lang"));

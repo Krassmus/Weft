@@ -1,3 +1,4 @@
+import { TOOL_VERSION, versionInfo, versionText } from "./version";
 import { guideLanguage, guideText, isGuideTopic } from "./guide";
 import { readFileSync, writeFileSync } from "node:fs";
 import { setFixedLanguage } from "../src/core/i18n/tr";
@@ -23,7 +24,7 @@ import type { TextsFile } from "./texts";
 // New content (a new text, the names of a branch ...) is made in German unless WEFT_LANG=en.
 setFixedLanguage(process.env.WEFT_LANG === "en" ? "en" : "de");
 
-const SERVER = { name: "weft", version: "0.1.0" };
+const SERVER = { name: "weft", version: TOOL_VERSION };
 const PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
 interface Tool {
@@ -341,6 +342,14 @@ const TOOLS: Tool[] = [
     description: "Describes the operations of weft_edit with parameters and an example (English; lang \"de\" for German).",
     inputSchema: { type: "object", properties: { lang: { type: "string", enum: ["en", "de"], description: "Language of the description (default en)." } } },
     run: (args) => guideText("ops", guideLanguage(args.lang)),
+  },
+  {
+    name: "weft_version",
+    description:
+      "The version of this tool, the file format it reads and writes (older files are only read, newer ones refused for changes), Node and the " +
+      "browser found for drawing (weft_render, weft_play). Useful when a file reports another format than the tool knows.",
+    inputSchema: { type: "object", properties: {} },
+    run: () => versionText(versionInfo()),
   },
   {
     name: "weft_guide",

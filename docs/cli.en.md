@@ -26,6 +26,12 @@ Status codes: `0` fine · `1` the check found errors (with `--strict` warnings t
 
 **The messages of the tool are in German** (the texts of findings and hints); their `code`s and `--json` are language independent. `WEFT_LANG=en` makes the content that commands create (names of a new branch ...) English.
 
+## `weft version [--json]`
+
+The version of the tool (that of the Weft app it is built from), the file format it reads and writes (5 today), Node and the browser found for drawing. Also `weft --version`.
+
+**Files of another format:** the tool converts nothing. A file with a **newer** format (saved by a newer Weft) can only be read with reservations; `inspect`, `render`, `play`, `html` and `text export` say so as a notice on stderr, `validate` reports `format-version` as an error, and **changing** (`edit`, `text import`) is refused. A file with an **older** format is read (with a notice, `validate` warns) but not changed - open it in Weft once and save, then it works. That way an old tool never damages a newer file, and a new one never writes a mixture of the old and the new shape.
+
 ## `weft inspect <file> [--page <number>] [--json]`
 
 The outline of the module: title, languages, variables, layouts with their blocks, then all slides in the order in which they are played (with forks and jump slides). Every block is one line with kind, content and id.

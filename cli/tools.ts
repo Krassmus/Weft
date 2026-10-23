@@ -5,7 +5,7 @@ import { ensureBuiltinVariables } from "../src/core/document/variables";
 import type { Block, WeftFileJson, WeftModule } from "../src/core/types";
 import { buildOutline, outlineMarkdown } from "./inspect";
 import type { Outline } from "./inspect";
-import { CliError, loadWeft } from "./load";
+import { CliError, formatNotice, loadWeft, requireCurrentFormat } from "./load";
 import type { LoadedWeft } from "./load";
 import { runOperations } from "./ops";
 import type { Operation, OperationResult } from "./ops";
@@ -23,7 +23,8 @@ import { writeWeft } from "./write";
 export function inspectFile(file: string, options: { page?: string } = {}): { outline: Outline; markdown: string } {
   const loaded = loadWeft(file);
   const outline = buildOutline(loaded, options);
-  return { outline, markdown: outlineMarkdown(outline, options.page !== undefined) };
+  const notice = formatNotice(loaded.json.formatVersion);
+  return { outline, markdown: (notice ? `> Hinweis: ${notice}\n\n` : "") + outlineMarkdown(outline, options.page !== undefined) };
 }
 
 export function validateFile(file: string): { findings: Finding[] } {
@@ -71,6 +72,7 @@ export function editFile(
   options: { output?: string; dryRun?: boolean; allowErrors?: boolean; force?: boolean } = {},
 ): EditOutcome {
   const loaded = loadWeft(file);
+  requireCurrentFormat(loaded, "geändert");
   const before = new Set(validate(loaded).map(findingKey));
   const content = structuredClone(loaded.content);
   const { results, assets } = runOperations(content, operations);
@@ -161,6 +163,7 @@ export function importTextsFile(
   options: { output?: string; dryRun?: boolean; force?: boolean } = {},
 ): TextImportOutcome {
   const loaded = loadWeft(file);
+  requireCurrentFormat(loaded, "übersetzt");
   const content = structuredClone(loaded.content);
   const report = importTexts(content, texts);
   const languages = [...new Set(texts.items.flatMap((i) => Object.keys(i.translations ?? {})))];

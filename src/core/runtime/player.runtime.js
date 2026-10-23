@@ -2804,7 +2804,7 @@
   var REVEALER_WINDOW_WIDTH_CQW = 28;
   var REVEALER_PAD_CQW = 1.4;
 
-  // ---- LinkBlock: a link to a page (opens in a new tab) or to a file to download ----
+  // ---- LinkBlock: a link to a page (opens in a new tab) ----
 
   // Where a link leads, or "" when it leads nowhere: only a page (http, https), a mail address or a phone number. Mirrors core/document/linkUrl.ts
   // (safeLinkUrl), kept in step by hand - a module is not trusted to hold a safe address.
@@ -2823,7 +2823,7 @@
     var href = linkHref(block);
     var link = el(href ? "a" : "span", { class: "weft-link" }, []);
     var icon = el("span", { class: "weft-link-icon" }, []);
-    icon.innerHTML = typeof linkIconSvg === "function" ? linkIconSvg(!!block.download) : "";
+    icon.innerHTML = typeof linkIconSvg === "function" ? linkIconSvg() : "";
     link.appendChild(icon);
     var text = el("span", { class: "weft-link-text" }, []);
     link.appendChild(text);
@@ -2841,9 +2841,7 @@
     languageRefreshers.push(fill);
     if (href) {
       link.setAttribute("href", href);
-      // A download is saved by the browser (the attribute) - for a file on the same site; one on another site it only opens, which is why the tab is
-      // new in either case: the player is not left. A mail or phone link hands over to the program that does it, without an empty tab.
-      if (block.download) link.setAttribute("download", "");
+      // (A page opens in a new tab; a mail or phone link hands over to the program that does it, without an empty tab.)
       if (/^https?:/i.test(href)) link.setAttribute("target", "_blank");
       link.setAttribute("rel", "noopener noreferrer");
       // In the editor's preview and the player of a player file the page lives in a sandboxed frame that cannot open a tab: the window around it

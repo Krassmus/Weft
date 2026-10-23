@@ -7,7 +7,7 @@ export function LinkView({ block, lang, defaultLang }: { block: LinkBlock; lang:
   const text = linkText(block, lang, defaultLang).trim();
   return (
     <div className="weft-link">
-      <span className="weft-link-icon" dangerouslySetInnerHTML={{ __html: linkIconSvg(block.download === true) }} />
+      <span className="weft-link-icon" dangerouslySetInnerHTML={{ __html: linkIconSvg() }} />
       {text && <span className="weft-link-text">{text}</span>}
     </div>
   );

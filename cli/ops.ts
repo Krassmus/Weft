@@ -659,9 +659,9 @@ const HANDLERS: Record<string, Handler> = {
     if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
     return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "shape", set, as: op.as });
   },
-  // A link as its own element: add_link {page | layout, url, text?, download?, x, y, width, height, effect?, name?, as}. url: an address (http, https,
-  // mailto, tel; one without a scheme becomes https) that opens in a new tab; download: true when it is a file to download (the symbol is a
-  // download symbol then). How it looks is the module's style of interactive elements.
+  // A link as its own element: add_link {page | layout, url, text?, x, y, width, height, effect?, name?, as}. url: an address (http, https,
+  // mailto, tel; one without a scheme becomes https) that opens in a new tab. How it looks is the module's style of interactive
+  // elements.
   add_link(ctx, op) {
     const container = op.layout !== undefined ? { layout: op.layout } : { page: op.page };
     const num = (value: unknown, fallback: number) => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
@@ -670,7 +670,6 @@ const HANDLERS: Record<string, Handler> = {
     const safe = safeLinkUrl(op.url as string);
     if (!safe) fail(`„${op.url}" ist keine Adresse, zu der ein Link führen kann (erlaubt: http(s)://, mailto:, tel:).`);
     set.url = safe;
-    if (op.download !== undefined) set.download = op.download === true;
     for (const key of ["text", "name"]) if (op[key] !== undefined) set[key] = op[key];
     if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
     return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "link", set, as: op.as });

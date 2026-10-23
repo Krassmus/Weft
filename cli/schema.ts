@@ -24,7 +24,7 @@ export const BLOCK_KINDS: Record<string, { definition: string; what: string }> =
   quiz: { definition: "QuizBlock", what: "Frage mit Antwortoptionen; richtig/falsch löst Variablen-Effekte und Ereignisse aus." },
   cloze: { definition: "ClozeBlock", what: "Lückentext: Antworten stehen als [[Antwort]] im Text." },
   button: { definition: "ButtonBlock", what: "Ein Button: Weiter, vorherige Folie, zu einer Folie springen oder ein Ereignis auslösen; kann Variablen ändern." },
-  link: { definition: "LinkBlock", what: "Ein Link als eigenes Element: führt zu einer Adresse im Internet (neuer Tab), mit Globus oder (download) Download-Symbol; sieht aus wie ein Button des Modulstils. Dateien des Moduls gehören in den Dateien-Block." },
+  link: { definition: "LinkBlock", what: "Ein Link als eigenes Element: führt zu einer Adresse im Internet (neuer Tab), mit einem Globus; sieht aus wie ein Button des Modulstils. Dateien des Moduls gehören in den Dateien-Block." },
   image: { definition: "ImageBlock", what: "Ein Bild (Datei aus `assets`), optional mit Maske und Effekt." },
   video: { definition: "VideoBlock", what: "Ein Video (Datei aus `assets`), mit Zeitmarken, an denen es anhalten kann." },
   audio: { definition: "AudioBlock", what: "Eine Audiodatei (aus `assets`): nicht sichtbar oder mit Player; wie ein Video mit Zeitmarken, an denen es anhalten kann." },

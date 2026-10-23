@@ -725,16 +725,14 @@ export interface FilesBlock extends BaseBlock {
 
 /**
  * A link on the slide: an element of its own (not a piece of a text) that leads to an address on the internet when it is clicked - a page, which
- * opens in a new tab (target="_blank"), or, with `download`, a file. It looks like a button of the module's style (a dark grey like the window of a
- * revealer, the corners follow the style of the interactive elements) with a globe in front of its text - or a download symbol. It is no
- * alternative to the Files block: a file that belongs to the module goes there.
+ * opens in a new tab (target="_blank"). It looks like a button of the module's style (a dark grey like the window of a revealer, the corners
+ * follow the style of the interactive elements) with a globe in front of its text. It is no way to hand out a file: a browser does not save a file of
+ * another site, it only opens it - and a file that belongs to the module goes in the Files block.
  */
 export interface LinkBlock extends BaseBlock {
   kind: "link";
   /** Where a click leads: an address with http(s)://, mailto: or tel: (what is typed without a scheme becomes https). */
   url: string;
-  /** The address is a file to download rather than a page to read: the symbol is a download symbol instead of a globe. */
-  download: boolean;
   /** The text of the link (plain); "" for the symbol alone. */
   text: string;
   translations?: Record<string, BlockTranslation>;

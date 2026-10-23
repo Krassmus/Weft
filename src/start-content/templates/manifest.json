@@ -9,5 +9,16 @@
       "de": "Ruhig und klassisch: cremeweißer Grund, tiefes Grün und warmes Braun, Überschriften in einer Serifenschrift. Mit Titelfolie, Textfolie, Bildfolie und einer Aufzählung, deren Punkte nacheinander erscheinen.",
       "en": "Calm and classic: a cream ground, deep green and warm brown, headings in a serif typeface. With a title slide, a text slide, a picture slide and a list whose points appear one after the other."
     }
+  },
+  {
+    "file": "weft-dunkel.weft",
+    "title": {
+      "de": "Weft dunkel",
+      "en": "Weft dark"
+    },
+    "description": {
+      "de": "Dunkel wie Weft selbst: tiefes Nachtblau, Blau-Violett-Verläufe, die Welle des Startbildschirms und Karten in Blau, Türkis und Violett. Mit Titelfolie, Textfolie, Bildfolie, einer Aufzählung und drei Karten, die nacheinander erscheinen.",
+      "en": "Dark like Weft itself: deep night blue, blue-to-violet gradients, the wave of the start screen and cards in blue, teal and violet. With a title slide, a text slide, a picture slide, a list and three cards that appear one after the other."
+    }
   }
 ]

@@ -370,7 +370,11 @@ textarea {
   cursor: grab;
   font-size: 12.5px;
   color: var(--weft-text);
-  touch-action: none;
+  /* A finger scrolls the list; a long press picks the row up (useDragReorder). */
+  touch-action: pan-y;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .weft-node.is-active {
@@ -3150,10 +3154,11 @@ button.weft-timeline-node-icon:hover {
   color: var(--weft-text);
   cursor: grab;
   font-size: 12px;
-  /* Same reasoning as .weft-node's own touch-action:none - useDragReorder's drag is pointer-
-     events based, not native HTML5 DnD, so touch scrolling has to be suppressed by hand here for
-     a drag to actually start on a touchscreen instead of just scrolling the sidebar. */
-  touch-action: none;
+  /* A finger scrolls the list; a long press picks the row up (useDragReorder). */
+  touch-action: pan-y;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .weft-block-list li button.is-active {
@@ -3722,8 +3727,9 @@ button.weft-timeline-node-icon:hover {
   background: var(--weft-input-bg);
   font-size: 12px;
   cursor: grab;
-  /* Pointer-events drag (useDragReorder): touch scrolling has to be suppressed by hand. */
-  touch-action: none;
+  /* A finger scrolls the list; a long press picks the row up (useDragReorder). */
+  touch-action: pan-y;
+  -webkit-touch-callout: none;
 }
 
 .weft-language-row.is-dragging {
@@ -5267,7 +5273,9 @@ button.weft-timeline-node-icon.is-red:hover,
 /* Sorting the colours of the scheme by dragging their rows. */
 .weft-color-table tbody tr {
   cursor: grab;
-  touch-action: none;
+  /* A finger scrolls the list; a long press picks the row up (useDragReorder). */
+  touch-action: pan-y;
+  -webkit-touch-callout: none;
 }
 
 .weft-color-table tbody tr.is-dragging {

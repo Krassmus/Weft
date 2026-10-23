@@ -22,6 +22,12 @@ interface DragOverState {
 
 type MoveFn = (targetContainerId: string, targetIndex: number) => void;
 
+/** On a touchscreen (and with a pen, which scrolls like a finger) a row is only picked up after it was pressed for this long without
+ * moving - like in Keynote on the iPad. Moving earlier is a scroll of the list, and the row stays where it is. */
+const LONG_PRESS_MS = 450;
+/** How far a finger may wander (in px) during that time and still count as pressing. */
+const LONG_PRESS_SLOP = 10;
+
 /**
  * Pointer-events based drag reordering (not native HTML5 DnD, which is inconsistent in
  * WebKit/Tauri and doesn't unify with touch): each draggable row carries data-drag-container /
@@ -40,11 +46,26 @@ export function useDragReorder() {
   const containerRef = useRef<string | null>(null);
   const sourceIndexRef = useRef<number | null>(null);
   const onMoveRef = useRef<MoveFn | null>(null);
+  // A touch (or pen) gesture: waits for the long press (timerRef), and is a drag only from then on (armedRef).
+  const touchRef = useRef(false);
+  const armedRef = useRef(false);
+  const timerRef = useRef<number | null>(null);
+
+  // Once a row is picked up the finger must not scroll the list any more. The browser has not begun to scroll yet (the finger has been
+  // still), so cancelling the touch moves keeps it that way - which is why this listener is not passive.
+  function blockScroll(e: TouchEvent) {
+    if (armedRef.current && e.cancelable) e.preventDefault();
+  }
 
   function handleMove(e: PointerEvent) {
     if (!startRef.current || !kindRef.current || containerRef.current === null || sourceIndexRef.current === null) return;
     const dx = e.clientX - startRef.current.x;
     const dy = e.clientY - startRef.current.y;
+    if (touchRef.current && !armedRef.current) {
+      // Moved before the long press was over: a scroll. Let go of the gesture; the browser scrolls the list.
+      if (Math.hypot(dx, dy) > LONG_PRESS_SLOP) finish();
+      return;
+    }
     if (!startedRef.current) {
       if (Math.hypot(dx, dy) < 4) return;
       startedRef.current = true;
@@ -79,6 +100,11 @@ export function useDragReorder() {
     window.removeEventListener("pointermove", handleMove);
     window.removeEventListener("pointerup", finish);
     window.removeEventListener("pointercancel", finish);
+    window.removeEventListener("touchmove", blockScroll);
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    timerRef.current = null;
+    touchRef.current = false;
+    armedRef.current = false;
     document.body.classList.remove("weft-dragging");
 
     if (startedRef.current && overRef.current && onMoveRef.current) {
@@ -117,6 +143,22 @@ export function useDragReorder() {
         window.addEventListener("pointermove", handleMove);
         window.addEventListener("pointerup", finish);
         window.addEventListener("pointercancel", finish);
+        if (e.pointerType !== "mouse") {
+          touchRef.current = true;
+          armedRef.current = false;
+          window.addEventListener("touchmove", blockScroll, { passive: false });
+          timerRef.current = window.setTimeout(() => {
+            // Picked up: the row is lifted (the same look as while it is dragged), and from here on it follows the finger.
+            timerRef.current = null;
+            armedRef.current = true;
+            startedRef.current = true;
+            document.body.classList.add("weft-dragging");
+            const lifted: DragOverState = { sourceContainerId: containerId, sourceIndex: index, targetContainerId: containerId, overIndex: index, position: "before" };
+            overRef.current = lifted;
+            setOver(lifted);
+            navigator.vibrate?.(10);
+          }, LONG_PRESS_MS);
+        }
       },
       dragClassName:
         over?.sourceContainerId === containerId && over.sourceIndex === index

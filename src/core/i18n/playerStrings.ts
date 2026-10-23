@@ -1,7 +1,7 @@
 /**
  * The few fixed texts the player (and the editor's preview of it) shows by itself, in the languages a
- * module can be offered in: the quiz's "Abschicken" and its right/wrong feedback, the restart button
- * and message of the finished screen, the default label of a button without text, and two
+ * module can be offered in: the quiz's "Abschicken" and its right/wrong feedback, the restart button,
+ * message and results table of the finished screen, the default label of a button without text, and two
  * screen-reader labels. Everything an author types is translated by the author (see
  * core/document/translations.ts) - these are the rest.
  *
@@ -20,7 +20,11 @@ export type FilesStringKey = "filesTitle" | "filesPassword" | "filesUnlock" | "f
  * by the player. A language without its own entry falls back to English. */
 export type A11yStringKey = "previous" | "navigation" | "slide" | "blank" | "embedded" | "revealerOpen" | "revealerClose";
 
-type Strings = Record<PlayerStringKey | FilesStringKey | A11yStringKey | "thanks", string>;
+/** The texts of the table on the finished screen that lists what the graded elements (quizzes, gap texts) gave - see renderDoneSummary in
+ * player.runtime.js. A language without its own entry falls back to English. */
+export type ResultsStringKey = "resultsElement" | "resultsResult" | "resultsPoints" | "resultsTotal" | "resultsRight" | "resultsWrong" | "resultsAnswered" | "resultsOpen";
+
+type Strings = Record<PlayerStringKey | FilesStringKey | A11yStringKey | ResultsStringKey | "thanks", string>;
 
 /** What an open question (no right or wrong, see QuizBlock.open) says once it is submitted. A language without its own falls back to English. */
 const THANKS: Record<string, string> = {
@@ -42,6 +46,20 @@ const A11Y_TRANSLATIONS: Record<string, Record<A11yStringKey, string>> = {
   it: a11yStrings("Indietro", "Navigazione", "Diapositiva {n}", "Spazio {n} di {total}", "Pagina incorporata", "Mostra più informazioni", "Chiudi"),
   pt: a11yStrings("Voltar", "Navegação", "Diapositivo {n}", "Lacuna {n} de {total}", "Página incorporada", "Mostrar mais informações", "Fechar"),
   nl: a11yStrings("Terug", "Navigatie", "Dia {n}", "Open plek {n} van {total}", "Ingebedde pagina", "Meer informatie tonen", "Sluiten"),
+};
+
+function resultsStrings(element: string, result: string, points: string, total: string, right: string, wrong: string, answered: string, open: string): Record<ResultsStringKey, string> {
+  return { resultsElement: element, resultsResult: result, resultsPoints: points, resultsTotal: total, resultsRight: right, resultsWrong: wrong, resultsAnswered: answered, resultsOpen: open };
+}
+
+const RESULTS_TRANSLATIONS: Record<string, Record<ResultsStringKey, string>> = {
+  de: resultsStrings("Aufgabe", "Ergebnis", "Punkte", "Summe", "Richtig", "Falsch", "Beantwortet", "Nicht beantwortet"),
+  en: resultsStrings("Item", "Result", "Points", "Total", "Correct", "Incorrect", "Answered", "Not answered"),
+  fr: resultsStrings("Élément", "Résultat", "Points", "Total", "Juste", "Faux", "Répondu", "Sans réponse"),
+  es: resultsStrings("Elemento", "Resultado", "Puntos", "Total", "Correcto", "Incorrecto", "Respondido", "Sin responder"),
+  it: resultsStrings("Elemento", "Risultato", "Punti", "Totale", "Corretto", "Sbagliato", "Risposto", "Senza risposta"),
+  pt: resultsStrings("Elemento", "Resultado", "Pontos", "Total", "Correto", "Errado", "Respondido", "Sem resposta"),
+  nl: resultsStrings("Onderdeel", "Resultaat", "Punten", "Totaal", "Goed", "Fout", "Beantwoord", "Niet beantwoord"),
 };
 
 function filesStrings(title: string, password: string, unlock: string, wrongPassword: string, download: string, failed: string): Record<FilesStringKey, string> {
@@ -66,45 +84,45 @@ function strings(
   play: string,
   language: string,
 ): Strings {
-  return { submit, correct, incorrect, restart, done, next, play, language, thanks: THANKS.en, ...FILES_TRANSLATIONS.en, ...A11Y_TRANSLATIONS.en };
+  return { submit, correct, incorrect, restart, done, next, play, language, thanks: THANKS.en, ...FILES_TRANSLATIONS.en, ...A11Y_TRANSLATIONS.en, ...RESULTS_TRANSLATIONS.en };
 }
 
 // Keyed by language code (the part of a locale before the "_"); Chinese is also keyed by "zh_TW" for
 // the traditional script.
 const TRANSLATIONS: Record<string, Strings> = {
-  de: strings("Abschicken", "Das war richtig!", "Das war leider nicht richtig.", "Neu starten", "Lernmodul abgeschlossen.", "Weiter", "Abspielen", "Sprache"),
-  en: strings("Submit", "That was correct!", "Unfortunately, that was not correct.", "Start over", "Module completed.", "Next", "Play", "Language"),
-  fr: strings("Envoyer", "C'est correct !", "Malheureusement, ce n'est pas correct.", "Recommencer", "Module terminé.", "Suivant", "Lire", "Langue"),
-  es: strings("Enviar", "¡Correcto!", "Lamentablemente, no es correcto.", "Empezar de nuevo", "Módulo completado.", "Siguiente", "Reproducir", "Idioma"),
-  it: strings("Invia", "Esatto!", "Purtroppo non è corretto.", "Ricomincia", "Modulo completato.", "Avanti", "Riproduci", "Lingua"),
-  pt: strings("Enviar", "Correto!", "Infelizmente, não está correto.", "Recomeçar", "Módulo concluído.", "Continuar", "Reproduzir", "Idioma"),
-  ca: strings("Envia", "Correcte!", "Malauradament, no és correcte.", "Torna a començar", "Mòdul completat.", "Següent", "Reprodueix", "Llengua"),
-  nl: strings("Verzenden", "Dat was juist!", "Helaas, dat was niet juist.", "Opnieuw beginnen", "Module voltooid.", "Volgende", "Afspelen", "Taal"),
-  sv: strings("Skicka", "Rätt!", "Tyvärr, det var inte rätt.", "Börja om", "Modulen är klar.", "Nästa", "Spela upp", "Språk"),
-  da: strings("Send", "Det var rigtigt!", "Desværre, det var ikke rigtigt.", "Start forfra", "Modulet er gennemført.", "Næste", "Afspil", "Sprog"),
-  nb: strings("Send inn", "Det var riktig!", "Dessverre, det var ikke riktig.", "Start på nytt", "Modulen er fullført.", "Neste", "Spill av", "Språk"),
-  fi: strings("Lähetä", "Oikein!", "Valitettavasti se ei ollut oikein.", "Aloita alusta", "Moduuli suoritettu.", "Seuraava", "Toista", "Kieli"),
-  pl: strings("Wyślij", "Dobrze!", "Niestety, to nie jest poprawna odpowiedź.", "Zacznij od nowa", "Moduł ukończony.", "Dalej", "Odtwórz", "Język"),
-  cs: strings("Odeslat", "Správně!", "Bohužel to není správně.", "Začít znovu", "Modul dokončen.", "Další", "Přehrát", "Jazyk"),
-  sk: strings("Odoslať", "Správne!", "Žiaľ, nie je to správne.", "Začať odznova", "Modul dokončený.", "Ďalej", "Prehrať", "Jazyk"),
-  hu: strings("Elküldés", "Helyes!", "Sajnos ez nem helyes.", "Újrakezdés", "A modul befejeződött.", "Tovább", "Lejátszás", "Nyelv"),
-  ro: strings("Trimite", "Corect!", "Din păcate, nu este corect.", "Reîncepe", "Modul finalizat.", "Înainte", "Redare", "Limbă"),
-  bg: strings("Изпрати", "Вярно!", "За съжаление, това не е правилно.", "Започни отначало", "Модулът е завършен.", "Напред", "Възпроизвеждане", "Език"),
-  hr: strings("Pošalji", "Točno!", "Nažalost, to nije točno.", "Počni ispočetka", "Modul je završen.", "Dalje", "Reproduciraj", "Jezik"),
-  ru: strings("Отправить", "Правильно!", "К сожалению, это неправильно.", "Начать заново", "Модуль завершён.", "Далее", "Воспроизвести", "Язык"),
-  uk: strings("Надіслати", "Правильно!", "На жаль, це неправильно.", "Почати знову", "Модуль завершено.", "Далі", "Відтворити", "Мова"),
-  el: strings("Υποβολή", "Σωστά!", "Δυστυχώς, δεν είναι σωστό.", "Έναρξη από την αρχή", "Η ενότητα ολοκληρώθηκε.", "Επόμενο", "Αναπαραγωγή", "Γλώσσα"),
-  tr: strings("Gönder", "Doğru!", "Maalesef, doğru değil.", "Baştan başla", "Modül tamamlandı.", "İleri", "Oynat", "Dil"),
-  ar: strings("إرسال", "صحيح!", "للأسف، هذا غير صحيح.", "ابدأ من جديد", "اكتملت الوحدة.", "التالي", "تشغيل", "اللغة"),
-  he: strings("שליחה", "נכון!", "למרבה הצער, זה לא נכון.", "התחל מחדש", "היחידה הושלמה.", "הבא", "הפעלה", "שפה"),
-  hi: strings("जमा करें", "सही!", "दुर्भाग्य से, यह सही नहीं है।", "फिर से शुरू करें", "मॉड्यूल पूरा हुआ।", "आगे", "चलाएँ", "भाषा"),
-  zh: strings("提交", "正确！", "很遗憾，这不正确。", "重新开始", "学习模块已完成。", "下一步", "播放", "语言"),
-  zh_TW: strings("送出", "正確！", "很遺憾，這不正確。", "重新開始", "學習單元已完成。", "下一步", "播放", "語言"),
-  ja: strings("送信", "正解です！", "残念ながら、不正解です。", "最初からやり直す", "モジュールが完了しました。", "次へ", "再生", "言語"),
-  ko: strings("제출", "정답입니다!", "아쉽게도 오답입니다.", "처음부터 다시", "모듈을 완료했습니다.", "다음", "재생", "언어"),
-  id: strings("Kirim", "Benar!", "Sayangnya, itu tidak benar.", "Mulai ulang", "Modul selesai.", "Berikutnya", "Putar", "Bahasa"),
-  vi: strings("Gửi", "Chính xác!", "Rất tiếc, điều đó không đúng.", "Bắt đầu lại", "Đã hoàn thành mô-đun.", "Tiếp theo", "Phát", "Ngôn ngữ"),
-  th: strings("ส่ง", "ถูกต้อง!", "น่าเสียดาย ไม่ถูกต้อง", "เริ่มใหม่", "เรียนจบโมดูลแล้ว", "ถัดไป", "เล่น", "ภาษา"),
+  de: strings("Abschicken", "Das war richtig!", "Das war leider nicht richtig.", "Neu starten", "Danke fürs Mitmachen!", "Weiter", "Abspielen", "Sprache"),
+  en: strings("Submit", "That was correct!", "Unfortunately, that was not correct.", "Start over", "Thanks for taking part!", "Next", "Play", "Language"),
+  fr: strings("Envoyer", "C'est correct !", "Malheureusement, ce n'est pas correct.", "Recommencer", "Merci d'avoir participé !", "Suivant", "Lire", "Langue"),
+  es: strings("Enviar", "¡Correcto!", "Lamentablemente, no es correcto.", "Empezar de nuevo", "¡Gracias por participar!", "Siguiente", "Reproducir", "Idioma"),
+  it: strings("Invia", "Esatto!", "Purtroppo non è corretto.", "Ricomincia", "Grazie per aver partecipato!", "Avanti", "Riproduci", "Lingua"),
+  pt: strings("Enviar", "Correto!", "Infelizmente, não está correto.", "Recomeçar", "Obrigado por participar!", "Continuar", "Reproduzir", "Idioma"),
+  ca: strings("Envia", "Correcte!", "Malauradament, no és correcte.", "Torna a començar", "Gràcies per participar!", "Següent", "Reprodueix", "Llengua"),
+  nl: strings("Verzenden", "Dat was juist!", "Helaas, dat was niet juist.", "Opnieuw beginnen", "Bedankt voor het meedoen!", "Volgende", "Afspelen", "Taal"),
+  sv: strings("Skicka", "Rätt!", "Tyvärr, det var inte rätt.", "Börja om", "Tack för att du deltog!", "Nästa", "Spela upp", "Språk"),
+  da: strings("Send", "Det var rigtigt!", "Desværre, det var ikke rigtigt.", "Start forfra", "Tak fordi du deltog!", "Næste", "Afspil", "Sprog"),
+  nb: strings("Send inn", "Det var riktig!", "Dessverre, det var ikke riktig.", "Start på nytt", "Takk for at du var med!", "Neste", "Spill av", "Språk"),
+  fi: strings("Lähetä", "Oikein!", "Valitettavasti se ei ollut oikein.", "Aloita alusta", "Kiitos osallistumisesta!", "Seuraava", "Toista", "Kieli"),
+  pl: strings("Wyślij", "Dobrze!", "Niestety, to nie jest poprawna odpowiedź.", "Zacznij od nowa", "Dziękujemy za udział!", "Dalej", "Odtwórz", "Język"),
+  cs: strings("Odeslat", "Správně!", "Bohužel to není správně.", "Začít znovu", "Děkujeme za účast!", "Další", "Přehrát", "Jazyk"),
+  sk: strings("Odoslať", "Správne!", "Žiaľ, nie je to správne.", "Začať odznova", "Ďakujeme za účasť!", "Ďalej", "Prehrať", "Jazyk"),
+  hu: strings("Elküldés", "Helyes!", "Sajnos ez nem helyes.", "Újrakezdés", "Köszönjük a részvételt!", "Tovább", "Lejátszás", "Nyelv"),
+  ro: strings("Trimite", "Corect!", "Din păcate, nu este corect.", "Reîncepe", "Mulțumim pentru participare!", "Înainte", "Redare", "Limbă"),
+  bg: strings("Изпрати", "Вярно!", "За съжаление, това не е правилно.", "Започни отначало", "Благодарим за участието!", "Напред", "Възпроизвеждане", "Език"),
+  hr: strings("Pošalji", "Točno!", "Nažalost, to nije točno.", "Počni ispočetka", "Hvala na sudjelovanju!", "Dalje", "Reproduciraj", "Jezik"),
+  ru: strings("Отправить", "Правильно!", "К сожалению, это неправильно.", "Начать заново", "Спасибо за участие!", "Далее", "Воспроизвести", "Язык"),
+  uk: strings("Надіслати", "Правильно!", "На жаль, це неправильно.", "Почати знову", "Дякуємо за участь!", "Далі", "Відтворити", "Мова"),
+  el: strings("Υποβολή", "Σωστά!", "Δυστυχώς, δεν είναι σωστό.", "Έναρξη από την αρχή", "Ευχαριστούμε για τη συμμετοχή!", "Επόμενο", "Αναπαραγωγή", "Γλώσσα"),
+  tr: strings("Gönder", "Doğru!", "Maalesef, doğru değil.", "Baştan başla", "Katıldığınız için teşekkürler!", "İleri", "Oynat", "Dil"),
+  ar: strings("إرسال", "صحيح!", "للأسف، هذا غير صحيح.", "ابدأ من جديد", "شكرًا على مشاركتك!", "التالي", "تشغيل", "اللغة"),
+  he: strings("שליחה", "נכון!", "למרבה הצער, זה לא נכון.", "התחל מחדש", "תודה על ההשתתפות!", "הבא", "הפעלה", "שפה"),
+  hi: strings("जमा करें", "सही!", "दुर्भाग्य से, यह सही नहीं है।", "फिर से शुरू करें", "भाग लेने के लिए धन्यवाद!", "आगे", "चलाएँ", "भाषा"),
+  zh: strings("提交", "正确！", "很遗憾，这不正确。", "重新开始", "感谢参与！", "下一步", "播放", "语言"),
+  zh_TW: strings("送出", "正確！", "很遺憾，這不正確。", "重新開始", "感謝參與！", "下一步", "播放", "語言"),
+  ja: strings("送信", "正解です！", "残念ながら、不正解です。", "最初からやり直す", "ご参加ありがとうございました！", "次へ", "再生", "言語"),
+  ko: strings("제출", "정답입니다!", "아쉽게도 오답입니다.", "처음부터 다시", "참여해 주셔서 감사합니다!", "다음", "재생", "언어"),
+  id: strings("Kirim", "Benar!", "Sayangnya, itu tidak benar.", "Mulai ulang", "Terima kasih sudah berpartisipasi!", "Berikutnya", "Putar", "Bahasa"),
+  vi: strings("Gửi", "Chính xác!", "Rất tiếc, điều đó không đúng.", "Bắt đầu lại", "Cảm ơn bạn đã tham gia!", "Tiếp theo", "Phát", "Ngôn ngữ"),
+  th: strings("ส่ง", "ถูกต้อง!", "น่าเสียดาย ไม่ถูกต้อง", "เริ่มใหม่", "ขอบคุณที่ร่วมกิจกรรม!", "ถัดไป", "เล่น", "ภาษา"),
 };
 
 // Languages whose texts are another language's: the two Norwegian written forms, and the Chinese
@@ -114,13 +132,14 @@ const ALIASES: Record<string, string> = { no: "nb", nn: "nb", zh_HK: "zh_TW", zh
 /** The fixed texts for a locale ("fr_FR"): its own, else its language's, else English - and German
  * for `null`, a module without languages. */
 export function playerStringsFor(locale: string | null): Strings {
-  if (locale === null) return { ...TRANSLATIONS.de, ...FILES_TRANSLATIONS.de, ...A11Y_TRANSLATIONS.de, thanks: THANKS.de };
+  if (locale === null) return { ...TRANSLATIONS.de, ...FILES_TRANSLATIONS.de, ...A11Y_TRANSLATIONS.de, ...RESULTS_TRANSLATIONS.de, thanks: THANKS.de };
   const base = locale.split("_")[0];
   const key = [locale, base].map((k) => ALIASES[k] ?? k).find((k) => k in TRANSLATIONS);
   return {
     ...TRANSLATIONS[key ?? "en"],
     ...(FILES_TRANSLATIONS[key ?? "en"] ?? FILES_TRANSLATIONS.en),
     ...(A11Y_TRANSLATIONS[key ?? "en"] ?? A11Y_TRANSLATIONS.en),
+    ...(RESULTS_TRANSLATIONS[key ?? "en"] ?? RESULTS_TRANSLATIONS.en),
     thanks: THANKS[key ?? "en"] ?? THANKS.en,
   };
 }

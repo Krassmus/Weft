@@ -108,6 +108,58 @@ body {
   color: color-mix(in srgb, var(--slide-fg) 75%, var(--slide-bg));
 }
 
+/* What the graded elements gave (renderDoneSummary in player.runtime.js): a quiet table with a line under each row and the sum in bold. */
+.weft-done-summary {
+  max-width: 80%;
+  max-height: 34cqw;
+  overflow-y: auto;
+  font-size: 1.6cqw;
+  color: var(--slide-fg);
+}
+
+.weft-done-summary table {
+  border-collapse: collapse;
+}
+
+.weft-done-summary th,
+.weft-done-summary td {
+  padding: 0.45em 1.1em;
+  text-align: left;
+  border-bottom: 1px solid var(--slide-line);
+}
+
+.weft-done-summary th:nth-child(n + 2),
+.weft-done-summary td:nth-child(n + 2) {
+  white-space: nowrap;
+}
+
+.weft-done-summary thead th {
+  color: var(--slide-muted);
+  font-weight: 600;
+}
+
+.weft-done-summary tfoot th {
+  border-top: 2px solid var(--slide-line-strong);
+  border-bottom: none;
+}
+
+.weft-done-summary .weft-done-number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.weft-done-summary .weft-done-right {
+  color: var(--slide-ok-text);
+}
+
+.weft-done-summary .weft-done-wrong {
+  color: var(--slide-bad-text);
+}
+
+.weft-done-summary .weft-done-open {
+  color: var(--slide-muted);
+}
+
 /* Extra-specific (not just .weft-done-restart) so this reliably beats .weft-block-button-el's
    width/height: 100% regardless of the two rules' order in the stylesheet - that 100% is sized
    for a block dropped on a percent-positioned slide, not a lone button centered in a flex box. */

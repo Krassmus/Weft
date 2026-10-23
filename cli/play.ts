@@ -41,6 +41,8 @@ interface Snapshot {
   done: boolean;
   blocks: BlockState[];
   messages: string[];
+  /** The rows of the table on the finished screen (what the graded elements gave), cells joined by " | ". */
+  summary: string[];
 }
 
 const SNAPSHOT = `(() => {
@@ -58,7 +60,8 @@ const SNAPSHOT = `(() => {
     visible: shown(block),
   }));
   const messages = [...document.querySelectorAll('.weft-quiz-feedback')].filter(shown).map((f) => f.innerText.replace(/\\s+/g, ' ').trim());
-  return { pageId: stage ? stage.getAttribute('data-weft-page') : null, done, blocks, messages };
+  const summary = [...document.querySelectorAll('.weft-done-summary tr')].map((row) => [...row.children].map((c) => c.innerText.trim()).join(' | '));
+  return { pageId: stage ? stage.getAttribute('data-weft-page') : null, done, blocks, messages, summary };
 })()`;
 
 function tokens(step: string): string[] {
@@ -150,7 +153,10 @@ async function perform(session: ChromeSession, step: string): Promise<Outcome> {
 function describeChange(before: Snapshot, after: Snapshot, labels: Record<string, string>): string[] {
   const changes: string[] = [];
   const name = (b: BlockState) => (b.excerpt ? `„${b.excerpt}${b.excerpt.length >= 40 ? "…" : ""}"` : b.kind);
-  if (after.done && !before.done) changes.push("Ende erreicht („Lernmodul abgeschlossen“)");
+  if (after.done && !before.done) {
+    changes.push("Ende erreicht („Danke fürs Mitmachen!“)");
+    if (after.summary.length > 0) changes.push(`Auswertung:\n    ${after.summary.join("\n    ")}`);
+  }
   else if (after.pageId !== before.pageId && after.pageId) changes.push(`Folie ${before.pageId ? labels[before.pageId] ?? "?" : "–"} → ${labels[after.pageId] ?? after.pageId}`);
   else {
     const was = new Map(before.blocks.map((b) => [b.id, b]));

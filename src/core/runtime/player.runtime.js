@@ -602,6 +602,9 @@
   // page is decided anew by the new answer (the pages after it are forgotten until they are visited again).
   var variablesAtEntry = [];
   var cursorAtEntry = [];
+  // What the graded elements (quizzes, gap texts) gave, by the place in `history` where they were answered - for the table on the finished
+  // screen (see doneSummary). It is taken back with the variables: going back to a page forgets its answers and the ones after it.
+  var gradedAtPos = [];
 
   // Finds where a page lives in the top-level sequence/branch structure - a page inside a branch
   // is pointed at directly (not by evaluating that branch's own condition, which would need
@@ -802,6 +805,7 @@
     history.length = keep;
     variablesAtEntry.length = keep;
     cursorAtEntry.length = keep;
+    gradedAtPos.length = Math.min(gradedAtPos.length, keep);
     cursor = place;
     var node = resolveJumps({ type: "page", pageId: pageId });
     if (node.type === "end") {
@@ -825,6 +829,7 @@
       history.length = pos + 1;
       variablesAtEntry.length = pos + 1;
       cursorAtEntry.length = pos + 1;
+      gradedAtPos.length = Math.min(gradedAtPos.length, pos);
     }
     render();
   }
@@ -838,8 +843,137 @@
     history = [];
     variablesAtEntry = [];
     cursorAtEntry = [];
+    gradedAtPos = [];
     pos = -1;
     goNext();
+  }
+
+  // ---- what the graded elements gave (the table of the finished screen) ----
+  // A quiz or a gap text "gives points" when its effects change a number variable. What it gave is what the variables changed by while its
+  // answer was being worked out - measured, not read off the effects, so a "set" counts as the change it made.
+
+  function scoringVariableIds(block) {
+    var lists = [block.onCorrect, block.onIncorrect, block.onEachCorrect];
+    Object.keys(block.answerEffects || {}).forEach(function (key) {
+      lists.push(block.answerEffects[key]);
+    });
+    (block.options || []).forEach(function (option) {
+      lists.push(option.onRight, option.onWrong);
+    });
+    var ids = [];
+    lists.forEach(function (list) {
+      (list || []).forEach(function (effect) {
+        var def = module.variables.filter(function (v) {
+          return v.id === effect.variableId;
+        })[0];
+        if (def && def.type === "number" && !isComputedDef(def) && ids.indexOf(def.id) === -1) ids.push(def.id);
+      });
+    });
+    return ids;
+  }
+
+  // Taken before the effects of an answer are applied, and handed to scoreRecord after them with the outcome ("right", "wrong", or "answered"
+  // for an open question).
+  function scoreMark(block) {
+    var ids = scoringVariableIds(block);
+    return {
+      ids: ids,
+      before: ids.map(function (id) {
+        return Number(variables[id]) || 0;
+      }),
+    };
+  }
+
+  function scoreRecord(block, mark, outcome) {
+    if (mark.ids.length === 0) return;
+    var deltas = {};
+    mark.ids.forEach(function (id, i) {
+      deltas[id] = Math.round(((Number(variables[id]) || 0) - mark.before[i]) * 1e6) / 1e6;
+    });
+    (gradedAtPos[pos] = gradedAtPos[pos] || []).push({ block: block, outcome: outcome, deltas: deltas });
+  }
+
+  // The words of a graded element for the table: its name if it has one, else the beginning of the question (of the text, with the gaps as "...").
+  function gradedTitle(block) {
+    if (block.name) return String(block.name);
+    var holder = document.createElement("div");
+    holder.innerHTML = block.kind === "quiz" ? quizQuestionHtml(block) : blockHtml(block);
+    var text = (holder.textContent || "").replace(/\[\[[^\]]*\]\]/g, "\u2026").replace(/\s+/g, " ").trim();
+    return text.length > 80 ? text.slice(0, 79) + "\u2026" : text;
+  }
+
+  // The rows of the table, in the order of the pages the learner was on: every graded element there that gives points - answered, or
+  // "not answered" - and the number variables they change, which are its columns. null when there is nothing to list.
+  function doneSummary() {
+    var rows = [];
+    var columns = [];
+    history.forEach(function (pageId, index) {
+      var page = module.pages[pageId];
+      if (!page) return;
+      page.blocks.forEach(function (block) {
+        if (block.kind !== "quiz" && block.kind !== "cloze") return;
+        var ids = scoringVariableIds(block);
+        if (ids.length === 0) return;
+        var result = (gradedAtPos[index] || []).filter(function (r) {
+          return r.block.id === block.id;
+        })[0];
+        var deltas = {};
+        ids.forEach(function (id) {
+          deltas[id] = result ? result.deltas[id] || 0 : 0;
+          if (columns.indexOf(id) === -1) columns.push(id);
+        });
+        rows.push({ title: gradedTitle(block), outcome: result ? result.outcome : "open", deltas: deltas });
+      });
+    });
+    if (rows.length === 0) return null;
+    return { rows: rows, columns: columns };
+  }
+
+  function formatPoints(value) {
+    return String(Math.round(value * 100) / 100);
+  }
+
+  function renderDoneSummary() {
+    var summary = doneSummary();
+    if (!summary) return null;
+    var names = summary.columns.map(function (id) {
+      // (One number is "the points"; with several, each is named by its variable.)
+      return summary.columns.length === 1
+        ? uiString("resultsPoints")
+        : module.variables.filter(function (v) {
+            return v.id === id;
+          })[0].name;
+    });
+    var cell = function (tag, text, className) {
+      var c = el(tag, className ? { class: className } : {}, []);
+      c.textContent = text;
+      return c;
+    };
+    var head = el("tr", {}, [cell("th", uiString("resultsElement")), cell("th", uiString("resultsResult"))]);
+    names.forEach(function (name) {
+      head.appendChild(cell("th", name, "weft-done-number"));
+    });
+    var body = el("tbody", {}, []);
+    var totals = summary.columns.map(function () {
+      return 0;
+    });
+    summary.rows.forEach(function (row) {
+      var tr = el("tr", {}, [
+        cell("td", row.title),
+        cell("td", uiString({ right: "resultsRight", wrong: "resultsWrong", answered: "resultsAnswered", open: "resultsOpen" }[row.outcome]), "weft-done-" + row.outcome),
+      ]);
+      summary.columns.forEach(function (id, i) {
+        var has = Object.prototype.hasOwnProperty.call(row.deltas, id);
+        if (has) totals[i] += row.deltas[id];
+        tr.appendChild(cell("td", has ? formatPoints(row.deltas[id]) : "", "weft-done-number"));
+      });
+      body.appendChild(tr);
+    });
+    var foot = el("tr", {}, [cell("th", uiString("resultsTotal")), cell("th", "")]);
+    totals.forEach(function (total) {
+      foot.appendChild(cell("th", formatPoints(total), "weft-done-number"));
+    });
+    return el("div", { class: "weft-done-summary" }, [el("table", {}, [el("thead", {}, [head]), body, el("tfoot", {}, [foot])])]);
   }
 
   // ---- logic blocks (see ScriptBlock in core/types.ts) ----
@@ -3036,6 +3170,7 @@
         checked.every(function (id) {
           return block.correctOptionIds.indexOf(id) !== -1;
         }));
+      var mark = scoreMark(block);
       (correct ? block.onCorrect : block.onIncorrect).forEach(applyEffect);
       // Each answer on its own: handled right (ticked if it is a correct one, left alone if it isn't) or wrong.
       block.options.forEach(function (option) {
@@ -3043,6 +3178,7 @@
         var right = open ? ticked : ticked === (block.correctOptionIds.indexOf(option.id) !== -1);
         ((right ? option.onRight : option.onWrong) || []).forEach(applyEffect);
       });
+      scoreRecord(block, mark, open ? "answered" : correct ? "right" : "wrong");
       // Fires both the plain, outcome-agnostic event (for a trigger configured against the
       // generic "Quiz abgeschickt" node - see quizSubmitNodeId in pageTimeline.ts, built when
       // neither advanceOnCorrect nor advanceOnIncorrect is on) AND the one matching this
@@ -3223,6 +3359,7 @@
       var caseSensitive = block.caseSensitive === true;
       var tolerance = block.tolerance || 0;
       var allRight = blanks.length > 0;
+      var mark = scoreMark(block);
       blanks.forEach(function (blank) {
         var right = clozeIsRight(blank.input.value, blank.answers, caseSensitive, tolerance);
         if (!right) allRight = false;
@@ -3237,6 +3374,7 @@
         }
       });
       ((allRight ? block.onCorrect : block.onIncorrect) || []).forEach(applyEffect);
+      scoreRecord(block, mark, allRight ? "right" : "wrong");
       // The same events as a quiz (see quizSubmitNodeId in pageTimeline.ts): the plain one and the one of this outcome.
       happened(quizSubmitEventId(block.id));
       happened(quizSubmitEventId(block.id, allRight ? "richtig" : "falsch"));
@@ -3388,19 +3526,25 @@
   // No Zurück/Weiter bar any more - navigation lives on the slides themselves as button
   // blocks (see renderButtonBlock). The one dead end that leaves is the synthetic "done" screen,
   // which isn't a real page and so can't carry an author-placed button - it gets its own restart
-  // button for exactly that reason.
+  // button for exactly that reason (when the module allows navigating), and the table of what the graded elements gave.
   function buildStageWrap() {
     var wrap = el("div", { class: "weft-stage-wrap" }, []);
 
     if (pos >= history.length) {
-      var restartBtn = el("button", { type: "button", class: "weft-block-button-el weft-done-restart" }, [
-        document.createTextNode(uiString("restart")),
-      ]);
-      restartBtn.addEventListener("click", restart);
-      var doneStage = el("div", { class: "weft-stage weft-stage-done", style: stageStyle(), "data-weft-theme": stageTheme(), "data-weft-style": stageUiStyle() }, [
-        el("div", { class: "weft-done-message" }, [document.createTextNode(uiString("done"))]),
-        restartBtn,
-      ]);
+      var doneParts = [el("div", { class: "weft-done-message" }, [document.createTextNode(uiString("done"))])];
+      // What the graded elements gave, if there are any that give points.
+      var doneSummaryTable = renderDoneSummary();
+      if (doneSummaryTable) doneParts.push(doneSummaryTable);
+      // Starting over is a way to move through the module like the others: where the learner may not (the setting "Navigation durch Weiter
+      // erlauben"), the module is not to be played again from here either.
+      if (module.keyboardNavigationEnabled !== false) {
+        var restartBtn = el("button", { type: "button", class: "weft-block-button-el weft-done-restart" }, [
+          document.createTextNode(uiString("restart")),
+        ]);
+        restartBtn.addEventListener("click", restart);
+        doneParts.push(restartBtn);
+      }
+      var doneStage = el("div", { class: "weft-stage weft-stage-done", style: stageStyle(), "data-weft-theme": stageTheme(), "data-weft-style": stageUiStyle() }, doneParts);
       wrap.appendChild(doneStage);
     } else {
       wrap.appendChild(renderStage(history[pos]));

@@ -52,6 +52,7 @@ If you write HTML yourself:
 - `set_look {brightness, accentColor, interactiveStyle}`: light/dark, the accent colour (buttons, quiz, marking) and the style of buttons and answers (`plain`, `elegant`, `round`, `futuristic`). That is all there is to set for the standard elements.
 - `set_palette {colors}` puts the colours of the module into every colour picker; `set_transition {page: "all", type, durationMs}` sets the slide transition.
 - **Links** are an element of their own, not part of a text: `{"op": "add_link", "page": "$one", "url": "example.org/learn", "text": "To the learning site"}` opens the page in a new tab. Its look (dark grey, corners) comes from the style of interactive elements (`set_look`) and cannot be set for a single link; files that belong to the module go in the Files block.
+- **Closing slide:** after the last slide the player shows "Thanks for taking part!" and - only if "Allow navigation by Weiter" (`set_keyboard_navigation`) is on - "Start over". If quizzes or gap texts (effects `onCorrect`, `onIncorrect`, `onEachCorrect`, answer effects) change a **number variable**, a table follows: one row per quiz/gap text (the block's `name`, else the beginning of the question), the result (correct/incorrect/not answered) and the points it gave, and the sum last. With several number variables there is a column for each. Nothing has to be set for it.
 - Blocks can have a **name** (`"name": "Heading"`): it shows in the event graph, in the list of elements and in `weft inspect` instead of the kind.
 
 ## Building up step by step (Weiter)

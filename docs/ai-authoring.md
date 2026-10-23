@@ -1,6 +1,6 @@
 # Ein Lernmodul bauen (für KI und Skripte)
 
-Diese Seite ist die kurze Anleitung, wie man mit `weft` (Kommandozeile oder [MCP-Server](mcp.md)) ein Lernmodul baut, das gut aussieht und funktioniert. Sie sammelt, was man sonst durch Ausprobieren herausfindet. Die Befehle stehen in [cli.md](cli.md), die Operationen von `weft edit` in `weft_operations` (oder [mcp.md](mcp.md)). Ein fertiges Beispiel: [`src/start-content/examples/durch-drei-teilbar.weft`](../src/start-content/examples/durch-drei-teilbar.weft).
+Diese Seite ist die kurze Anleitung, wie man mit `weft` (Kommandozeile oder [MCP-Server](mcp.md)) ein Lernmodul baut, das gut aussieht und funktioniert. Sie sammelt, was man sonst durch Ausprobieren herausfindet. Die Befehle stehen in [cli.md](cli.md), die Operationen von `weft edit` in [operations.md](operations.md) (`weft guide ops`, MCP: `weft_operations`). Englische Fassung dieser Seite: [ai-authoring.en.md](ai-authoring.en.md); `weft guide` gibt sie im Programm aus. Ein fertiges Beispiel: [`src/start-content/examples/durch-drei-teilbar.weft`](../src/start-content/examples/durch-drei-teilbar.weft).
 
 ## Der Ablauf
 
@@ -112,5 +112,6 @@ Was Weft selbst zeigt („Abschicken", „Das war richtig!") kommt in der Sprach
 | `weft new` ohne `--empty` legt eine leere erste Folie an | `weft inspect` zeigt „Folie 1 (keine Blöcke)" |
 | Ein Block liegt zum Teil außerhalb der Folie | `block-off-slide` |
 | Ein Button springt auf eine Folie, die es nicht gibt | `button-target-missing` |
+| Ein Block der Folie liegt über einem Block des Layouts (Sprachumschalter, Zurück/Weiter): die Klicks gehen an den oberen | nur im Player (Klicken) - Blöcke der Folie liegen immer über denen des Layouts, also die Bereiche freihalten |
 
 Und immer: nach dem Bauen `validate --layout`, dann `play` mit den Schritten einer Lernperson, dann die Bilder ansehen.

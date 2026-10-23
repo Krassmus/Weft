@@ -1,0 +1,21 @@
+# Weft
+
+> Weft is an open-source app for presentations and interactive learning modules (quizzes, gap texts, branches, languages). Modules are `.weft` files (a zip archive with `weft.json`). A command line tool (`weft`) and an MCP server (`weft-mcp`) let an AI assistant read, check, build, translate, draw and play through modules. Needs Node 22 (and Chrome for pictures of slides). Build: `npm install && npm run build:cli`, then `node cli/dist/weft.mjs guide`.
+
+## Start here
+
+- [AGENTS.md](AGENTS.md): how to use the tool, in a few lines
+- [Building a learning module (guide for AI)](docs/ai-authoring.en.md): the loop, the grid of a slide, texts, shapes, build-up on Weiter, quizzes, forks, languages, traps. Also printed by `weft guide`
+- [Operations of `weft edit`](docs/operations.en.md): every operation with parameters and an example. Also `weft guide ops`
+- [Command line reference](docs/cli.en.md): `inspect`, `validate`, `schema`, `render`, `play`, `html`, `new`, `edit`, `text export/import`, `guide`
+
+## Reference
+
+- [MCP server](docs/mcp.md) (German): tools, how changes are written, limits, what is missing for shipping it with the app
+- [File format as JSON Schema](docs/weft.schema.json): also `weft schema [name]`
+- [Example module](src/start-content/examples/durch-drei-teilbar.weft): "Numbers divisible by three", English and German
+- [README](README.md) (German): architecture and data model
+
+## Optional
+
+- German versions: [docs/ai-authoring.md](docs/ai-authoring.md), [docs/operations.md](docs/operations.md), [docs/cli.md](docs/cli.md)

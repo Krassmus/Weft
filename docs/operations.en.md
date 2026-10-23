@@ -1,0 +1,42 @@
+# Operations of weft_edit (`weft edit`)
+
+References as in the outline (`weft inspect`): slides by number ("3", "2.a.1") or id, layouts by name or id, variables by name or id, blocks
+by id. Every operation may give what it creates a name with "as"; later operations use it as "$name".
+
+- set_transition {page | "all" | [pages], type ("none" | "fade" | "move" | "iris" | "cube" | "blur" | "horror" | "wheel"), durationMs?, direction?, contentOnly?, hardEdge?} · set_palette {colors:["#fbbf24", …]} (the colour choices of the module, replaces the existing ones) · set_title {title} · set_template {template?: true | false} (template: opens in Weft as a copy that has to be saved somewhere of its own first) · set_languages {languages:["de_DE","fr_FR"]} (the first one is the default language: the blocks' own fields are in it; changing it turns the translations around) · set_aspect_ratio {aspectRatio} · set_look {brightness?:"light"|"dark", accentColor?:"#rrggbb"|null, interactiveStyle?:"plain"|"elegant"|"round"|"futuristic"} · set_keyboard_navigation {enabled}
+- add_variable {name, type:"number"|"boolean"|"string"|"computed", initialValue?, expression?, as?} · update_variable {variable, set} · remove_variable {variable}
+- add_layout {name, as?} · rename_layout {layout, name}
+- add_page {after?:"start"|"end"|"3", layout?, branch?:{logic, branch, after?}, as?}  → {page, label}
+- add_jump_page {after? | branch?, targets?:[{page, condition:{variable, comparator, value}}], default?, as?}  (a jump slide is never shown: depending on the condition it leads to a slide) · add_jump_target {page, target, condition?} (one more target of a jump slide)
+- add_logic {after?, name?, layout?, branches:[{label, condition?:{variable, comparator:"eq|neq|gt|gte|lt|lte", value}}], as?}  (the last branch is the "otherwise" and has no condition). **Every branch comes with an empty slide**: add your own with add_page and "branch", then remove the empty one with remove_page.
+- remove_page {page} · set_page_layout {page, layout|null}
+- add_asset {file, as?}  (take an image or video file from disk into the module: png jpg gif webp svg avif · mp4 webm ogv mov m4v)
+- add_image {page | layout, file | asset, alt?, position?, fit?, as?} · add_video {page | layout, file | asset, autoplay?, loop?, muted?, controls?, position?, fit?, as?} · add_audio {page | layout, file | asset, autoplay?, loop?, appearance? ("player" | "hidden"), position?, as?}
+  (adds file and block in one step; the block takes the shape of the file - "position" is only the rough place, with "fit": false exactly that place)
+- set_media {block, file | asset, fit?}  (another image/video in an existing block)
+- add_block {page | layout, kind, set?:{…fields…}, as?}  → {block}   (kind: text, list, quiz, cloze, button, image, video, audio, code, tex, iframe, shape, arrow, files, language, script (a logic block with JavaScript, on slides only); in a layout also placeholder). Fields and their meaning: `weft schema <kind>`.
+- add_text {page | layout, text | paragraphs | html, x?, y?, width?, height? ("auto" or a number in % - estimated when missing), size? (cqw, default 1.7), color? ("#rrggbb" or "rgba(…)"), bold?, italic?, align?, font?, lineHeight?, gap?, box?, effect? ("fade" …), name?, as?}
+  (a text from a plain description: "text" with lines = paragraphs, or "paragraphs": [[{"text":"…","color":"#fbbf24","bold":true}, "…"], "…"] for paragraphs made of parts; Weft writes the HTML the way the editor writes it. "box": {"fill":"#ffffff","fillOpacity":0.08,"borderColor":…,"radius":1.2,"padding":1.5,"blur":true} puts a background with a border behind it - a card in one block; "blur": true lets the background of the slide show through, blurred.)
+- add_shape {page | layout, shape? ("rectangle" | "ellipse" | "polygon" | "star"), x?, y?, width?, height?, color?, opacity?, gradient? {kind, angle, stops:[[colour, offset, opacity?], …]}, radius? (0-50), stroke? {color, width, opacity, style}, shadow? (true | {…}), blur? (true: lets the background show through, blurred - rectangle and ellipse only), sides?, points?, effect?, name?, as?}
+- update_block {block, set:{…}} · remove_block {block}
+  (In "set", fields that are objects - position, fill, stroke, entranceEffect, box … - are merged with what is there, not replaced: {"position": {"y": 40}} keeps x, width and height. Lists are replaced.)
+- fill_placeholder {page, placeholder?, text | html}  (the text of the slide for a placeholder of its layout, formatted like the placeholder; text: lines = paragraphs)
+- add_trigger {page, from, to, delayMs?, weiter?} (ADDS a trigger: an event can have several, the first one that happens triggers it - the Weiter chain every block with an entrance gets by itself stays too; to replace use set_trigger) · set_trigger {page, to, from|null, delayMs?, weiter?} (replaces what triggered "to" - like "Triggered by" in the editor; without weiter: after delayMs, with weiter: at the next Weiter input after "from") · remove_trigger {page, trigger}
+  Events: "start", "end" (next slide), "entrance:<block>", "exit:<block>", "click:<button>", "quiz-fill:<quiz>", "quiz-submit:<quiz>",
+  "quiz-correct:<quiz>", "quiz-incorrect:<quiz>", "quiz-correct-end:<quiz>", "video-start:<video>", "video-end:<video>" or the real id from `weft inspect`.
+
+Note on structure: a jump slide leads to a slide, and the sequence then goes on behind THAT slide (as after a branch).
+For separate ways that meet again afterwards, use add_logic (a fork with branches). A button that jumps to a slide: add_block kind "button"
+with set {"action":"goto","targetPageId":"3"}.
+
+In "set", names are resolved: "$name" is what was created under that name; a "variableId" may be the name of the variable; a
+"targetPageId" the number of the slide. Ids you make up yourself (for the options of a quiz, say) may be any unique text.
+
+Example, a puzzle with a key:
+[
+ {"op":"add_variable","name":"key","type":"boolean"},
+ {"op":"add_page","as":"room1"},
+ {"op":"add_block","page":"$room1","kind":"button","set":{"text":"Take the key","action":"event","onClick":[{"variableId":"key","op":"set","value":true}]}},
+ {"op":"add_page","as":"door"},
+ {"op":"add_jump_page","after":"$room1","targets":[{"page":"$door","condition":{"variable":"key","comparator":"eq","value":true}}]}
+]

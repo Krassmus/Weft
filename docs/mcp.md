@@ -1,6 +1,6 @@
 # Weft für KI-Assistenten (MCP)
 
-Der MCP-Server `weft-mcp` gibt einem KI-Assistenten (Claude Desktop, Claude Code, ChatGPT-Anbindungen mit MCP ...) dieselben Möglichkeiten wie das [Kommandozeilenwerkzeug](cli.md): ein Lernmodul lesen, prüfen, übersetzen und ändern. Die Änderungen sind die Aktionen des Editors, ausgeführt auf der Datei - das Ergebnis ist, was der Editor gemacht hätte.
+Der MCP-Server `weft-mcp` (er sagt dem Client beim Verbinden, dass er zuerst `weft_guide` lesen soll) gibt einem KI-Assistenten (Claude Desktop, Claude Code, ChatGPT-Anbindungen mit MCP ...) dieselben Möglichkeiten wie das [Kommandozeilenwerkzeug](cli.md): ein Lernmodul lesen, prüfen, übersetzen und ändern. Die Änderungen sind die Aktionen des Editors, ausgeführt auf der Datei - das Ergebnis ist, was der Editor gemacht hätte.
 
 ## Einrichten
 
@@ -36,7 +36,8 @@ Der Server spricht MCP über Standard-Ein-/Ausgabe, braucht kein Netz und nichts
 | `weft_play` | Das Modul wie eine Lernperson durchspielen (weiter, ankreuzen, abschicken, ausfüllen): nach jedem Schritt in Worten, was sich geändert hat, dazu Bilder |
 | `weft_new` | Ein neues leeres Modul |
 | `weft_edit` | Änderungen als Liste von Operationen (alles oder nichts) |
-| `weft_operations` | Beschreibung der Operationen mit Beispiel |
+| `weft_guide` | **Zuerst lesen:** die Anleitung zum Bauen eines Lernmoduls (`topic`: `authoring`, `ops`, `cli`; englisch, `lang: "de"` deutsch) - dieselben Texte wie `weft guide` |
+| `weft_operations` | Beschreibung der Operationen mit Beispiel (englisch, `lang: "de"` deutsch; steht in [operations.md](operations.md)) |
 
 ## Wie Änderungen geschrieben werden
 

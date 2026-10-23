@@ -8,7 +8,7 @@ Das Werkzeug `weft` liest eine `.weft`-Datei und beantwortet drei Fragen, ohne e
 
 Und es hilft beim Übersetzen: `weft text export` macht aus dem Modul eine flache Textliste, `weft text import` schreibt die übersetzten Texte in ein neues Modul.
 
-Es benutzt dieselben Funktionen wie der Editor (Folien-Nummern, Ereignis-Graph, Übersetzungen); was es sagt, ist also das, was Weft selbst sagen würde. Gedacht ist es für Skripte und für KI-Assistenten, die ein Lernmodul verstehen, prüfen oder bearbeiten sollen (`weft.json` im Archiv ist die Quelle der Wahrheit; der Automerge-Verlauf daneben wird beim Öffnen nur benutzt, wenn er dazu passt).
+Es benutzt dieselben Funktionen wie der Editor (Folien-Nummern, Ereignis-Graph, Übersetzungen); was es sagt, ist also das, was Weft selbst sagen würde. **Neu hier? `weft guide` gibt die Anleitung zum Bauen eines Lernmoduls aus** (englisch, mit `--lang de` deutsch; `weft guide ops` die Operationen, `weft guide cli` diese Seite). Englische Fassung dieser Seite: [cli.en.md](cli.en.md). Gedacht ist es für Skripte und für KI-Assistenten, die ein Lernmodul verstehen, prüfen oder bearbeiten sollen (`weft.json` im Archiv ist die Quelle der Wahrheit; der Automerge-Verlauf daneben wird beim Öffnen nur benutzt, wenn er dazu passt).
 
 ## Aufruf
 
@@ -135,11 +135,11 @@ npm run weft -- new leer.weft --empty                 # ohne Layout und Folie (a
 npm run weft -- edit raum.weft operationen.json      # schreibt raum.ai.weft
 ```
 
-`weft edit` führt eine Liste von Operationen aus (`set_title`, `add_page`, `add_block`, `update_block`, `add_variable`, `add_logic`, `add_jump_page`, `add_trigger`, `fill_placeholder`, `add_image`, `add_video`, `add_audio` ...). Es sind die Aktionen des Editors, ausgeführt auf der Datei. Die Quelle bleibt unverändert, geschrieben wird in die Arbeitskopie `<name>.ai.weft` (oder mit `-o`). Es wird nichts geschrieben, wenn eine Operation fehlschlägt oder die Änderungen Fehler erzeugen (`--allow-errors`); `--dry-run` prüft nur. Die Operationen mit Beispielen stehen in [mcp.md](mcp.md); als MCP-Server sind alle Befehle ohne Kommandozeile für KI-Assistenten da.
+`weft edit` führt eine Liste von Operationen aus (`set_title`, `add_page`, `add_block`, `update_block`, `add_variable`, `add_logic`, `add_jump_page`, `add_trigger`, `fill_placeholder`, `add_image`, `add_video`, `add_audio` ...). Es sind die Aktionen des Editors, ausgeführt auf der Datei. Die Quelle bleibt unverändert, geschrieben wird in die Arbeitskopie `<name>.ai.weft` (oder mit `-o`). Es wird nichts geschrieben, wenn eine Operation fehlschlägt oder die Änderungen Fehler erzeugen (`--allow-errors`); `--dry-run` prüft nur. Die Operationen mit Beispielen: `weft edit --ops` oder `weft guide ops` ([operations.md](operations.md)); als MCP-Server sind alle Befehle ohne Kommandozeile für KI-Assistenten da.
 
 ## Wie eine KI damit arbeiten kann
 
-Wie man ein Lernmodul baut, das gut aussieht (Raster, Textgrößen, Weiter-Ketten, Fallen), steht in [ai-authoring.md](ai-authoring.md).
+Wie man ein Lernmodul baut, das gut aussieht (Raster, Textgrößen, Weiter-Ketten, Fallen), steht in [ai-authoring.md](ai-authoring.md) (englisch: [ai-authoring.en.md](ai-authoring.en.md)); `weft guide` gibt es im Programm aus.
 
 1. `weft inspect datei.weft` - einen Überblick holen, ohne die ganze Datei zu lesen.
 2. `weft schema <Art>` - nachlesen, wie ein Block aussieht, bevor man einen schreibt.

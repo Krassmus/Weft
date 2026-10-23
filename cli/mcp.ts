@@ -1,3 +1,4 @@
+import { guideLanguage, guideText, isGuideTopic } from "./guide";
 import { readFileSync, writeFileSync } from "node:fs";
 import { setFixedLanguage } from "../src/core/i18n/tr";
 import { CliError } from "./load";
@@ -337,55 +338,29 @@ const TOOLS: Tool[] = [
   },
   {
     name: "weft_operations",
-    description: "Beschreibt die Operationen von weft_edit mit Parametern und je einem Beispiel.",
-    inputSchema: { type: "object", properties: {} },
-    run: () => OPERATIONS_DOC,
+    description: "Describes the operations of weft_edit with parameters and an example (English; lang \"de\" for German).",
+    inputSchema: { type: "object", properties: { lang: { type: "string", enum: ["en", "de"], description: "Language of the description (default en)." } } },
+    run: (args) => guideText("ops", guideLanguage(args.lang)),
+  },
+  {
+    name: "weft_guide",
+    description:
+      "Read this first: the guide to building a learning module with Weft (the grid of a slide, texts, shapes, building up step by step, quizzes, " +
+      "forks, languages, typical traps). `topic`: authoring (default), ops (the operations of weft_edit), cli (every command). English; lang \"de\" for German.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        topic: { type: "string", enum: ["authoring", "ops", "cli"], description: "Which guide (default authoring)." },
+        lang: { type: "string", enum: ["en", "de"], description: "Language (default en)." },
+      },
+    },
+    run: (args) => {
+      const topic = optionalString(args, "topic") ?? "authoring";
+      if (!isGuideTopic(topic)) throw new Error(`Unknown topic "${topic}". Possible: authoring, ops, cli.`);
+      return guideText(topic, guideLanguage(args.lang));
+    },
   },
 ];
-
-const OPERATIONS_DOC = `# Operationen von weft_edit
-
-Bezeichnungen wie in der Übersicht: Folien mit Nummer ("3", "2.a.1") oder Id, Layouts mit Namen oder Id, Variablen mit Namen oder Id,
-Blöcke mit Id. Jede Operation kann mit "as" einen Namen für das Angelegte vergeben, der danach als "$name" gilt.
-
-- set_transition {page | "all" | [pages], type ("none" | "fade" | "move" | "iris" | "cube" | "blur" | "horror" | "wheel"), durationMs?, direction?, contentOnly?, hardEdge?} · set_palette {colors:["#fbbf24", …]} (die Farbwahl des Moduls, ersetzt die vorhandene) · set_title {title} · set_template {template?: true | false} (Vorlage: öffnet in Weft als Kopie, die erst an einem eigenen Ort gespeichert werden muss) · set_languages {languages:["de_DE","fr_FR"]} · set_aspect_ratio {aspectRatio} · set_look {brightness?:"light"|"dark", accentColor?:"#rrggbb"|null, interactiveStyle?:"plain"|"elegant"|"round"|"futuristic"} · set_keyboard_navigation {enabled}
-- add_variable {name, type:"number"|"boolean"|"string"|"computed", initialValue?, expression?, as?} · update_variable {variable, set} · remove_variable {variable}
-- add_layout {name, as?} · rename_layout {layout, name}
-- add_page {after?:"start"|"end"|"3", layout?, branch?:{logic, branch, after?}, as?}  → {page, label}
-- add_jump_page {after? | branch?, targets?:[{page, condition:{variable, comparator, value}}], default?, as?}  (eine Sprung-Folie wird nie gezeigt: sie führt je nach Bedingung zu einer Folie)
-- add_logic {after?, name?, layout?, branches:[{label, condition?:{variable, comparator:"eq|neq|gt|gte|lt|lte", value}}], as?}  (der letzte Zweig ist das „sonst", ohne Bedingung)
-- remove_page {page} · set_page_layout {page, layout|null}
-- add_asset {file, as?}  (eine Bild-/Videodatei von der Festplatte in das Modul aufnehmen: png jpg gif webp svg avif · mp4 webm ogv mov m4v)
-- add_image {page | layout, file | asset, alt?, position?, fit?, as?} · add_video {page | layout, file | asset, autoplay?, loop?, muted?, controls?, position?, fit?, as?} · add_audio {page | layout, file | asset, autoplay?, loop?, appearance? ("player" | "hidden"), position?, as?}
-  (legt Datei und Block in einem Schritt an; der Block bekommt die Form der Datei - "position" ist dafür der ungefähre Platz, mit "fit": false genau diese Lage)
-- set_media {block, file | asset, fit?}  (ein anderes Bild/Video in einen vorhandenen Block)
-- add_block {page | layout, kind, set?:{…Felder…}, as?}  → {block}   (kind: text, list, quiz, cloze, button, image, video, audio, code, tex, iframe, shape, arrow, files, language, script (Logikblock mit JavaScript, nur auf Folien); im Layout auch placeholder). Felder und Bedeutung: weft_schema <kind>.
-- add_text {page | layout, text | paragraphs | html, x?, y?, width?, height? ("auto" oder Zahl in % - ohne Angabe wird sie geschätzt), size? (cqw, Standard 1.7), color? ("#rrggbb" oder "rgba(…)"), bold?, italic?, align?, font?, lineHeight?, gap?, box?, effect? ("fade" …), name?, as?}
-  (ein Text aus einer Beschreibung: "text" mit Zeilen = Absätze, oder "paragraphs": [[{"text":"…","color":"#fbbf24","bold":true}, "…"], "…"] für Absätze aus Teilen; das HTML schreibt Weft so, wie der Editor es schreibt. "box": {"fill":"#ffffff","fillOpacity":0.08,"borderColor":…,"radius":1.2,"padding":1.5,"blur":true} legt einen Hintergrund mit Rand dahinter - eine Karte in einem Block; "blur": true lässt den Hintergrund der Folie unscharf durchscheinen.)
-- add_shape {page | layout, shape? ("rectangle" | "ellipse" | "polygon" | "star"), x?, y?, width?, height?, color?, opacity?, gradient? {kind, angle, stops:[[Farbe, Offset, Deckkraft?], …]}, radius? (0-50), stroke? {color, width, opacity, style}, shadow? (true | {…}), blur? (true: lässt den Hintergrund unscharf durchscheinen - nur Rechteck und Ellipse), sides?, points?, effect?, name?, as?}
-- update_block {block, set:{…}} · remove_block {block}
-  (In "set" werden Felder, die Objekte sind - position, fill, stroke, entranceEffect, box … -, mit dem vorhandenen zusammengeführt, nicht ersetzt: {"position": {"y": 40}} lässt x, width und height. Listen werden ersetzt.)
-- fill_placeholder {page, placeholder?, text | html}  (der Text der Folie für einen Platzhalter des Layouts, formatiert wie dieser; text: Zeilen = Absätze)
-- add_trigger {page, from, to, delayMs?, weiter?} (FÜGT einen Auslöser hinzu: ein Ereignis kann mehrere haben, das erste, das eintritt, löst es aus - auch die Weiter-Kette, die jeder Block mit Aufbau von selbst bekommt, bleibt dann; zum Ersetzen set_trigger) · set_trigger {page, to, from|null, delayMs?, weiter?} (ersetzt, was "to" auslöste - wie „Ausgelöst durch" im Editor; ohne weiter: nach delayMs, mit weiter: bei der nächsten Weiter-Eingabe nach "from") · remove_trigger {page, trigger}
-  Ereignisse: "start", "end" (Nächste Folie), "entrance:<Block>", "exit:<Block>", "click:<Button>", "quiz-fill:<Quiz>", "quiz-submit:<Quiz>",
-  "quiz-correct:<Quiz>", "quiz-incorrect:<Quiz>", "quiz-correct-end:<Quiz>", "video-start:<Video>", "video-end:<Video>" oder die echte Id aus weft_inspect.
-
-Wichtig zum Aufbau: Eine Sprung-Folie führt zu einer Folie, und danach läuft die Folge hinter DIESER Folie weiter (wie nach einem Zweig).
-Für getrennte Wege, die sich danach wieder treffen, add_logic (Verzweigung mit Zweigen) benutzen. Ein Button, der zu einer Folie
-springt: add_block kind "button" mit set {"action":"goto","targetPageId":"3"}.
-
-In "set" werden Namen aufgelöst: "$name" ist, was unter diesem Namen angelegt wurde; ein "variableId" darf der Name der Variablen sein; ein
-"targetPageId" die Nummer der Folie. Ids, die man selbst vergibt (zum Beispiel für Quiz-Optionen), dürfen beliebige eindeutige Texte sein.
-
-Beispiel Rätsel mit Schlüssel:
-[
- {"op":"add_variable","name":"schluessel","type":"boolean"},
- {"op":"add_page","as":"raum1"},
- {"op":"add_block","page":"$raum1","kind":"button","set":{"text":"Schlüssel nehmen","action":"event","onClick":[{"variableId":"schluessel","op":"set","value":true}]}},
- {"op":"add_page","as":"tuer"},
- {"op":"add_jump_page","after":"$raum1","targets":[{"page":"$tuer","condition":{"variable":"schluessel","comparator":"eq","value":true}}]}
-]
-`;
 
 // ---- the protocol ------------------------------------------------------------------------------------------------------------
 
@@ -419,9 +394,10 @@ function handle(request: Request): void {
         capabilities: { tools: {} },
         serverInfo: SERVER,
         instructions:
-          "Weft ist ein Programm für Präsentationen und Lernmodule (.weft-Dateien). Zuerst weft_inspect, vor dem Schreiben eines Blocks " +
-          "weft_schema, nach Änderungen weft_validate und weft_render (ansehen, wie es aussieht). Geändert wird nur in einer Arbeitskopie " +
-          "(<name>.ai.weft).",
+          "Weft makes presentations and interactive learning modules (.weft files). Read weft_guide first (how to build a module that looks " +
+          "good), then weft_inspect to see what is there, weft_schema before writing a block, weft_edit to change (operations: weft_operations), " +
+          "afterwards weft_validate with layout and weft_render / weft_play to look at the result. Changes go to a working copy (<name>.ai.weft) " +
+          "- the source is never overwritten. The messages of the tools are in German; their codes are not.",
       });
       return;
     }

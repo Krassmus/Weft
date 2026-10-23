@@ -5,6 +5,7 @@ import { loadWeft, CliError } from "./load";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { OPERATION_NAMES } from "./ops";
+import { GUIDE_TOPICS, guideLanguage, guideText, guideTopicList, isGuideTopic } from "./guide";
 import { renderPages } from "./render";
 import type { Operation } from "./ops";
 import { editFile, exportTextsOf, importTextsFile, newFile } from "./tools";
@@ -57,8 +58,12 @@ Benutzung:
   weft schema [<name>] [--list] [--json] [--full]
       Das Dateiformat. Ohne Name: die Arten von Blöcken. <name>: eine Definition oder die Art
       eines Blocks (zum Beispiel "quiz", "ButtonBlock", "Page").
+  weft guide [authoring | ops | cli] [--lang en|de]
+      Die Anleitungen zum Werkzeug (Englisch, mit --lang de Deutsch): wie man ein Lernmodul baut, das gut aussieht (authoring, der
+      Anfang), die Operationen von weft edit (ops), jeder Befehl im Einzelnen (cli). Ohne Datei, ohne Chrome.
   weft help
 
+New here (an AI, a script)?  Run: weft guide      - the English guide to building a module with weft.
 Statuscodes: 0 in Ordnung, 1 Prüfung fand Fehler, 2 Aufruf oder Datei falsch.
 Eine Datei ist ein .weft-Archiv (oder ein weft.json). Die Quelle wird nie verändert.
 `;
@@ -130,6 +135,17 @@ async function main(argv: string[]): Promise<number> {
       console.log(HELP);
       return command === undefined ? 2 : 0;
     }
+    case "guide": {
+      const language = guideLanguage(flags.get("lang"));
+      const topic = rest[0] ?? "authoring";
+      if (flags.has("list") || topic === "list") {
+        console.log(guideTopicList(language));
+        return 0;
+      }
+      if (!isGuideTopic(topic)) throw new CliError(`Unknown topic "${topic}". ${guideTopicList("en")}`);
+      console.log(guideText(topic, language));
+      return 0;
+    }
     case "schema": {
       const name = rest[0];
       if (flags.has("full")) {
@@ -193,7 +209,7 @@ async function main(argv: string[]): Promise<number> {
     }
     case "edit": {
       if (flags.has("ops")) {
-        console.log(`Operationen: ${OPERATION_NAMES.join(", ")}\nBeschreibung mit Beispielen: docs/mcp.md (Werkzeug weft_operations).`);
+        console.log(`Operations: ${OPERATION_NAMES.join(", ")}\n\n${guideText("ops", guideLanguage(flags.get("lang")))}`);
         return 0;
       }
       if (!rest[0] || !rest[1]) throw new CliError("weft edit <datei> <operationen.json>");

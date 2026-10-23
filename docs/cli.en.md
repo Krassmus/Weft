@@ -12,6 +12,8 @@ It uses the same functions as the editor (slide numbers, event graph, translatio
 
 ## Calling it
 
+**With the desktop app:** it brings the tool with a Node of its own. In the settings, under "AI assistants" (KI-Assistenten), click "Install the command line tool", then `weft …` works in a terminal (the folder `~/.local/bin` has to be on the PATH; the settings say how). An update of the app updates the tool with it.
+
 In the project (Node 22):
 
 ```bash

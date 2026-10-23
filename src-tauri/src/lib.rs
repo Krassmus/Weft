@@ -5,6 +5,7 @@
 // touches any of that is gated the same way - see run()'s own setup closure and
 // set_menu_language for how mobile still compiles (and behaves correctly - Settings lives in the
 // in-app sidebar tab there instead, needing no native menu item to open it) without any of it.
+mod cli_tool;
 mod color_sampler;
 mod open_files;
 #[cfg(target_os = "ios")]
@@ -524,6 +525,8 @@ pub fn run() {
             close_audience_window,
             open_files::take_pending_open_files,
             read_clipboard_file_paths,
+            cli_tool::cli_info,
+            cli_tool::install_cli_link,
             color_sampler::screen_color_picker_available,
             color_sampler::pick_screen_color,
             exit_app,

@@ -3365,6 +3365,27 @@ button.weft-timeline-node-icon:hover {
   margin-top: 4px;
 }
 
+/* A piece of text to copy (the command line tool's settings): the text, and a button beside it. */
+.weft-settings-code {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.weft-settings-code pre {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-input-bg);
+  font-size: 11.5px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+}
+
 /* ---- TeX block (blocks/TexView.tsx, panels/TexEditor.tsx) ---- */
 
 /* The formula is typeset once at this natural size and only ever transformed to fit its box (see

@@ -25,3 +25,7 @@ dist-ssr
 
 # the command line tool's build (npm run weft)
 cli/dist/
+
+# the command line tool as it is shipped inside the app (npm run bundle:cli)
+src-tauri/resources/weft-cli/
+src-tauri/binaries/

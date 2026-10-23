@@ -18,6 +18,9 @@ export default defineConfig({
       { find: /^(\.{1,2}\/)(.*\/)?videoTranscode$/, replacement: new URL("./cli/videoStub.ts", import.meta.url).pathname },
     ],
   },
+  // Everything the tool needs is inside the built files (not left in node_modules): the tool is shipped with the app, next to a Node of its
+  // own, and has to run without the project (see scripts/bundle-cli.mjs). Only what Node itself brings (node:fs ...) stays outside.
+  ssr: { noExternal: true },
   build: {
     ssr: true,
     outDir: "cli/dist",

@@ -22,7 +22,7 @@ In der Konfiguration des Clients (bei Claude Desktop `claude_desktop_config.json
 }
 ```
 
-Der Server spricht MCP über Standard-Ein-/Ausgabe, braucht kein Netz und nichts außer Node 22.
+Der Server spricht MCP über Standard-Ein-/Ausgabe, braucht kein Netz und nichts außer Node 22. **Mit der Desktop-App** ist das alles nicht nötig: Sie bringt den Server mit eigenem Node mit (Einstellungen → KI-Assistenten, unten „In der App und zum Ausliefern").
 
 ## Die Werkzeuge
 
@@ -82,28 +82,37 @@ Wichtig zum Aufbau: Eine Sprung-Folie führt zu einer Folie, danach läuft die F
 - `weft_render` braucht einen installierten Chrome, Chromium, Edge oder Brave (sonst Pfad in `WEFT_CHROME`). Es zeichnet mit dem Player des Moduls; eingebettete Seiten (iframe) erscheinen, wenn sie erreichbar sind.
 - Der Server verändert nur Dateien, die man ihm nennt (Quelle lesen, Ziel schreiben); eine vorhandene Zieldatei überschreibt er nicht (außer der Arbeitskopie `….ai.weft`).
 
+## In der App und zum Ausliefern
+
+**Aus der Desktop-App (Mac, Windows, Linux):** Das Werkzeug steckt in der App, mit einem eigenen Node - wer die App herunterlädt, braucht weder Node noch das Repository. In den Einstellungen (Abschnitt „KI-Assistenten") legt „Kommandozeilenwerkzeug installieren" Links `weft` und `weft-mcp` in `~/.local/bin` an (unter Windows zeigt der Abschnitt den Pfad) und zeigt die Konfiguration für einen MCP-Client zum Kopieren. Die Links zeigen ins App-Paket: **jedes App-Update aktualisiert das Werkzeug mit**, es passt immer zur App (`weft version`).
+
+**So wird es gebaut** (Release-Rechner, einmal je Zielplattform):
+
+```bash
+npm run bundle:cli                # baut das Werkzeug, legt es mit Schriften und Startskripten in src-tauri/resources/weft-cli,
+                                  # holt das offizielle Node von nodejs.org (Prüfsumme geprüft) nach src-tauri/binaries
+npm run tauri build -- --config src-tauri/tauri.cli.conf.json
+```
+
+`src-tauri/tauri.cli.conf.json` fügt dem Build das Werkzeug als Ressource und Node als `externalBin` (`weft-node`) hinzu; ein normales `tauri dev` und der iOS-Build brauchen es nicht und benutzen die Datei nicht. Statt des Downloads geht `--node <Pfad>` oder `WEFT_NODE_BINARY` (das Node muss auf dem Zielsystem laufen - das von Homebrew tut das nicht, es lädt Homebrews Bibliotheken). Gewicht: das Node (rund 45 MB auf der Platte, das Installationspaket komprimiert es) plus das Werkzeug (rund 7 MB).
+
+**Noch nicht geprüft:** das Signieren und Notarisieren auf dem Mac. Das Node-Programm führt JavaScript mit einem Just-in-time-Übersetzer aus; mit der gehärteten Laufzeit braucht es dafür Berechtigungen (`com.apple.security.cs.allow-jit`, `allow-unsigned-executable-memory`, `disable-library-validation`) in der Entitlements-Datei, mit der Tauri signiert. Das gehört vor dem ersten Release probiert.
+
+**Nicht über den Mac App Store:** Die Sandbox lässt weder Links aus der App heraus noch den freien Dateizugriff für das Werkzeug zu. Die Store-App (und iOS) enthält das Werkzeug nicht; die Einstellungen sagen das. Es kommt dann aus der Desktop-Fassung (notarisiertes DMG) oder dem Repository.
+
 ## Ausblick: was noch fehlt, und warum
-
-Stand: Der Server funktioniert, aber er ist ein Werkzeug für Leute, die das Repo bauen können. Für „jemand lädt die App herunter und die KI kann sie steuern" fehlt noch einiges. Hier steht, was es ist und was wir dabei überlegt haben.
-
-**Heute nötig, damit ein Assistent mit Weft arbeitet**
-- Node 22, der gebaute Server (`npm run build:cli`; er liest die Schriften aus `public/fonts` des Repos) und ein Eintrag in der Client-Konfiguration.
-- Für `weft_render` ein installierter Chrome, Chromium, Edge oder Brave.
-- Nichts davon steckt in der App. Wer sie nur herunterlädt, hat den MCP-Server nicht.
 
 **iPad**
 - Dort geht es nicht: kein Node, kein Chrome, und eine App kann eine andere nicht steuern. Eine KI in einer Chat-App auf dem iPad kann die Weft-App nicht bedienen. Ein Mensch müsste Bilder kopieren oder exportieren.
 - Die App hat „Exportieren als PDF…", dessen Seiten eine KI als Bilder lesen kann (gezeichnet mit html2canvas, also nicht überall genau wie im Player). Einen Export einzelner Folien als PNG oder „Folie als Bild kopieren" gibt es noch nicht; die Zeichnung steckt schon in `src/features/editor/exportPdf.tsx`.
 - Sauber wäre es, dass die KI auf einem Mac oder Server arbeitet und das iPad nur das Bearbeitungsgerät ist, über eine Datei in der Cloud oder über die Live-Zusammenarbeit.
 
-**Verteilen**
-- **Mac App Store:** Apps dort laufen in einer Sandbox. Ein Hilfsprogramm darin darf nicht beliebige Dateien lesen und schreiben, die ihm die KI nennt. Der MCP-Server würde nur in freigegebenen Ordnern funktionieren. Besser passt ein Vertrieb außerhalb des Stores (notarisierte App, Download).
-- **Als Claude-Desktop-Erweiterung verpacken** (`.mcpb`, ein Doppelklick): Nach unserem Kenntnisstand bringt Claude Desktop dafür eine eigene Node-Laufzeit mit, der Nutzer bräuchte kein Node. Server und Schriften würden in einer Datei gebündelt. Das Format vor dem Bauen gegen die aktuelle Doku prüfen. Das ist der kleinste Schritt mit dem größten Gewinn.
-- **Seite „KI-Anbindung" in den Einstellungen:** erklärt, was möglich ist, zeigt den fertigen Konfigurationsausschnitt (oder den Befehl für Claude Code) zum Kopieren und prüft, ob ein Chrome da ist.
-- **Als eigenständiges Programm mit der App ausliefern** (ohne Node), falls auch andere Clients als Claude Desktop bedient werden sollen. Das Desktop-Programm von ChatGPT kann lokale MCP-Server nur eingeschränkt, Web-Chats gar nicht; für diese bräuchte es einen Server im Netz mit einer eigenen Sicherheitsüberlegung.
+**Verteilen ohne die App**
+- Für Server, KI-Sandboxes und wer die App nicht hat: das Werkzeug auf npm (`npx weft-cli@latest`, dieselben Versionsnummern wie die App) und/oder als `.mcpb`-Datei für Claude Desktop (dort bringt Claude Desktop nach unserem Kenntnisstand ein eigenes Node mit; das Format vor dem Bauen gegen die aktuelle Doku prüfen).
+- Das Desktop-Programm von ChatGPT kann lokale MCP-Server nur eingeschränkt, Web-Chats gar nicht; für diese bräuchte es einen Server im Netz mit einer eigenen Sicherheitsüberlegung.
 
 **Zeichnen ohne Chrome**
-- Die App selbst könnte als Zeichner dienen (ein Befehl, der die Folie in der eigenen Webansicht headless zeichnet). Das wäre die Lösung für Macs ohne Chrome, ist aber deutlich mehr Arbeit.
+- Die App selbst könnte als Zeichner dienen (ein Befehl, der die Folie in der eigenen Webansicht headless zeichnet). Das wäre die Lösung für Rechner ohne Chrome, ist aber deutlich mehr Arbeit.
 
 **Die KI als Teilnehmerin der Live-Zusammenarbeit**
 - Ein Programm auf einem Mac oder Server tritt per Einladungslink bei, bearbeitet das Modul mit denselben Operationen und zeichnet die Folien selbst. Der Mensch sieht die Änderungen live, ohne etwas auszulösen (auch auf dem iPad). Dazu bräuchte es das Beitreten ohne Browser (WebRTC in Node oder über den Sync-Server `scripts/collab-server.mjs`), das Einlesen von Änderungen und eine Regel, wann die KI „fertig" ist.

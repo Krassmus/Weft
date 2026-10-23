@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import {
   COLLAB_RELAYS_KEY,
   COLLAB_SERVER_KEY,
@@ -93,6 +94,108 @@ function NetworkSettings() {
         <input type="password" value={turn.password ?? ""} onChange={(e) => updateTurn({ password: e.target.value })} />
       </label>
       <p className="weft-hint">{t("settings.network.turnHint")}</p>
+    </fieldset>
+  );
+}
+
+
+/** What the desktop app tells about the command line tool that is part of it (src-tauri/src/cli_tool.rs). */
+interface CliInfo {
+  available: boolean;
+  version: string | null;
+  launcher: string | null;
+  mcpLauncher: string | null;
+  link: string | null;
+  mcpLink: string | null;
+  linked: boolean;
+  canLink: boolean;
+  linkDir: string | null;
+  platform: string;
+}
+
+function CopyBlock({ text }: { text: string }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="weft-settings-code">
+      <pre>{text}</pre>
+      <button
+        type="button"
+        className="weft-ghost-button"
+        onClick={() => {
+          void navigator.clipboard?.writeText(text).then(() => {
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1500);
+          });
+        }}
+      >
+        {copied ? t("settings.ai.copied") : t("settings.ai.copy")}
+      </button>
+    </div>
+  );
+}
+
+/** The command line tool and the MCP server for AI assistants: shipped inside the desktop app, with a Node of their own. */
+function AiSettings() {
+  const { t } = useTranslation();
+  const [info, setInfo] = useState<CliInfo | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isTauri()) return;
+    invoke<CliInfo>("cli_info").then(setInfo, () => undefined);
+  }, []);
+
+  async function install() {
+    setError(null);
+    try {
+      setInfo(await invoke<CliInfo>("install_cli_link"));
+    } catch (problem) {
+      setError(String(problem));
+    }
+  }
+
+  // Where an assistant finds the tool: the link when it is made (it stays right when the app is moved or updated), else the app itself.
+  const mcpCommand = info?.linked ? info.mcpLink : info?.mcpLauncher;
+  const mcpConfig = mcpCommand ? JSON.stringify({ mcpServers: { weft: { command: mcpCommand } } }, null, 2) : "";
+
+  return (
+    <fieldset className="weft-settings-field">
+      <legend>{t("settings.ai.legend")}</legend>
+      {!isTauri() ? (
+        <p className="weft-hint">{t("settings.ai.web")}</p>
+      ) : !info ? null : !info.available ? (
+        <p className="weft-hint">{t("settings.ai.missing")}</p>
+      ) : (
+        <>
+          <p className="weft-hint">{t("settings.ai.intro")}</p>
+          {info.version && <p className="weft-hint">{t("settings.ai.version", { version: info.version })}</p>}
+          {info.canLink ? (
+            <>
+              <div className="weft-field">
+                <button type="button" className="weft-ghost-button" onClick={() => void install()}>
+                  {t("settings.ai.install")}
+                </button>
+              </div>
+              {info.linked && <p className="weft-hint">{t("settings.ai.installed", { dir: info.linkDir ?? "" })}</p>}
+              {info.linked && info.linkDir && (
+                <>
+                  <p className="weft-hint">{t("settings.ai.pathHint")}</p>
+                  <CopyBlock text={`export PATH="$HOME/.local/bin:$PATH"`} />
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="weft-hint">{t("settings.ai.windows")}</p>
+              <CopyBlock text={info.launcher ?? ""} />
+            </>
+          )}
+          {error && <p className="weft-placeholder-warning">{t("settings.ai.error", { message: error })}</p>}
+          <p className="weft-hint">{t("settings.ai.tell")}</p>
+          <p className="weft-hint">{t("settings.ai.mcp")}</p>
+          <CopyBlock text={mcpConfig} />
+        </>
+      )}
     </fieldset>
   );
 }
@@ -203,6 +306,7 @@ export function SettingsWindow() {
         </div>
         <p className="weft-hint">{t("settings.profile.hint")}</p>
       </fieldset>
+      <AiSettings />
       <NetworkSettings />
     </div>
   );

@@ -12,6 +12,8 @@ Es benutzt dieselben Funktionen wie der Editor (Folien-Nummern, Ereignis-Graph, 
 
 ## Aufruf
 
+**Mit der Desktop-App:** Sie bringt das Werkzeug mit eigenem Node mit. In den Einstellungen unter „KI-Assistenten" auf „Kommandozeilenwerkzeug installieren" klicken, dann geht `weft …` in einem Terminal (der Ordner `~/.local/bin` muss im PATH sein; die Einstellungen sagen, wie). Ein Update der App aktualisiert das Werkzeug mit.
+
 Im Projekt (Node 22):
 
 ```bash

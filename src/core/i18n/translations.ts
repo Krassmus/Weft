@@ -89,6 +89,20 @@ const baseEn = {
   "settings.network.turnUser": "TURN user name",
   "settings.network.turnPassword": "TURN password",
   "settings.network.turnHint": "A TURN server relays the traffic when two computers can't reach each other directly. It belongs to you alone and is not part of the link. Without it, the connection may fail on such networks.",
+  "settings.ai.legend": "AI assistants (command line)",
+  "settings.ai.intro": "An AI assistant with access to a terminal (Claude Code, Codex ...) or an MCP client (Claude Desktop ...) can build, check, translate and draw learning modules with the tool that comes with this app. It always matches this version of Weft: an update of the app updates it too. It does not run on an iPad or iPhone, and not in a chat that has no terminal.",
+  "settings.ai.install": "Install the command line tool",
+  "settings.ai.installed": "Installed: weft and weft-mcp in {dir}",
+  "settings.ai.pathHint": "If a terminal does not find `weft`, add the folder to the PATH (once, in ~/.zshrc or ~/.bashrc):",
+  "settings.ai.tell": "Then tell the assistant: \"Run `weft guide` and build the learning module I describe.\"",
+  "settings.ai.mcp": "For an MCP client (the configuration of Claude Desktop, for example):",
+  "settings.ai.copy": "Copy",
+  "settings.ai.copied": "Copied",
+  "settings.ai.windows": "The tool is in this folder (a link is not made on Windows). Give your assistant this path:",
+  "settings.ai.version": "Version {version}",
+  "settings.ai.error": "That did not work: {message}",
+  "settings.ai.missing": "This copy of Weft does not contain the command line tool (a development build, or the version from the App Store). It comes with the downloaded desktop app, and with the repository (see AGENTS.md).",
+  "settings.ai.web": "The command line tool comes with the desktop app for Mac, Windows and Linux.",
 } as const;
 
 const baseDe: Record<keyof typeof baseEn, string> = {
@@ -165,6 +179,20 @@ const baseDe: Record<keyof typeof baseEn, string> = {
   "settings.network.turnUser": "TURN Benutzername",
   "settings.network.turnPassword": "TURN Passwort",
   "settings.network.turnHint": "Ein TURN-Server leitet den Datenverkehr weiter, wenn zwei Rechner sich nicht direkt erreichen. Er gehört nur dir und steht nicht im Link. Ohne ihn klappt die Verbindung in solchen Netzen womöglich nicht.",
+  "settings.ai.legend": "KI-Assistenten (Kommandozeile)",
+  "settings.ai.intro": "Ein KI-Assistent mit Zugang zu einem Terminal (Claude Code, Codex ...) oder ein MCP-Client (Claude Desktop ...) kann mit dem Werkzeug, das in dieser App steckt, Lernmodule bauen, prüfen, übersetzen und zeichnen. Es passt immer zu dieser Weft-Version: Ein Update der App aktualisiert es mit. Auf dem iPad und iPhone läuft es nicht, ebenso wenig in einem Chat ohne Terminal.",
+  "settings.ai.install": "Kommandozeilenwerkzeug installieren",
+  "settings.ai.installed": "Installiert: weft und weft-mcp in {dir}",
+  "settings.ai.pathHint": "Findet ein Terminal `weft` nicht, den Ordner einmal in den PATH aufnehmen (in ~/.zshrc oder ~/.bashrc):",
+  "settings.ai.tell": "Dann dem Assistenten sagen: „Führe `weft guide` aus und baue das Lernmodul, das ich dir beschreibe.“",
+  "settings.ai.mcp": "Für einen MCP-Client (zum Beispiel die Konfiguration von Claude Desktop):",
+  "settings.ai.copy": "Kopieren",
+  "settings.ai.copied": "Kopiert",
+  "settings.ai.windows": "Das Werkzeug liegt in diesem Ordner (unter Windows wird kein Link angelegt). Diesen Pfad dem Assistenten geben:",
+  "settings.ai.version": "Version {version}",
+  "settings.ai.error": "Das hat nicht geklappt: {message}",
+  "settings.ai.missing": "Diese Weft-Fassung enthält das Kommandozeilenwerkzeug nicht (eine Entwicklungsfassung oder die Version aus dem App Store). Es gehört zur heruntergeladenen Desktop-App und zum Repository (siehe AGENTS.md).",
+  "settings.ai.web": "Das Kommandozeilenwerkzeug gehört zur Desktop-App für Mac, Windows und Linux.",
 };
 
 // The strings added when the rest of the interface was translated (see uiStrings.ts).

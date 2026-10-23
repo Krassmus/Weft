@@ -5,7 +5,7 @@ Weft is an open-source app for presentations and interactive learning modules (T
 
 ## If you are asked to build, check, translate or change a learning module
 
-Use the command line tool `weft` (or the MCP server `weft-mcp`, same abilities). You need Node 22; for pictures of the slides
+Use the command line tool `weft` (or the MCP server `weft-mcp`, same abilities). The desktop app brings both with a Node of its own (Settings → KI-Assistenten → install; `~/.local/bin/weft`); from the repository you need Node 22; for pictures of the slides
 (`weft render`, `weft play`, `weft validate --layout`) also an installed Chrome, Chromium, Edge or Brave.
 
 ```bash

@@ -8,7 +8,7 @@ reines Präsentationstool.
 ## Working with AI (command line and MCP)
 
 An AI assistant can read, build, check, translate, draw and play through learning modules with the command line tool `weft` or the MCP
-server `weft-mcp` (Node 22; Chrome for pictures of slides):
+server `weft-mcp`. The desktop app ships both with a Node of its own (Settings → KI-Assistenten → install); from the repository they need Node 22. Chrome is needed for pictures of slides:
 
 ```bash
 npm install && npm run build:cli
@@ -18,8 +18,8 @@ node cli/dist/weft.mjs help       # every command
 
 Guides: [docs/ai-authoring.en.md](docs/ai-authoring.en.md), [docs/operations.en.md](docs/operations.en.md), [docs/cli.en.md](docs/cli.en.md),
 [docs/mcp.md](docs/mcp.md) (MCP, German); short version for agents: [AGENTS.md](AGENTS.md), [llms.txt](llms.txt). Auf Deutsch:
-[docs/ai-authoring.md](docs/ai-authoring.md), [docs/cli.md](docs/cli.md). Die App selbst enthält das Werkzeug nicht - es gehört zum
-Repository (und läuft nicht auf iPad und iPhone).
+[docs/ai-authoring.md](docs/ai-authoring.md), [docs/cli.md](docs/cli.md). Die Desktop-App (Mac, Windows, Linux) bringt das Werkzeug mit eigenem Node mit
+(Einstellungen → KI-Assistenten); auf iPad und iPhone und in der Store-Fassung gibt es es nicht.
 
 ## Architektur
 

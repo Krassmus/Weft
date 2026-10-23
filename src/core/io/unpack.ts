@@ -165,11 +165,15 @@ function migrateLegacyShapeCornerRadius(doc: WeftDocument) {
 
 // A link (LinkBlock) once had a target - a page or a file of the module - and an icon, colours and a background of its own. Now it has an address
 // (`url`) and a `download` flag, and looks like a button of the module's style: a page keeps its address; a file of the module has no address any
-// more, so such a link starts empty ("https://") and is flagged by validate as having none.
-function migrateLegacyLinks(doc: WeftDocument) {
+// more, so such a link starts empty ("https://") and is flagged by validate as having none. True if a link was converted - then the stored history
+// (which still holds the old shape) cannot be used, see unpackDocument.
+function migrateLegacyLinks(doc: WeftDocument): boolean {
+  let changed = false;
   function migrateBlocks(blocks: Block[]) {
     for (const block of blocks) {
       if (block.kind !== "link") continue;
+      if (typeof block.url === "string" && typeof block.download === "boolean") continue;
+      changed = true;
       const legacy = block as unknown as Record<string, unknown> & { target?: { type?: string; url?: string } };
       if (typeof block.url !== "string") block.url = legacy.target?.type === "url" && typeof legacy.target.url === "string" ? legacy.target.url : "https://";
       if (typeof block.download !== "boolean") block.download = false;
@@ -179,6 +183,7 @@ function migrateLegacyLinks(doc: WeftDocument) {
   }
   for (const page of Object.values(doc.content.pages)) migrateBlocks(Object.values(page.blocks));
   for (const layout of Object.values(doc.content.layouts)) migrateBlocks(Object.values(layout.blocks));
+  return changed;
 }
 
 // Every save predating the quiz/video timeline events (or made with an older build's actions,
@@ -430,7 +435,7 @@ export function unpackDocument(zipBytes: Uint8Array, options: { importAssets?: b
   migrateMissingBlockEffects(doc);
   if (fileVersion < 4) migrateBlockEffectTriggers(doc);
   migrateLegacyShapeCornerRadius(doc);
-  migrateLegacyLinks(doc);
+  const convertedLinks = migrateLegacyLinks(doc);
   migrateMissingGroups(doc);
   // Older saves predate languages: a single-language module.
   doc.content.languages ??= [];
@@ -448,7 +453,8 @@ export function unpackDocument(zipBytes: Uint8Array, options: { importAssets?: b
   if (fileVersion < 5) migrateButtonActions(doc);
   doc.formatVersion = CURRENT_FORMAT_VERSION;
   syncAllPageTimelineEvents(doc);
-  if (fileVersion === CURRENT_FORMAT_VERSION) {
+  // (A history that still holds the old links would bring them back: the document is then made from the converted content alone.)
+  if (fileVersion === CURRENT_FORMAT_VERSION && !convertedLinks) {
     doc.history = readHistory(files[HISTORY_FILE], jsonContentMarker);
     // The id only goes with a history that is actually used - it names the document that history is of.
     if (doc.history) {

@@ -2337,7 +2337,7 @@ function TextBoxEditor({ block, onUpdate }: { block: TextBlock; onUpdate: BlockP
 /** A link (LinkBlock): the address it leads to, whether that is a file to download, and its text. How it looks is the module's style of interactive elements. */
 function LinkEditor({ block, onUpdate }: { block: LinkBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
   const { lang, defaultLang } = useEditingLanguage();
-  const url = block.url;
+  const url = block.url ?? "";
   const invalidUrl = url.trim() !== "" && url.trim() !== "https://" && safeLinkUrl(url) === null;
 
   return (
@@ -2361,7 +2361,7 @@ function LinkEditor({ block, onUpdate }: { block: LinkBlock; onUpdate: BlockPane
       {invalidUrl && <p className="weft-placeholder-warning">{tr("ui.link_address_invalid")}</p>}
       <p className="weft-hint">{tr("ui.link_address_hint")}</p>
       <label className="weft-field weft-field-inline">
-        <input type="checkbox" checked={block.download} onChange={(e) => onUpdate({ download: e.target.checked })} />
+        <input type="checkbox" checked={block.download === true} onChange={(e) => onUpdate({ download: e.target.checked })} />
         <span>{tr("ui.link_download")}</span>
       </label>
       <LanguageSelect block={block} />

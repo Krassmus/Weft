@@ -524,6 +524,56 @@ body {
   overflow: visible;
 }
 
+/* A link (LinkBlock, renderLinkBlock in player.runtime.js; the editor has the same in App.css): text and icon in the accent colour, underlined -
+   or, with a background, in the colour of the slide's text on it. */
+.weft-link {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45em;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 1.2;
+  color: var(--slide-accent-ink-text, var(--slide-accent, #2563eb));
+}
+
+.weft-link.has-background {
+  padding: 0 0.8em;
+  color: var(--slide-fg);
+}
+
+a.weft-link {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+a.weft-link:hover {
+  filter: brightness(1.15);
+}
+
+a.weft-link:focus-visible {
+  outline: 2px solid var(--slide-accent-ink, currentColor);
+  outline-offset: 2px;
+}
+
+.weft-link-icon {
+  display: inline-flex;
+  flex: none;
+  font-size: 1.1em;
+}
+
+.weft-link-text {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.weft-link.has-background .weft-link-text {
+  text-decoration: none;
+}
+
 /* A shape's own drop-shadow (or a thick stroke's outer half) can extend past its bounding box -
    see the matching .weft-block override for .weft-edit-block-inner-shape in App.css. */
 .weft-block-shape,

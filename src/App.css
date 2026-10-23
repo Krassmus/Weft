@@ -6332,3 +6332,45 @@ h2.weft-inspector-header {
   gap: 8px;
   padding: 2px 0;
 }
+
+/* A link (LinkBlock, blocks/LinkView.tsx; the player has the same in player.runtime.css): text and icon, in the accent colour and underlined -
+   or, with a background, in the colour of the slide's text on it. */
+.weft-link {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45em;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 1.2;
+  color: var(--slide-accent-ink-text, #2563eb);
+}
+
+.weft-link.has-background {
+  padding: 0 0.8em;
+  color: var(--slide-fg, inherit);
+}
+
+.weft-link-icon {
+  display: inline-flex;
+  flex: none;
+  font-size: 1.1em;
+}
+
+.weft-link-text {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.weft-link.has-background .weft-link-text {
+  text-decoration: none;
+}
+
+.weft-link-empty {
+  font-size: 0.7em;
+  opacity: 0.55;
+  font-style: italic;
+}

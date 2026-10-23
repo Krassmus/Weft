@@ -43,7 +43,9 @@ import { useTranslation } from "../../../core/i18n/useTranslation";
 import { SecondsControl } from "./SecondsControl";
 import { StepperSlider } from "./StepperSlider";
 import { ActionEffectsEditor } from "./ActionEffectsEditor";
-import { addFilesToBlock, removeFileFromBlock, setFilesPassword } from "../../../core/document/filesActions";
+import { addFilesToBlock, removeFileFromBlock, setFilesPassword, setLinkFile } from "../../../core/document/filesActions";
+import { safeLinkUrl } from "../../../core/document/linkUrl";
+import { LINK_ICONS } from "../../../core/runtime/linkIcons.js";
 import type { BlockContainerRef } from "../../../core/document/store";
 import { confirmDestructive, pickFilesFromDisk, pickFontFile, pickScriptFile, warnAboutVideoUploads } from "../../../core/io/fileIO";
 import { filesCheckPassword } from "../../../core/runtime/filesCrypto.js";
@@ -61,6 +63,7 @@ import type {
   ScriptBlock,
   IframeBlock,
   ImageBlock,
+  LinkBlock,
   ListBlock,
   ListMarkerKind,
   Page,
@@ -103,7 +106,7 @@ import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from ".
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
+import { linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
 import type { RevealerWording } from "../../../core/document/translations";
 import { revealerIconSvg } from "../../../core/runtime/revealerGeometry";
 import { clozeBlanks } from "../../../core/document/cloze";
@@ -235,6 +238,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, onSetAudio
       {block.kind === "audio" && <AudioEditor block={block} page={page} onUpdate={onUpdate} onSetAudio={onSetAudio} />}
       {block.kind === "iframe" && <IframeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "button" && <ButtonEditor block={block} page={page} onUpdate={onUpdate} />}
+      {block.kind === "link" && <LinkEditor block={block} container={container} onUpdate={onUpdate} />}
       {block.kind === "revealer" && <RevealerEditor block={block} page={page} onUpdate={onUpdate} onSetImage={onSetImage} />}
       {block.kind === "quiz" && <QuizEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "shape" && <ShapeEditor block={block} onUpdate={onUpdate} />}
@@ -2328,6 +2332,127 @@ function TextBoxEditor({ block, onUpdate }: { block: TextBlock; onUpdate: BlockP
         </>
       )}
     </Collapsible>
+  );
+}
+
+/** A link (LinkBlock): where it leads - a page on the internet or a file of the module -, its text and icon, and how it looks. */
+function LinkEditor({ block, container, onUpdate }: { block: LinkBlock; container: BlockContainerRef; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const { lang, defaultLang } = useEditingLanguage();
+  const assets = useDocumentStore((s) => s.doc.content.assets);
+  const [error, setError] = useState("");
+  const target = block.target;
+  const fileName = target.type === "file" && target.assetId ? assets.find((a) => a.id === target.assetId)?.fileName : undefined;
+  const url = target.type === "url" ? target.url : "";
+  const invalidUrl = url.trim() !== "" && url.trim() !== "https://" && safeLinkUrl(url) === null;
+
+  async function chooseFile() {
+    const files = await pickFilesFromDisk(tr("ui.link_file_choose"));
+    if (files.length === 0) return;
+    setError("");
+    try {
+      await setLinkFile(container, block.id, files[0]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  return (
+    <>
+      <Collapsible title={tr("ui.link")} defaultOpen>
+        <label className="weft-field">
+          <span>{tr("ui.link_leads_to")}</span>
+          <select
+            value={target.type}
+            onChange={(e) => onUpdate({ target: e.target.value === "file" ? { type: "file", assetId: null } : { type: "url", url: "https://" } })}
+          >
+            <option value="url">{tr("ui.link_to_page")}</option>
+            <option value="file">{tr("ui.link_to_file")}</option>
+          </select>
+        </label>
+        {target.type === "url" ? (
+          <label className="weft-field">
+            <span>{tr("ui.link_address")}</span>
+            <input
+              value={url}
+              placeholder="https://…"
+              spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
+              onChange={(e) => onUpdate({ target: { type: "url", url: e.target.value } })}
+              // What was typed without its scheme ("example.org") is completed when the field is left.
+              onBlur={() => {
+                const safe = safeLinkUrl(url);
+                if (safe && safe !== url) onUpdate({ target: { type: "url", url: safe } });
+              }}
+            />
+          </label>
+        ) : (
+          <div className="weft-field">
+            <span>{fileName ?? tr("ui.link_file_none")}</span>
+            <button type="button" className="weft-ghost-button weft-full-width" onClick={() => void chooseFile()}>
+              {fileName ? tr("ui.link_file_change") : tr("ui.link_file_choose")}
+            </button>
+          </div>
+        )}
+        {invalidUrl && <p className="weft-placeholder-warning">{tr("ui.link_address_invalid")}</p>}
+        {error && <p className="weft-placeholder-warning">{error}</p>}
+        {target.type === "url" && <p className="weft-hint">{tr("ui.link_address_hint")}</p>}
+        <LanguageSelect block={block} />
+        <label className="weft-field">
+          <span>{tr("ui.link_text")}</span>
+          <input value={linkText(block, lang, defaultLang)} onChange={(e) => onUpdate(linkTextPatch(block, lang, defaultLang, e.target.value))} />
+        </label>
+        <label className="weft-field">
+          <span>{tr("ui.link_icon")}</span>
+          <select value={block.icon} onChange={(e) => onUpdate({ icon: e.target.value as LinkBlock["icon"] })}>
+            <option value="none">{tr("ui.link_icon_none")}</option>
+            {LINK_ICONS.map((icon) => (
+              <option key={icon} value={icon}>
+                {tr(`ui.link_icon_${icon}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </Collapsible>
+      <Collapsible title={tr("ui.appearance")}>
+        <div className="weft-field">
+          <span>{tr("ui.link_text_size")}</span>
+          <StepperSlider label={tr("ui.link_text_size")} value={Math.round(block.fontSize * 10) / 10} min={0.8} max={8} step={0.1} onChange={(value) => onUpdate({ fontSize: Math.round(value * 10) / 10 })} />
+        </div>
+        <div className="weft-field">
+          <span>{tr("ui.link_color")}</span>
+          <div className="weft-button-look-row">
+            <label className="weft-field weft-field-inline">
+              <input type="checkbox" checked={block.color === null} onChange={(e) => onUpdate({ color: e.target.checked ? null : "#2563eb" })} />
+              <span>{tr("ui.link_color_automatic")}</span>
+            </label>
+            {block.color !== null && <ColorField value={block.color} ariaLabel={tr("ui.link_color")} onChange={(color) => onUpdate({ color })} />}
+          </div>
+        </div>
+        <div className="weft-field">
+          <span>{tr("ui.link_background")}</span>
+          <div className="weft-button-look-row">
+            <label className="weft-field weft-field-inline">
+              <input type="checkbox" checked={block.background === null} onChange={(e) => onUpdate({ background: e.target.checked ? null : "#2563eb" })} />
+              <span>{tr("ui.no_background")}</span>
+            </label>
+            {block.background !== null && <ColorField value={block.background} ariaLabel={tr("ui.background_colour")} onChange={(color) => onUpdate({ background: color })} />}
+          </div>
+        </div>
+        {block.background !== null && (
+          <>
+            <div className="weft-field">
+              <span>{tr("ui.opacity_2")}</span>
+              <StepperSlider label={tr("ui.opacity")} value={Math.round(block.backgroundOpacity * 100)} min={0} max={100} step={5} onChange={(value) => onUpdate({ backgroundOpacity: Math.min(100, value) / 100 })} />
+            </div>
+            <div className="weft-field">
+              <span>{tr("ui.link_radius")}</span>
+              <StepperSlider label={tr("ui.link_radius")} value={Math.round(block.radius * 100) / 100} min={0} max={8} step={0.1} onChange={(value) => onUpdate({ radius: Math.round(value * 100) / 100 })} />
+            </div>
+          </>
+        )}
+      </Collapsible>
+    </>
   );
 }
 

@@ -19,6 +19,7 @@ function assetIdsOf(block: Block | StaticBlock): string[] {
 
 function assetIdsOfPlain(block: Block | StaticBlock): string[] {
   if (block.kind === "files") return block.files.map((file) => file.id);
+  if (block.kind === "link") return block.target.type === "file" && block.target.assetId ? [block.target.assetId] : [];
   if (block.kind === "revealer") return block.imageAssetId ? [block.imageAssetId] : [];
   if (block.kind === "list") return block.marker === "image" && block.markerAssetId ? [block.markerAssetId] : [];
   return (block.kind === "image" || block.kind === "video" || block.kind === "audio") && block.assetId ? [block.assetId] : [];

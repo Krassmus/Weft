@@ -6,6 +6,7 @@ import { orderedValues } from "../src/core/document/ordering";
 import { pageLabels } from "../src/core/document/pageLabels";
 import { branchPageIds, sequenceOf } from "../src/core/document/sequence";
 import { isTranslated, plainTextOfHtml } from "../src/core/document/translations";
+import { safeLinkUrl } from "../src/core/document/linkUrl";
 import { placeholderSources } from "../src/core/document/variablePlaceholders";
 import { virtualVariablesFor } from "../src/core/document/virtualVariables";
 import { actionEffectProblem, listAllNodes } from "../src/core/document/pageTimeline";
@@ -54,6 +55,7 @@ const KIND_DEFINITIONS: Record<string, string> = {
   audio: "AudioBlock",
   iframe: "IframeBlock",
   button: "ButtonBlock",
+  link: "LinkBlock",
   quiz: "QuizBlock",
   cloze: "ClozeBlock",
   shape: "ShapeBlock",
@@ -414,6 +416,16 @@ export function validate(loaded: LoadedWeft): Finding[] {
       if (!plainTextOfHtml(block.html ?? block.text).trim()) add("info", "button-no-text", "Button ohne Text (der Player zeigt „Weiter“).", here);
     }
 
+    // Link.
+    if (block.kind === "link") {
+      if (block.target.type === "url") {
+        if (block.target.url.trim() === "" || block.target.url.trim() === "https://") add("warning", "link-no-target", "Der Link hat noch keine Adresse.", { ...here, hint: "target.url auf eine Adresse mit https://, mailto: oder tel: setzen." });
+        else if (safeLinkUrl(block.target.url) === null) add("error", "link-url-invalid", `Der Link führt zu „${block.target.url}", dahin kann ein Link nicht führen.`, { ...here, hint: "Nur Adressen mit http(s)://, mailto: oder tel: sind erlaubt." });
+      } else if (!block.target.assetId) add("warning", "link-no-target", "Der Link soll eine Datei herunterladen, hat aber keine.", { ...here, hint: "target.assetId auf eine Datei aus assets setzen." });
+      else if (!content.assets.some((a) => a.id === block.target.assetId)) add("error", "asset-missing", "Der Link verweist auf eine Datei, die nicht in assets steht.", here);
+      if (!block.text.trim() && block.icon === "none") add("info", "link-empty", "Der Link hat weder Text noch Icon: man sieht ihn nicht.", here);
+    }
+
     // Quiz.
     if (block.kind === "quiz") {
       const ids = new Set(block.options.map((o) => o.id));
@@ -464,13 +476,13 @@ export function validate(loaded: LoadedWeft): Finding[] {
     }
 
     // Translations.
-    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
+    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "link" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
       const hasWords =
         block.kind === "quiz"
           ? plainTextOfHtml(block.questionHtml).trim() !== ""
           : block.kind === "list"
             ? block.items.length > 0
-            : block.kind === "button"
+            : block.kind === "button" || block.kind === "link"
               ? block.text.trim() !== ""
               : plainTextOfHtml(block.html).trim() !== "";
       // A text that stands for a placeholder of the layout is the page's own, and has its words in each language like any other.

@@ -191,6 +191,7 @@ const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
   get progress() { return tr("ui.progress_bar"); },
   iframe: "Iframe",
   button: "Button",
+  get link() { return tr("ui.link"); },
   get quiz() { return tr("ui.quiz"); },
   get cloze() { return tr("ui.gap_text"); },
   get shape() { return tr("ui.shape"); },

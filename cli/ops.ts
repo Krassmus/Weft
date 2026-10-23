@@ -1,6 +1,7 @@
 import "./domShim";
 import { readFileSync } from "node:fs";
-import { basename } from "node:path";
+import { basename, extname } from "node:path";
+import { safeLinkUrl } from "../src/core/document/linkUrl";
 import * as actions from "../src/core/document/actions";
 import { DEFAULT_TEXT_BOX } from "../src/core/document/textBox";
 import { buildTextHtml, estimateHeightPercent } from "./markup";
@@ -273,7 +274,9 @@ function mergePatch(block: unknown, patch: unknown): unknown {
   const merged: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(patch)) {
     // A text box that is not there yet starts from the standard one.
-    merged[key] = key === "box" && current.box === undefined && isPlain(value) ? mergeDeep(DEFAULT_TEXT_BOX, value) : mergeDeep(current[key], value);
+    // (A link's target is one of two shapes - a page or a file: the new one replaces the old, it is not merged into it.)
+    if (key === "target" && current.kind === "link") merged[key] = value;
+    else merged[key] = key === "box" && current.box === undefined && isPlain(value) ? mergeDeep(DEFAULT_TEXT_BOX, value) : mergeDeep(current[key], value);
   }
   return merged;
 }
@@ -374,6 +377,23 @@ function remember(ctx: Context, op: Operation, id: string): void {
 // ---- the operations ------------------------------------------------------------------------------------------------------
 
 type Handler = (ctx: Context, op: Operation) => Record<string, unknown>;
+
+/** What a file of a link is called for the browser, by its ending (anything else is just bytes). */
+const FILE_TYPES: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".zip": "application/zip",
+  ".txt": "text/plain",
+  ".md": "text/markdown",
+  ".csv": "text/csv",
+  ".json": "application/json",
+  ".html": "text/html",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".odt": "application/vnd.oasis.opendocument.text",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+};
 
 const HANDLERS: Record<string, Handler> = {
   set_title(ctx, op) {
@@ -657,6 +677,45 @@ const HANDLERS: Record<string, Handler> = {
     for (const key of ["name"]) if (op[key] !== undefined) set[key] = op[key];
     if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
     return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "shape", set, as: op.as });
+  },
+  // A link as its own element: add_link {page | layout, url | file | asset, text?, icon?, x, y, width, height, fontSize?, background?, backgroundOpacity?,
+  // color?, radius?, effect?, name?, as}. url: a page (http, https, mailto, tel; one without a scheme becomes https) that opens in a new tab; file: a
+  // file on disk that goes into the module and is downloaded on a click; asset: a file the module has. icon: link, external, download, arrow, globe,
+  // file, mail or none.
+  add_link(ctx, op) {
+    const container = op.layout !== undefined ? { layout: op.layout } : { page: op.page };
+    const num = (value: unknown, fallback: number) => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
+    const set: Record<string, unknown> = { position: { x: num(op.x, 35), y: num(op.y, 50), width: num(op.width, 30), height: num(op.height, 8) } };
+    if (typeof op.url === "string") {
+      const safe = safeLinkUrl(op.url);
+      if (!safe) fail(`„${op.url}" ist keine Adresse, zu der ein Link führen kann (erlaubt: http(s)://, mailto:, tel:).`);
+      set.target = { type: "url", url: safe };
+    } else if (typeof op.file === "string") {
+      let bytes: Buffer;
+      try {
+        bytes = readFileSync(op.file);
+      } catch (error) {
+        return fail(`Die Datei „${op.file}" lässt sich nicht lesen: ${(error as Error).message}`);
+      }
+      const fileName = basename(op.file);
+      const mimeType = FILE_TYPES[extname(fileName).toLowerCase()] ?? "application/octet-stream";
+      const id = createId();
+      ctx.content.assets.push({ id, fileName, mimeType });
+      ctx.assets.push({ id, fileName, mimeType, bytes: new Uint8Array(bytes) });
+      set.target = { type: "file", assetId: id };
+    } else if (typeof op.asset === "string") {
+      const ref = alias(ctx, op.asset);
+      const meta = ctx.content.assets.find((a) => a.id === ref) ?? ctx.content.assets.find((a) => a.fileName === ref);
+      if (!meta) fail(`Das Modul hat keine Datei „${ref}".`);
+      set.target = { type: "file", assetId: meta!.id };
+    } else fail('"url" (eine Adresse), "file" (Pfad einer Datei zum Herunterladen) oder "asset" (eine Datei, die das Modul hat) fehlt.');
+    if (op.icon !== undefined) {
+      if (!["none", "link", "external", "download", "arrow", "globe", "file", "mail"].includes(String(op.icon))) fail('"icon" ist none, link, external, download, arrow, globe, file oder mail.');
+      set.icon = op.icon;
+    } else if (typeof op.file === "string" || typeof op.asset === "string") set.icon = "download";
+    for (const key of ["text", "fontSize", "background", "backgroundOpacity", "color", "radius", "name"]) if (op[key] !== undefined) set[key] = op[key];
+    if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
+    return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "link", set, as: op.as });
   },
   update_block(ctx, op) {
     const { block, container } = findBlock(ctx, op.block);

@@ -45,6 +45,7 @@ Wenn man HTML selbst schreibt:
 - `set` in `add_block`/`update_block` führt Objekte mit dem Vorhandenen zusammen: `{"position": {"y": 40}}` lässt `x`, `width` und `height`.
 - `set_look {brightness, accentColor, interactiveStyle}`: hell/dunkel, die Akzentfarbe (Buttons, Quiz, Markierung) und der Stil von Buttons und Antworten (`plain`, `elegant`, `round`, `futuristic`). Das ist alles, was für die Standardelemente einzustellen ist.
 - `set_palette {colors}` legt die Farben des Moduls in jede Farbwahl; `set_transition {page: "all", type, durationMs}` setzt den Folienübergang.
+- **Links** sind ein eigenes Element, kein Teil eines Textes: `{"op": "add_link", "page": "$eins", "url": "example.org/lernen", "text": "Zur Lernseite", "icon": "external", "background": "#2563eb", "backgroundOpacity": 1, "color": "#ffffff"}` öffnet die Seite in einem neuen Tab; mit `"file": "handout.pdf"` (Datei von der Festplatte) lädt der Klick die Datei herunter. Ohne `background` ist es Text und Icon in der Akzentfarbe, unterstrichen; `"text": ""` gibt ein Icon allein.
 - Blöcke können einen **Namen** haben (`"name": "Überschrift"`): er steht im Ereignis-Graph, in der Elementliste und in `weft inspect` statt der Art.
 
 ## Aufbau Schritt für Schritt (Weiter)

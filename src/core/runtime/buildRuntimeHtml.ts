@@ -5,6 +5,7 @@ import vanillaLmSource from "../../../mockups/VanillaLM.js?raw";
 import arrowGeometrySource from "./arrowGeometry.js?raw";
 import revealerGeometrySource from "./revealerGeometry.js?raw";
 import accentContrastSource from "./accentContrast.js?raw";
+import linkIconsSource from "./linkIcons.js?raw";
 import imageGeometrySource from "./imageGeometry.js?raw";
 import filesCryptoSource from "./filesCrypto.js?raw";
 import playerRuntimeSource from "./player.runtime.js?raw";
@@ -105,6 +106,7 @@ ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` 
 <script>${arrowGeometrySource.replace(/^export /gm, "")}</script>
 <script>${revealerGeometrySource.replace(/^export /gm, "")}</script>
 <script>${accentContrastSource.replace(/^export /gm, "")}</script>
+<script>${linkIconsSource.replace(/^export /gm, "")}</script>
 <script>${imageGeometrySource.replace(/^export /gm, "")}</script>
 <script>${filesCryptoSource.replace(/^export /gm, "")}</script>
 <script>${playerRuntimeSource}</script>

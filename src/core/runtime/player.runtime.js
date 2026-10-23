@@ -394,7 +394,7 @@
     else if (block.kind === "tex") {
       var mathml = wrap.querySelector(".katex-mathml");
       text = mathml ? mathml.textContent : block.tex || "";
-    } else if (block.kind === "text" || block.kind === "list" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "button" || block.kind === "code") {
+    } else if (block.kind === "text" || block.kind === "list" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "button" || block.kind === "link" || block.kind === "code") {
       text = wrap.textContent || "";
     }
     text = String(text).replace(/\s+/g, " ").trim();
@@ -2804,6 +2804,92 @@
   var REVEALER_WINDOW_WIDTH_CQW = 28;
   var REVEALER_PAD_CQW = 1.4;
 
+  // ---- LinkBlock: a link to a page (opens in a new tab) or to a file of the module (downloaded) ----
+
+  // Where a link leads, or "" when it leads nowhere: only a page (http, https), a mail address or a phone number, or a file of the module. Mirrors
+  // core/document/linkUrl.ts (safeLinkUrl), kept in step by hand - a module is not trusted to hold a safe address.
+  function linkHref(block) {
+    var target = block.target || {};
+    if (target.type === "file") return target.assetId ? assetSrc(target.assetId) : "";
+    var url = String(target.url || "").trim();
+    return /^(https?:\/\/|mailto:|tel:)\S/i.test(url) ? url : "";
+  }
+
+  function linkLabel(block) {
+    var t = currentTranslation(block);
+    return (t && t.text !== undefined ? t.text : block.text) || "";
+  }
+
+  // The look: the block's text size and colours (core/document/linkLook.ts writes the same for the editor).
+  function linkStyle(block) {
+    var css = "font-size:" + block.fontSize + "cqw;";
+    if (block.color) css += "color:" + block.color + ";";
+    if (block.background) {
+      var opacity = Math.round(Math.max(0, Math.min(1, block.backgroundOpacity)) * 100);
+      css += "background:color-mix(in srgb," + block.background + " " + opacity + "%,transparent);border-radius:" + block.radius + "cqw;";
+    }
+    return css;
+  }
+
+  function renderLinkBlock(block) {
+    var wrap = el("div", { class: "weft-block weft-block-link", "data-weft-block": block.id, style: positionStyle(block.position) });
+    var href = linkHref(block);
+    var isFile = block.target && block.target.type === "file";
+    var fileMeta = isFile && block.target.assetId ? module.assets.filter(function (a) { return a.id === block.target.assetId; })[0] : null;
+    var link = el(href ? "a" : "span", { class: "weft-link" + (block.background ? " has-background" : ""), style: linkStyle(block) }, []);
+    var iconSvg = typeof linkIconSvg === "function" ? linkIconSvg(block.icon) : "";
+    if (iconSvg) {
+      var icon = el("span", { class: "weft-link-icon" }, []);
+      icon.innerHTML = iconSvg;
+      link.appendChild(icon);
+    }
+    var text = el("span", { class: "weft-link-text" }, []);
+    link.appendChild(text);
+    var fill = function () {
+      var label = linkLabel(block);
+      text.textContent = label;
+      text.hidden = !label;
+      // A link that is only an icon still needs a name for whoever cannot see it.
+      if (href) {
+        if (label) link.removeAttribute("aria-label");
+        else link.setAttribute("aria-label", fileMeta ? fileMeta.fileName : href);
+      }
+    };
+    fill();
+    languageRefreshers.push(fill);
+    if (href) {
+      link.setAttribute("href", href);
+      if (isFile) link.setAttribute("download", fileMeta ? fileMeta.fileName : "");
+      else {
+        // (A page opens in a new tab; a mail or phone link hands over to the program that does it, without an empty tab.)
+        if (/^https?:/i.test(href)) link.setAttribute("target", "_blank");
+        link.setAttribute("rel", "noopener noreferrer");
+      }
+      // In the editor's preview and the player of a player file the page lives in a sandboxed frame that can neither open a tab nor
+      // download: the window around it does that for it (see ModuleFrame.tsx).
+      if (savesViaHost && window.parent !== window) {
+        link.addEventListener("click", function (event) {
+          event.preventDefault();
+          if (isFile) {
+            if (!fileMeta) return;
+            fetchBytes(href).then(
+              function (bytes) {
+                filesSave(bytes, { name: fileMeta.fileName, mimeType: fileMeta.mimeType });
+              },
+              function () {
+                debugShow(["Link: the file could not be read"]);
+              }
+            );
+          } else {
+            window.parent.postMessage({ source: "weft-module", type: "open-url", url: href }, "*");
+          }
+        });
+      }
+    }
+    wrap.appendChild(link);
+    return wrap;
+  }
+
   function renderButtonBlock(block) {
     var wrap = el("div", { class: "weft-block weft-block-button", "data-weft-block": block.id, style: positionStyle(block.position) });
     var button = el("button", { type: "button", class: "weft-block-button-el", style: buttonLookStyle(block) }, []);
@@ -3210,7 +3296,7 @@
       }
       return el("div", { class: "weft-block weft-block-script", style: "display:none;" }, []);
     }
-    var wrap = block.kind === "progress" ? renderProgressBlock(block) : block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : block.kind === "revealer" ? renderRevealerBlock(block) : renderStaticBlock(block, page);
+    var wrap = block.kind === "progress" ? renderProgressBlock(block) : block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : block.kind === "link" ? renderLinkBlock(block) : block.kind === "revealer" ? renderRevealerBlock(block) : renderStaticBlock(block, page);
     applyBlockEffects(wrap, block, page);
     applyActionEffects(wrap, block);
     if (block.kind === "list" && wrap.weftListItems) applyListItemEffects(block, wrap.weftListItems);

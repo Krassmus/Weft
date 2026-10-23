@@ -1,4 +1,4 @@
-import type { BlockTranslation, ButtonBlock, ClozeBlock, ListBlock, QuizBlock, RevealerBlock, TextBlock, WeftModule } from "../types";
+import type { BlockTranslation, ButtonBlock, ClozeBlock, LinkBlock, ListBlock, QuizBlock, RevealerBlock, TextBlock, WeftModule } from "../types";
 
 /**
  * Per-language wording of the blocks that carry text (text, quiz, button). The block's own fields
@@ -8,7 +8,7 @@ import type { BlockTranslation, ButtonBlock, ClozeBlock, ListBlock, QuizBlock, R
  * block's own fields.
  */
 
-type Translatable = TextBlock | QuizBlock | ButtonBlock | ListBlock | ClozeBlock;
+type Translatable = TextBlock | QuizBlock | ButtonBlock | LinkBlock | ListBlock | ClozeBlock;
 type Translations = Record<string, BlockTranslation> | undefined;
 
 export function defaultLanguageOf(languages: readonly string[]): string | null {
@@ -55,6 +55,15 @@ export function listItemHtml(block: ListBlock, itemId: string, language: string 
 
 export function buttonText(block: ButtonBlock, language: string | null, defaultLanguage: string | null): string {
   return translationOf(block.translations, language, defaultLanguage)?.text ?? block.text;
+}
+
+/** The text of a link in `language`: its translation if there is one, else the block's own (the default language's). */
+export function linkText(block: LinkBlock, language: string | null, defaultLanguage: string | null): string {
+  return translationOf(block.translations, language, defaultLanguage)?.text ?? block.text;
+}
+
+export function linkTextPatch(block: LinkBlock, language: string | null, defaultLanguage: string | null, text: string) {
+  return wordingPatch(block, language, defaultLanguage, { text }, (t) => ({ ...t, text })) as Partial<LinkBlock>;
 }
 
 /** The presenter notes of a page in `language` (see Page.notes): the translation if there is one, else the default language's. */
@@ -294,12 +303,15 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       delete block.translations[newDefault];
       continue;
     }
-    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "list") continue;
+    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "link" && block.kind !== "list") continue;
     const incoming = block.translations?.[newDefault];
     const outgoing: BlockTranslation = {};
     if (block.kind === "text" || block.kind === "cloze") {
       outgoing.html = block.html;
       if (incoming?.html !== undefined) block.html = incoming.html;
+    } else if (block.kind === "link") {
+      outgoing.text = block.text;
+      if (incoming?.text !== undefined) block.text = incoming.text;
     } else if (block.kind === "button") {
       outgoing.text = block.text;
       if (block.html !== undefined) outgoing.html = block.html;

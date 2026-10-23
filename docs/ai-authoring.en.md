@@ -51,6 +51,7 @@ If you write HTML yourself:
 - `set` in `add_block`/`update_block` merges objects with what is there: `{"position": {"y": 40}}` keeps `x`, `width` and `height`.
 - `set_look {brightness, accentColor, interactiveStyle}`: light/dark, the accent colour (buttons, quiz, marking) and the style of buttons and answers (`plain`, `elegant`, `round`, `futuristic`). That is all there is to set for the standard elements.
 - `set_palette {colors}` puts the colours of the module into every colour picker; `set_transition {page: "all", type, durationMs}` sets the slide transition.
+- **Links** are an element of their own, not part of a text: `{"op": "add_link", "page": "$one", "url": "example.org/learn", "text": "To the learning site", "icon": "external", "background": "#2563eb", "backgroundOpacity": 1, "color": "#ffffff"}` opens the page in a new tab; with `"file": "handout.pdf"` (a file from disk) a click downloads the file. Without `background` it is text and icon in the accent colour, underlined; `"text": ""` makes an icon alone.
 - Blocks can have a **name** (`"name": "Heading"`): it shows in the event graph, in the list of elements and in `weft inspect` instead of the kind.
 
 ## Building up step by step (Weiter)

@@ -723,12 +723,39 @@ export interface FilesBlock extends BaseBlock {
   protection: FilesProtection | null;
 }
 
+/** The pictures a link can have before its text (see linkIcons.js). */
+export type LinkIcon = "none" | "link" | "external" | "download" | "arrow" | "globe" | "file" | "mail";
+
+/**
+ * A link on the slide: an element of its own (not a piece of a text) that leads somewhere when it is clicked - to a page on the internet, which
+ * opens in a new tab (target="_blank"), or to a file of the module, which is downloaded. It has a text and/or an icon, and it may have a
+ * background that sets it off from the slide; without one it is the text (and icon) in the accent colour, underlined.
+ */
+export interface LinkBlock extends BaseBlock {
+  kind: "link";
+  /** Where a click leads: the address of a page (http, https, mailto or tel), or a file of the module (its asset id; null: none chosen yet). */
+  target: { type: "url"; url: string } | { type: "file"; assetId: string | null };
+  /** The text of the link (plain); "" for an icon alone. */
+  text: string;
+  translations?: Record<string, BlockTranslation>;
+  icon: LinkIcon;
+  /** The size of the text, in cqw (percent of the slide's width) - the icon is as large as the text. */
+  fontSize: number;
+  /** A background colour (hex) that sets the link off from the slide, with its opacity (0-1); null: none. */
+  background: string | null;
+  backgroundOpacity: number;
+  /** The colour of text and icon (hex); null: the module's accent colour (on a background: the colour of the slide's text). */
+  color: string | null;
+  /** How round the corners of the background are, in cqw. */
+  radius: number;
+}
+
 /** Blocks a Layout may contain. Quiz (or any future graded/interactive block) is deliberately
  * excluded here: a Layout is a page template, and templates must not carry graded state. A
  * navigation button (or a shape, which carries no state at all) has nothing graded to exclude, so
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
-export type StaticBlock = TextBlock | PlaceholderBlock | ListBlock | LanguageBlock | ProgressBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | AudioBlock | RevealerBlock | IframeBlock | ButtonBlock | ShapeBlock | ArrowBlock | FilesBlock;
+export type StaticBlock = TextBlock | PlaceholderBlock | ListBlock | LanguageBlock | ProgressBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | AudioBlock | RevealerBlock | IframeBlock | ButtonBlock | LinkBlock | ShapeBlock | ArrowBlock | FilesBlock;
 export type Block = StaticBlock | QuizBlock | ClozeBlock | ScriptBlock;
 
 /** A block as it's first made, before it has been put somewhere (and so given its `order`). */

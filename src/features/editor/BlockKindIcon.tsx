@@ -59,6 +59,7 @@ const ICONS: Record<Kind, ReactNode> = {
       <path d="M8 12h8" />
     </>
   ),
+  link: <path d="M10 14a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1M14 10a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1" />,
   button: (
     <>
       <rect x="3" y="8" width="18" height="8" rx="4" />

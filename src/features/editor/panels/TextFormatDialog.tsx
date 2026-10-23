@@ -10,6 +10,7 @@ import {
   applyExtendedFormat,
   applyFontSize,
   applyFormat,
+  removeTextColor,
   pinActiveEditor,
   readExtendedFormat,
   selectAllIfCollapsed,
@@ -36,6 +37,9 @@ const sampleText = () => [tr("ui.sample_text_1"), tr("ui.sample_text_2")];
  */
 /** From this brightness (0-1) on, a text colour counts as light. */
 const LIGHT_TEXT_BRIGHTNESS = 0.51;
+
+/** The colour of the sample text while the text has no colour of its own (on the white of the sample, the colour of a light slide's text). */
+const DEFAULT_PREVIEW_COLOR = "#18181b";
 
 /** How bright a colour looks, 0 (black) to 1 (white) - weighted by how much the eye takes from red, green and blue - or null if it is not
  * a colour written as #rgb, #rrggbb or rgb(...). */
@@ -75,7 +79,8 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
     () => ({
       family: snapshot.fontFamily === "mixed" || !snapshot.fontFamily ? DEFAULT_FONT_FAMILY : snapshot.fontFamily,
       sizePx: typeof snapshot.fontSizePx === "number" ? snapshot.fontSizePx : 24,
-      color: snapshot.color === "mixed" || !snapshot.color ? "#000000" : snapshot.color,
+      // (null: no colour of its own - the slide's; also what a selection with several colours starts as: nothing is changed unless a colour is picked.)
+      color: snapshot.color === "mixed" || !snapshot.color ? null : snapshot.color,
       bold: snapshot.bold === "on",
       italic: snapshot.italic === "on",
       underline: snapshot.underline === "on",
@@ -89,7 +94,13 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
   );
   const [family, setFamily] = useState(initial.family);
   const [sizePx, setSizePx] = useState(initial.sizePx);
-  const [color, setColor] = useState(initial.color);
+  const [color, setColor] = useState<string | null>(initial.color);
+  // (A colour that was picked is applied even if it is the one the dialog began with - after "several colours", the standard one removes them all.)
+  const [colorTouched, setColorTouched] = useState(false);
+  const pickColor = (picked: string | null) => {
+    setColorTouched(true);
+    setColor(picked);
+  };
   const [bold, setBold] = useState(initial.bold);
   const [italic, setItalic] = useState(initial.italic);
   const [underline, setUnderline] = useState(initial.underline);
@@ -133,13 +144,13 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
   const imageUrl = assetId ? getObjectUrl(assetId) : undefined;
   // Light letters would vanish on the white of the sample: from this brightness on, the sample sits on black. (A gradient: the middle
   // of its two colours. A picture in the letters says nothing about it, so it stays on white.)
-  const shownColor = backgroundKind === "gradient" ? mixBrightness(from, to) : backgroundKind === "image" && imageUrl ? null : brightness(color);
+  const shownColor = backgroundKind === "gradient" ? mixBrightness(from, to) : backgroundKind === "image" && imageUrl ? null : color === null ? null : brightness(color);
   const darkPreview = shownColor !== null && shownColor >= LIGHT_TEXT_BRIGHTNESS;
   const previewStyle: CSSProperties = {
     fontFamily: `"${family}", sans-serif`,
     // (The size of the text on the slide depends on the slide's width: the sample is shown larger than the number says.)
     fontSize: `${Math.min(Math.max(sizePx * 1.6, 14), 64)}px`,
-    color,
+    color: color ?? DEFAULT_PREVIEW_COLOR,
     fontWeight: bold ? 700 : 400,
     fontStyle: italic ? "italic" : "normal",
     textDecoration: underline ? "underline" : "none",
@@ -168,7 +179,10 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
     if (underline !== initial.underline) applyFormat("underline");
     if (align !== initial.align) applyFormat(align === "center" ? "justifyCenter" : align === "right" ? "justifyRight" : "justifyLeft");
     if (family !== initial.family) applyFormat("fontName", family);
-    if (color !== initial.color) applyFormat("foreColor", color);
+    if (colorTouched) {
+      if (color === null) removeTextColor();
+      else applyFormat("foreColor", color);
+    }
     if (sizePx !== initial.sizePx) applyFontSize(sizePx);
 
     const input: Parameters<typeof applyExtendedFormat>[0] = {};
@@ -215,7 +229,7 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
           </div>
           <label className="weft-field">
             <span>{tr("ui.colour")}</span>
-            <ColorField value={color} ariaLabel={tr("ui.colour")} onChange={setColor} />
+            <ColorField value={color ?? "#000000"} ariaLabel={tr("ui.colour")} isDefault={color === null} onReset={() => pickColor(null)} onChange={pickColor} />
           </label>
 
           <div className="weft-field weft-text-format-wide">

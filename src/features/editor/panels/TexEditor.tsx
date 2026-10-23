@@ -49,12 +49,7 @@ export function TexEditor({ block, onUpdate }: { block: TexBlock; onUpdate: Upda
         <p className="weft-hint">{tr("ui.tex_line_break_align")}</p>
         <label className="weft-field weft-field-inline">
           <span>{tr("ui.colour_of_the_formula")}</span>
-          <ColorField value={block.color || "#000000"} onChange={(color) => onUpdate({ color })} />
-          {block.color && (
-            <button type="button" className="weft-ghost-button" onClick={() => onUpdate({ color: "" })}>
-              {tr("ui.reset")}
-            </button>
-          )}
+          <ColorField value={block.color || "#000000"} isDefault={!block.color} onReset={() => onUpdate({ color: "" })} onChange={(color) => onUpdate({ color })} />
         </label>
       </Collapsible>
       {dialogOpen && <TexDialog block={block} onUpdate={onUpdate} onClose={closeDialog} />}

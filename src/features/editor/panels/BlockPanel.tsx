@@ -92,7 +92,7 @@ import type {
   VideoStopPoint,
 } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
-import { applyFontSize, applyFormat, useFormatSnapshot } from "../blocks/richText";
+import { applyFontSize, applyFormat, removeTextColor, useFormatSnapshot } from "../blocks/richText";
 import type { TriState } from "../blocks/richText";
 import { listPageTriggerEvents, listTriggerableNodes, nodeLabel } from "../Timeline";
 import { OutgoingTriggersSection } from "./TriggerSections";
@@ -718,6 +718,9 @@ function TextEditor({
             <ColorField
               value={snapshot.color === "mixed" || !snapshot.color ? "#000000" : snapshot.color}
               ariaLabel={tr("ui.colour")}
+              // No colour of its own is the slide's: light letters on a dark slide, dark on a light one.
+              isDefault={snapshot.color === ""}
+              onReset={() => removeTextColor()}
               onChange={(color) => applyFormat("foreColor", color)}
             />
           </label>

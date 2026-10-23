@@ -395,6 +395,45 @@ function applyFormatInner(command: string, value?: string) {
   active.commit(active.el.innerHTML);
 }
 
+/** A colour nobody picks, with which execCommand marks exactly the selected text for removeTextColor. */
+const COLOR_MARKER = "#010203";
+
+/** Takes the colour of the selected text away, so that it is in the colour the slide gives its text (light or dark, WeftModule.brightness) again.
+ * execCommand has no "remove only the colour": the selection is coloured with a marker (which makes the browser split the elements exactly where the
+ * selection begins and ends), and the marker is then taken off again - the <font> is dropped if the colour was all it had. */
+export function removeTextColor() {
+  withWholeSelection(removeTextColorInner);
+}
+
+function removeTextColorInner() {
+  if (!active) return;
+  if (document.activeElement !== active.el) restoreSelection();
+  document.execCommand("foreColor", false, COLOR_MARKER);
+  const touched: Node[] = [];
+  active.el.querySelectorAll("font[color]").forEach((fontEl) => {
+    if ((fontEl.getAttribute("color") ?? "").toLowerCase() !== COLOR_MARKER) return;
+    if (fontEl.attributes.length > 1) {
+      fontEl.removeAttribute("color");
+      touched.push(fontEl);
+    } else {
+      const children = Array.from(fontEl.childNodes);
+      fontEl.replaceWith(...children);
+      touched.push(...children);
+    }
+  });
+  // (The nodes the selection was made of are gone: it is made again from the ones that took their place, as in applyFontSizeInner.)
+  if (touched.length > 0) {
+    const range = document.createRange();
+    range.setStartBefore(touched[0]);
+    range.setEndAfter(touched[touched.length - 1]);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  }
+  saveSelection();
+  active.commit(active.el.innerHTML);
+}
+
 /** execCommand's "fontSize" only understands the legacy 1-7 scale, not arbitrary sizes - apply
  * the largest legacy size, then swap the <font size="7"> markers it leaves behind for a real
  * size. That size is in cqw, not px: the stage is a CSS containment context (container-type:

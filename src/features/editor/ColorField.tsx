@@ -24,7 +24,8 @@ const MARGIN = 8;
 /**
  * The colour picker of every colour in Weft (it replaces the browsers' own `<input type="color">`): a swatch that opens a small
  * panel with
- *  - the module's colour scheme (WeftModule.colorPalette, managed in the module's settings): a click on one is the colour,
+ *  - the module's colour scheme (WeftModule.colorPalette, managed in the module's settings): a click on one is the colour - and, where a
+ *    colour can be left to the slide (`onReset`), first of them the crossed-out square: back to the standard colour,
  *  - "Add to color scheme" for the colour that is set now,
  *  - the eyedropper - a colour from anywhere on the screen, with the system's magnifier (see core/colors/screenColor.ts) -
  *    where the platform has one,
@@ -38,6 +39,8 @@ export function ColorField({
   title,
   ariaLabel,
   hideScheme = false,
+  isDefault = false,
+  onReset,
 }: {
   value: string;
   onChange: (color: string) => void;
@@ -45,6 +48,11 @@ export function ColorField({
   ariaLabel?: string;
   /** Without the colour scheme (and "Add to color scheme"): for the one place that edits the scheme itself. */
   hideScheme?: boolean;
+  /** The colour is not set: it is the standard one (the slide's own, light or dark) - the swatch is the crossed-out square; `value` is what the
+   * panel starts from when a colour is picked. */
+  isDefault?: boolean;
+  /** Where a colour can be left to the slide: a crossed-out square comes first in the colour scheme, and a click on it calls this. */
+  onReset?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
@@ -154,7 +162,7 @@ export function ColorField({
       <button
         ref={buttonRef}
         type="button"
-        className="weft-color-swatch"
+        className={"weft-color-swatch" + (isDefault ? " is-default" : "")}
         title={title ?? ariaLabel ?? tr("ui.choose_colour")}
         aria-label={ariaLabel ?? title ?? tr("ui.choose_colour")}
         aria-expanded={open}
@@ -179,10 +187,22 @@ export function ColorField({
             }}
           >
             {!hideScheme && <span className="weft-color-popover-label">{tr("ui.colour_scheme")}</span>}
-            {hideScheme ? null : palette.length === 0 ? (
+            {hideScheme ? null : palette.length === 0 && !onReset ? (
               <p className="weft-hint">{tr("ui.colour_scheme_empty")}</p>
             ) : (
               <div className="weft-color-grid">
+                {onReset && (
+                  <button
+                    type="button"
+                    className={"weft-color-cell is-default" + (isDefault ? " is-current" : "")}
+                    title={tr("ui.colour_default")}
+                    aria-label={tr("ui.colour_default")}
+                    onClick={() => {
+                      onReset();
+                      setOpen(false);
+                    }}
+                  />
+                )}
                 {palette.map((entry) => (
                   <button
                     key={entry.id}
@@ -199,6 +219,7 @@ export function ColorField({
                 ))}
               </div>
             )}
+            {!hideScheme && palette.length === 0 && onReset && <p className="weft-hint">{tr("ui.colour_scheme_empty")}</p>}
             <ColorWheel
               value={nativeShown ?? value}
               onLive={pushNative}

@@ -5087,6 +5087,14 @@ button.weft-timeline-node-icon.is-red:hover,
   border-color: var(--weft-accent);
 }
 
+/* No colour of its own - the standard one: a crossed-out square, as in the colour scheme's first cell. */
+.weft-color-swatch.is-default,
+.weft-color-cell.is-default {
+  background:
+    linear-gradient(to top right, transparent calc(50% - 1px), #dc2626 calc(50% - 1px), #dc2626 calc(50% + 1px), transparent calc(50% + 1px)),
+    #ffffff;
+}
+
 .weft-color-popover {
   max-height: calc(100vh - 16px);
   overflow-y: auto;

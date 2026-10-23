@@ -1223,6 +1223,8 @@
       var back = module.brightness === "dark" ? "#18181b" : "#ffffff";
       css += "--slide-accent:" + module.accentColor + ";--slide-accent-fg:" + revealerSignColor(module.accentColor) + ";";
       css += "--slide-accent-ink:" + accentInk(module.accentColor, back, 3) + ";--slide-accent-ink-text:" + accentInk(module.accentColor, back, 4.5) + ";";
+      // (And on the dark grey of a link, which is the same on every slide: #1c2230, see .weft-link in player.runtime.css.)
+      css += "--slide-accent-on-dark:" + accentInk(module.accentColor, "#1c2230", 3) + ";";
     }
     return css;
   }

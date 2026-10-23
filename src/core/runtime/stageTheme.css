@@ -62,6 +62,9 @@
      --slide-accent-ink-text for a module that has an accent colour (accentContrast.js); without one the accent is the blue below. */
   --slide-accent-ink: var(--slide-accent-color);
   --slide-accent-ink-text: var(--slide-accent-color);
+  /* The accent colour as it is drawn on the dark grey of a link (and of a revealer's window): mixed with white as far as it takes to stand out from
+     it - set by the page like the two above (accentContrast.js), the colour itself without an accent colour of the module. */
+  --slide-accent-on-dark: var(--slide-accent-color);
   --slide-accent-soft: color-mix(in srgb, var(--slide-accent-ink) 10%, var(--slide-bg));
   --slide-accent-line: color-mix(in srgb, var(--slide-accent-ink) 45%, var(--slide-bg));
   --slide-focus-ring: color-mix(in srgb, var(--slide-accent-ink) 80%, var(--slide-fg));

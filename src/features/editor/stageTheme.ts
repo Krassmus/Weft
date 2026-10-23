@@ -12,6 +12,8 @@ function accentStyle(accentColor: string, background: string): CSSProperties {
     "--slide-accent-fg": revealerSignColor(accentColor),
     "--slide-accent-ink": accentInk(accentColor, background, 3),
     "--slide-accent-ink-text": accentInk(accentColor, background, 4.5),
+    // On the dark grey of a link (.weft-link), which is the same on every slide.
+    "--slide-accent-on-dark": accentInk(accentColor, "#1c2230", 3),
   } as CSSProperties;
 }
 

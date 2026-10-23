@@ -6362,6 +6362,8 @@ h2.weft-inspector-header {
   display: inline-flex;
   flex: none;
   font-size: 1.15em;
+  /* The globe is in the accent colour (as it stands out from the dark grey), the text stays light. */
+  color: var(--slide-accent-on-dark, #3b82f6);
 }
 
 .weft-link-text {

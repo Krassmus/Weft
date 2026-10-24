@@ -185,6 +185,26 @@ function migrateLegacyLinks(doc: WeftDocument): boolean {
   return changed;
 }
 
+// The Abbau "Zersplittern" (exit effect "shatter") is gone: a block that had it fades out instead (same duration). True if one was changed - then
+// the stored history, which still holds the old effect, cannot be used (see unpackDocument).
+function migrateRemovedShatter(doc: WeftDocument): boolean {
+  let changed = false;
+  function migrateBlocks(blocks: Block[]) {
+    for (const block of blocks) {
+      for (const key of ["entranceEffect", "exitEffect"] as const) {
+        const effect = block[key] as { type: string } | undefined;
+        if (effect && effect.type === "shatter") {
+          effect.type = "fade";
+          changed = true;
+        }
+      }
+    }
+  }
+  for (const page of Object.values(doc.content.pages)) migrateBlocks(Object.values(page.blocks));
+  for (const layout of Object.values(doc.content.layouts)) migrateBlocks(Object.values(layout.blocks));
+  return changed;
+}
+
 // Every save predating the quiz/video timeline events (or made with an older build's actions,
 // before some edit forgot to resync) may have quiz/video blocks its timeline doesn't reflect yet -
 // reconcile once on load rather than trust whatever's already in the file (see
@@ -435,6 +455,7 @@ export function unpackDocument(zipBytes: Uint8Array, options: { importAssets?: b
   if (fileVersion < 4) migrateBlockEffectTriggers(doc);
   migrateLegacyShapeCornerRadius(doc);
   const convertedLinks = migrateLegacyLinks(doc);
+  const removedShatter = migrateRemovedShatter(doc);
   migrateMissingGroups(doc);
   // Older saves predate languages: a single-language module.
   doc.content.languages ??= [];
@@ -452,8 +473,8 @@ export function unpackDocument(zipBytes: Uint8Array, options: { importAssets?: b
   if (fileVersion < 5) migrateButtonActions(doc);
   doc.formatVersion = CURRENT_FORMAT_VERSION;
   syncAllPageTimelineEvents(doc);
-  // (A history that still holds the old links would bring them back: the document is then made from the converted content alone.)
-  if (fileVersion === CURRENT_FORMAT_VERSION && !convertedLinks) {
+  // (A history that still holds the old links - or the removed effect - would bring them back: the document is then made from the converted content alone.)
+  if (fileVersion === CURRENT_FORMAT_VERSION && !convertedLinks && !removedShatter) {
     doc.history = readHistory(files[HISTORY_FILE], jsonContentMarker);
     // The id only goes with a history that is actually used - it names the document that history is of.
     if (doc.history) {

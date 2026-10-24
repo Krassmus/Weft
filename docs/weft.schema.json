@@ -296,7 +296,7 @@
       "type": "object"
     },
     "BlockEffectType": {
-      "description": "(\"shatter\" - \"Zersplittern\" - only exists as an Abbau: the block breaks into shards that fly off the slide, see shatterBlock in player.runtime.js. A video breaks as the frame it shows; an embedded page, which can't be copied, fades instead.)",
+      "description": "Every kind of appear/disappear animation a block can use for its own Aufbau (entrance) or Abbau (exit) - plus \"off\", which isn't an animation at all. \"off\": there's no Aufbau/Abbau here in the first place - the block is simply always there from the moment the slide is (for entrance) or never auto-removed (for exit); never gets a trigger of any kind (see getBlockEntranceTrigger/getBlockExitTrigger in document/pageTimeline.ts, both of which short-circuit to `null` for it), and never shows up in the page's own event graph - there's nothing there to configure or point at. \"none\" is a DIFFERENT thing: a real Aufbau/Abbau DOES exist, it just shows/hides instantly rather than animating - still has its own trigger (default \"Weiter\" for entrance), still shows up in the graph, same as \"fade\"/\"move\" do.",
       "enum": [
         "off",
         "none",
@@ -305,8 +305,7 @@
         "iris",
         "wipe",
         "anvil",
-        "blur",
-        "shatter"
+        "blur"
       ],
       "type": "string"
     },

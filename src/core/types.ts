@@ -55,9 +55,7 @@ export type BlockPosition = {
  * nothing there to configure or point at. "none" is a DIFFERENT thing: a real Aufbau/Abbau DOES
  * exist, it just shows/hides instantly rather than animating - still has its own trigger (default
  * "Weiter" for entrance), still shows up in the graph, same as "fade"/"move" do. */
-/** ("shatter" - "Zersplittern" - only exists as an Abbau: the block breaks into shards that fly off the slide, see shatterBlock in
- * player.runtime.js. A video breaks as the frame it shows; an embedded page, which can't be copied, fades instead.) */
-export type BlockEffectType = "off" | "none" | "fade" | "move" | "iris" | "wipe" | "anvil" | "blur" | "shatter";
+export type BlockEffectType = "off" | "none" | "fade" | "move" | "iris" | "wipe" | "anvil" | "blur";
 
 /** A block's own Aufbau or Abbau (see BaseBlock.entranceEffect/exitEffect below, and
  * BlockEffectEditor in features/editor/panels/BlockPanel.tsx) - independent of the page-level

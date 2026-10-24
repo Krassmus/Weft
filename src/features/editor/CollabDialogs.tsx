@@ -16,8 +16,10 @@ import { useDialogA11y } from "./useDialogA11y";
 
 /** The frame of the dialogs: a small window over the editor that closes with Esc or a click beside it.
  * `floating`: a window that does not dim or block what is behind it - the editor stays usable (and visible in its true colours, which is
- * what the colour scheme's dialog is for: picking colours off the slide), and it is moved by its heading. It closes with Esc or its x only. */
-export function DialogFrame({ title, onClose, children, floating = false }: { title: string; onClose: () => void; children: ReactNode; floating?: boolean }) {
+ * what the colour scheme's dialog is for: picking colours off the slide), and it is moved by its heading. It closes with Esc or its x only.
+ * `appear`: the dialog comes in with a short animation (the backdrop fades in, the window rises a little) - for the ones that open on the
+ * start screen; the others stay as they are. */
+export function DialogFrame({ title, onClose, children, floating = false, appear = false }: { title: string; onClose: () => void; children: ReactNode; floating?: boolean; appear?: boolean }) {
   const backdropClose = useBackdropClose(onClose);
   const dialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -83,8 +85,8 @@ export function DialogFrame({ title, onClose, children, floating = false }: { ti
   }
 
   return createPortal(
-    <div className="weft-modal-backdrop" {...backdropClose}>
-      <div ref={dialogRef} className="weft-modal weft-collab-dialog" onClick={(e) => e.stopPropagation()}>
+    <div className={"weft-modal-backdrop" + (appear ? " is-appearing" : "")} {...backdropClose}>
+      <div ref={dialogRef} className={"weft-modal weft-collab-dialog" + (appear ? " is-appearing" : "")} onClick={(e) => e.stopPropagation()}>
         {header}
         {children}
       </div>

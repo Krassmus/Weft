@@ -1021,6 +1021,35 @@ img.weft-thumb-block {
   box-shadow: var(--weft-shadow);
 }
 
+/* A dialog that comes in (DialogFrame's `appear`): the backdrop fades in, the window rises a little and grows from a hair smaller. */
+.weft-modal-backdrop.is-appearing {
+  animation: weft-backdrop-in 0.18s ease-out;
+}
+
+.weft-modal.is-appearing {
+  animation: weft-modal-in 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes weft-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes weft-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weft-modal-backdrop.is-appearing,
+  .weft-modal.is-appearing {
+    animation: none;
+  }
+}
+
 .weft-modal-header {
   display: flex;
   align-items: center;

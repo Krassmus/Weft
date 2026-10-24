@@ -566,3 +566,22 @@
 .weft-start-legal a {
   color: var(--weft-accent-hover);
 }
+
+/* The cards of the templates dialog come in one after the other, just after the window itself (App.css: .weft-modal.is-appearing). */
+.weft-start-grid.is-templates .weft-start-card {
+  animation: weft-card-in 0.32s ease-out backwards;
+  animation-delay: calc(0.12s + var(--i, 0) * 55ms);
+}
+
+@keyframes weft-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weft-start-grid.is-templates .weft-start-card {
+    animation: none;
+  }
+}

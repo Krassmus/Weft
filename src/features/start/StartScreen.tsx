@@ -512,7 +512,7 @@ function TemplatesDialog({ templates, lang, progress, onClose, onUse }: { templa
   const firstRef = useRef<HTMLDivElement>(null);
   useEffect(() => firstRef.current?.focus(), []);
   return (
-    <DialogFrame title={tr("ui.start_template_title")} onClose={onClose}>
+    <DialogFrame title={tr("ui.start_template_title")} onClose={onClose} appear>
       {templates.length === 0 ? (
         <p className="weft-hint">{tr("ui.start_templates_empty")}</p>
       ) : (
@@ -522,6 +522,8 @@ function TemplatesDialog({ templates, lang, progress, onClose, onUse }: { templa
               key={module.url}
               ref={index === 0 ? firstRef : undefined}
               className="weft-start-card"
+              // (The cards come in one after the other: the position is the delay, see .weft-start-grid.is-templates.)
+              style={{ ["--i" as string]: index }}
               role="button"
               tabIndex={0}
               onClick={() => onUse(module)}

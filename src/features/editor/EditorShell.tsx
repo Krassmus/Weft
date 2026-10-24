@@ -1,6 +1,6 @@
 import { syncFolderForCurrentDocument } from "../../core/collab/folder/folderSession";
 import { syncLiveForCurrentDocument } from "../../core/collab/session";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAccessibilityStore } from "../../core/accessibility/accessibilityStore";
@@ -89,6 +89,9 @@ function startPageIdOf(selection: ReturnType<typeof useDocumentStore.getState>["
       return null;
   }
 }
+
+/** How long the opening animation lasts at the most (the slow one: the slides of the overview, one after the other) - see .weft-body.is-opening. */
+const OPENING_ANIMATION_MS = 1400;
 
 export function EditorShell() {
   const { t } = useTranslation();
@@ -286,6 +289,17 @@ export function EditorShell() {
       setPhase("editor");
     }
   }, [documentKey]);
+  // A module being opened (from the start screen, or another one while the editor is open) comes in with a short, subtle animation: the slide
+  // grows a little and the slides of the overview fade in one after the other (.weft-body.is-opening in App.css). The class is on for as long as
+  // the animation takes; it is set before the first paint so that nothing flashes at its final size first.
+  const moduleId = doc.content.id;
+  const [opening, setOpening] = useState(false);
+  useLayoutEffect(() => {
+    if (phase !== "editor") return;
+    setOpening(true);
+    const timer = setTimeout(() => setOpening(false), OPENING_ANIMATION_MS);
+    return () => clearTimeout(timer);
+  }, [phase, moduleId]);
   // The menu items that act on the module being edited are greyed out while a player file or the start screen is shown.
   useEffect(() => {
     if (isTauri()) void invoke("set_player_mode", { active: player !== null || phase !== "editor" }).catch(() => undefined);
@@ -986,7 +1000,7 @@ export function EditorShell() {
     <div className="weft-shell">
       {inAppMenu && <AppBar onCommand={runCommand} onOpenRecent={(path) => void handleOpenRecentRef.current(path)} />}
       <div
-        className={"weft-body" + (drawerOpen ? " has-drawer-open" : "")}
+        className={"weft-body" + (drawerOpen ? " has-drawer-open" : "") + (opening ? " is-opening" : "")}
         ref={bodyRef}
         style={{ gridTemplateColumns: compact ? `${sidebarWidth}px ${RESIZER_WIDTH}px 1fr` : `${sidebarWidth}px ${RESIZER_WIDTH}px 1fr ${INSPECTOR_WIDTH}px` }}
       >

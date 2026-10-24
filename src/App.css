@@ -421,6 +421,102 @@ body.weft-dragging .weft-block-list button {
   padding: 6px;
 }
 
+/* A module being opened (EditorShell's `opening`): the slide grows from 95% and fades in, the slides of the overview fade in one after the
+   other (the delays are by the place in the list; the 17th and the rest get the slow default). `scale` is its own property: it goes together with the zoom and the position of the slide
+   instead of replacing them. */
+.weft-body.is-opening .weft-canvas-stage-wrap .weft-stage {
+  animation: weft-open-stage 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.weft-body.is-opening .weft-sidebar-content .weft-node-page {
+  animation: weft-open-node 0.28s ease-out backwards;
+  animation-delay: 0.72s;
+}
+
+.weft-body.is-opening .weft-sequence > li:nth-child(1) > .weft-node-page {
+  animation-delay: 80ms;
+}
+
+.weft-body.is-opening .weft-sequence > li:nth-child(2) > .weft-node-page {
+  animation-delay: 120ms;
+}
+
+.weft-body.is-opening .weft-sequence > li:nth-child(3) > .weft-node-page {
+  animation-delay: 160ms;
+}
+
+.weft-body.is-opening .weft-sequence > li:nth-child(4) > .weft-node-page {
+  animation-delay: 200ms;
+}
+
+.weft-body.is-opening .weft-sequence > li:nth-child(5) > .weft-node-page {
+  animation-delay: 240ms;
+}
+
+.weft-body.is-opening .weft-sequence > li:nth-child(6) > .weft-node-page {
+  animation-delay: 280ms;
+}
+
+.weft-body.is-opening .weft-sequence > li:nth-child(7) > .weft-node-page {
+  animation-delay: 320ms;
+}
+
+.weft-body.is-opening .weft-sequence > li:nth-child(8) > .weft-node-page {
+  animation-delay: 360ms;
+}
+
+.weft-body.is-opening .weft-sequence > li:nth-child(9) > .weft-node-page {
+  animation-delay: 400ms;
+}
+
+.weft-body.is-opening .weft-sequence > li:nth-child(10) > .weft-node-page {
+  animation-delay: 440ms;
+}
+
+.weft-body.is-opening .weft-sequence > li:nth-child(11) > .weft-node-page {
+  animation-delay: 480ms;
+}
+
+.weft-body.is-opening .weft-sequence > li:nth-child(12) > .weft-node-page {
+  animation-delay: 520ms;
+}
+
+.weft-body.is-opening .weft-sequence > li:nth-child(13) > .weft-node-page {
+  animation-delay: 560ms;
+}
+
+.weft-body.is-opening .weft-sequence > li:nth-child(14) > .weft-node-page {
+  animation-delay: 600ms;
+}
+
+.weft-body.is-opening .weft-sequence > li:nth-child(15) > .weft-node-page {
+  animation-delay: 640ms;
+}
+
+.weft-body.is-opening .weft-sequence > li:nth-child(16) > .weft-node-page {
+  animation-delay: 680ms;
+}
+
+@keyframes weft-open-stage {
+  from {
+    opacity: 0;
+    scale: 0.95;
+  }
+}
+
+@keyframes weft-open-node {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weft-body.is-opening .weft-canvas-stage-wrap .weft-stage,
+  .weft-body.is-opening .weft-sidebar-content .weft-node-page {
+    animation: none;
+  }
+}
+
 .weft-node-logic {
   padding: 8px 10px;
 }

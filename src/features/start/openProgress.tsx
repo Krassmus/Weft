@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
  * an estimate and has nothing to do with how far the opening really is: below SMALL_BYTES there is none, above it the bar is full
  * after SECONDS_PER_100_MB for each 100 MB, and from then on it pulses until the module is open.
  */
-const SMALL_BYTES = 10 * 1024 * 1024;
+export const SMALL_BYTES = 10 * 1024 * 1024;
 const SECONDS_PER_100_MB = 3;
 
 export function estimatedSeconds(bytes: number): number {
@@ -14,7 +14,7 @@ export function estimatedSeconds(bytes: number): number {
 }
 
 /** After the bar has been drawn: the work that follows holds the window (and so the drawing) up. */
-function nextPaint(): Promise<void> {
+export function nextPaint(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 0))));
 }
 

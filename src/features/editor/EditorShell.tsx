@@ -26,6 +26,7 @@ import {
   confirmDestructive,
   exportAsHtmlModule,
   exportPlayerFile,
+  fileSize,
   isTauri,
   openDocument,
   openDocumentAtPath,
@@ -36,6 +37,7 @@ import {
   saveRecoveryCopy,
 } from "../../core/io/fileIO";
 import { forgetRecentFile, rememberRecentFile, syncRecentMenu } from "../../core/io/recentFiles";
+import { hideOpeningBar, showOpeningBar } from "./OpeningBar";
 import { knownLocalCopy, reconcileOpenedDocument, rememberSavedLocation } from "../../core/io/documentLocations";
 import { moduleOfLink, readModuleFromFolder, rememberSyncFolder, startFolderSync } from "../../core/collab/folder/folderSession";
 import type { FolderLink } from "../../core/collab/folder/folderSync";
@@ -419,7 +421,7 @@ export function EditorShell() {
   const handleUseModuleRef = useRef<(bytes: Uint8Array, title?: string) => Promise<void>>(async () => undefined);
   const showStartRef = useRef<() => void>(() => {});
   const handleDuplicateRef = useRef<() => void>(() => {});
-  const handleOpenRecentRef = useRef<(path: string) => Promise<void> | void>(() => {});
+  const handleOpenRecentRef = useRef<(path: string, options?: { ownBar?: boolean }) => Promise<void> | void>(() => {});
   // "Abspielen" and "Präsentieren" in the native "Ansicht" menu: on the slide that is selected.
   const playFromMenuRef = useRef<() => void>(() => {});
   const presentFromMenuRef = useRef<() => void>(() => {});
@@ -898,13 +900,17 @@ export function EditorShell() {
     }
     try {
       if (!(await confirmLeave())) return;
-      const result = await openDocument();
+      // (A large module takes a while: the bar shows from the moment the file is chosen until it is open.)
+      const result = await openDocument(showOpeningBar);
       if (!result) return;
       if (result.kind === "player") openPlayer(result.player, result.path);
       else if (result.kind === "folder") await openFromSharedFolder(result.link, result.path);
       else await loadFromFile(result.doc, result.path);
     } catch (err) {
+      hideOpeningBar();
       alert(`${t("toolbar.openFailed")}\n${errorMessage(err)}`);
+    } finally {
+      hideOpeningBar();
     }
   }
   handleOpenRef.current = handleOpen;
@@ -945,17 +951,22 @@ export function EditorShell() {
     }
   }
 
-  async function handleOpenRecent(path: string) {
+  /** `ownBar`: the caller shows how long it takes itself (the tiles of the start screen have a bar of their own). */
+  async function handleOpenRecent(path: string, options: { ownBar?: boolean } = {}) {
     try {
       if (!(await confirmLeave())) return;
+      if (!options.ownBar) await showOpeningBar(await fileSize(path));
       const opened = await openDocumentAtPath(path);
       if (!opened) return;
       if (opened.kind === "player") openPlayer(opened.player, path);
       else if (opened.kind === "folder") await openFromSharedFolder(opened.link, path);
       else await loadFromFile(opened.doc, path);
     } catch (err) {
+      hideOpeningBar();
       syncRecentMenu(forgetRecentFile(path));
       alert(`${t("toolbar.openFailed")}\n${path}\n${errorMessage(err)}`);
+    } finally {
+      hideOpeningBar();
     }
   }
   handleOpenRecentRef.current = handleOpenRecent;
@@ -983,7 +994,7 @@ export function EditorShell() {
           actions={{
             onNew: () => void handleNewRef.current(),
             onOpenFile: () => void handleOpenRef.current(),
-            onOpenPath: async (path) => void (await handleOpenRecentRef.current(path)),
+            onOpenPath: async (path) => void (await handleOpenRecentRef.current(path, { ownBar: true })),
             onUseModule: (bytes, title) => handleUseModule(bytes, title),
             onPlay: (bytes) => handlePlayModule(bytes),
             // (The desktop app has the settings in a window of their own, see show_settings_window in src-tauri/src/lib.rs.)

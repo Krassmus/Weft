@@ -1,6 +1,6 @@
 import { confirm as confirmNative, message as messageNative, open, save } from "@tauri-apps/plugin-dialog";
 import { appCacheDir, join } from "@tauri-apps/api/path";
-import { mkdir, readFile, remove, rename, writeFile } from "@tauri-apps/plugin-fs";
+import { mkdir, readFile, remove, rename, stat, writeFile } from "@tauri-apps/plugin-fs";
 import type { WeftDocument } from "../types";
 import { mergeDocumentFile } from "../collab/merge";
 import { rememberSavedLocation } from "./documentLocations";
@@ -267,12 +267,28 @@ export async function exportPlayerFile(doc: WeftDocument): Promise<string | null
 
 /** Lets the user pick a .weft / exported .weft.zip file and returns its raw bytes (and its path, in
  * the desktop app). */
-export async function pickDocumentFile(title = tr("ui.open_learning_module")): Promise<{ bytes: Uint8Array; path: string | null; name: string } | null> {
+/** The size of a file in bytes (the desktop app only), or null when it cannot be told. */
+export async function fileSize(path: string): Promise<number | null> {
+  if (!isTauri()) return null;
+  try {
+    return (await stat(path)).size;
+  } catch {
+    return null;
+  }
+}
+
+/** `onPicked` is told the size of the file (null: not known) once it has been chosen and before it is read - the moment to show that the
+ * opening takes a while (see OpeningBar.tsx). */
+export async function pickDocumentFile(
+  title = tr("ui.open_learning_module"),
+  onPicked?: (size: number | null) => Promise<void> | void,
+): Promise<{ bytes: Uint8Array; path: string | null; name: string } | null> {
   if (isTauri()) {
     // .weft (saved), .weft.zip / plain .zip (exported) are all just zip archives underneath
     // (unpackDocument doesn't care about the name), so all of them stay openable here.
     const path = await open({ title, multiple: false, filters: [{ name: tr("ui.weft_learning_module"), extensions: ["weft", "zip"] }] });
     if (!path || Array.isArray(path)) return null;
+    await onPicked?.(await fileSize(path));
     return { bytes: await readFile(path), path, name: baseName(path) };
   }
   return new Promise((resolve) => {
@@ -282,6 +298,7 @@ export async function pickDocumentFile(title = tr("ui.open_learning_module")): P
     input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) return resolve(null);
+      await onPicked?.(file.size);
       resolve({ bytes: new Uint8Array(await file.arrayBuffer()), path: null, name: file.name });
     };
     input.click();
@@ -302,8 +319,8 @@ async function openBytes(bytes: Uint8Array, path: string | null): Promise<Opened
   return { kind: "document", doc: unpackDocument(bytes), path };
 }
 
-export async function openDocument(): Promise<OpenedFile | null> {
-  const picked = await pickDocumentFile();
+export async function openDocument(onPicked?: (size: number | null) => Promise<void> | void): Promise<OpenedFile | null> {
+  const picked = await pickDocumentFile(undefined, onPicked);
   return picked ? openBytes(picked.bytes, picked.path) : null;
 }
 

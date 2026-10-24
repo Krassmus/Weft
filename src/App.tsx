@@ -5,6 +5,7 @@ import { EditorShell } from "./features/editor/EditorShell";
 import { SettingsWindow } from "./features/settings/SettingsWindow";
 import { AudienceView } from "./features/presenter/AudienceView";
 import { StatusLiveRegion } from "./features/editor/StatusLiveRegion";
+import { OpeningBar } from "./features/editor/OpeningBar";
 import { useResolvedLanguage } from "./core/i18n/languageStore";
 import "./core/accessibility/accessibilityStore";
 import "./features/editor/coverSnapshot";
@@ -52,6 +53,7 @@ export default function App() {
       <DocumentLanguage />
       {isSettingsWindow() ? <SettingsWindow /> : isAudienceWindow() ? <AudienceView /> : <EditorShell />}
       <StatusLiveRegion />
+      <OpeningBar />
     </ErrorBoundary>
   );
 }

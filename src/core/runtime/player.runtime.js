@@ -1527,15 +1527,31 @@
     down: "inset(0 0 100% 0)",
     up: "inset(100% 0 0 0)",
   };
+  var MOVE_SIDE_ANGLES = { right: 0, down: 90, left: 180, up: 270 };
+
+  // The angle of the side a "move" comes from / goes to, in degrees (see BlockEffect.moveDirection and moveAngle).
+  function moveSideAngle(effect) {
+    if (effect.moveDirection === "angle") return Number(effect.moveAngle) || 0;
+    var angle = MOVE_SIDE_ANGLES[effect.moveDirection];
+    return angle === undefined ? 0 : angle;
+  }
+
   function effectFrames(wrap, effect, phase) {
     // No animation for someone who asks for less motion: the block just appears / goes.
     if (prefersReducedMotion()) return null;
     var type = effect.type;
     var frames = null;
     if (type === "fade") {
-      frames = [{ opacity: 0 }, { opacity: 1 }];
+      // A small movement along with it (core/types.ts, BlockEffect.motion): a little way - 2.5% of the slide's width - or a little smaller.
+      if (effect.motion === "up") frames = [{ opacity: 0, translate: "0 -2.5cqw" }, { opacity: 1, translate: "0 0" }];
+      else if (effect.motion === "down") frames = [{ opacity: 0, translate: "0 2.5cqw" }, { opacity: 1, translate: "0 0" }];
+      else if (effect.motion === "scale") frames = [{ opacity: 0, scale: "0.92" }, { opacity: 1, scale: "1" }];
+      else frames = [{ opacity: 0 }, { opacity: 1 }];
     } else if (type === "move") {
-      frames = [{ translate: "100% 0" }, { translate: "0 0" }];
+      // From the side the effect names, one length of the block away (its own width and height: that is what the percentages of
+      // `translate` are of) - an angle is counted like that of a gradient: 0 is the right, 90 the bottom.
+      var side = moveSideAngle(effect) * Math.PI / 180;
+      frames = [{ translate: (Math.cos(side) * 100).toFixed(2) + "% " + (Math.sin(side) * 100).toFixed(2) + "%" }, { translate: "0 0" }];
     } else if (type === "iris") {
       // 75% of the circle's reference length (the diagonal / sqrt 2) is past every corner.
       frames = [{ clipPath: "circle(0% at 50% 50%)" }, { clipPath: "circle(75% at 50% 50%)" }];

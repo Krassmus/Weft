@@ -288,6 +288,25 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, onSetAudio
 
 const BLOCK_EFFECT_DIRECTIONS: TransitionDirection[] = ["right", "left", "down", "up"];
 
+/** The small movement of a "fade" (BlockEffect.motion), by phase: an Aufbau starts from a side, an Abbau goes off to it. */
+const FADE_MOTIONS: NonNullable<BlockEffect["motion"]>[] = ["up", "down", "scale"];
+function fadeMotionLabel(motion: NonNullable<BlockEffect["motion"]>, phase: "entrance" | "exit"): string {
+  if (motion === "scale") return tr("ui.effect_scale");
+  if (motion === "up") return phase === "entrance" ? tr("ui.effect_from_top") : tr("ui.effect_to_top");
+  return phase === "entrance" ? tr("ui.effect_from_bottom") : tr("ui.effect_to_bottom");
+}
+
+/** The side a "move" comes from (an Aufbau) or goes off to (an Abbau), BlockEffect.moveDirection - "angle" is any other side, by degrees. */
+const MOVE_DIRECTIONS: NonNullable<BlockEffect["moveDirection"]>[] = ["right", "left", "up", "down", "angle"];
+function moveDirectionLabel(direction: NonNullable<BlockEffect["moveDirection"]>, phase: "entrance" | "exit"): string {
+  if (direction === "angle") return tr("ui.effect_angle");
+  const from = phase === "entrance";
+  if (direction === "right") return from ? tr("ui.effect_from_right") : tr("ui.effect_to_right");
+  if (direction === "left") return from ? tr("ui.effect_from_left") : tr("ui.effect_to_left");
+  if (direction === "up") return from ? tr("ui.effect_from_top") : tr("ui.effect_to_top");
+  return from ? tr("ui.effect_from_bottom") : tr("ui.effect_to_bottom");
+}
+
 // "off" is listed separately (its label depends on Aufbau/Abbau, see BlockEffectEditor).
 const BLOCK_EFFECT_LABELS: Record<Exclude<BlockEffectType, "off">, { entrance: string; exit: string }> = {
   none: { get entrance() { return tr("ui.no_animation"); }, get exit() { return tr("ui.no_animation"); } },
@@ -364,6 +383,56 @@ export function BlockEffectEditor({
                 onChange={(durationMs) => onEffectChange({ ...effect, durationMs })}
               />
             </div>
+          )}
+          {effect.type === "fade" && (
+            <label className="weft-field">
+              <span>{tr("ui.effect_motion")}</span>
+              <select
+                value={effect.motion ?? "none"}
+                onChange={(e) => {
+                  const { motion: _old, ...rest } = effect;
+                  onEffectChange(e.target.value === "none" ? rest : { ...rest, motion: e.target.value as NonNullable<BlockEffect["motion"]> });
+                }}
+              >
+                <option value="none">{tr("ui.effect_motion_none")}</option>
+                {FADE_MOTIONS.map((motion) => (
+                  <option key={motion} value={motion}>
+                    {fadeMotionLabel(motion, phase)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {effect.type === "move" && (
+            <>
+              <label className="weft-field">
+                <span>{tr("ui.effect_move_direction")}</span>
+                <select
+                  value={effect.moveDirection ?? "right"}
+                  onChange={(e) => onEffectChange({ ...effect, moveDirection: e.target.value as NonNullable<BlockEffect["moveDirection"]> })}
+                >
+                  {MOVE_DIRECTIONS.map((direction) => (
+                    <option key={direction} value={direction}>
+                      {moveDirectionLabel(direction, phase)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {effect.moveDirection === "angle" && (
+                <div className="weft-field">
+                  <span>{tr("ui.effect_angle_degrees")}</span>
+                  <StepperSlider
+                    label={tr("ui.effect_angle_degrees")}
+                    value={effect.moveAngle ?? 0}
+                    min={0}
+                    max={360}
+                    step={1}
+                    onChange={(moveAngle) => onEffectChange({ ...effect, moveAngle: Math.round(moveAngle) })}
+                  />
+                  <p className="weft-hint">{tr("ui.effect_angle_hint")}</p>
+                </div>
+              )}
+            </>
           )}
           {effect.type === "wipe" && (
             <label className="weft-field">

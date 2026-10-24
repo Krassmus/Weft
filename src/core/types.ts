@@ -76,6 +76,16 @@ export interface BlockEffect {
    * edge towards the right one, an Abbau covers it up the same way). Absent = "right" - optional so
    * a module saved before it existed still loads. */
   direction?: TransitionDirection;
+  /** "fade" only: a small movement along with the fading. "up" / "down": the block starts a little above / below its place and settles
+   * there (an Abbau goes the same way back, off to the top / the bottom); "scale": it starts a little smaller (an Abbau shrinks).
+   * Absent: the block only fades. */
+  motion?: "up" | "down" | "scale";
+  /** "move" only: the side the block comes in from (an Aufbau) or goes off to (an Abbau); "angle" is the side `moveAngle` points at.
+   * Absent = "right", as it always was. */
+  moveDirection?: "right" | "left" | "up" | "down" | "angle";
+  /** "move" with "angle" only: the angle of that side in degrees, 0 to 360 - 0 is the right, 90 the bottom, 180 the left and 270 the top
+   * (the way the angle of a gradient is counted). Absent = 0. */
+  moveAngle?: number;
 }
 
 /** What an Aktionseffekt does to its block between its Aufbau and its Abbau: it moves to a point (and may turn on the way), it shakes

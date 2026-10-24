@@ -2378,6 +2378,8 @@
       block.items.forEach(function (item, index) {
         var row = el("div", { class: "weft-list-item", role: "listitem" }, []);
         var marker = el("span", { class: "weft-list-marker is-" + block.marker }, []);
+        // (The colour of a dot, a dash or a number; a picture has its own. Only what looks like a colour is written into the style.)
+        if (block.markerColor && block.marker !== "image" && /^#[0-9a-fA-F]{3,8}$/.test(block.markerColor)) marker.style.color = block.markerColor;
         if (block.marker === "image") {
           if (block.markerAssetId) {
             var markerSize = block.markerSize || 1.2;

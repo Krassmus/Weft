@@ -2,7 +2,7 @@ import { useAssetStore } from "../../../core/assets/assetStore";
 import type { ListBlock } from "../../../core/types";
 
 /** The mark in front of item number `index` (from 0) of a list - what the player draws too (see renderListBlock in
- * player.runtime.js; kept in step by hand): a dot, a dash, the number, or the author's own picture. */
+ * player.runtime.js; kept in step by hand): a dot, a dash, the number (in the list's `markerColor` if it has one), or the author's own picture. */
 export function ListMarkerView({ block, index }: { block: ListBlock; index: number }) {
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
   if (block.marker === "image") {
@@ -17,7 +17,11 @@ export function ListMarkerView({ block, index }: { block: ListBlock; index: numb
     );
   }
   // A dot and a dash are drawn by the stylesheet (see .weft-list-marker.is-dot); only a number is text.
-  return <span className={"weft-list-marker is-" + block.marker}>{block.marker === "number" ? `${index + 1}.` : ""}</span>;
+  return (
+    <span className={"weft-list-marker is-" + block.marker} style={block.markerColor ? { color: block.markerColor } : undefined}>
+      {block.marker === "number" ? `${index + 1}.` : ""}
+    </span>
+  );
 }
 
 /** The height of the picture of an image mark in em, when the list has no setting of its own. */

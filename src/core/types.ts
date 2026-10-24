@@ -225,6 +225,9 @@ export interface ListBlock extends BaseBlock {
   /** Other languages' wording, by locale - see BlockTranslation. */
   translations?: Record<string, BlockTranslation>;
   marker: ListMarkerKind;
+  /** The colour of the mark - the dot, the dash or the number - as "#rrggbb"; absent or null: the colour of the text. (Not for "image": a picture has
+   * its own colours.) */
+  markerColor?: string | null;
   /** marker "image": the picture in front of every item. */
   markerAssetId?: UUID | null;
   /** marker "image": the height of the picture, in em of the text (default 1.2). */

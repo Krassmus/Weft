@@ -1941,6 +1941,19 @@ function ListEditor({
           ))}
         </select>
       </label>
+      {block.marker !== "image" && (
+        <label className="weft-field">
+          <span>{tr("ui.marker_colour")}</span>
+          {/* No colour of its own is the colour of the text. */}
+          <ColorField
+            value={block.markerColor ?? "#000000"}
+            ariaLabel={tr("ui.marker_colour")}
+            isDefault={!block.markerColor}
+            onReset={() => onUpdate({ markerColor: null })}
+            onChange={(markerColor) => onUpdate({ markerColor })}
+          />
+        </label>
+      )}
       {block.marker === "image" && (
         <label className="weft-field">
           <span>{tr("ui.image_file_for_the_markers")}</span>

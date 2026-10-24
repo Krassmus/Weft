@@ -1469,6 +1469,13 @@
           ],
           "description": "marker \"image\": the picture in front of every item."
         },
+        "markerColor": {
+          "description": "The colour of the mark - the dot, the dash or the number - as \"#rrggbb\"; absent or null: the colour of the text. (Not for \"image\": a picture has its own colours.)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "markerSize": {
           "description": "marker \"image\": the height of the picture, in em of the text (default 1.2).",
           "type": "number"

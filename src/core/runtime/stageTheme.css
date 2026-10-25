@@ -95,6 +95,9 @@
   --slide-ui-inner-radius: 0.6cqw;
   --slide-ui-panel-clip: none;
   --slide-ui-panel-cut: 1.7cqw;
+  /* The corners cut off of a picture (futuristic) - a lighter cut than the window's. */
+  --slide-ui-image-clip: none;
+  --slide-ui-image-cut: 0.85cqw;
 }
 
 .weft-stage[data-weft-style="elegant"],
@@ -134,6 +137,14 @@
     calc(100% - var(--slide-ui-panel-cut)) 100%,
     0 100%,
     0 var(--slide-ui-panel-cut)
+  );
+  --slide-ui-image-clip: polygon(
+    var(--slide-ui-image-cut) 0,
+    100% 0,
+    100% calc(100% - var(--slide-ui-image-cut)),
+    calc(100% - var(--slide-ui-image-cut)) 100%,
+    0 100%,
+    0 var(--slide-ui-image-cut)
   );
   --slide-ui-scale: 1.06;
   --slide-ui-spacing: 0.04em;
@@ -182,4 +193,38 @@
   background-size: var(--slide-ui-panel-cut) var(--slide-ui-panel-cut), var(--slide-ui-panel-cut) var(--slide-ui-panel-cut);
   background-repeat: no-repeat;
   background-origin: border-box;
+}
+
+/* The border of an element whose corners are cut off (futuristic) is cut off with them: it is drawn again along the cuts, as a line the width of the
+   border (--slide-cut-line-width) in the colour of the border (--slide-cut-line) - both set on the element itself (a button writes them with its
+   border, a card of a matching by its state), so that an element without a border draws nothing. It is for what has no background of its own
+   to show the cut (a button with a background looks right without), and an overlay, since an inline background would take a background-image
+   of the stylesheet away. */
+:is(.weft-stage, .weft-thumb)[data-weft-style="futuristic"] :is(.weft-block-button-el, .weft-edit-block-button) {
+  position: relative;
+}
+
+:is(.weft-stage, .weft-thumb)[data-weft-style="futuristic"] :is(.weft-block-button-el, .weft-edit-block-button, .weft-thumb-block-button, .weft-matching-card:not(.is-image))::after {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--slide-cut-line-width, 1px));
+  pointer-events: none;
+  background-image:
+    linear-gradient(
+      135deg,
+      transparent 50%,
+      var(--slide-cut-line) 50%,
+      var(--slide-cut-line) calc(50% + var(--slide-cut-line-width, 1px)),
+      transparent calc(50% + var(--slide-cut-line-width, 1px))
+    ),
+    linear-gradient(
+      315deg,
+      transparent 50%,
+      var(--slide-cut-line) 50%,
+      var(--slide-cut-line) calc(50% + var(--slide-cut-line-width, 1px)),
+      transparent calc(50% + var(--slide-cut-line-width, 1px))
+    );
+  background-position: 0 0, 100% 100%;
+  background-size: var(--slide-ui-cut) var(--slide-ui-cut), var(--slide-ui-cut) var(--slide-ui-cut);
+  background-repeat: no-repeat;
 }

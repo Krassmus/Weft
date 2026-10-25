@@ -1721,7 +1721,7 @@ summary:focus-visible,
   border: 1px solid var(--slide-line-strong);
   /* The corners of a picture in the module's style (those a revealer's picture has): a pill-shaped picture would be an oval. */
   border-radius: var(--slide-ui-inner-radius);
-  clip-path: var(--slide-ui-panel-clip);
+  clip-path: var(--slide-ui-image-clip);
   background: var(--slide-surface);
 }
 
@@ -1813,4 +1813,37 @@ summary:focus-visible,
   .weft-matching-lightbox img {
     animation: none;
   }
+}
+
+/* The colour of the line that is drawn along the cut corners of a card (futuristic, see stageTheme.css): that of its border, by state. */
+.weft-matching-card {
+  --slide-cut-line-width: 1px;
+}
+
+.weft-matching-source {
+  --slide-cut-line: var(--slide-line-strong);
+}
+
+.weft-matching-target {
+  --slide-cut-line: var(--slide-line-strong);
+}
+
+.weft-matching-source:hover {
+  --slide-cut-line: var(--slide-accent-ink);
+}
+
+.weft-matching-target.is-over {
+  --slide-cut-line: var(--slide-accent-ink);
+}
+
+.weft-matching-source.is-correct {
+  --slide-cut-line: var(--slide-ok);
+}
+
+.weft-matching-source.is-wrong {
+  --slide-cut-line: var(--slide-bad);
+}
+
+.weft-matching-source.is-missed {
+  --slide-cut-line: var(--slide-bad);
 }

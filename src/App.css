@@ -6659,7 +6659,7 @@ h2.weft-inspector-header {
   border: 1px solid var(--slide-line-strong);
   /* The corners of a picture in the module's style (those a revealer's picture has): a pill-shaped picture would be an oval. */
   border-radius: var(--slide-ui-inner-radius);
-  clip-path: var(--slide-ui-panel-clip);
+  clip-path: var(--slide-ui-image-clip);
   background: var(--slide-surface);
 }
 
@@ -6677,4 +6677,17 @@ h2.weft-inspector-header {
 
 .weft-matching-source.is-image.is-docked {
   padding: 0;
+}
+
+/* The colour of the line that is drawn along the cut corners of a card (futuristic, see stageTheme.css): that of its border, by state. */
+.weft-matching-card {
+  --slide-cut-line-width: 1px;
+}
+
+.weft-matching-source {
+  --slide-cut-line: var(--slide-line-strong);
+}
+
+.weft-matching-target {
+  --slide-cut-line: var(--slide-line-strong);
 }

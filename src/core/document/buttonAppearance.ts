@@ -34,6 +34,9 @@ export function buttonAppearanceCss(block: Pick<ButtonBlock, "appearance">): {
   background: string;
   border: string;
   borderRadius?: string;
+  /** The border as colour and width, for the futuristic style, which draws it again along its cut corners (see stageTheme.css). */
+  "--slide-cut-line"?: string;
+  "--slide-cut-line-width"?: string;
 } {
   const set = block.appearance ?? {};
   const color = "var(--slide-button-bg)";
@@ -43,5 +46,6 @@ export function buttonAppearanceCss(block: Pick<ButtonBlock, "appearance">): {
     border: width > 0 ? `${width}cqw solid ${set.borderColor ?? color}` : "none",
     // (Without one of its own the corners are the style of the interactive elements', see stageTheme.css.)
     borderRadius: set.radius === undefined ? undefined : `${set.radius}cqw`,
+    ...(width > 0 ? { "--slide-cut-line": set.borderColor ?? color, "--slide-cut-line-width": `${width}cqw` } : {}),
   };
 }

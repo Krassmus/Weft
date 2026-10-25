@@ -317,6 +317,8 @@
     var width = look.borderWidth !== undefined ? look.borderWidth : 0;
     if (look.borderWidth !== undefined || look.borderColor !== undefined) {
       css += width > 0 ? "border:" + width + "cqw solid " + (look.borderColor || "var(--slide-button-bg)") + ";" : "border:none;";
+      // (For the futuristic style, which draws the border again along its cut corners, see stageTheme.css.)
+      if (width > 0) css += "--slide-cut-line:" + (look.borderColor || "var(--slide-button-bg)") + ";--slide-cut-line-width:" + width + "cqw;";
     }
     if (look.radius !== undefined) css += "border-radius:" + look.radius + "cqw;";
     return css;

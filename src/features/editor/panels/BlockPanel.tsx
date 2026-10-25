@@ -43,7 +43,7 @@ import { useTranslation } from "../../../core/i18n/useTranslation";
 import { SecondsControl } from "./SecondsControl";
 import { StepperSlider } from "./StepperSlider";
 import { ActionEffectsEditor } from "./ActionEffectsEditor";
-import { addFilesToBlock, removeFileFromBlock, setFilesPassword } from "../../../core/document/filesActions";
+import { addFilesToBlock, removeFileFromBlock, setFilesPassword, setMatchingImage } from "../../../core/document/filesActions";
 import { safeLinkUrl } from "../../../core/document/linkUrl";
 import type { BlockContainerRef } from "../../../core/document/store";
 import { confirmDestructive, pickFilesFromDisk, pickFontFile, pickScriptFile, warnAboutVideoUploads } from "../../../core/io/fileIO";
@@ -59,6 +59,8 @@ import type {
   ButtonBlock,
   CheckerBlock,
   ClozeBlock,
+  MatchItem,
+  MatchingBlock,
   CodeBlock,
   ScriptBlock,
   IframeBlock,
@@ -106,7 +108,7 @@ import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from ".
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { checkerText, checkerTextPatch, linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
+import { checkerText, checkerTextPatch, matchingItemText, matchingItemTextPatch, linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
 import type { RevealerWording } from "../../../core/document/translations";
 import { revealerIconSvg } from "../../../core/runtime/revealerGeometry";
 import { clozeBlanks } from "../../../core/document/cloze";
@@ -242,6 +244,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, onSetAudio
       {block.kind === "revealer" && <RevealerEditor block={block} page={page} onUpdate={onUpdate} onSetImage={onSetImage} />}
       {block.kind === "quiz" && <QuizEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "checker" && <CheckerEditor block={block} page={page} onUpdate={onUpdate} />}
+      {block.kind === "matching" && <MatchingEditor block={block} container={container} page={page} onUpdate={onUpdate} />}
       {block.kind === "shape" && <ShapeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "arrow" && <ArrowEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "progress" && <ProgressEditor block={block} onUpdate={onUpdate} />}
@@ -3234,6 +3237,196 @@ function QuizOptionRow({
         </div>
       )}
     </div>
+  );
+}
+
+/** The settings of a matching (MatchingBlock): the cards of both lists (text or picture; which target each object belongs to, or none: a decoy), their
+ * sizes, whether they take each other's places at random, whether it is a required task, and what a right and a wrong assignment do - changes to
+ * variables - and the way on to the next slide, as with a quiz. The places of the cards are set by moving them on the slide. */
+function MatchingEditor({ block, container, page, onUpdate }: { block: MatchingBlock; container: BlockContainerRef; page?: Page; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const goesOn = (outcome: "richtig" | "falsch") => !!page?.timeline.ends[quizEndNodeId(block.id, outcome)];
+  const variables = useDocumentStore((s) => s.doc.content.variables);
+  const { lang, defaultLang } = useEditingLanguage();
+  const [error, setError] = useState("");
+  const labelOf = (item: MatchItem, index: number) =>
+    matchingItemText(block, item, lang, defaultLang).trim() || (item.kind === "image" ? tr("ui.matching_kind_image") : tr("ui.matching_target_n", { n: index + 1 }));
+
+  const withItem = (side: "sources" | "targets", id: string, patch: Partial<MatchItem>) => ({
+    [side]: block[side].map((item) => (item.id === id ? { ...item, ...patch } : item)),
+  });
+  function addItem(side: "sources" | "targets") {
+    const size = side === "sources" ? block.sourceSize : block.targetSize;
+    const index = block[side].length;
+    // Below the last one, and, where that no longer fits, in a new column to the right.
+    const rows = Math.max(1, Math.floor(100 / (size.height + 4)));
+    const column = Math.floor(index / rows);
+    const x = Math.min(100 - size.width, (side === "sources" ? 3 : 55) + column * (size.width + 3));
+    const y = Math.min(100 - size.height, 4 + (index % rows) * (size.height + 4));
+    const item: MatchItem = { id: createId(), kind: "text", text: side === "sources" ? tr("ui.matching_add_source") : tr("ui.matching_add_target"), x, y };
+    onUpdate({ [side]: [...block[side], item] });
+  }
+  function removeItem(side: "sources" | "targets", id: string) {
+    const pairs = Object.fromEntries(Object.entries(block.pairs).filter(([source, target]) => source !== id && target !== id));
+    const translations = block.translations
+      ? Object.fromEntries(Object.entries(block.translations).map(([language, t]) => [language, t.items ? { ...t, items: Object.fromEntries(Object.entries(t.items).filter(([key]) => key !== id)) } : t]))
+      : undefined;
+    onUpdate({ [side]: block[side].filter((item) => item.id !== id), pairs, ...(translations ? { translations } : {}) });
+  }
+  function setBelongsTo(sourceId: string, targetId: string) {
+    const pairs = { ...block.pairs };
+    if (targetId === "") delete pairs[sourceId];
+    else pairs[sourceId] = targetId;
+    onUpdate({ pairs });
+  }
+  async function chooseImage(itemId: string, file: File) {
+    setError("");
+    try {
+      await setMatchingImage(container, block.id, itemId, file);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  const itemRows = (side: "sources" | "targets") =>
+    block[side].map((item) => (
+      <div key={item.id} className="weft-matching-row">
+        <div className="weft-matching-row-head">
+          <select
+            value={item.kind}
+            aria-label={tr("ui.matching_item_kind")}
+            onChange={(e) => onUpdate(withItem(side, item.id, { kind: e.target.value as MatchItem["kind"] }))}
+          >
+            <option value="text">{tr("ui.matching_kind_text")}</option>
+            <option value="image">{tr("ui.matching_kind_image")}</option>
+          </select>
+          <button type="button" className="weft-icon-button" title={tr("ui.matching_remove_item")} aria-label={tr("ui.matching_remove_item")} onClick={() => removeItem(side, item.id)}>
+            ×
+          </button>
+        </div>
+        {item.kind === "text" ? (
+          <input
+            value={matchingItemText(block, item, lang, defaultLang)}
+            aria-label={tr("ui.matching_item_text")}
+            onChange={(e) => onUpdate(matchingItemTextPatch(block, item.id, lang, defaultLang, e.target.value))}
+          />
+        ) : (
+          <>
+            <input
+              value={matchingItemText(block, item, lang, defaultLang)}
+              placeholder={tr("ui.matching_item_alt")}
+              aria-label={tr("ui.matching_item_alt")}
+              onChange={(e) => onUpdate(matchingItemTextPatch(block, item.id, lang, defaultLang, e.target.value))}
+            />
+            <label className="weft-ghost-button weft-full-width weft-matching-file">
+              {item.assetId ? tr("ui.matching_change_image") : tr("ui.matching_choose_image")}
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) void chooseImage(item.id, file);
+                }}
+              />
+            </label>
+            {!item.assetId && <p className="weft-hint">{tr("ui.matching_no_image")}</p>}
+          </>
+        )}
+        {side === "sources" && (
+          <label className="weft-field">
+            <span>{tr("ui.matching_belongs_to")}</span>
+            <select value={block.pairs[item.id] ?? ""} onChange={(e) => setBelongsTo(item.id, e.target.value)}>
+              <option value="">{tr("ui.matching_belongs_to_none")}</option>
+              {block.targets.map((target, i) => (
+                <option key={target.id} value={target.id}>
+                  {labelOf(target, i)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+    ));
+
+  const sizeFields = (key: "sourceSize" | "targetSize", title: string) => (
+    <div className="weft-field">
+      <span>{title}</span>
+      <div className="weft-matching-size">
+        {(["width", "height"] as const).map((dimension) => (
+          <label key={dimension} className="weft-field weft-field-inline">
+            <span>{dimension === "width" ? tr("ui.matching_width") : tr("ui.matching_height")}</span>
+            <input
+              type="number"
+              min={5}
+              max={100}
+              step={1}
+              value={block[key][dimension]}
+              onChange={(e) => {
+                const value = Math.min(100, Math.max(5, Number(e.target.value) || 5));
+                onUpdate({ [key]: { ...block[key], [dimension]: value } });
+              }}
+            />
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <Collapsible title={tr("ui.matching")}>
+        <p className="weft-hint">{tr("ui.matching_hint")}</p>
+        <LanguageSelect block={block} />
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={block.shuffle === true} onChange={(e) => onUpdate({ shuffle: e.target.checked ? true : undefined })} />
+          <span>{tr("ui.matching_shuffle")}</span>
+        </label>
+        {block.shuffle && <p className="weft-hint">{tr("ui.matching_shuffle_hint")}</p>}
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={block.required === true} onChange={(e) => onUpdate({ required: e.target.checked ? true : undefined })} />
+          <span>{tr("ui.required_task")}</span>
+        </label>
+        {block.required && <p className="weft-hint">{tr("ui.required_task_hint")}</p>}
+      </Collapsible>
+      <Collapsible title={tr("ui.matching_sources")} defaultOpen>
+        {itemRows("sources")}
+        <button type="button" className="weft-ghost-button weft-full-width" onClick={() => addItem("sources")}>
+          {tr("ui.matching_add_source")}
+        </button>
+        {sizeFields("sourceSize", tr("ui.matching_size_sources"))}
+      </Collapsible>
+      <Collapsible title={tr("ui.matching_targets")} defaultOpen>
+        {itemRows("targets")}
+        <button type="button" className="weft-ghost-button weft-full-width" onClick={() => addItem("targets")}>
+          {tr("ui.matching_add_target")}
+        </button>
+        {sizeFields("targetSize", tr("ui.matching_size_targets"))}
+        {error && <p className="weft-placeholder-warning">{error}</p>}
+      </Collapsible>
+      <Collapsible title={tr("ui.matching_each_correct")} defaultOpen={false}>
+        <EffectListEditor effects={block.onEachCorrect} variables={variables} onChange={(onEachCorrect) => onUpdate({ onEachCorrect })} />
+      </Collapsible>
+      <Collapsible title={tr("ui.matching_each_wrong")} defaultOpen={false}>
+        <EffectListEditor effects={block.onEachWrong} variables={variables} onChange={(onEachWrong) => onUpdate({ onEachWrong })} />
+      </Collapsible>
+      <Collapsible title={tr("ui.matching_all_correct")} defaultOpen={false}>
+        <EffectListEditor effects={block.onCorrect} variables={variables} onChange={(onCorrect) => onUpdate({ onCorrect })} />
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={goesOn("richtig")} disabled={!page} onChange={(e) => page && setQuizAdvance(page.id, block.id, "richtig", e.target.checked)} />
+          <span>{tr("ui.continue_to_the_next_slide")}</span>
+        </label>
+        {goesOn("richtig") && <p className="weft-hint">{tr("ui.happens_1_5_seconds_after_correct")}</p>}
+      </Collapsible>
+      <Collapsible title={tr("ui.matching_not_all_correct")} defaultOpen={false}>
+        <EffectListEditor effects={block.onIncorrect} variables={variables} onChange={(onIncorrect) => onUpdate({ onIncorrect })} />
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={goesOn("falsch")} disabled={!page} onChange={(e) => page && setQuizAdvance(page.id, block.id, "falsch", e.target.checked)} />
+          <span>{tr("ui.continue_to_the_next_slide")}</span>
+        </label>
+        {goesOn("falsch") && <p className="weft-hint">{tr("ui.happens_1_5_seconds_after_the")}</p>}
+      </Collapsible>
+    </>
   );
 }
 

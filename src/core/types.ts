@@ -527,6 +527,53 @@ export interface CheckerBlock extends BaseBlock {
   onUnchecked: VariableEffect[];
 }
 
+/**
+ * One object of a matching (MatchingBlock): a text or a picture on a card, standing at a place of the block. The picture can be enlarged by a click
+ * in the player; what the learner does with it is drag it (a source) or drop another on it (a target).
+ */
+export interface MatchItem {
+  id: UUID;
+  kind: "text" | "image";
+  /** What a text says; for a picture its description for those who cannot see it (and what a script reads). Translatable (BlockTranslation.items). */
+  text: string;
+  /** A picture: its asset (null: none chosen yet). */
+  assetId?: UUID | null;
+  /** The place of the card's top left corner on the area of the block, in percent of that area. */
+  x: number;
+  y: number;
+}
+
+/**
+ * A matching ("Zuordnung"): two lists of objects, texts or pictures, on an area of the slide - the learner drags the objects of the first (`sources`)
+ * onto those of the second (`targets`), then presses "Abschicken", and what was right and what was not is shown. `pairs` says which target each
+ * source belongs to; a source that is not in it is one that belongs to none (a decoy, which makes the choice harder): putting it anywhere is wrong.
+ * Every right assignment can give points (`onEachCorrect`), every wrong one can have a consequence (`onEachWrong`, such as minus points) - changes to
+ * variables, like the effects of a quiz. It has the events of a quiz in the page's graph, lives on pages only, and its look follows the module's style
+ * of interactive elements. The author can put every card anywhere on the area, or let the cards of each list take each other's places at random.
+ */
+export interface MatchingBlock extends BaseBlock {
+  kind: "matching";
+  sources: MatchItem[];
+  targets: MatchItem[];
+  /** The right assignment: source id -> target id. A source missing here belongs to no target. */
+  pairs: Record<UUID, UUID>;
+  /** The size of every card of the sources / the targets, in percent of the area. */
+  sourceSize: { width: number; height: number };
+  targetSize: { width: number; height: number };
+  /** In the player the cards of each list take each other's places at random (every time the slide is shown). Absent: they stand where they were put. */
+  shuffle?: boolean;
+  /** Other languages' wording: the texts of the cards by item id (BlockTranslation.items). */
+  translations?: Record<string, BlockTranslation>;
+  /** A required task, as QuizBlock.required: the page cannot be left by Weiter before it has been submitted. Absent: not required. */
+  required?: boolean;
+  /** What happens for every source that was put on its right target / on a wrong one (or a decoy put anywhere). */
+  onEachCorrect: VariableEffect[];
+  onEachWrong: VariableEffect[];
+  /** What happens once everything was right (all assigned right, no decoy assigned) / not. */
+  onCorrect: VariableEffect[];
+  onIncorrect: VariableEffect[];
+}
+
 /** How a button looks (ButtonBlock.appearance). Lengths are cqw (percent of the slide's width). A part that is missing is what the
  * module's look gives it (the accent colour for the background and the border, see WeftModule.accentColor) and the defaults of
  * DEFAULT_BUTTON_APPEARANCE (core/document/buttonAppearance.ts). The colour of the letters is part of the label. */
@@ -780,7 +827,7 @@ export interface LinkBlock extends BaseBlock {
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
 export type StaticBlock = TextBlock | PlaceholderBlock | ListBlock | LanguageBlock | ProgressBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | AudioBlock | RevealerBlock | IframeBlock | ButtonBlock | LinkBlock | ShapeBlock | ArrowBlock | FilesBlock;
-export type Block = StaticBlock | QuizBlock | ClozeBlock | CheckerBlock | ScriptBlock;
+export type Block = StaticBlock | QuizBlock | ClozeBlock | CheckerBlock | MatchingBlock | ScriptBlock;
 
 /** A block as it's first made, before it has been put somewhere (and so given its `order`). */
 export type NewBlock = Block extends infer B ? (B extends Block ? Omit<B, "order"> : never) : never;

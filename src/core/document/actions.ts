@@ -649,6 +649,27 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
         onCorrect: [],
         onIncorrect: [],
       };
+    case "matching": {
+      // Three objects, two of which belong to a target and one to none (a decoy), and the two targets: the cards stand in two columns.
+      const sourceTexts = tr("ui.matching_sample_sources").split("|");
+      const targetTexts = tr("ui.matching_sample_targets").split("|");
+      const sources = sourceTexts.map((text, i) => ({ id: createId(), kind: "text" as const, text, x: 3, y: 4 + i * 28 }));
+      const targets = targetTexts.map((text, i) => ({ id: createId(), kind: "text" as const, text, x: 55, y: 4 + i * 44 }));
+      return {
+        ...base,
+        kind,
+        position: { x: 10, y: 22, width: 80, height: 58 },
+        sources,
+        targets,
+        pairs: { [sources[0].id]: targets[0].id, [sources[1].id]: targets[1].id },
+        sourceSize: { width: 34, height: 20 },
+        targetSize: { width: 40, height: 40 },
+        onEachCorrect: [],
+        onEachWrong: [],
+        onCorrect: [],
+        onIncorrect: [],
+      };
+    }
     case "checker":
       return {
         ...base,
@@ -847,7 +868,7 @@ export function updateBlock(pageId: string, blockId: string, patch: Partial<Bloc
     // page.timeline.triggers, not on the block itself - see setEventTrigger below.
     const touchesEffect = "entranceEffect" in patch || "exitEffect" in patch;
     const touchesList = block.kind === "list" && ("items" in patch || "itemEntrance" in patch);
-    if (page && (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || isMediaBlock(block) || touchesEffect || touchesList)) {
+    if (page && (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || block.kind === "matching" || isMediaBlock(block) || touchesEffect || touchesList)) {
       syncPageTimelineEvents(page);
     }
     // A list whose items have an Aufbau of their own: a new item (or all of them, when the switch has just been turned on) takes its
@@ -1939,7 +1960,7 @@ export function pasteBlockInto(
   target: { kind: "page"; pageId: string } | { kind: "layout"; layoutId: string },
   sourceBlock: Block,
 ): string | null {
-  if (target.kind === "layout" && (sourceBlock.kind === "quiz" || sourceBlock.kind === "cloze" || sourceBlock.kind === "checker" || sourceBlock.kind === "script")) return null;
+  if (target.kind === "layout" && (sourceBlock.kind === "quiz" || sourceBlock.kind === "cloze" || sourceBlock.kind === "checker" || sourceBlock.kind === "matching" || sourceBlock.kind === "script")) return null;
   // A placeholder only exists in a layout.
   if (target.kind === "page" && sourceBlock.kind === "placeholder") return null;
   const newBlock = cloneBlockWithNewId(sourceBlock);

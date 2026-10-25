@@ -43,6 +43,12 @@ export function placeholderSources(block: Block): string[] {
           t.html !== undefined ? [t.html] : t.text !== undefined ? [escapeText(t.text)] : [],
         ),
       ];
+    case "matching":
+      // The words of the cards (plain texts, escaped first), in every language.
+      return [
+        ...[...block.sources, ...block.targets].filter((item) => item.kind === "text").map((item) => escapeText(item.text)),
+        ...Object.values(block.translations ?? {}).flatMap((t) => Object.values(t.items ?? {}).map(escapeText)),
+      ];
     case "checker":
       // (A plain text, escaped first, like a button's plain label.)
       return [escapeText(block.text), ...Object.values(block.translations ?? {}).flatMap((t) => (t.text !== undefined ? [escapeText(t.text)] : []))];

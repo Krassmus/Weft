@@ -57,6 +57,7 @@ const KIND_DEFINITIONS: Record<string, string> = {
   button: "ButtonBlock",
   link: "LinkBlock",
   checker: "CheckerBlock",
+  matching: "MatchingBlock",
   quiz: "QuizBlock",
   cloze: "ClozeBlock",
   shape: "ShapeBlock",
@@ -178,6 +179,9 @@ function effectsOf(block: Block): { effects: VariableEffect[]; what: string }[] 
     groups.push({ effects: block.onCorrect ?? [], what: "wenn alles richtig ist" }, { effects: block.onIncorrect ?? [], what: "wenn etwas falsch ist" });
     groups.push({ effects: block.onEachCorrect ?? [], what: "bei jeder richtigen Lücke" });
     for (const effects of Object.values(block.answerEffects ?? {})) groups.push({ effects, what: "bei einer bestimmten Antwort" });
+  } else if (block.kind === "matching") {
+    groups.push({ effects: block.onEachCorrect ?? [], what: "bei jeder richtigen Zuordnung" }, { effects: block.onEachWrong ?? [], what: "bei jeder falschen Zuordnung" });
+    groups.push({ effects: block.onCorrect ?? [], what: "wenn alles richtig ist" }, { effects: block.onIncorrect ?? [], what: "wenn nicht alles richtig ist" });
   } else if (block.kind === "checker") {
     groups.push({ effects: block.onChecked ?? [], what: "beim Abschicken mit Haken" }, { effects: block.onUnchecked ?? [], what: "beim Abschicken ohne Haken" });
   } else if (block.kind === "button") {
@@ -220,6 +224,14 @@ export function eventLabel(page: Page, node: TimelineNode, content: WeftModule, 
     "revealer-button": "Button im Revealer geklickt",
   };
   // (A checker has the events of a quiz, under its own names: the box ticked or cleared, submitted - with the tick or without it.)
+  if (block?.kind === "matching") {
+    Object.assign(names, {
+      "quiz-fill-start": "Matching: erste Zuordnung",
+      "quiz-submit": "Matching abgeschickt",
+      "quiz-submit-correct": "Matching abgeschickt (alles richtig)",
+      "quiz-submit-incorrect": "Matching abgeschickt (nicht alles richtig)",
+    });
+  }
   if (block?.kind === "checker") {
     Object.assign(names, {
       "quiz-fill-start": "Checker: Haken gesetzt oder entfernt",
@@ -428,6 +440,25 @@ export function validate(loaded: LoadedWeft): Finding[] {
       if (!plainTextOfHtml(block.html ?? block.text).trim()) add("info", "button-no-text", "Button ohne Text (der Player zeigt „Weiter“).", here);
     }
 
+    // Matching.
+    if (block.kind === "matching") {
+      const sources = block.sources ?? [];
+      const targets = block.targets ?? [];
+      const sourceIds = new Set(sources.map((item) => item.id));
+      const targetIds = new Set(targets.map((item) => item.id));
+      if (sources.length === 0 || targets.length === 0) add("warning", "matching-empty", "Das Matching braucht mindestens ein Objekt und ein Ziel.", here);
+      for (const [source, target] of Object.entries(block.pairs ?? {})) {
+        if (!sourceIds.has(source) || !targetIds.has(target)) add("error", "matching-pair-broken", "Eine richtige Zuordnung (pairs) verweist auf ein Objekt oder Ziel, das es nicht gibt.", { ...here, hint: "pairs: Objekt-Id → Ziel-Id; ein Objekt ohne Eintrag ist ein Ablenker." });
+      }
+      if (sources.length > 0 && sources.every((item) => !(block.pairs ?? {})[item.id])) add("info", "matching-no-pairs", "Kein Objekt hat ein Ziel: alles ist ein Ablenker, nichts kann richtig zugeordnet werden.", here);
+      for (const item of [...sources, ...targets]) {
+        if (item.kind !== "image") continue;
+        if (!item.assetId) add("warning", "matching-no-image", "Eine Karte des Matchings ist ein Bild, hat aber noch keins.", here);
+        else if (!content.assets.some((a) => a.id === item.assetId)) add("error", "asset-missing", `Eine Karte des Matchings verweist auf die Datei ${item.assetId}, die nicht in der Liste der Dateien steht.`, here);
+        else if (!item.text?.trim()) add("info", "image-no-alt", "Ein Bild des Matchings ohne Beschreibung (text).", here);
+      }
+    }
+
     // Link.
     if (block.kind === "link") {
       if ((block.url ?? "").trim() === "" || block.url.trim() === "https://") add("warning", "link-no-target", "Der Link hat noch keine Adresse.", { ...here, hint: "url auf eine Adresse mit https://, mailto: oder tel: setzen." });
@@ -484,13 +515,15 @@ export function validate(loaded: LoadedWeft): Finding[] {
     }
 
     // Translations.
-    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
+    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "matching" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
       const hasWords =
         block.kind === "quiz"
           ? plainTextOfHtml(block.questionHtml).trim() !== ""
           : block.kind === "list"
             ? block.items.length > 0
-            : block.kind === "button" || block.kind === "link" || block.kind === "checker"
+            : block.kind === "matching"
+              ? [...block.sources, ...block.targets].some((item) => item.text.trim() !== "")
+              : block.kind === "button" || block.kind === "link" || block.kind === "checker"
               ? block.text.trim() !== ""
               : plainTextOfHtml(block.html).trim() !== "";
       // A text that stands for a placeholder of the layout is the page's own, and has its words in each language like any other.

@@ -59,6 +59,7 @@ import { ImageSvg } from "./ImageSvg";
 import { MaskHandles } from "./MaskHandles";
 import { LinkView } from "./LinkView";
 import { CheckerView } from "./CheckerView";
+import { MatchingCanvas } from "./MatchingCanvas";
 import { FilesView } from "./FilesView";
 import { ShapeSvg } from "./ShapeSvg";
 import { CodeView } from "./CodeView";
@@ -293,7 +294,7 @@ export function BlockView({
     block.kind === "cloze" ||
     block.kind === "quiz" ||
     block.kind === "list";
-  const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "language" || block.kind === "checker" || block.kind === "link" || block.kind === "script" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "audio" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files" || block.kind === "revealer" || block.kind === "progress";
+  const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "language" || block.kind === "checker" || block.kind === "matching" || block.kind === "link" || block.kind === "script" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "audio" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files" || block.kind === "revealer" || block.kind === "progress";
   // Only an image, video or revealer (an icon) has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
   // given, so unlike image/video it keeps the full edge+corner handle set below instead of being
@@ -900,6 +901,8 @@ function BlockContent({
       return <LinkView block={block} lang={lang} defaultLang={defaultLang} />;
     case "checker":
       return <CheckerView block={block} lang={lang} defaultLang={defaultLang} />;
+    case "matching":
+      return <MatchingCanvas block={block} selected={selected} onUpdate={onUpdate} />;
     case "quiz":
       return (
         <QuizBlockCanvas

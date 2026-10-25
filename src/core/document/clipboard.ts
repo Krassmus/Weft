@@ -85,6 +85,8 @@ function blockLines(block: Block): string[] {
     case "link":
     case "checker":
       return [block.text];
+    case "matching":
+      return [...block.sources, ...block.targets].map((item) => item.text).filter((text) => text.trim() !== "");
     case "list":
       return block.items.flatMap((item) => plainLinesOfHtml(item.html));
     case "quiz":

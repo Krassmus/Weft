@@ -34,6 +34,7 @@ import acceptSvg from "../../../mockups/icons/accept.svg?raw";
 import { tr } from "../../core/i18n/tr";
 import { LinkView } from "./blocks/LinkView";
 import { CheckerView } from "./blocks/CheckerView";
+import { MatchingView } from "./blocks/MatchingView";
 import { safeLinkUrl } from "../../core/document/linkUrl";
 import { ScriptHexagon } from "./blocks/ScriptHexagon";
 
@@ -380,6 +381,13 @@ function ThumbBlockBody({
     return (
       <div className="weft-thumb-block weft-thumb-block-link" style={style} {...(address ? { "data-pdf-link": address } : {})}>
         <LinkView block={block} lang={lang} defaultLang={defaultLang} />
+      </div>
+    );
+  }
+  if (block.kind === "matching") {
+    return (
+      <div className="weft-thumb-block" style={style}>
+        <MatchingView block={block} lang={lang} defaultLang={defaultLang} />
       </div>
     );
   }

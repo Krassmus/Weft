@@ -394,7 +394,7 @@
     else if (block.kind === "tex") {
       var mathml = wrap.querySelector(".katex-mathml");
       text = mathml ? mathml.textContent : block.tex || "";
-    } else if (block.kind === "text" || block.kind === "list" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "code") {
+    } else if (block.kind === "text" || block.kind === "list" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "matching" || block.kind === "code") {
       text = wrap.textContent || "";
     }
     text = String(text).replace(/\s+/g, " ").trim();
@@ -853,7 +853,7 @@
   // answer was being worked out - measured, not read off the effects, so a "set" counts as the change it made.
 
   function scoringVariableIds(block) {
-    var lists = [block.onCorrect, block.onIncorrect, block.onEachCorrect, block.onChecked, block.onUnchecked];
+    var lists = [block.onCorrect, block.onIncorrect, block.onEachCorrect, block.onEachWrong, block.onChecked, block.onUnchecked];
     Object.keys(block.answerEffects || {}).forEach(function (key) {
       lists.push(block.answerEffects[key]);
     });
@@ -897,7 +897,8 @@
   function gradedTitle(block) {
     if (block.name) return String(block.name);
     var holder = document.createElement("div");
-    if (block.kind === "checker") holder.textContent = checkerLabel(block);
+    if (block.kind === "matching") holder.textContent = block.sources.concat(block.targets).filter(function (item) { return item.kind === "text"; }).map(function (item) { return matchingLabel(block, item); }).join(" / ");
+    else if (block.kind === "checker") holder.textContent = checkerLabel(block);
     else holder.innerHTML = block.kind === "quiz" ? quizQuestionHtml(block) : blockHtml(block);
     var text = (holder.textContent || "").replace(/\[\[[^\]]*\]\]/g, "\u2026").replace(/\s+/g, " ").trim();
     return text.length > 80 ? text.slice(0, 79) + "\u2026" : text;
@@ -912,7 +913,7 @@
       var page = module.pages[pageId];
       if (!page) return;
       page.blocks.forEach(function (block) {
-        if (block.kind !== "quiz" && block.kind !== "cloze" && block.kind !== "checker") return;
+        if (block.kind !== "quiz" && block.kind !== "cloze" && block.kind !== "checker" && block.kind !== "matching") return;
         var ids = scoringVariableIds(block);
         if (ids.length === 0) return;
         var result = (gradedAtPos[index] || []).filter(function (r) {
@@ -1334,7 +1335,7 @@
   // may only be left by its own buttons can't be tapped through either.
   var TAP_INTERACTIVE =
     "a, button, input, select, textarea, label, summary, video, audio, iframe, [contenteditable], [role='button']," +
-    ".weft-block-quiz, .weft-block-revealer, .weft-files, .weft-block-language, .weft-block-iframe, .weft-debug";
+    ".weft-block-quiz, .weft-block-matching, .weft-matching-lightbox, .weft-block-revealer, .weft-files, .weft-block-language, .weft-block-iframe, .weft-debug";
   var lastTapAdvanceAt = 0;
   document.addEventListener("click", function (e) {
     if (e.defaultPrevented || module.keyboardNavigationEnabled === false) return;
@@ -3142,6 +3143,373 @@
     return wrap;
   }
 
+  // ---- MatchingBlock ("Zuordnung"): objects dragged onto targets ----
+  // Two lists of cards on an area: the learner drags the cards of the first (sources) onto those of the second (targets) - or picks one (a
+  // click, Enter) and then a target - and presses "Abschicken": what was right and what was not is marked, and the effects of the block happen
+  // (see MatchingBlock in core/types.ts). A source that is put on a target stands in it (in its dock) and leaves a dashed place where it stood.
+  // Pictures are enlarged by a click. It has the events of a quiz: the first assignment, submitted, and "richtig" / "falsch" for everything / not
+  // everything right.
+
+  function matchingLabel(block, item) {
+    var t = currentTranslation(block);
+    return (t && t.items && t.items[item.id] !== undefined ? t.items[item.id] : item.text) || "";
+  }
+
+  // Which of the places of a list's cards each card takes: the cards of the list swap places at random (Fisher-Yates), if the block says so.
+  function matchingPlaces(block, items) {
+    var places = items.map(function (item) {
+      return { x: item.x, y: item.y };
+    });
+    if (block.shuffle) {
+      for (var i = places.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var swap = places[i];
+        places[i] = places[j];
+        places[j] = swap;
+      }
+    }
+    return places;
+  }
+
+  // A picture shown large, over the slide, until a click, a key or Escape closes it.
+  function openMatchingLightbox(from, src, alt) {
+    var stage = from.closest ? from.closest(".weft-stage") : null;
+    var overlay = el("div", { class: "weft-matching-lightbox", role: "dialog", "aria-modal": "true", "aria-label": alt || "" }, []);
+    var image = el("img", { src: src, alt: alt || "" }, []);
+    var close = el("button", { type: "button", class: "weft-matching-lightbox-close", "aria-label": uiString("revealerClose") }, []);
+    close.textContent = "×";
+    overlay.appendChild(image);
+    overlay.appendChild(close);
+    var done = function () {
+      window.removeEventListener("keydown", onKey, true);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    };
+    var onKey = function (e) {
+      if (e.key === "Escape" || e.key === "Enter" || e.key === " ") {
+        // (Escape would otherwise leave the presentation, Space would turn the page.)
+        e.stopPropagation();
+        e.preventDefault();
+        done();
+      }
+    };
+    overlay.addEventListener("click", done);
+    window.addEventListener("keydown", onKey, true);
+    (stage || document.body).appendChild(overlay);
+    close.focus({ preventScroll: true });
+  }
+
+  function renderMatchingBlock(block) {
+    var wrap = el("div", { class: "weft-block weft-block-matching", "data-weft-block": block.id, style: positionStyle(block.position) });
+    if (block.required) requiredPending[block.id] = true;
+    var box = el("div", { class: "weft-matching" }, []);
+    var area = el("div", { class: "weft-matching-area" }, []);
+    var bar = el("div", { class: "weft-matching-bar" }, []);
+    box.appendChild(area);
+    box.appendChild(bar);
+
+    var assigned = {}; // source id -> target id
+    var cards = {}; // item id -> its button
+    var homes = {}; // source id -> its dashed place (shown while it stands in a target)
+    var docks = {}; // target id -> where its sources stand
+    var picked = null; // the source that was picked by a click or Enter
+    var locked = false;
+    var hasFiredFill = false;
+    var itemById = {};
+    block.sources.concat(block.targets).forEach(function (item) {
+      itemById[item.id] = item;
+    });
+
+    function place(node, item, size, spot, minimum) {
+      node.style.left = spot.x + "%";
+      node.style.top = spot.y + "%";
+      node.style.width = size.width + "%";
+      node.style[minimum ? "minHeight" : "height"] = size.height + "%";
+    }
+
+    // The content of a card: its words, or its picture (with the way to enlarge it).
+    function fillCard(card, item) {
+      card.innerHTML = "";
+      var label = matchingLabel(block, item);
+      if (item.kind === "image") {
+        var image = el("img", { class: "weft-matching-image", src: item.assetId ? assetSrc(item.assetId) : "", alt: label, draggable: "false" }, []);
+        card.appendChild(image);
+        card.setAttribute("aria-label", label || "");
+      } else {
+        var text = el("span", { class: "weft-matching-text" }, []);
+        text.textContent = label;
+        applyVariablesToNode(text);
+        card.appendChild(text);
+      }
+    }
+
+    function enlarge(item) {
+      if (item.kind !== "image" || !item.assetId) return;
+      openMatchingLightbox(wrap, assetSrc(item.assetId), matchingLabel(block, item));
+    }
+
+    // ---- the cards ----
+    var targetPlaces = matchingPlaces(block, block.targets);
+    block.targets.forEach(function (item, index) {
+      var card = el("button", { type: "button", class: "weft-matching-card weft-matching-target", "data-weft-target": item.id }, []);
+      place(card, item, block.targetSize, targetPlaces[index], true);
+      var body = el("span", { class: "weft-matching-body" }, []);
+      var dock = el("span", { class: "weft-matching-dock" }, []);
+      card.appendChild(body);
+      card.appendChild(dock);
+      docks[item.id] = dock;
+      var fill = function () {
+        fillCard(body, item);
+        // (the body is a span in a button: its own aria-label is the card's)
+        if (item.kind === "image") card.setAttribute("aria-label", matchingLabel(block, item));
+      };
+      fill();
+      languageRefreshers.push(fill);
+      card.addEventListener("click", function (event) {
+        if (!locked && picked) {
+          assign(picked, item.id);
+          return;
+        }
+        // A click of the mouse on a picture enlarges it - also after submitting (a key does not: Enter drops what was picked).
+        if (event.detail > 0) enlarge(item);
+      });
+      card.addEventListener("keydown", function (event) {
+        if ((event.key === "z" || event.key === "+") && item.kind === "image") {
+          event.preventDefault();
+          enlarge(item);
+        }
+      });
+      cards[item.id] = card;
+      area.appendChild(card);
+    });
+
+    var sourcePlaces = matchingPlaces(block, block.sources);
+    block.sources.forEach(function (item, index) {
+      var card = el("button", { type: "button", class: "weft-matching-card weft-matching-source", "data-weft-source": item.id }, []);
+      place(card, item, block.sourceSize, sourcePlaces[index], false);
+      var fill = function () {
+        fillCard(card, item);
+      };
+      fill();
+      languageRefreshers.push(fill);
+      // Its dashed place, where it stood, for as long as it stands in a target.
+      var home = el("span", { class: "weft-matching-slot", hidden: "" }, []);
+      place(home, item, block.sourceSize, sourcePlaces[index], false);
+      homes[item.id] = home;
+      area.appendChild(home);
+      card.addEventListener("pointerdown", function (event) {
+        startDrag(event, item.id);
+      });
+      card.addEventListener("click", function (event) {
+        if (suppressClick) {
+          suppressClick = false;
+          return;
+        }
+        // The mouse on a picture enlarges it (also after submitting); a key (or the click on a text) picks the card up, and picks it down again.
+        if (item.kind === "image" && event.detail > 0 && (!picked || locked)) {
+          enlarge(item);
+          return;
+        }
+        if (locked) return;
+        pick(picked === item.id ? null : item.id);
+      });
+      card.addEventListener("keydown", function (event) {
+        if ((event.key === "z" || event.key === "+") && item.kind === "image") {
+          event.preventDefault();
+          enlarge(item);
+        } else if ((event.key === "Delete" || event.key === "Backspace") && assigned[item.id] && !locked) {
+          event.preventDefault();
+          unassign(item.id);
+        } else if (event.key === "Escape" && picked) {
+          event.preventDefault();
+          event.stopPropagation();
+          pick(null);
+        }
+      });
+      cards[item.id] = card;
+      area.appendChild(card);
+    });
+
+    function pick(sourceId) {
+      if (picked && cards[picked]) cards[picked].classList.remove("is-picked");
+      picked = sourceId;
+      area.classList.toggle("has-picked", !!sourceId);
+      if (sourceId) {
+        cards[sourceId].classList.add("is-picked");
+        announce(uiString("matchingPicked"));
+      }
+    }
+
+    function assign(sourceId, targetId) {
+      pick(null);
+      assigned[sourceId] = targetId;
+      var card = cards[sourceId];
+      card.classList.add("is-docked");
+      card.style.left = card.style.top = card.style.width = card.style.height = "";
+      docks[targetId].appendChild(card);
+      homes[sourceId].hidden = false;
+      announce(uiString("matchingAssigned"));
+      if (!hasFiredFill) {
+        hasFiredFill = true;
+        happened(quizFillEventId(block.id));
+      }
+    }
+
+    function unassign(sourceId) {
+      delete assigned[sourceId];
+      var card = cards[sourceId];
+      var item = itemById[sourceId];
+      var index = block.sources.indexOf(item);
+      card.classList.remove("is-docked");
+      place(card, item, block.sourceSize, sourcePlaces[index], false);
+      homes[sourceId].hidden = true;
+      area.appendChild(card);
+    }
+
+    // ---- dragging: a picture of the card follows the pointer; where it is let go, it is put - on a target, or (a card that stood in one) back ----
+    var suppressClick = false;
+    function startDrag(event, sourceId) {
+      if (locked || event.button !== 0) return;
+      var card = cards[sourceId];
+      var startX = event.clientX;
+      var startY = event.clientY;
+      var started = false;
+      var ghost = null;
+      var grab = { x: 0, y: 0 };
+      var areaRect = null;
+      var lastTarget = null;
+      function targetAt(x, y) {
+        var found = document.elementFromPoint(x, y);
+        var target = found && found.closest ? found.closest(".weft-matching-target") : null;
+        return target && area.contains(target) ? target : null;
+      }
+      function move(e) {
+        if (!started) {
+          if (Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY) < 6) return;
+          started = true;
+          areaRect = area.getBoundingClientRect();
+          var rect = card.getBoundingClientRect();
+          grab = { x: startX - rect.left, y: startY - rect.top };
+          ghost = card.cloneNode(true);
+          ghost.classList.add("is-ghost");
+          ghost.classList.remove("is-docked", "is-picked");
+          ghost.style.width = rect.width + "px";
+          ghost.style.height = rect.height + "px";
+          area.appendChild(ghost);
+          card.classList.add("is-dragging");
+        }
+        ghost.style.left = e.clientX - areaRect.left - grab.x + "px";
+        ghost.style.top = e.clientY - areaRect.top - grab.y + "px";
+        var over = targetAt(e.clientX, e.clientY);
+        if (over !== lastTarget) {
+          if (lastTarget) lastTarget.classList.remove("is-over");
+          if (over) over.classList.add("is-over");
+          lastTarget = over;
+        }
+      }
+      function end(e) {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", end);
+        window.removeEventListener("pointercancel", end);
+        if (!started) return;
+        // A click follows the let-go pointer on a card; this was a drag.
+        suppressClick = true;
+        setTimeout(function () {
+          suppressClick = false;
+        }, 0);
+        if (lastTarget) lastTarget.classList.remove("is-over");
+        var target = e.type === "pointercancel" ? null : targetAt(e.clientX, e.clientY);
+        if (ghost && ghost.parentNode) ghost.parentNode.removeChild(ghost);
+        card.classList.remove("is-dragging");
+        if (target) assign(sourceId, target.getAttribute("data-weft-target"));
+        else if (assigned[sourceId]) unassign(sourceId);
+      }
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", end);
+      window.addEventListener("pointercancel", end);
+    }
+
+    // ---- submitting ----
+    var submit = el("button", { type: "button", class: "weft-quiz-submit" }, []);
+    var submitIcon = el("span", { class: "weft-quiz-submit-icon", "aria-hidden": "true" }, []);
+    submitIcon.innerHTML = QUIZ_SUBMIT_ICON_SVG;
+    submit.appendChild(submitIcon);
+    var submitLabel = document.createTextNode(uiString("submit"));
+    submit.appendChild(submitLabel);
+    bar.appendChild(submit);
+    var answered = null; // null until submitted, then whether everything was right
+    var feedback = el("div", { class: "weft-quiz-feedback", hidden: "" }, []);
+    var feedbackIcon = el("span", { class: "weft-quiz-feedback-icon", "aria-hidden": "true" }, []);
+    var feedbackTitle = el("strong", { class: "weft-quiz-feedback-title" }, []);
+    feedback.appendChild(feedbackIcon);
+    feedback.appendChild(feedbackTitle);
+    bar.appendChild(feedback);
+    var showFeedbackTitle = function () {
+      feedbackTitle.textContent = uiString(answered ? "correct" : "incorrect");
+    };
+    languageRefreshers.push(function () {
+      submitLabel.nodeValue = uiString("submit");
+      if (answered !== null) showFeedbackTitle();
+    });
+
+    submit.addEventListener("click", function () {
+      if (locked) return;
+      locked = true;
+      pick(null);
+      var allRight = true;
+      var mark = scoreMark(block);
+      block.sources.forEach(function (source) {
+        var target = assigned[source.id];
+        var right = block.pairs ? block.pairs[source.id] : undefined;
+        var status;
+        if (right) {
+          if (target === right) {
+            status = "correct";
+            (block.onEachCorrect || []).forEach(applyEffect);
+          } else if (target) {
+            status = "wrong";
+            allRight = false;
+            (block.onEachWrong || []).forEach(applyEffect);
+          } else {
+            status = "missed";
+            allRight = false;
+          }
+        } else if (target) {
+          // A decoy put somewhere: wrong.
+          status = "wrong";
+          allRight = false;
+          (block.onEachWrong || []).forEach(applyEffect);
+        } else {
+          status = "ok";
+        }
+        var card = cards[source.id];
+        card.classList.add("is-" + status);
+        if (status === "correct" || status === "wrong") {
+          var markIcon = el("span", { class: "weft-matching-mark", "aria-hidden": "true" }, []);
+          markIcon.innerHTML = status === "correct" ? QUIZ_CORRECT_ICON_SVG : QUIZ_INCORRECT_ICON_SVG;
+          card.appendChild(markIcon);
+        }
+        // Where it belonged, for whoever could not see the colours.
+        if (right && status !== "correct") card.setAttribute("title", matchingLabel(block, itemById[right]));
+      });
+      ((allRight ? block.onCorrect : block.onIncorrect) || []).forEach(applyEffect);
+      scoreRecord(block, mark, allRight ? "right" : "wrong");
+      requiredDone(block.id);
+      happened(quizSubmitEventId(block.id));
+      happened(quizSubmitEventId(block.id, allRight ? "richtig" : "falsch"));
+      box.classList.add("is-locked");
+      submit.hidden = true;
+      feedbackIcon.innerHTML = allRight ? QUIZ_CORRECT_ICON_SVG : QUIZ_INCORRECT_ICON_SVG;
+      answered = allRight;
+      showFeedbackTitle();
+      feedback.className = "weft-quiz-feedback " + (allRight ? "is-correct" : "is-incorrect");
+      feedback.hidden = false;
+      announce(feedbackTitle.textContent);
+    });
+
+    wrap.appendChild(box);
+    return wrap;
+  }
+
   // ---- ClozeBlock ("Lückentext"): kept in sync by hand with core/document/cloze.ts, which this file can't import. ----
 
   var CLOZE_MARKER = /\[\[([^\[\]]+)\]\]/g;
@@ -3336,7 +3704,7 @@
       }
       return el("div", { class: "weft-block weft-block-script", style: "display:none;" }, []);
     }
-    var wrap = block.kind === "progress" ? renderProgressBlock(block) : block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "checker" ? renderCheckerBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : block.kind === "link" ? renderLinkBlock(block) : block.kind === "revealer" ? renderRevealerBlock(block) : renderStaticBlock(block, page);
+    var wrap = block.kind === "progress" ? renderProgressBlock(block) : block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "checker" ? renderCheckerBlock(block) : block.kind === "matching" ? renderMatchingBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : block.kind === "link" ? renderLinkBlock(block) : block.kind === "revealer" ? renderRevealerBlock(block) : renderStaticBlock(block, page);
     applyBlockEffects(wrap, block, page);
     applyActionEffects(wrap, block);
     if (block.kind === "list" && wrap.weftListItems) applyListItemEffects(block, wrap.weftListItems);

@@ -1443,3 +1443,255 @@ summary:focus-visible,
     transform: none;
   }
 }
+
+/* ---- A matching (MatchingBlock, renderMatchingBlock in player.runtime.js; the editor draws the same in App.css, .weft-matching-*) ----
+   An area with the cards of both lists at their places (percent of the area) and the button under it; the cards are buttons, and follow the
+   module's style of interactive elements. A source put on a target stands in the target's dock and leaves a dashed place where it stood. */
+.weft-matching {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  width: 100%;
+  height: 100%;
+  font-family: var(--slide-ui-font);
+  font-size: calc(1.7cqw * var(--slide-ui-scale));
+  font-weight: var(--slide-ui-weight);
+  letter-spacing: var(--slide-ui-spacing);
+  color: var(--slide-fg);
+}
+
+.weft-matching-area {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.weft-matching-bar {
+  flex: none;
+}
+
+.weft-matching-card {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0.35em 0.5em;
+  overflow: hidden;
+  text-align: center;
+  line-height: 1.25;
+  font: inherit;
+  color: inherit;
+  border-radius: var(--slide-ui-radius);
+  clip-path: var(--slide-ui-clip);
+  -webkit-appearance: none;
+  appearance: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.weft-matching-source {
+  background: var(--slide-surface);
+  border: 1px solid var(--slide-line-strong);
+  cursor: grab;
+  touch-action: none;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.weft-matching-source:hover {
+  border-color: var(--slide-accent-ink);
+  box-shadow: 0 0.2em 0.7em rgba(0, 0, 0, 0.15);
+}
+
+.weft-matching-target {
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 0.4em;
+  background: var(--slide-surface-quiet);
+  border: 1px dashed var(--slide-line-strong);
+  cursor: default;
+}
+
+.weft-matching-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.weft-matching-dock {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  justify-content: center;
+}
+
+.weft-matching-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.weft-matching-image {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.weft-matching-source.is-docked {
+  position: relative;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  padding: 0.25em 0.55em;
+  font-size: 0.92em;
+}
+
+.weft-matching-source.is-docked .weft-matching-image {
+  max-height: 3.4em;
+}
+
+/* Where a source stood while it is in a target, and what is being dragged. */
+.weft-matching-slot {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px dashed var(--slide-line);
+  border-radius: var(--slide-ui-radius);
+  clip-path: var(--slide-ui-clip);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.weft-matching-slot[hidden] {
+  display: none;
+}
+
+.weft-matching-card.is-dragging {
+  opacity: 0.35;
+}
+
+.weft-matching-card.is-ghost {
+  z-index: 5;
+  pointer-events: none;
+  cursor: grabbing;
+  box-shadow: 0 0.5em 1.4em rgba(0, 0, 0, 0.3);
+}
+
+.weft-matching-card.is-picked {
+  outline: 2px solid var(--slide-focus-ring);
+  outline-offset: 2px;
+}
+
+.weft-matching-card:focus-visible {
+  outline: 2px solid var(--slide-focus-ring);
+  outline-offset: 2px;
+}
+
+.weft-matching-area.has-picked .weft-matching-target {
+  border-color: var(--slide-accent-ink);
+  cursor: pointer;
+}
+
+.weft-matching-target.is-over {
+  background: var(--slide-accent-soft);
+  border-style: solid;
+  border-color: var(--slide-accent-ink);
+}
+
+/* After submitting: nothing moves any more, and every source says whether it was right. */
+.weft-matching.is-locked .weft-matching-source {
+  cursor: default;
+}
+
+.weft-matching-source.is-correct {
+  border-color: var(--slide-ok);
+  background: var(--slide-ok-soft);
+}
+
+.weft-matching-source.is-wrong {
+  border-color: var(--slide-bad);
+  background: var(--slide-bad-soft);
+}
+
+.weft-matching-source.is-missed {
+  border: 1px dashed var(--slide-bad);
+}
+
+.weft-matching-mark {
+  position: absolute;
+  top: 0.12em;
+  right: 0.12em;
+  width: 1em;
+  height: 1em;
+}
+
+/* A source standing in a target is small: the mark gets a place of its own at its end. */
+.weft-matching-source.is-docked.is-correct,
+.weft-matching-source.is-docked.is-wrong {
+  padding-right: 1.6em;
+}
+
+.weft-matching-source.is-docked .weft-matching-mark {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.weft-matching-source.is-correct .weft-matching-mark {
+  color: var(--slide-ok);
+}
+
+.weft-matching-source.is-wrong .weft-matching-mark {
+  color: var(--slide-bad);
+}
+
+.weft-matching-mark svg,
+.weft-matching-mark svg [fill] {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+/* A picture shown large over the slide. */
+.weft-matching-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.78);
+  cursor: zoom-out;
+}
+
+.weft-matching-lightbox img {
+  max-width: 92%;
+  max-height: 92%;
+  object-fit: contain;
+}
+
+.weft-matching-lightbox-close {
+  position: absolute;
+  top: 1.2em;
+  right: 1.2em;
+  width: 2.2em;
+  height: 2.2em;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: #111;
+  font-size: 1.4em;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weft-matching-source {
+    transition: none;
+  }
+}

@@ -1,4 +1,4 @@
-import type { BlockTranslation, ButtonBlock, CheckerBlock, ClozeBlock, LinkBlock, ListBlock, QuizBlock, RevealerBlock, TextBlock, WeftModule } from "../types";
+import type { BlockTranslation, ButtonBlock, CheckerBlock, ClozeBlock, LinkBlock, MatchItem, MatchingBlock, ListBlock, QuizBlock, RevealerBlock, TextBlock, WeftModule } from "../types";
 
 /**
  * Per-language wording of the blocks that carry text (text, quiz, button). The block's own fields
@@ -8,7 +8,7 @@ import type { BlockTranslation, ButtonBlock, CheckerBlock, ClozeBlock, LinkBlock
  * block's own fields.
  */
 
-type Translatable = TextBlock | QuizBlock | ButtonBlock | LinkBlock | CheckerBlock | ListBlock | ClozeBlock;
+type Translatable = TextBlock | QuizBlock | ButtonBlock | LinkBlock | CheckerBlock | MatchingBlock | ListBlock | ClozeBlock;
 type Translations = Record<string, BlockTranslation> | undefined;
 
 export function defaultLanguageOf(languages: readonly string[]): string | null {
@@ -55,6 +55,21 @@ export function listItemHtml(block: ListBlock, itemId: string, language: string 
 
 export function buttonText(block: ButtonBlock, language: string | null, defaultLanguage: string | null): string {
   return translationOf(block.translations, language, defaultLanguage)?.text ?? block.text;
+}
+
+/** The words of a card of a matching in `language`: its translation if there is one, else the card's own (the default language's). */
+export function matchingItemText(block: MatchingBlock, item: MatchItem, language: string | null, defaultLanguage: string | null): string {
+  return translationOf(block.translations, language, defaultLanguage)?.items?.[item.id] ?? item.text;
+}
+
+/** The patch that sets the words of a card in `language`: into the card itself for the default language, into the translations for another. */
+export function matchingItemTextPatch(block: MatchingBlock, itemId: string, language: string | null, defaultLanguage: string | null, text: string): Partial<MatchingBlock> {
+  if (isOwnWording(language, defaultLanguage) || !language) {
+    const set = (items: MatchItem[]) => items.map((item) => (item.id === itemId ? { ...item, text } : item));
+    return { sources: set(block.sources), targets: set(block.targets) };
+  }
+  const existing = block.translations?.[language] ?? {};
+  return { translations: { ...block.translations, [language]: { ...existing, items: { ...existing.items, [itemId]: text } } } };
 }
 
 /** The text beside the box of a checker in `language`: its translation if there is one, else the block's own (the default language's). */
@@ -120,6 +135,10 @@ export function isTranslated(block: Translatable, language: string | null, defau
   if (block.kind === "text" || block.kind === "cloze") return translation?.html !== undefined;
   if (block.kind === "quiz") return translation?.questionHtml !== undefined;
   if (block.kind === "list") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
+  if (block.kind === "matching") {
+    const first = block.sources[0] ?? block.targets[0];
+    return !first || translation?.items?.[first.id] !== undefined;
+  }
   return translation?.text !== undefined || translation?.html !== undefined;
 }
 
@@ -312,7 +331,7 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       delete block.translations[newDefault];
       continue;
     }
-    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "link" && block.kind !== "checker" && block.kind !== "list") continue;
+    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "link" && block.kind !== "checker" && block.kind !== "matching" && block.kind !== "list") continue;
     const incoming = block.translations?.[newDefault];
     const outgoing: BlockTranslation = {};
     if (block.kind === "text" || block.kind === "cloze") {
@@ -330,6 +349,13 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       } else if (incoming?.text !== undefined) {
         block.text = incoming.text;
         delete block.html;
+      }
+    } else if (block.kind === "matching") {
+      const cards = [...block.sources, ...block.targets];
+      outgoing.items = Object.fromEntries(cards.map((item) => [item.id, item.text]));
+      for (const item of cards) {
+        const translated = incoming?.items?.[item.id];
+        if (translated !== undefined) item.text = translated;
       }
     } else if (block.kind === "list") {
       outgoing.items = Object.fromEntries(block.items.map((item) => [item.id, item.html]));

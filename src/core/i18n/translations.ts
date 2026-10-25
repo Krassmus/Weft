@@ -55,6 +55,7 @@ const baseEn = {
   "block.list": "List",
   "block.cloze": "Gap text",
   "block.checker": "Checker",
+  "block.matching": "Matching",
   "block.placeholder": "Text placeholder",
   "block.script": "Logic block",
 
@@ -154,6 +155,7 @@ const baseDe: Record<keyof typeof baseEn, string> = {
   "block.list": "Liste",
   "block.cloze": "Lückentext",
   "block.checker": "Checker",
+  "block.matching": "Matching",
   "block.placeholder": "Platzhalter-Text",
   "block.script": "Logikblock",
 
@@ -247,6 +249,7 @@ export const BLOCK_KIND_KEYS: Record<Block["kind"], Extract<TranslationKey, `blo
   list: "block.list",
   cloze: "block.cloze",
   checker: "block.checker",
+  matching: "block.matching",
   placeholder: "block.placeholder",
   script: "block.script",
 };

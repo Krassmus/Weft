@@ -79,6 +79,10 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
       if (block.imageAlt.trim()) items.push({ key: `${id}#alt`, source: plainToHtml(block.imageAlt), role: "Bildbeschreibung" });
       return items;
     }
+    case "matching":
+      return [...block.sources.map((item, index) => ({ item, role: `Objekt ${index + 1}` })), ...block.targets.map((item, index) => ({ item, role: `Ziel ${index + 1}` }))]
+        .filter(({ item }) => hasWords(item.text))
+        .map(({ item, role }) => ({ key: `${id}#item:${item.id}`, source: item.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role: item.kind === "image" ? `${role} (Bildbeschreibung)` : role }));
     case "link":
     case "checker":
       return hasWords(block.text) ? [{ key: `${id}#label`, source: block.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role: "Text" }] : [];
@@ -114,7 +118,7 @@ function htmlToPlain(html: string): string {
     .trim();
 }
 
-const KIND_NAMES: Record<string, string> = { checker: "Checker", link: "Link", text: "Text", cloze: "Lückentext", quiz: "Quiz", list: "Liste", button: "Button", revealer: "Info-Symbol" };
+const KIND_NAMES: Record<string, string> = { matching: "Matching", checker: "Checker", link: "Link", text: "Text", cloze: "Lückentext", quiz: "Quiz", list: "Liste", button: "Button", revealer: "Info-Symbol" };
 
 /** The text a block has in `language`, if it has been translated (the block's own wording is not a translation). */
 function existingTranslation(block: Block, key: string, language: string): string {
@@ -127,7 +131,11 @@ function existingTranslation(block: Block, key: string, language: string): strin
   if (part === "title" || part === "body" || part === "alt") return translation[part] ? plainToHtml(translation[part] as string) : "";
   if (part === "button") return translation.text ? plainToHtml(translation.text) : "";
   if (part.startsWith("option:")) return translation.options?.[part.slice(7)] ?? "";
-  if (part.startsWith("item:")) return translation.items?.[part.slice(5)] ?? "";
+  if (part.startsWith("item:")) {
+    const own = translation.items?.[part.slice(5)] ?? "";
+    // (The cards of a matching are plain texts.)
+    return block.kind === "matching" && own ? plainToHtml(own) : own;
+  }
   return "";
 }
 
@@ -353,7 +361,7 @@ export function importTexts(content: WeftModule, file: TextsFile): ImportReport 
       else if (part === "title" || part === "body" || part === "alt") target[part] = htmlToPlain(translated);
       else if (part === "button") target.text = htmlToPlain(translated);
       else if (part.startsWith("option:")) (target.options ??= {})[part.slice(7)] = translated;
-      else if (part.startsWith("item:")) (target.items ??= {})[part.slice(5)] = translated;
+      else if (part.startsWith("item:")) (target.items ??= {})[part.slice(5)] = block.kind === "matching" ? htmlToPlain(translated) : translated;
       report.applied++;
     }
   }

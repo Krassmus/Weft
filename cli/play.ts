@@ -124,6 +124,22 @@ async function perform(session: ChromeSession, step: string): Promise<Outcome> {
       })()`);
       return result ? { problem: result } : { note: `Antworten angekreuzt: ${numbers.join(", ")}` };
     }
+    case "zuordnen": {
+      // zuordnen "Objekt" "Ziel": picks the object (by its text) and then the target, as the keyboard does - no dragging needed.
+      if (args.length < 2) throw new CliError('Was wohin? zuordnen "Apfel" "Obst"');
+      const result = await session.eval<string>(`(() => {
+        const [objectText, targetText] = ${JSON.stringify(args)};
+        const by = (selector, text) => [...document.querySelectorAll(selector)].find((b) => (b.innerText || b.getAttribute('aria-label') || '').trim().toLowerCase().includes(String(text).toLowerCase()));
+        const source = by('.weft-matching-source', objectText);
+        if (!source) return 'kein Objekt „' + objectText + '“ (mehr) zum Zuordnen';
+        const target = by('.weft-matching-target', targetText);
+        if (!target) return 'kein Ziel „' + targetText + '“';
+        source.click();
+        target.click();
+        return '';
+      })()`);
+      return result ? { problem: result } : { note: `zugeordnet: ${args[0]} → ${args[1]}` };
+    }
     case "submit": {
       const result = await session.eval<string>(`(() => {
         const button = [...document.querySelectorAll('.weft-quiz-submit')].find((b) => !b.hidden && !b.closest('[hidden]') && !b.disabled);
@@ -146,7 +162,7 @@ async function perform(session: ChromeSession, step: string): Promise<Outcome> {
       return result ? { problem: result } : { note: `eingetragen: ${args.join(", ")}` };
     }
     default:
-      throw new CliError(`Unbekannter Schritt „${step}". Möglich: weiter, zurueck, click <Text>, tick <n>…, submit, fill <Text>…, key <Taste>, wait <ms>, shot.`);
+      throw new CliError(`Unbekannter Schritt „${step}". Möglich: weiter, zurueck, click <Text>, tick <n>…, zuordnen <Objekt> <Ziel>, submit, fill <Text>…, key <Taste>, wait <ms>, shot.`);
   }
 }
 

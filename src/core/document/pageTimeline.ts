@@ -1,7 +1,7 @@
 import { isSnapshot } from "../collab/mutationScope";
 import { formatTimeMMSS } from "../formatTime";
 import { orderedValues } from "./ordering";
-import type { ActionEffect, Block, BlockEffect, RevealerBlock, BlockGroup, CheckerBlock, ClozeBlock, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode } from "../types";
+import type { ActionEffect, Block, BlockEffect, RevealerBlock, BlockGroup, CheckerBlock, ClozeBlock, MatchingBlock, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode } from "../types";
 import { isMediaBlock } from "../types";
 import type { MediaBlock } from "../types";
 import { tr } from "../i18n/tr";
@@ -58,21 +58,23 @@ export function quizEndNodeId(quizId: string, outcome: "richtig" | "falsch"): st
  * node, not two different-looking nodes that happen to share one id and so always select together).
  */
 function buildQuizLane(
-  quiz: QuizBlock | ClozeBlock | CheckerBlock,
+  quiz: QuizBlock | ClozeBlock | CheckerBlock | MatchingBlock,
   final?: { endId: string; kind: TimelineEdgeKind; delayMs?: number },
   outcome?: "richtig" | "falsch",
 ): TimelineLane {
   const fillId = quizFillNodeId(quiz.id);
   const submitId = quizSubmitNodeId(quiz.id, outcome);
   const nodes: TimelineNode[] = [
-    { id: fillId, kind: "event", sourceBlockId: quiz.id, eventType: "quiz-fill-start", ...(quiz.kind === "checker" ? { label: tr("ui.checker_toggled") } : {}) },
+    { id: fillId, kind: "event", sourceBlockId: quiz.id, eventType: "quiz-fill-start", ...(quiz.kind === "checker" ? { label: tr("ui.checker_toggled") } : quiz.kind === "matching" ? { label: tr("ui.matching_first") } : {}) },
     {
       id: submitId,
       kind: "event",
       sourceBlockId: quiz.id,
       eventType: outcome ? QUIZ_OUTCOME_EVENT_TYPES[outcome] : "quiz-submit",
       // (A gap text and a checker have the events of a quiz, under their own names; a checker's "richtig" is a ticked box.)
-      ...(quiz.kind === "checker"
+      ...(quiz.kind === "matching"
+        ? { label: tr(outcome === "richtig" ? "ui.matching_submitted_correct" : outcome === "falsch" ? "ui.matching_submitted_incorrect" : "ui.matching_submitted") }
+        : quiz.kind === "checker"
         ? { label: tr(outcome === "richtig" ? "ui.checker_submitted_ticked" : outcome === "falsch" ? "ui.checker_submitted_unticked" : "ui.checker_submitted") }
         : outcome
           ? { label: tr("ui.submitted", { n0: quiz.kind === "cloze" ? tr("ui.gap_text") : tr("ui.quiz"), outcome: tr(outcome === "richtig" ? "ui.outcome_correct" : "ui.outcome_incorrect") }) }
@@ -196,6 +198,7 @@ const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
   get link() { return tr("ui.link"); },
   get quiz() { return tr("ui.quiz"); },
   get checker() { return tr("ui.checker"); },
+  get matching() { return tr("ui.matching"); },
   get cloze() { return tr("ui.gap_text"); },
   get shape() { return tr("ui.shape"); },
   get arrow() { return tr("ui.arrow"); },
@@ -659,7 +662,7 @@ export function setTriggerEdge(
 function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<string, TimelineNode> } {
   const blocks = orderedValues(page.blocks);
   // A gap text has the events of a quiz (the first answer, submitted, right / wrong): the same lanes.
-  const quizzes = blocks.filter((b): b is QuizBlock | ClozeBlock | CheckerBlock => b.kind === "quiz" || b.kind === "cloze" || b.kind === "checker");
+  const quizzes = blocks.filter((b): b is QuizBlock | ClozeBlock | CheckerBlock | MatchingBlock => b.kind === "quiz" || b.kind === "cloze" || b.kind === "checker" || b.kind === "matching");
   const videos = blocks.filter((b): b is MediaBlock => isMediaBlock(b));
 
   const startNode: TimelineNode = { id: "start", kind: "start" };
@@ -939,7 +942,7 @@ function blockEventIds(page: Page): Set<string> {
       ids.add(revealerOpenNodeId(block.id));
       if (block.button) ids.add(revealerButtonNodeId(block.id));
     }
-    if (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker") {
+    if (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || block.kind === "matching") {
       ids.add(quizFillNodeId(block.id));
       ids.add(quizSubmitNodeId(block.id));
       ids.add(quizSubmitNodeId(block.id, "richtig"));
@@ -987,7 +990,7 @@ export function syncPageTimelineEvents(page: Page): void {
   const events = blockEventIds(page);
 
   // 1.
-  const quizIds = new Set(orderedValues(page.blocks).filter((b) => b.kind === "quiz" || b.kind === "cloze" || b.kind === "checker").map((b) => b.id));
+  const quizIds = new Set(orderedValues(page.blocks).filter((b) => b.kind === "quiz" || b.kind === "cloze" || b.kind === "checker" || b.kind === "matching").map((b) => b.id));
   for (const endId of Object.keys(timeline.ends)) {
     const quizEnd = /^end:quiz:(.+):(richtig|falsch)$/.exec(endId);
     if (!quizEnd) continue;

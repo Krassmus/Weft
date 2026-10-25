@@ -24,6 +24,7 @@ export const BLOCK_KINDS: Record<string, { definition: string; what: string }> =
   quiz: { definition: "QuizBlock", what: "Frage mit Antwortoptionen; richtig/falsch löst Variablen-Effekte und Ereignisse aus." },
   cloze: { definition: "ClozeBlock", what: "Lückentext: Antworten stehen als [[Antwort]] im Text." },
   button: { definition: "ButtonBlock", what: "Ein Button: Weiter, vorherige Folie, zu einer Folie springen oder ein Ereignis auslösen; kann Variablen ändern." },
+  matching: { definition: "MatchingBlock", what: "Matching: zwei Listen von Karten (Texte oder Bilder), die Objekte der ersten werden per Drag & Drop auf die der zweiten gezogen; richtige Zuordnungen (pairs), Ablenker ohne Ziel, Punkte für richtige und Folgen für falsche (Variablen-Effekte), Ereignisse wie bei einem Quiz." },
   checker: { definition: "CheckerBlock", what: "Ein Checker: Kästchen mit Text (zum Beispiel eine Einverständniserklärung) und „Abschicken“; was mit und ohne Haken passiert (Variablen-Effekte, Ereignisse wie bei einem Quiz), optional Pflichtangabe." },
   link: { definition: "LinkBlock", what: "Ein Link als eigenes Element: führt zu einer Adresse im Internet (neuer Tab), mit einem Globus; sieht aus wie ein Button des Modulstils. Dateien des Moduls gehören in den Dateien-Block." },
   image: { definition: "ImageBlock", what: "Ein Bild (Datei aus `assets`), optional mit Maske und Effekt." },

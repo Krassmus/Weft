@@ -273,8 +273,10 @@ function mergePatch(block: unknown, patch: unknown): unknown {
   const current = JSON.parse(JSON.stringify(block)) as Record<string, unknown>;
   const merged: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(patch)) {
+    // (The right assignments of a matching are replaced as a whole: they name the ids of its cards, which a new list of cards does not share.)
+    if (key === "pairs" && current.kind === "matching") merged[key] = value;
     // A text box that is not there yet starts from the standard one.
-    merged[key] = key === "box" && current.box === undefined && isPlain(value) ? mergeDeep(DEFAULT_TEXT_BOX, value) : mergeDeep(current[key], value);
+    else merged[key] = key === "box" && current.box === undefined && isPlain(value) ? mergeDeep(DEFAULT_TEXT_BOX, value) : mergeDeep(current[key], value);
   }
   return merged;
 }
@@ -658,6 +660,58 @@ const HANDLERS: Record<string, Handler> = {
     for (const key of ["name"]) if (op[key] !== undefined) set[key] = op[key];
     if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
     return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "shape", set, as: op.as });
+  },
+  // A matching: add_matching {page, sources, targets, pairs, shuffle?, required?, onEachCorrect?, onEachWrong?, onCorrect?, onIncorrect?, sourceSize?,
+  // targetSize?, x, y, width, height, effect?, name?, as}. `sources` (the objects to drag) and `targets` are lists of {text} or {file | asset, text?
+  // (the description of the picture)}; `pairs` says which target each source belongs to as [source index, target index] - a source that is in no
+  // pair belongs to none (a decoy). The cards are put in two columns; the places can be changed with update_block.
+  add_matching(ctx, op) {
+    const container = op.layout !== undefined ? { layout: op.layout } : { page: op.page };
+    const num = (value: unknown, fallback: number) => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
+    const list = (value: unknown, what: string): Record<string, unknown>[] => {
+      if (!Array.isArray(value) || value.length === 0) fail(`"${what}" fehlt: eine Liste von Objekten ({"text": "…"} oder {"file": "bild.png", "text": "Beschreibung"}).`);
+      return value as Record<string, unknown>[];
+    };
+    const sourceSpecs = list(op.sources, "sources");
+    const targetSpecs = list(op.targets, "targets");
+    // (A target has room for the sources that are put on it, so it is taller than a source.)
+    const sizeOf = (count: number, given: unknown, wide: number, tallest: number) => {
+      const size = given && typeof given === "object" ? (given as { width?: number; height?: number }) : {};
+      return { width: num(size.width, wide), height: num(size.height, Math.max(8, Math.min(tallest, Math.floor(92 / count) - 3))) };
+    };
+    const sourceSize = sizeOf(sourceSpecs.length, op.sourceSize, 34, 22);
+    const targetSize = sizeOf(targetSpecs.length, op.targetSize, 40, 40);
+    const makeItems = (specs: Record<string, unknown>[], size: { width: number; height: number }, x: number) =>
+      specs.map((spec, index) => {
+        const item: Record<string, unknown> = { id: createId(), kind: "text", text: typeof spec.text === "string" ? spec.text : "", x, y: Math.min(100 - size.height, 4 + index * (size.height + 3)) };
+        if (spec.file !== undefined || spec.asset !== undefined) {
+          item.kind = "image";
+          item.assetId = assetFor(ctx, spec, "image").id;
+        }
+        return item as { id: string };
+      });
+    const sources = makeItems(sourceSpecs, sourceSize, 3);
+    const targets = makeItems(targetSpecs, targetSize, 55);
+    const pairs: Record<string, string> = {};
+    for (const pair of Array.isArray(op.pairs) ? op.pairs : []) {
+      if (!Array.isArray(pair) || pair.length !== 2 || !sources[pair[0]] || !targets[pair[1]]) fail('"pairs" besteht aus Paaren [Nummer des Objekts, Nummer des Ziels], gezählt ab 0: [[0, 1], [1, 0]].');
+      pairs[sources[pair[0]].id] = targets[pair[1]].id;
+    }
+    const set: Record<string, unknown> = {
+      position: { x: num(op.x, 10), y: num(op.y, 22), width: num(op.width, 80), height: num(op.height, 58) },
+      sources,
+      targets,
+      pairs,
+      sourceSize,
+      targetSize,
+      onEachCorrect: [],
+      onEachWrong: [],
+      onCorrect: [],
+      onIncorrect: [],
+    };
+    for (const key of ["shuffle", "required", "onEachCorrect", "onEachWrong", "onCorrect", "onIncorrect", "name"]) if (op[key] !== undefined) set[key] = op[key];
+    if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
+    return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "matching", set, as: op.as });
   },
   // A checker as its own element: add_checker {page, text?, required?, onChecked?, onUnchecked?, x, y, width, height, effect?, name?, as}.
   // A checkbox with a text beside it and "Abschicken" under it; onChecked / onUnchecked are lists of variable effects

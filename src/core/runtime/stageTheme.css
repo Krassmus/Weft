@@ -265,3 +265,9 @@
   -webkit-mask-image: repeating-linear-gradient(225deg, #000 0 3px, transparent 3px 6px);
   mask-image: repeating-linear-gradient(225deg, #000 0 3px, transparent 3px 6px);
 }
+
+/* A target a card is held over has a solid border (see .is-over): the line along its cut corners is solid then, too. */
+:is(.weft-stage, .weft-thumb)[data-weft-style="futuristic"] :is(.weft-matching-target.is-over:not(.is-image), .weft-matching-target.is-over .weft-matching-frame)::after {
+  -webkit-mask-image: none;
+  mask-image: none;
+}

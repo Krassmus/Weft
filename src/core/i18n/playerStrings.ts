@@ -53,13 +53,13 @@ function resultsStrings(element: string, result: string, points: string, total: 
 }
 
 const RESULTS_TRANSLATIONS: Record<string, Record<ResultsStringKey, string>> = {
-  de: resultsStrings("Aufgabe", "Ergebnis", "Punkte", "Summe", "Richtig", "Falsch", "Beantwortet", "Nicht beantwortet", "Korrekturen aus Logikblöcken"),
-  en: resultsStrings("Item", "Result", "Points", "Total", "Correct", "Incorrect", "Answered", "Not answered", "Adjustments from logic blocks"),
-  fr: resultsStrings("Élément", "Résultat", "Points", "Total", "Juste", "Faux", "Répondu", "Sans réponse", "Corrections issues des blocs logiques"),
-  es: resultsStrings("Elemento", "Resultado", "Puntos", "Total", "Correcto", "Incorrecto", "Respondido", "Sin responder", "Ajustes de bloques lógicos"),
-  it: resultsStrings("Elemento", "Risultato", "Punti", "Totale", "Corretto", "Sbagliato", "Risposto", "Senza risposta", "Correzioni da blocchi logici"),
-  pt: resultsStrings("Elemento", "Resultado", "Pontos", "Total", "Correto", "Errado", "Respondido", "Sem resposta", "Ajustes de blocos lógicos"),
-  nl: resultsStrings("Onderdeel", "Resultaat", "Punten", "Totaal", "Goed", "Fout", "Beantwoord", "Niet beantwoord", "Correcties uit logicablokken"),
+  de: resultsStrings("Aufgabe", "Ergebnis", "Punkte", "Summe", "Richtig", "Falsch", "Beantwortet", "Nicht beantwortet", "Weitere Änderungen"),
+  en: resultsStrings("Item", "Result", "Points", "Total", "Correct", "Incorrect", "Answered", "Not answered", "Other changes"),
+  fr: resultsStrings("Élément", "Résultat", "Points", "Total", "Juste", "Faux", "Répondu", "Sans réponse", "Autres modifications"),
+  es: resultsStrings("Elemento", "Resultado", "Puntos", "Total", "Correcto", "Incorrecto", "Respondido", "Sin responder", "Otros cambios"),
+  it: resultsStrings("Elemento", "Risultato", "Punti", "Totale", "Corretto", "Sbagliato", "Risposto", "Senza risposta", "Altre modifiche"),
+  pt: resultsStrings("Elemento", "Resultado", "Pontos", "Total", "Correto", "Errado", "Respondido", "Sem resposta", "Outras alterações"),
+  nl: resultsStrings("Onderdeel", "Resultaat", "Punten", "Totaal", "Goed", "Fout", "Beantwoord", "Niet beantwoord", "Overige wijzigingen"),
 };
 
 function filesStrings(title: string, password: string, unlock: string, wrongPassword: string, download: string, failed: string): Record<FilesStringKey, string> {

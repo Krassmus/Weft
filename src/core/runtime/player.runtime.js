@@ -3250,8 +3250,9 @@
     // ---- the cards ----
     var targetPlaces = matchingPlaces(block, block.targets);
     block.targets.forEach(function (item, index) {
-      var card = el("button", { type: "button", class: "weft-matching-card weft-matching-target", "data-weft-target": item.id }, []);
-      place(card, item, block.targetSize, targetPlaces[index], true);
+      var card = el("button", { type: "button", class: "weft-matching-card weft-matching-target" + (item.kind === "image" ? " is-image" : ""), "data-weft-target": item.id }, []);
+      // (A target grows with the cards put on it - except a picture, which is shown as large as the card allows: the cards then stand below it.)
+      place(card, item, block.targetSize, targetPlaces[index], item.kind !== "image");
       var body = el("span", { class: "weft-matching-body" }, []);
       var dock = el("span", { class: "weft-matching-dock" }, []);
       card.appendChild(body);
@@ -3284,7 +3285,7 @@
 
     var sourcePlaces = matchingPlaces(block, block.sources);
     block.sources.forEach(function (item, index) {
-      var card = el("button", { type: "button", class: "weft-matching-card weft-matching-source", "data-weft-source": item.id }, []);
+      var card = el("button", { type: "button", class: "weft-matching-card weft-matching-source" + (item.kind === "image" ? " is-image" : ""), "data-weft-source": item.id }, []);
       place(card, item, block.sourceSize, sourcePlaces[index], false);
       var fill = function () {
         fillCard(card, item);
@@ -3487,6 +3488,14 @@
           var markIcon = el("span", { class: "weft-matching-mark", "aria-hidden": "true" }, []);
           markIcon.innerHTML = status === "correct" ? QUIZ_CORRECT_ICON_SVG : QUIZ_INCORRECT_ICON_SVG;
           card.appendChild(markIcon);
+          // On a picture the mark sits on the picture's corner, not the card's (the picture is smaller than its card where their shapes differ).
+          var shown = card.querySelector("img");
+          if (shown) {
+            var cardBox = card.getBoundingClientRect();
+            var imageBox = shown.getBoundingClientRect();
+            markIcon.style.top = Math.round(imageBox.top - cardBox.top) + 4 + "px";
+            markIcon.style.right = Math.round(cardBox.right - imageBox.right) + 4 + "px";
+          }
         }
         // Where it belonged, for whoever could not see the colours.
         if (right && status !== "correct") card.setAttribute("title", matchingLabel(block, itemById[right]));

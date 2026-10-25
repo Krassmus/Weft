@@ -35,7 +35,7 @@ export function MatchingView({
     return (
       <div
         key={item.id}
-        className={"weft-matching-card weft-matching-" + side + (drag?.id === item.id ? " is-dragged" : "") + (onCardPointerDown ? " is-movable" : "")}
+        className={"weft-matching-card weft-matching-" + side + (item.kind === "image" ? " is-image" : "") + (drag?.id === item.id ? " is-dragged" : "") + (onCardPointerDown ? " is-movable" : "")}
         style={{ left: `${place.x}%`, top: `${place.y}%`, width: `${size.width}%`, height: `${size.height}%` }}
         onPointerDown={onCardPointerDown ? (e) => onCardPointerDown(e, item, side) : undefined}
       >

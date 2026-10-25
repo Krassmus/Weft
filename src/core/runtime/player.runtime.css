@@ -1695,3 +1695,122 @@ summary:focus-visible,
     transition: none;
   }
 }
+
+/* Pictures: the frame is the picture's own - its corners, in the module's style - and not a button around it; the card is only the room the
+   picture may take. A source in a target is a small picture with the same frame. */
+.weft-matching-card.is-image {
+  overflow: visible;
+}
+
+.weft-matching-card.is-image.weft-matching-source,
+.weft-matching-card.is-image.weft-matching-target {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  clip-path: none;
+  box-shadow: none;
+}
+
+.weft-matching-card.is-image .weft-matching-image {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--slide-line-strong);
+  /* The corners of a picture in the module's style (those a revealer's picture has): a pill-shaped picture would be an oval. */
+  border-radius: var(--slide-ui-inner-radius);
+  clip-path: var(--slide-ui-panel-clip);
+  background: var(--slide-surface);
+}
+
+.weft-matching-card.is-image.weft-matching-target .weft-matching-image {
+  border-style: dashed;
+  background: var(--slide-surface-quiet);
+}
+
+.weft-matching-source.is-image.is-docked .weft-matching-image {
+  /* (A card that is as wide as its content cannot give the picture a width to take a share of: the picture has a height of its own.) */
+  height: 3.4em;
+  max-width: none;
+  max-height: none;
+}
+
+.weft-matching-source.is-image.is-docked {
+  padding: 0;
+}
+
+.weft-block-matching {
+  /* The shadow of a hovered button or card reaches beyond the box of the block. */
+  overflow: visible;
+}
+
+.weft-matching-source.is-image:hover {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.weft-matching-source.is-image:hover .weft-matching-image {
+  border-color: var(--slide-accent-ink);
+  filter: brightness(1.05);
+}
+
+.weft-matching-target.is-image.is-over {
+  background: transparent;
+}
+
+.weft-matching-target.is-image.is-over .weft-matching-image {
+  border-style: solid;
+  border-color: var(--slide-accent-ink);
+  background: var(--slide-accent-soft);
+}
+
+.weft-matching-source.is-image.is-correct,
+.weft-matching-source.is-image.is-wrong,
+.weft-matching-source.is-image.is-missed {
+  background: transparent;
+  border: 0;
+}
+
+.weft-matching-source.is-image.is-correct .weft-matching-image {
+  border-color: var(--slide-ok);
+}
+
+.weft-matching-source.is-image.is-wrong .weft-matching-image {
+  border-color: var(--slide-bad);
+}
+
+.weft-matching-source.is-image.is-missed .weft-matching-image {
+  border-style: dashed;
+  border-color: var(--slide-bad);
+}
+
+/* The picture, enlarged: it comes in with a small rise and growth, and the dimming fades in. */
+.weft-matching-lightbox {
+  animation: weft-lightbox-fade 0.2s ease-out;
+}
+
+.weft-matching-lightbox img {
+  animation: weft-lightbox-image 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes weft-lightbox-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes weft-lightbox-image {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(1.2em);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weft-matching-lightbox,
+  .weft-matching-lightbox img {
+    animation: none;
+  }
+}

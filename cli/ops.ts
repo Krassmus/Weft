@@ -659,6 +659,17 @@ const HANDLERS: Record<string, Handler> = {
     if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
     return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "shape", set, as: op.as });
   },
+  // A checker as its own element: add_checker {page, text?, mustCheck?, required?, onChecked?, onUnchecked?, x, y, width, height, effect?, name?, as}.
+  // A checkbox with a text beside it and "Abschicken" under it; onChecked / onUnchecked are lists of variable effects
+  // ({"variableId": "punkte", "op": "add", "value": 1}) for submitting with and without the tick.
+  add_checker(ctx, op) {
+    const container = op.layout !== undefined ? { layout: op.layout } : { page: op.page };
+    const num = (value: unknown, fallback: number) => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
+    const set: Record<string, unknown> = { position: { x: num(op.x, 10), y: num(op.y, 38), width: num(op.width, 80), height: num(op.height, 24) } };
+    for (const key of ["text", "mustCheck", "required", "onChecked", "onUnchecked", "name"]) if (op[key] !== undefined) set[key] = op[key];
+    if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
+    return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "checker", set, as: op.as });
+  },
   // A link as its own element: add_link {page | layout, url, text?, x, y, width, height, effect?, name?, as}. url: an address (http, https,
   // mailto, tel; one without a scheme becomes https) that opens in a new tab. How it looks is the module's style of interactive
   // elements.

@@ -6503,3 +6503,15 @@ h2.weft-inspector-header {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* A checker (CheckerBlock, blocks/CheckerView.tsx): a quiz's one answer and its button, on the canvas as in the thumbnails - the sizes and the
+   look of both are the .weft-thumb-block-quiz-* ones above. The text keeps its line breaks. */
+.weft-checker-view {
+  font-size: 1.7cqw;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-checker-view-text {
+  white-space: pre-wrap;
+}

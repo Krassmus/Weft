@@ -54,6 +54,7 @@ const baseEn = {
   "block.files": "Files",
   "block.list": "List",
   "block.cloze": "Gap text",
+  "block.checker": "Checker",
   "block.placeholder": "Text placeholder",
   "block.script": "Logic block",
 
@@ -152,6 +153,7 @@ const baseDe: Record<keyof typeof baseEn, string> = {
   "block.files": "Dateien",
   "block.list": "Liste",
   "block.cloze": "Lückentext",
+  "block.checker": "Checker",
   "block.placeholder": "Platzhalter-Text",
   "block.script": "Logikblock",
 
@@ -244,6 +246,7 @@ export const BLOCK_KIND_KEYS: Record<Block["kind"], Extract<TranslationKey, `blo
   files: "block.files",
   list: "block.list",
   cloze: "block.cloze",
+  checker: "block.checker",
   placeholder: "block.placeholder",
   script: "block.script",
 };

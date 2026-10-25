@@ -507,6 +507,29 @@ export interface ClozeBlock extends BaseBlock {
   onIncorrect: VariableEffect[];
 }
 
+/**
+ * A checker: a checkbox with a text beside it - a declaration of consent, say - and under it a button "Abschicken". What happens once it is
+ * submitted depends on whether the box is ticked (`onChecked`, `onUnchecked`: changes to variables, like the effects of a quiz). It has the
+ * events of a quiz in the page's graph (a first click on the box, submitted - plain, and with the outcome: "richtig" is ticked, "falsch" is
+ * not), so that what follows can hang on them like on a quiz's, and it lives on pages only (it holds a state). It looks like the other
+ * interactive elements of the module's style (the corners and the typeface).
+ */
+export interface CheckerBlock extends BaseBlock {
+  kind: "checker";
+  /** The words beside the box (plain text, line breaks are kept). */
+  text: string;
+  /** Other languages' wording (`text`), by locale - see BlockTranslation. */
+  translations?: Record<string, BlockTranslation>;
+  /** The box has to be ticked for "Abschicken" to be possible (an agreement that cannot be given by leaving it empty) - else it can be
+   * submitted either way, and `onUnchecked` is what a refusal does. Absent: the box need not be ticked. */
+  mustCheck?: boolean;
+  /** A required task, as QuizBlock.required: the page cannot be left by Weiter before it has been submitted. Absent: not required. */
+  required?: boolean;
+  /** What happens when it is submitted with the box ticked / not ticked. */
+  onChecked: VariableEffect[];
+  onUnchecked: VariableEffect[];
+}
+
 /** How a button looks (ButtonBlock.appearance). Lengths are cqw (percent of the slide's width). A part that is missing is what the
  * module's look gives it (the accent colour for the background and the border, see WeftModule.accentColor) and the defaults of
  * DEFAULT_BUTTON_APPEARANCE (core/document/buttonAppearance.ts). The colour of the letters is part of the label. */
@@ -760,7 +783,7 @@ export interface LinkBlock extends BaseBlock {
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
 export type StaticBlock = TextBlock | PlaceholderBlock | ListBlock | LanguageBlock | ProgressBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | AudioBlock | RevealerBlock | IframeBlock | ButtonBlock | LinkBlock | ShapeBlock | ArrowBlock | FilesBlock;
-export type Block = StaticBlock | QuizBlock | ClozeBlock | ScriptBlock;
+export type Block = StaticBlock | QuizBlock | ClozeBlock | CheckerBlock | ScriptBlock;
 
 /** A block as it's first made, before it has been put somewhere (and so given its `order`). */
 export type NewBlock = Block extends infer B ? (B extends Block ? Omit<B, "order"> : never) : never;

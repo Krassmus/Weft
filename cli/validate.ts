@@ -56,6 +56,7 @@ const KIND_DEFINITIONS: Record<string, string> = {
   iframe: "IframeBlock",
   button: "ButtonBlock",
   link: "LinkBlock",
+  checker: "CheckerBlock",
   quiz: "QuizBlock",
   cloze: "ClozeBlock",
   shape: "ShapeBlock",
@@ -177,6 +178,8 @@ function effectsOf(block: Block): { effects: VariableEffect[]; what: string }[] 
     groups.push({ effects: block.onCorrect ?? [], what: "wenn alles richtig ist" }, { effects: block.onIncorrect ?? [], what: "wenn etwas falsch ist" });
     groups.push({ effects: block.onEachCorrect ?? [], what: "bei jeder richtigen Lücke" });
     for (const effects of Object.values(block.answerEffects ?? {})) groups.push({ effects, what: "bei einer bestimmten Antwort" });
+  } else if (block.kind === "checker") {
+    groups.push({ effects: block.onChecked ?? [], what: "beim Abschicken mit Haken" }, { effects: block.onUnchecked ?? [], what: "beim Abschicken ohne Haken" });
   } else if (block.kind === "button") {
     groups.push({ effects: block.onClick ?? [], what: "beim Klick" });
   }
@@ -216,6 +219,15 @@ export function eventLabel(page: Page, node: TimelineNode, content: WeftModule, 
     "revealer-open": "Revealer öffnet sich",
     "revealer-button": "Button im Revealer geklickt",
   };
+  // (A checker has the events of a quiz, under its own names: the box ticked or cleared, submitted - with the tick or without it.)
+  if (block?.kind === "checker") {
+    Object.assign(names, {
+      "quiz-fill-start": "Checker: Haken gesetzt oder entfernt",
+      "quiz-submit": "Checker abgeschickt",
+      "quiz-submit-correct": "Checker mit Haken abgeschickt",
+      "quiz-submit-incorrect": "Checker ohne Haken abgeschickt",
+    });
+  }
   return `${names[node.eventType ?? ""] ?? node.eventType ?? node.id}${what}`;
 }
 
@@ -472,13 +484,13 @@ export function validate(loaded: LoadedWeft): Finding[] {
     }
 
     // Translations.
-    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "link" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
+    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
       const hasWords =
         block.kind === "quiz"
           ? plainTextOfHtml(block.questionHtml).trim() !== ""
           : block.kind === "list"
             ? block.items.length > 0
-            : block.kind === "button" || block.kind === "link"
+            : block.kind === "button" || block.kind === "link" || block.kind === "checker"
               ? block.text.trim() !== ""
               : plainTextOfHtml(block.html).trim() !== "";
       // A text that stands for a placeholder of the layout is the page's own, and has its words in each language like any other.

@@ -116,8 +116,8 @@ async function perform(session: ChromeSession, step: string): Promise<Outcome> {
       const numbers = args.map(Number);
       if (numbers.length === 0 || numbers.some((n) => !Number.isInteger(n) || n < 1)) throw new CliError("Welche Antworten? tick 1 3 (gezählt ab 1)");
       const result = await session.eval<string>(`(() => {
-        const quiz = [...document.querySelectorAll('.weft-block-quiz')].find((b) => b.querySelector('.weft-quiz-submit:not([hidden])'));
-        if (!quiz) return 'kein Quiz, das noch zu beantworten ist';
+        const quiz = [...document.querySelectorAll('.weft-block-quiz, .weft-block-checker')].find((b) => b.querySelector('.weft-quiz-submit:not([hidden])'));
+        if (!quiz) return 'kein Quiz oder Checker, das noch zu beantworten ist';
         const boxes = [...quiz.querySelectorAll('.weft-quiz-option-input')];
         for (const n of ${JSON.stringify(numbers)}) { if (!boxes[n - 1]) return 'das Quiz hat nur ' + boxes.length + ' Antworten'; if (!boxes[n - 1].checked) boxes[n - 1].click(); }
         return '';

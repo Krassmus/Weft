@@ -22,7 +22,7 @@ export type A11yStringKey = "previous" | "navigation" | "slide" | "blank" | "emb
 
 /** The texts of the table on the finished screen that lists what the graded elements (quizzes, gap texts) gave - see renderDoneSummary in
  * player.runtime.js. A language without its own entry falls back to English. */
-export type ResultsStringKey = "resultsElement" | "resultsResult" | "resultsPoints" | "resultsTotal" | "resultsRight" | "resultsWrong" | "resultsAnswered" | "resultsOpen" | "resultsAdjustment";
+export type ResultsStringKey = "resultsElement" | "resultsResult" | "resultsPoints" | "resultsTotal" | "resultsRight" | "resultsWrong" | "resultsAnswered" | "resultsOpen" | "resultsAdjustment" | "resultsTicked" | "resultsUnticked";
 
 type Strings = Record<PlayerStringKey | FilesStringKey | A11yStringKey | ResultsStringKey | "thanks", string>;
 
@@ -48,18 +48,18 @@ const A11Y_TRANSLATIONS: Record<string, Record<A11yStringKey, string>> = {
   nl: a11yStrings("Terug", "Navigatie", "Dia {n}", "Open plek {n} van {total}", "Ingebedde pagina", "Meer informatie tonen", "Sluiten", "Verstuur eerst de opdracht."),
 };
 
-function resultsStrings(element: string, result: string, points: string, total: string, right: string, wrong: string, answered: string, open: string, adjustment: string): Record<ResultsStringKey, string> {
-  return { resultsElement: element, resultsResult: result, resultsPoints: points, resultsTotal: total, resultsRight: right, resultsWrong: wrong, resultsAnswered: answered, resultsOpen: open, resultsAdjustment: adjustment };
+function resultsStrings(element: string, result: string, points: string, total: string, right: string, wrong: string, answered: string, open: string, adjustment: string, ticked: string, unticked: string): Record<ResultsStringKey, string> {
+  return { resultsElement: element, resultsResult: result, resultsPoints: points, resultsTotal: total, resultsRight: right, resultsWrong: wrong, resultsAnswered: answered, resultsOpen: open, resultsAdjustment: adjustment, resultsTicked: ticked, resultsUnticked: unticked };
 }
 
 const RESULTS_TRANSLATIONS: Record<string, Record<ResultsStringKey, string>> = {
-  de: resultsStrings("Aufgabe", "Ergebnis", "Punkte", "Summe", "Richtig", "Falsch", "Beantwortet", "Nicht beantwortet", "Weitere Änderungen"),
-  en: resultsStrings("Item", "Result", "Points", "Total", "Correct", "Incorrect", "Answered", "Not answered", "Other changes"),
-  fr: resultsStrings("Élément", "Résultat", "Points", "Total", "Juste", "Faux", "Répondu", "Sans réponse", "Autres modifications"),
-  es: resultsStrings("Elemento", "Resultado", "Puntos", "Total", "Correcto", "Incorrecto", "Respondido", "Sin responder", "Otros cambios"),
-  it: resultsStrings("Elemento", "Risultato", "Punti", "Totale", "Corretto", "Sbagliato", "Risposto", "Senza risposta", "Altre modifiche"),
-  pt: resultsStrings("Elemento", "Resultado", "Pontos", "Total", "Correto", "Errado", "Respondido", "Sem resposta", "Outras alterações"),
-  nl: resultsStrings("Onderdeel", "Resultaat", "Punten", "Totaal", "Goed", "Fout", "Beantwoord", "Niet beantwoord", "Overige wijzigingen"),
+  de: resultsStrings("Aufgabe", "Ergebnis", "Punkte", "Summe", "Richtig", "Falsch", "Beantwortet", "Nicht beantwortet", "Weitere Änderungen", "Mit Haken", "Ohne Haken"),
+  en: resultsStrings("Item", "Result", "Points", "Total", "Correct", "Incorrect", "Answered", "Not answered", "Other changes", "Ticked", "Not ticked"),
+  fr: resultsStrings("Élément", "Résultat", "Points", "Total", "Juste", "Faux", "Répondu", "Sans réponse", "Autres modifications", "Coché", "Non coché"),
+  es: resultsStrings("Elemento", "Resultado", "Puntos", "Total", "Correcto", "Incorrecto", "Respondido", "Sin responder", "Otros cambios", "Marcado", "Sin marcar"),
+  it: resultsStrings("Elemento", "Risultato", "Punti", "Totale", "Corretto", "Sbagliato", "Risposto", "Senza risposta", "Altre modifiche", "Selezionato", "Non selezionato"),
+  pt: resultsStrings("Elemento", "Resultado", "Pontos", "Total", "Correto", "Errado", "Respondido", "Sem resposta", "Outras alterações", "Marcado", "Não marcado"),
+  nl: resultsStrings("Onderdeel", "Resultaat", "Punten", "Totaal", "Goed", "Fout", "Beantwoord", "Niet beantwoord", "Overige wijzigingen", "Aangevinkt", "Niet aangevinkt"),
 };
 
 function filesStrings(title: string, password: string, unlock: string, wrongPassword: string, download: string, failed: string): Record<FilesStringKey, string> {

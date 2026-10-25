@@ -394,7 +394,7 @@
     else if (block.kind === "tex") {
       var mathml = wrap.querySelector(".katex-mathml");
       text = mathml ? mathml.textContent : block.tex || "";
-    } else if (block.kind === "text" || block.kind === "list" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "button" || block.kind === "link" || block.kind === "code") {
+    } else if (block.kind === "text" || block.kind === "list" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "code") {
       text = wrap.textContent || "";
     }
     text = String(text).replace(/\s+/g, " ").trim();
@@ -853,7 +853,7 @@
   // answer was being worked out - measured, not read off the effects, so a "set" counts as the change it made.
 
   function scoringVariableIds(block) {
-    var lists = [block.onCorrect, block.onIncorrect, block.onEachCorrect];
+    var lists = [block.onCorrect, block.onIncorrect, block.onEachCorrect, block.onChecked, block.onUnchecked];
     Object.keys(block.answerEffects || {}).forEach(function (key) {
       lists.push(block.answerEffects[key]);
     });
@@ -897,7 +897,8 @@
   function gradedTitle(block) {
     if (block.name) return String(block.name);
     var holder = document.createElement("div");
-    holder.innerHTML = block.kind === "quiz" ? quizQuestionHtml(block) : blockHtml(block);
+    if (block.kind === "checker") holder.textContent = checkerLabel(block);
+    else holder.innerHTML = block.kind === "quiz" ? quizQuestionHtml(block) : blockHtml(block);
     var text = (holder.textContent || "").replace(/\[\[[^\]]*\]\]/g, "\u2026").replace(/\s+/g, " ").trim();
     return text.length > 80 ? text.slice(0, 79) + "\u2026" : text;
   }
@@ -911,7 +912,7 @@
       var page = module.pages[pageId];
       if (!page) return;
       page.blocks.forEach(function (block) {
-        if (block.kind !== "quiz" && block.kind !== "cloze") return;
+        if (block.kind !== "quiz" && block.kind !== "cloze" && block.kind !== "checker") return;
         var ids = scoringVariableIds(block);
         if (ids.length === 0) return;
         var result = (gradedAtPos[index] || []).filter(function (r) {
@@ -960,7 +961,7 @@
     summary.rows.forEach(function (row) {
       var tr = el("tr", {}, [
         cell("td", row.title),
-        cell("td", uiString({ right: "resultsRight", wrong: "resultsWrong", answered: "resultsAnswered", open: "resultsOpen" }[row.outcome]), "weft-done-" + row.outcome),
+        cell("td", uiString({ right: "resultsRight", wrong: "resultsWrong", answered: "resultsAnswered", open: "resultsOpen", ticked: "resultsTicked", unticked: "resultsUnticked" }[row.outcome]), "weft-done-" + row.outcome),
       ]);
       summary.columns.forEach(function (id, i) {
         var has = Object.prototype.hasOwnProperty.call(row.deltas, id);
@@ -3046,6 +3047,108 @@
     return wrap;
   }
 
+  // ---- CheckerBlock: a checkbox with a text, and "Abschicken" under it ----
+  // It is built of the markup of a quiz with one answer (and so has the look of the module's style - the corners, the typeface, the
+  // colours of an answer and of the button - from the same stylesheet), and has the events of a quiz: the first click on the box
+  // (quiz-fill), submitted (quiz-submit) and, with it, "richtig" for a ticked box and "falsch" for one that is not.
+
+  function checkerLabel(block) {
+    var t = currentTranslation(block);
+    return (t && t.text !== undefined ? t.text : block.text) || "";
+  }
+
+  function renderCheckerBlock(block) {
+    var wrap = el("div", { class: "weft-block weft-block-checker", "data-weft-block": block.id, style: positionStyle(block.position) });
+    if (block.required) requiredPending[block.id] = true;
+    var form = el("form", { class: "weft-quiz weft-checker" }, []);
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+    });
+
+    var optionsWrap = el("div", { class: "weft-quiz-options", role: "group" }, []);
+    var optionLabel = el("label", { class: "weft-quiz-option" }, []);
+    var checkboxWrap = el("span", { class: "weft-quiz-option-checkbox" }, []);
+    var input = el("input", { type: "checkbox", name: "check-" + block.id, class: "weft-quiz-option-input" }, []);
+    var uncheckedIcon = el("span", { class: "weft-quiz-option-checkbox-icon weft-quiz-option-checkbox-icon-unchecked", "aria-hidden": "true" }, []);
+    uncheckedIcon.innerHTML = QUIZ_CHECKBOX_UNCHECKED_SVG;
+    var checkedIcon = el("span", { class: "weft-quiz-option-checkbox-icon weft-quiz-option-checkbox-icon-checked", "aria-hidden": "true" }, []);
+    checkedIcon.innerHTML = QUIZ_CHECKBOX_CHECKED_SVG;
+    checkboxWrap.appendChild(input);
+    checkboxWrap.appendChild(uncheckedIcon);
+    checkboxWrap.appendChild(checkedIcon);
+    var text = el("span", { class: "weft-quiz-option-text weft-checker-text" }, []);
+    var fillText = function () {
+      text.textContent = checkerLabel(block);
+      applyVariablesToNode(text);
+    };
+    fillText();
+    languageRefreshers.push(fillText);
+    optionLabel.appendChild(checkboxWrap);
+    optionLabel.appendChild(text);
+    optionsWrap.appendChild(optionLabel);
+    form.appendChild(optionsWrap);
+
+    var submit = el("button", { type: "button", class: "weft-quiz-submit" }, []);
+    var submitIcon = el("span", { class: "weft-quiz-submit-icon", "aria-hidden": "true" }, []);
+    submitIcon.innerHTML = QUIZ_SUBMIT_ICON_SVG;
+    submit.appendChild(submitIcon);
+    var submitLabel = document.createTextNode(uiString("submit"));
+    submit.appendChild(submitLabel);
+    form.appendChild(submit);
+    // Without the tick there is nothing to submit, where the box has to be ticked.
+    var showSubmitState = function () {
+      submit.disabled = block.mustCheck === true && !input.checked;
+    };
+    showSubmitState();
+
+    var submitted = false;
+    var feedback = el("div", { class: "weft-quiz-feedback is-thanks", hidden: "" }, []);
+    var feedbackIcon = el("span", { class: "weft-quiz-feedback-icon", "aria-hidden": "true" }, []);
+    feedbackIcon.innerHTML = QUIZ_CORRECT_ICON_SVG;
+    var feedbackTitle = el("strong", { class: "weft-quiz-feedback-title" }, []);
+    feedback.appendChild(feedbackIcon);
+    feedback.appendChild(feedbackTitle);
+    form.appendChild(feedback);
+    var showFeedbackTitle = function () {
+      feedbackTitle.textContent = uiString("thanks");
+    };
+    languageRefreshers.push(function () {
+      submitLabel.nodeValue = uiString("submit");
+      if (submitted) showFeedbackTitle();
+    });
+
+    // The first click on the box is the quiz's "first answer" (see quizFillEventId).
+    var hasFiredFill = false;
+    input.addEventListener("change", function () {
+      showSubmitState();
+      if (hasFiredFill) return;
+      hasFiredFill = true;
+      happened(quizFillEventId(block.id));
+    });
+
+    submit.addEventListener("click", function () {
+      if (submitted) return;
+      var ticked = input.checked;
+      if (block.mustCheck && !ticked) return;
+      submitted = true;
+      var mark = scoreMark(block);
+      (ticked ? block.onChecked : block.onUnchecked || []).forEach(applyEffect);
+      scoreRecord(block, mark, ticked ? "ticked" : "unticked");
+      requiredDone(block.id);
+      happened(quizSubmitEventId(block.id));
+      happened(quizSubmitEventId(block.id, ticked ? "richtig" : "falsch"));
+      // Replaces the button, and locks the box: what was submitted cannot be changed by ticking it again.
+      submit.hidden = true;
+      input.disabled = true;
+      showFeedbackTitle();
+      feedback.hidden = false;
+      announce(feedbackTitle.textContent);
+    });
+
+    wrap.appendChild(form);
+    return wrap;
+  }
+
   // ---- ClozeBlock ("Lückentext"): kept in sync by hand with core/document/cloze.ts, which this file can't import. ----
 
   var CLOZE_MARKER = /\[\[([^\[\]]+)\]\]/g;
@@ -3240,7 +3343,7 @@
       }
       return el("div", { class: "weft-block weft-block-script", style: "display:none;" }, []);
     }
-    var wrap = block.kind === "progress" ? renderProgressBlock(block) : block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : block.kind === "link" ? renderLinkBlock(block) : block.kind === "revealer" ? renderRevealerBlock(block) : renderStaticBlock(block, page);
+    var wrap = block.kind === "progress" ? renderProgressBlock(block) : block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "checker" ? renderCheckerBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : block.kind === "link" ? renderLinkBlock(block) : block.kind === "revealer" ? renderRevealerBlock(block) : renderStaticBlock(block, page);
     applyBlockEffects(wrap, block, page);
     applyActionEffects(wrap, block);
     if (block.kind === "list" && wrap.weftListItems) applyListItemEffects(block, wrap.weftListItems);

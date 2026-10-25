@@ -43,6 +43,9 @@ export function placeholderSources(block: Block): string[] {
           t.html !== undefined ? [t.html] : t.text !== undefined ? [escapeText(t.text)] : [],
         ),
       ];
+    case "checker":
+      // (A plain text, escaped first, like a button's plain label.)
+      return [escapeText(block.text), ...Object.values(block.translations ?? {}).flatMap((t) => (t.text !== undefined ? [escapeText(t.text)] : []))];
     default:
       return [];
   }

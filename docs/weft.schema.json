@@ -269,6 +269,9 @@
           "$ref": "#/definitions/ClozeBlock"
         },
         {
+          "$ref": "#/definitions/CheckerBlock"
+        },
+        {
           "$ref": "#/definitions/ScriptBlock"
         }
       ]
@@ -588,6 +591,89 @@
         "exitEffect",
         "id",
         "kind",
+        "order",
+        "position",
+        "text"
+      ],
+      "type": "object"
+    },
+    "CheckerBlock": {
+      "additionalProperties": false,
+      "description": "A checker: a checkbox with a text beside it - a declaration of consent, say - and under it a button \"Abschicken\". What happens once it is submitted depends on whether the box is ticked (`onChecked`, `onUnchecked`: changes to variables, like the effects of a quiz). It has the events of a quiz in the page's graph (a first click on the box, submitted - plain, and with the outcome: \"richtig\" is ticked, \"falsch\" is not), so that what follows can hang on them like on a quiz's, and it lives on pages only (it holds a state). It looks like the other interactive elements of the module's style (the corners and the typeface).",
+      "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "checker",
+          "type": "string"
+        },
+        "mustCheck": {
+          "description": "The box has to be ticked for \"Abschicken\" to be possible (an agreement that cannot be given by leaving it empty) - else it can be submitted either way, and `onUnchecked` is what a refusal does. Absent: the box need not be ticked.",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
+          "type": "string"
+        },
+        "onChecked": {
+          "description": "What happens when it is submitted with the box ticked / not ticked.",
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        },
+        "onUnchecked": {
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "required": {
+          "description": "A required task, as QuizBlock.required: the page cannot be left by Weiter before it has been submitted. Absent: not required.",
+          "type": "boolean"
+        },
+        "text": {
+          "description": "The words beside the box (plain text, line breaks are kept).",
+          "type": "string"
+        },
+        "translations": {
+          "additionalProperties": {
+            "$ref": "#/definitions/BlockTranslation"
+          },
+          "description": "Other languages' wording (`text`), by locale - see BlockTranslation.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "entranceEffect",
+        "exitEffect",
+        "id",
+        "kind",
+        "onChecked",
+        "onUnchecked",
         "order",
         "position",
         "text"

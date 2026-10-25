@@ -12,7 +12,7 @@ export function blockTitle(block: Block, t: (key: TranslationKey) => string): st
     const title = block.title.trim();
     return title ? `${kindName}: ${title.length > 26 ? `${title.slice(0, 25)}…` : title}` : kindName;
   }
-  if (block.kind === "link") {
+  if (block.kind === "link" || block.kind === "checker") {
     const kindName = t(BLOCK_KIND_KEYS[block.kind]);
     const words = block.text.trim();
     return words ? `${kindName}: ${words.length > 26 ? `${words.slice(0, 25)}…` : words}` : kindName;

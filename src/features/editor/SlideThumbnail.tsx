@@ -33,6 +33,7 @@ import checkboxUncheckedSvg from "../../../mockups/icons/checkbox-unchecked.svg?
 import acceptSvg from "../../../mockups/icons/accept.svg?raw";
 import { tr } from "../../core/i18n/tr";
 import { LinkView } from "./blocks/LinkView";
+import { CheckerView } from "./blocks/CheckerView";
 import { safeLinkUrl } from "../../core/document/linkUrl";
 import { ScriptHexagon } from "./blocks/ScriptHexagon";
 
@@ -379,6 +380,13 @@ function ThumbBlockBody({
     return (
       <div className="weft-thumb-block weft-thumb-block-link" style={style} {...(address ? { "data-pdf-link": address } : {})}>
         <LinkView block={block} lang={lang} defaultLang={defaultLang} />
+      </div>
+    );
+  }
+  if (block.kind === "checker") {
+    return (
+      <div className="weft-thumb-block" style={style}>
+        <CheckerView block={block} lang={lang} defaultLang={defaultLang} />
       </div>
     );
   }

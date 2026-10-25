@@ -649,6 +649,15 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
         onCorrect: [],
         onIncorrect: [],
       };
+    case "checker":
+      return {
+        ...base,
+        kind,
+        position: { x: 10, y: 38, width: 80, height: 24 },
+        text: tr("ui.checker_sample_text"),
+        onChecked: [],
+        onUnchecked: [],
+      };
     case "placeholder":
       return { ...base, kind, position, label: tr("ui.placeholder"), html: tr("ui.placeholder_text") };
     case "list":
@@ -838,7 +847,7 @@ export function updateBlock(pageId: string, blockId: string, patch: Partial<Bloc
     // page.timeline.triggers, not on the block itself - see setEventTrigger below.
     const touchesEffect = "entranceEffect" in patch || "exitEffect" in patch;
     const touchesList = block.kind === "list" && ("items" in patch || "itemEntrance" in patch);
-    if (page && (block.kind === "quiz" || block.kind === "cloze" || isMediaBlock(block) || touchesEffect || touchesList)) {
+    if (page && (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || isMediaBlock(block) || touchesEffect || touchesList)) {
       syncPageTimelineEvents(page);
     }
     // A list whose items have an Aufbau of their own: a new item (or all of them, when the switch has just been turned on) takes its
@@ -1930,7 +1939,7 @@ export function pasteBlockInto(
   target: { kind: "page"; pageId: string } | { kind: "layout"; layoutId: string },
   sourceBlock: Block,
 ): string | null {
-  if (target.kind === "layout" && (sourceBlock.kind === "quiz" || sourceBlock.kind === "cloze" || sourceBlock.kind === "script")) return null;
+  if (target.kind === "layout" && (sourceBlock.kind === "quiz" || sourceBlock.kind === "cloze" || sourceBlock.kind === "checker" || sourceBlock.kind === "script")) return null;
   // A placeholder only exists in a layout.
   if (target.kind === "page" && sourceBlock.kind === "placeholder") return null;
   const newBlock = cloneBlockWithNewId(sourceBlock);

@@ -83,6 +83,7 @@ function blockLines(block: Block): string[] {
     case "button":
       return plainLinesOfHtml(block.html ?? block.text);
     case "link":
+    case "checker":
       return [block.text];
     case "list":
       return block.items.flatMap((item) => plainLinesOfHtml(item.html));

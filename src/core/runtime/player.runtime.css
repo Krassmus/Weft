@@ -157,6 +157,14 @@ body {
   color: var(--slide-ok-text);
 }
 
+.weft-done-summary .weft-done-ticked {
+  color: var(--slide-ok-text);
+}
+
+.weft-done-summary .weft-done-unticked {
+  color: var(--slide-muted);
+}
+
 .weft-done-summary .weft-done-wrong {
   color: var(--slide-bad-text);
 }

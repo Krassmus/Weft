@@ -6,6 +6,14 @@ type Kind = Block["kind"];
 const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 const ICONS: Record<Kind, ReactNode> = {
   text: <path d="M5 6V4h14v2M12 4v16M9 20h6" />,
+  checker: (
+    <>
+      <rect x="3" y="4" width="7" height="7" rx="1.6" />
+      <path d="m4.9 7.6 1.6 1.6 2.4-3" />
+      <path d="M13 6h8M13 9.5h5" />
+      <rect x="3" y="15" width="10" height="5" rx="2.5" />
+    </>
+  ),
   image: (
     <>
       <rect x="3" y="4" width="18" height="16" rx="2" />

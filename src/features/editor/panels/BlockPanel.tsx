@@ -57,6 +57,7 @@ import type {
   TransitionDirection,
   ButtonAppearance,
   ButtonBlock,
+  CheckerBlock,
   ClozeBlock,
   CodeBlock,
   ScriptBlock,
@@ -105,7 +106,7 @@ import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from ".
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
+import { checkerText, checkerTextPatch, linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
 import type { RevealerWording } from "../../../core/document/translations";
 import { revealerIconSvg } from "../../../core/runtime/revealerGeometry";
 import { clozeBlanks } from "../../../core/document/cloze";
@@ -240,6 +241,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, onSetAudio
       {block.kind === "link" && <LinkEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "revealer" && <RevealerEditor block={block} page={page} onUpdate={onUpdate} onSetImage={onSetImage} />}
       {block.kind === "quiz" && <QuizEditor block={block} page={page} onUpdate={onUpdate} />}
+      {block.kind === "checker" && <CheckerEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "shape" && <ShapeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "arrow" && <ArrowEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "progress" && <ProgressEditor block={block} onUpdate={onUpdate} />}
@@ -3232,6 +3234,53 @@ function QuizOptionRow({
         </div>
       )}
     </div>
+  );
+}
+
+/** The settings of a checker (CheckerBlock): the words beside the box, whether it has to be ticked to submit, whether the task is required, and
+ * what submitting with and without the tick does - changes to variables, and the way on to the next slide, as with a quiz. */
+function CheckerEditor({ block, page, onUpdate }: { block: CheckerBlock; page?: Page; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const goesOn = (outcome: "richtig" | "falsch") => !!page?.timeline.ends[quizEndNodeId(block.id, outcome)];
+  const variables = useDocumentStore((s) => s.doc.content.variables);
+  const { lang, defaultLang } = useEditingLanguage();
+  return (
+    <>
+      <Collapsible title={tr("ui.checker")}>
+        <LanguageSelect block={block} />
+        <label className="weft-field">
+          <span>{tr("ui.checker_text")}</span>
+          <textarea rows={3} value={checkerText(block, lang, defaultLang)} onChange={(e) => onUpdate(checkerTextPatch(block, lang, defaultLang, e.target.value))} />
+        </label>
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={block.mustCheck === true} onChange={(e) => onUpdate({ mustCheck: e.target.checked ? true : undefined })} />
+          <span>{tr("ui.checker_must_check")}</span>
+        </label>
+        <p className="weft-hint">{tr("ui.checker_must_check_hint")}</p>
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={block.required === true} onChange={(e) => onUpdate({ required: e.target.checked ? true : undefined })} />
+          <span>{tr("ui.required_task")}</span>
+        </label>
+        {block.required && <p className="weft-hint">{tr("ui.required_task_hint")}</p>}
+      </Collapsible>
+      <Collapsible title={tr("ui.checker_when_ticked")} defaultOpen={false}>
+        <EffectListEditor effects={block.onChecked} variables={variables} onChange={(onChecked) => onUpdate({ onChecked })} />
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={goesOn("richtig")} disabled={!page} onChange={(e) => page && setQuizAdvance(page.id, block.id, "richtig", e.target.checked)} />
+          <span>{tr("ui.continue_to_the_next_slide")}</span>
+        </label>
+        {goesOn("richtig") && <p className="weft-hint">{tr("ui.happens_1_5_seconds_after_correct")}</p>}
+      </Collapsible>
+      {!block.mustCheck && (
+        <Collapsible title={tr("ui.checker_when_unticked")} defaultOpen={false}>
+          <EffectListEditor effects={block.onUnchecked} variables={variables} onChange={(onUnchecked) => onUpdate({ onUnchecked })} />
+          <label className="weft-field weft-field-inline">
+            <input type="checkbox" checked={goesOn("falsch")} disabled={!page} onChange={(e) => page && setQuizAdvance(page.id, block.id, "falsch", e.target.checked)} />
+            <span>{tr("ui.continue_to_the_next_slide")}</span>
+          </label>
+          {goesOn("falsch") && <p className="weft-hint">{tr("ui.happens_1_5_seconds_after_the")}</p>}
+        </Collapsible>
+      )}
+    </>
   );
 }
 

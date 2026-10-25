@@ -138,6 +138,11 @@ body {
   font-weight: 600;
 }
 
+.weft-done-summary .weft-done-adjustment td {
+  color: var(--slide-muted);
+  font-style: italic;
+}
+
 .weft-done-summary tfoot th {
   border-top: 2px solid var(--slide-line-strong);
   border-bottom: none;

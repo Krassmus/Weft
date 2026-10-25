@@ -22,7 +22,7 @@ export type A11yStringKey = "previous" | "navigation" | "slide" | "blank" | "emb
 
 /** The texts of the table on the finished screen that lists what the graded elements (quizzes, gap texts) gave - see renderDoneSummary in
  * player.runtime.js. A language without its own entry falls back to English. */
-export type ResultsStringKey = "resultsElement" | "resultsResult" | "resultsPoints" | "resultsTotal" | "resultsRight" | "resultsWrong" | "resultsAnswered" | "resultsOpen";
+export type ResultsStringKey = "resultsElement" | "resultsResult" | "resultsPoints" | "resultsTotal" | "resultsRight" | "resultsWrong" | "resultsAnswered" | "resultsOpen" | "resultsAdjustment";
 
 type Strings = Record<PlayerStringKey | FilesStringKey | A11yStringKey | ResultsStringKey | "thanks", string>;
 
@@ -48,18 +48,18 @@ const A11Y_TRANSLATIONS: Record<string, Record<A11yStringKey, string>> = {
   nl: a11yStrings("Terug", "Navigatie", "Dia {n}", "Open plek {n} van {total}", "Ingebedde pagina", "Meer informatie tonen", "Sluiten"),
 };
 
-function resultsStrings(element: string, result: string, points: string, total: string, right: string, wrong: string, answered: string, open: string): Record<ResultsStringKey, string> {
-  return { resultsElement: element, resultsResult: result, resultsPoints: points, resultsTotal: total, resultsRight: right, resultsWrong: wrong, resultsAnswered: answered, resultsOpen: open };
+function resultsStrings(element: string, result: string, points: string, total: string, right: string, wrong: string, answered: string, open: string, adjustment: string): Record<ResultsStringKey, string> {
+  return { resultsElement: element, resultsResult: result, resultsPoints: points, resultsTotal: total, resultsRight: right, resultsWrong: wrong, resultsAnswered: answered, resultsOpen: open, resultsAdjustment: adjustment };
 }
 
 const RESULTS_TRANSLATIONS: Record<string, Record<ResultsStringKey, string>> = {
-  de: resultsStrings("Aufgabe", "Ergebnis", "Punkte", "Summe", "Richtig", "Falsch", "Beantwortet", "Nicht beantwortet"),
-  en: resultsStrings("Item", "Result", "Points", "Total", "Correct", "Incorrect", "Answered", "Not answered"),
-  fr: resultsStrings("Élément", "Résultat", "Points", "Total", "Juste", "Faux", "Répondu", "Sans réponse"),
-  es: resultsStrings("Elemento", "Resultado", "Puntos", "Total", "Correcto", "Incorrecto", "Respondido", "Sin responder"),
-  it: resultsStrings("Elemento", "Risultato", "Punti", "Totale", "Corretto", "Sbagliato", "Risposto", "Senza risposta"),
-  pt: resultsStrings("Elemento", "Resultado", "Pontos", "Total", "Correto", "Errado", "Respondido", "Sem resposta"),
-  nl: resultsStrings("Onderdeel", "Resultaat", "Punten", "Totaal", "Goed", "Fout", "Beantwoord", "Niet beantwoord"),
+  de: resultsStrings("Aufgabe", "Ergebnis", "Punkte", "Summe", "Richtig", "Falsch", "Beantwortet", "Nicht beantwortet", "Korrekturen aus Logikblöcken"),
+  en: resultsStrings("Item", "Result", "Points", "Total", "Correct", "Incorrect", "Answered", "Not answered", "Adjustments from logic blocks"),
+  fr: resultsStrings("Élément", "Résultat", "Points", "Total", "Juste", "Faux", "Répondu", "Sans réponse", "Corrections issues des blocs logiques"),
+  es: resultsStrings("Elemento", "Resultado", "Puntos", "Total", "Correcto", "Incorrecto", "Respondido", "Sin responder", "Ajustes de bloques lógicos"),
+  it: resultsStrings("Elemento", "Risultato", "Punti", "Totale", "Corretto", "Sbagliato", "Risposto", "Senza risposta", "Correzioni da blocchi logici"),
+  pt: resultsStrings("Elemento", "Resultado", "Pontos", "Total", "Correto", "Errado", "Respondido", "Sem resposta", "Ajustes de blocos lógicos"),
+  nl: resultsStrings("Onderdeel", "Resultaat", "Punten", "Totaal", "Goed", "Fout", "Beantwoord", "Niet beantwoord", "Correcties uit logicablokken"),
 };
 
 function filesStrings(title: string, password: string, unlock: string, wrongPassword: string, download: string, failed: string): Record<FilesStringKey, string> {

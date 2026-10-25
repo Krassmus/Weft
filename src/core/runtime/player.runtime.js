@@ -969,8 +969,31 @@
       });
       body.appendChild(tr);
     });
+    // What the variables really are at the end (what they gained since the start - which is what the LMS has been told): the elements above
+    // cannot account for what else changed them - a logic block, a button's effect -, so the difference is a row of its own, and the sum
+    // is the real one, not the sum of the elements.
+    var gained = summary.columns.map(function (id) {
+      var def = module.variables.filter(function (v) {
+        return v.id === id;
+      })[0];
+      return Math.round(((Number(variables[id]) || 0) - (Number(def && def.initialValue) || 0)) * 1e6) / 1e6;
+    });
+    var differences = gained.map(function (value, i) {
+      return Math.round((value - totals[i]) * 1e6) / 1e6;
+    });
+    if (
+      differences.some(function (difference) {
+        return difference !== 0;
+      })
+    ) {
+      var adjustment = el("tr", { class: "weft-done-adjustment" }, [cell("td", uiString("resultsAdjustment")), cell("td", "")]);
+      differences.forEach(function (difference) {
+        adjustment.appendChild(cell("td", difference !== 0 ? formatPoints(difference) : "", "weft-done-number"));
+      });
+      body.appendChild(adjustment);
+    }
     var foot = el("tr", {}, [cell("th", uiString("resultsTotal")), cell("th", "")]);
-    totals.forEach(function (total) {
+    gained.forEach(function (total) {
       foot.appendChild(cell("th", formatPoints(total), "weft-done-number"));
     });
     return el("div", { class: "weft-done-summary" }, [el("table", {}, [el("thead", {}, [head]), body, el("tfoot", {}, [foot])])]);

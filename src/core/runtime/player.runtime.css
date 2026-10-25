@@ -1742,6 +1742,8 @@ summary:focus-visible,
   max-width: none;
   max-height: none;
   object-fit: cover;
+  /* The picture follows the rounded corners of its frame (inside its border). */
+  border-radius: max(0px, calc(var(--slide-ui-image-radius) - 1px));
 }
 
 .weft-matching-card.is-image.weft-matching-target .weft-matching-frame {

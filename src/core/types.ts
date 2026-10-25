@@ -469,7 +469,7 @@ export interface QuizBlock extends BaseBlock {
    * and onIncorrect are ignored, onCorrect is what happens on submitting (and it counts as "richtig" for the page's graph), and an
    * answer's own effects are by whether it is ticked (onRight) or not (onWrong). Optional: a module saved before this is a test. */
   open?: boolean;
-  /** A required task ("Pflichtaufgabe"): a Weiter that would leave the page - the Weiter button, Space, the arrow, a tap - is held back until
+  /** A required task ("Pflichtangabe"): a Weiter that would leave the page - the Weiter button, Space, the arrow, a tap - is held back until
    * it has been submitted, and a button whose action is "Weiter" is greyed out meanwhile (see weiter in player.runtime.js). Absent: not required. */
   required?: boolean;
   /** What happens once the quiz as a whole was answered right / wrong (all options as they should be / not). */
@@ -520,9 +520,6 @@ export interface CheckerBlock extends BaseBlock {
   text: string;
   /** Other languages' wording (`text`), by locale - see BlockTranslation. */
   translations?: Record<string, BlockTranslation>;
-  /** The box has to be ticked for "Abschicken" to be possible (an agreement that cannot be given by leaving it empty) - else it can be
-   * submitted either way, and `onUnchecked` is what a refusal does. Absent: the box need not be ticked. */
-  mustCheck?: boolean;
   /** A required task, as QuizBlock.required: the page cannot be left by Weiter before it has been submitted. Absent: not required. */
   required?: boolean;
   /** What happens when it is submitted with the box ticked / not ticked. */

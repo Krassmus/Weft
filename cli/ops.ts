@@ -659,14 +659,14 @@ const HANDLERS: Record<string, Handler> = {
     if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
     return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "shape", set, as: op.as });
   },
-  // A checker as its own element: add_checker {page, text?, mustCheck?, required?, onChecked?, onUnchecked?, x, y, width, height, effect?, name?, as}.
+  // A checker as its own element: add_checker {page, text?, required?, onChecked?, onUnchecked?, x, y, width, height, effect?, name?, as}.
   // A checkbox with a text beside it and "Abschicken" under it; onChecked / onUnchecked are lists of variable effects
   // ({"variableId": "punkte", "op": "add", "value": 1}) for submitting with and without the tick.
   add_checker(ctx, op) {
     const container = op.layout !== undefined ? { layout: op.layout } : { page: op.page };
     const num = (value: unknown, fallback: number) => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
     const set: Record<string, unknown> = { position: { x: num(op.x, 10), y: num(op.y, 38), width: num(op.width, 80), height: num(op.height, 24) } };
-    for (const key of ["text", "mustCheck", "required", "onChecked", "onUnchecked", "name"]) if (op[key] !== undefined) set[key] = op[key];
+    for (const key of ["text", "required", "onChecked", "onUnchecked", "name"]) if (op[key] !== undefined) set[key] = op[key];
     if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
     return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "checker", set, as: op.as });
   },

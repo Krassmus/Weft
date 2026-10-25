@@ -81,7 +81,7 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
     case "arrow":
       return `${block.points.length} Punkte`;
     case "checker":
-      return `„${words(block.text, 40) || "(ohne Text)"}"${block.mustCheck ? " [muss angehakt sein]" : ""}${block.required ? " [Pflicht]" : ""}`;
+      return `„${words(block.text, 40) || "(ohne Text)"}"${block.required ? " [Pflicht]" : ""}`;
     case "link":
       return `„${words(block.text, 40) || "(ohne Text)"}" → ${block.url ?? "(ohne Adresse)"}`;
     case "files":

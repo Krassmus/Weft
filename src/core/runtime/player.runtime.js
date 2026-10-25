@@ -3095,11 +3095,6 @@
     var submitLabel = document.createTextNode(uiString("submit"));
     submit.appendChild(submitLabel);
     form.appendChild(submit);
-    // Without the tick there is nothing to submit, where the box has to be ticked.
-    var showSubmitState = function () {
-      submit.disabled = block.mustCheck === true && !input.checked;
-    };
-    showSubmitState();
 
     var submitted = false;
     var feedback = el("div", { class: "weft-quiz-feedback is-thanks", hidden: "" }, []);
@@ -3120,7 +3115,6 @@
     // The first click on the box is the quiz's "first answer" (see quizFillEventId).
     var hasFiredFill = false;
     input.addEventListener("change", function () {
-      showSubmitState();
       if (hasFiredFill) return;
       hasFiredFill = true;
       happened(quizFillEventId(block.id));
@@ -3129,7 +3123,6 @@
     submit.addEventListener("click", function () {
       if (submitted) return;
       var ticked = input.checked;
-      if (block.mustCheck && !ticked) return;
       submitted = true;
       var mark = scoreMark(block);
       (ticked ? block.onChecked : block.onUnchecked || []).forEach(applyEffect);

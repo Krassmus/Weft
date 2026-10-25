@@ -1552,12 +1552,10 @@ summary:focus-visible,
   font-size: 0.92em;
 }
 
-.weft-matching-source.is-docked .weft-matching-image {
-  max-height: 3.4em;
-}
-
 /* Where a source stood while it is in a target, and what is being dragged. */
 .weft-matching-slot {
+  --slide-cut-line: var(--slide-line);
+  --slide-cut-line-width: 1px;
   position: absolute;
   box-sizing: border-box;
   border: 1px dashed var(--slide-line);
@@ -1697,7 +1695,9 @@ summary:focus-visible,
 }
 
 /* Pictures: the frame is the picture's own - its corners, in the module's style - and not a button around it; the card is only the room the
-   picture may take. A source in a target is a small picture with the same frame. */
+   picture may take. The room is a size container (.weft-matching-pic): the frame takes the share of it that the picture's shape - its ratio, which
+   the player and the editor set as --ratio when the picture has loaded - allows, so that it is exactly the picture's box. (Lengths of the frame
+   are in em: inside a size container, cqw would be the room's, not the slide's.) A source in a target has the height of a line instead. */
 .weft-matching-card.is-image {
   overflow: visible;
 }
@@ -1712,33 +1712,85 @@ summary:focus-visible,
   box-shadow: none;
 }
 
-.weft-matching-card.is-image .weft-matching-image {
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;
+.weft-matching-pic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  container-type: size;
+}
+
+.weft-matching-frame {
+  position: relative;
+  display: block;
+  flex: none;
   box-sizing: border-box;
+  width: min(100cqw, calc(100cqh * var(--ratio, 1)));
+  aspect-ratio: var(--ratio, 1);
   border: 1px solid var(--slide-line-strong);
-  /* The corners of a picture in the module's style (those a revealer's picture has): a pill-shaped picture would be an oval. */
-  border-radius: var(--slide-ui-inner-radius);
+  border-radius: var(--slide-ui-image-radius);
   clip-path: var(--slide-ui-image-clip);
   background: var(--slide-surface);
 }
 
-.weft-matching-card.is-image.weft-matching-target .weft-matching-image {
+.weft-matching-frame > .weft-matching-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+}
+
+.weft-matching-card.is-image.weft-matching-target .weft-matching-frame {
   border-style: dashed;
   background: var(--slide-surface-quiet);
 }
 
-.weft-matching-source.is-image.is-docked .weft-matching-image {
-  /* (A card that is as wide as its content cannot give the picture a width to take a share of: the picture has a height of its own.) */
-  height: 3.4em;
-  max-width: none;
-  max-height: none;
+.weft-matching-target.is-image .weft-matching-body {
+  flex: 1 1 0;
+  width: 100%;
 }
 
 .weft-matching-source.is-image.is-docked {
   padding: 0;
+}
+
+.weft-matching-source.is-docked .weft-matching-pic {
+  width: auto;
+  height: auto;
+  container-type: normal;
+}
+
+.weft-matching-source.is-docked .weft-matching-frame {
+  width: calc(3.4em * var(--ratio, 1));
+  height: 3.4em;
+}
+
+/* The place a picture leaves while it stands in a target: the silhouette of the picture - the same frame, dashed and empty. */
+.weft-matching-slot.is-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0;
+  clip-path: none;
+}
+
+.weft-matching-slot.is-image[hidden] {
+  display: none;
+}
+
+.weft-matching-slot.is-image {
+  --slide-cut-line: var(--slide-line-strong);
+}
+
+.weft-matching-slot.is-image .weft-matching-frame {
+  border-style: dashed;
+  border-color: var(--slide-line-strong);
+  background: transparent;
 }
 
 .weft-block-matching {
@@ -1751,7 +1803,7 @@ summary:focus-visible,
   box-shadow: none;
 }
 
-.weft-matching-source.is-image:hover .weft-matching-image {
+.weft-matching-source.is-image:hover .weft-matching-frame {
   border-color: var(--slide-accent-ink);
   filter: brightness(1.05);
 }
@@ -1760,7 +1812,7 @@ summary:focus-visible,
   background: transparent;
 }
 
-.weft-matching-target.is-image.is-over .weft-matching-image {
+.weft-matching-target.is-image.is-over .weft-matching-frame {
   border-style: solid;
   border-color: var(--slide-accent-ink);
   background: var(--slide-accent-soft);
@@ -1773,17 +1825,24 @@ summary:focus-visible,
   border: 0;
 }
 
-.weft-matching-source.is-image.is-correct .weft-matching-image {
+.weft-matching-source.is-image.is-correct .weft-matching-frame {
   border-color: var(--slide-ok);
 }
 
-.weft-matching-source.is-image.is-wrong .weft-matching-image {
+.weft-matching-source.is-image.is-wrong .weft-matching-frame {
   border-color: var(--slide-bad);
 }
 
-.weft-matching-source.is-image.is-missed .weft-matching-image {
+.weft-matching-source.is-image.is-missed .weft-matching-frame {
   border-style: dashed;
   border-color: var(--slide-bad);
+}
+
+/* The mark of a right or wrong picture sits on the picture's corner. */
+.weft-matching-frame > .weft-matching-mark {
+  top: 0.25em;
+  right: 0.25em;
+  transform: none;
 }
 
 /* The picture, enlarged: it comes in with a small rise and growth, and the dimming fades in. */

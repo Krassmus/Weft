@@ -3228,13 +3228,37 @@
       node.style[minimum ? "minHeight" : "height"] = size.height + "%";
     }
 
+    // The shape of a picture (width / height), once it has loaded: the frame - and the place it leaves - take exactly that shape.
+    var ratios = {}; // item id -> ratio
+    var frames = {}; // item id -> the frames drawn for it (the card's, the place's)
+    function setRatio(id, ratio) {
+      ratios[id] = ratio;
+      (frames[id] || []).forEach(function (frame) {
+        frame.style.setProperty("--ratio", String(ratio));
+      });
+    }
+    function pictureFrame(item) {
+      var frame = el("span", { class: "weft-matching-frame" }, []);
+      (frames[item.id] = frames[item.id] || []).push(frame);
+      if (ratios[item.id]) frame.style.setProperty("--ratio", String(ratios[item.id]));
+      var pic = el("span", { class: "weft-matching-pic" }, [frame]);
+      return { pic: pic, frame: frame };
+    }
+
     // The content of a card: its words, or its picture (with the way to enlarge it).
     function fillCard(card, item) {
       card.innerHTML = "";
       var label = matchingLabel(block, item);
       if (item.kind === "image") {
         var image = el("img", { class: "weft-matching-image", src: item.assetId ? assetSrc(item.assetId) : "", alt: label, draggable: "false" }, []);
-        card.appendChild(image);
+        var made = pictureFrame(item);
+        made.frame.appendChild(image);
+        var measured = function () {
+          if (image.naturalWidth && image.naturalHeight) setRatio(item.id, image.naturalWidth / image.naturalHeight);
+        };
+        if (image.complete) measured();
+        else image.addEventListener("load", measured);
+        card.appendChild(made.pic);
         card.setAttribute("aria-label", label || "");
       } else {
         var text = el("span", { class: "weft-matching-text" }, []);
@@ -3295,7 +3319,9 @@
       fill();
       languageRefreshers.push(fill);
       // Its dashed place, where it stood, for as long as it stands in a target.
-      var home = el("span", { class: "weft-matching-slot", hidden: "" }, []);
+      var home = el("span", { class: "weft-matching-slot" + (item.kind === "image" ? " is-image" : ""), hidden: "" }, []);
+      // (A picture leaves the silhouette of its frame: the same shape, dashed and empty.)
+      if (item.kind === "image") home.appendChild(pictureFrame(item).pic);
       place(home, item, block.sourceSize, sourcePlaces[index], false);
       homes[item.id] = home;
       area.appendChild(home);
@@ -3489,15 +3515,8 @@
         if (status === "correct" || status === "wrong") {
           var markIcon = el("span", { class: "weft-matching-mark", "aria-hidden": "true" }, []);
           markIcon.innerHTML = status === "correct" ? QUIZ_CORRECT_ICON_SVG : QUIZ_INCORRECT_ICON_SVG;
-          card.appendChild(markIcon);
-          // On a picture the mark sits on the picture's corner, not the card's (the picture is smaller than its card where their shapes differ).
-          var shown = card.querySelector("img");
-          if (shown) {
-            var cardBox = card.getBoundingClientRect();
-            var imageBox = shown.getBoundingClientRect();
-            markIcon.style.top = Math.round(imageBox.top - cardBox.top) + 4 + "px";
-            markIcon.style.right = Math.round(cardBox.right - imageBox.right) + 4 + "px";
-          }
+          // On a picture the mark sits on the picture's corner (its frame), not the card's.
+          (card.querySelector(".weft-matching-frame") || card).appendChild(markIcon);
         }
         // Where it belonged, for whoever could not see the colours.
         if (right && status !== "correct") card.setAttribute("title", matchingLabel(block, itemById[right]));

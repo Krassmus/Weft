@@ -40,7 +40,24 @@ export function MatchingView({
         onPointerDown={onCardPointerDown ? (e) => onCardPointerDown(e, item, side) : undefined}
       >
         {item.kind === "image" ? (
-          src ? <img className="weft-matching-image" src={src} alt="" draggable={false} /> : <span className="weft-matching-empty" />
+          <span className="weft-matching-pic">
+            <span className="weft-matching-frame">
+              {src ? (
+                <img
+                  className="weft-matching-image"
+                  src={src}
+                  alt=""
+                  draggable={false}
+                  onLoad={(e) => {
+                    const image = e.currentTarget;
+                    if (image.naturalWidth && image.naturalHeight) image.parentElement?.style.setProperty("--ratio", String(image.naturalWidth / image.naturalHeight));
+                  }}
+                />
+              ) : (
+                <span className="weft-matching-empty" />
+              )}
+            </span>
+          </span>
         ) : (
           <span className="weft-matching-text">{matchingItemText(block, item, lang, defaultLang)}</span>
         )}

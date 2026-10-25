@@ -1840,9 +1840,15 @@ summary:focus-visible,
 
 /* The mark of a right or wrong picture sits on the picture's corner. */
 .weft-matching-frame > .weft-matching-mark {
-  top: 0.25em;
-  right: 0.25em;
+  top: 0.3em;
+  right: 0.3em;
   transform: none;
+  /* On a picture the mark has a round ground of the slide's surface (light or dark), so that it can be seen on any picture. */
+  box-sizing: content-box;
+  padding: 0.14em;
+  border-radius: 50%;
+  background: var(--slide-surface);
+  box-shadow: 0 0 0 1px var(--slide-line), 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* The picture, enlarged: it comes in with a small rise and growth, and the dimming fades in. */

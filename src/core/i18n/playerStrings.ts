@@ -18,7 +18,7 @@ export type FilesStringKey = "filesTitle" | "filesPassword" | "filesUnlock" | "f
 
 /** The texts for screen readers and keyboard users (the hidden navigation, the announcement of a slide, ...). {n} and {total} are filled in
  * by the player. A language without its own entry falls back to English. */
-export type A11yStringKey = "previous" | "navigation" | "slide" | "blank" | "embedded" | "revealerOpen" | "revealerClose";
+export type A11yStringKey = "previous" | "navigation" | "slide" | "blank" | "embedded" | "revealerOpen" | "revealerClose" | "requiredFirst";
 
 /** The texts of the table on the finished screen that lists what the graded elements (quizzes, gap texts) gave - see renderDoneSummary in
  * player.runtime.js. A language without its own entry falls back to English. */
@@ -34,18 +34,18 @@ const THANKS: Record<string, string> = {
   zh_TW: "謝謝！", ja: "ありがとうございます！", ko: "감사합니다!", id: "Terima kasih!", vi: "Cảm ơn bạn!", th: "ขอบคุณ!",
 };
 
-function a11yStrings(previous: string, navigation: string, slide: string, blank: string, embedded: string, revealerOpen: string, revealerClose: string): Record<A11yStringKey, string> {
-  return { previous, navigation, slide, blank, embedded, revealerOpen, revealerClose };
+function a11yStrings(previous: string, navigation: string, slide: string, blank: string, embedded: string, revealerOpen: string, revealerClose: string, requiredFirst: string): Record<A11yStringKey, string> {
+  return { previous, navigation, slide, blank, embedded, revealerOpen, revealerClose, requiredFirst };
 }
 
 const A11Y_TRANSLATIONS: Record<string, Record<A11yStringKey, string>> = {
-  de: a11yStrings("Zurück", "Navigation", "Folie {n}", "Lücke {n} von {total}", "Eingebettete Seite", "Mehr Informationen anzeigen", "Schließen"),
-  en: a11yStrings("Back", "Navigation", "Slide {n}", "Blank {n} of {total}", "Embedded page", "Show more information", "Close"),
-  fr: a11yStrings("Retour", "Navigation", "Diapositive {n}", "Trou {n} sur {total}", "Page intégrée", "Afficher plus d'informations", "Fermer"),
-  es: a11yStrings("Atrás", "Navegación", "Diapositiva {n}", "Hueco {n} de {total}", "Página incrustada", "Mostrar más información", "Cerrar"),
-  it: a11yStrings("Indietro", "Navigazione", "Diapositiva {n}", "Spazio {n} di {total}", "Pagina incorporata", "Mostra più informazioni", "Chiudi"),
-  pt: a11yStrings("Voltar", "Navegação", "Diapositivo {n}", "Lacuna {n} de {total}", "Página incorporada", "Mostrar mais informações", "Fechar"),
-  nl: a11yStrings("Terug", "Navigatie", "Dia {n}", "Open plek {n} van {total}", "Ingebedde pagina", "Meer informatie tonen", "Sluiten"),
+  de: a11yStrings("Zurück", "Navigation", "Folie {n}", "Lücke {n} von {total}", "Eingebettete Seite", "Mehr Informationen anzeigen", "Schließen", "Bitte zuerst die Aufgabe abschicken."),
+  en: a11yStrings("Back", "Navigation", "Slide {n}", "Blank {n} of {total}", "Embedded page", "Show more information", "Close", "Please submit the task first."),
+  fr: a11yStrings("Retour", "Navigation", "Diapositive {n}", "Trou {n} sur {total}", "Page intégrée", "Afficher plus d'informations", "Fermer", "Veuillez d'abord envoyer l'exercice."),
+  es: a11yStrings("Atrás", "Navegación", "Diapositiva {n}", "Hueco {n} de {total}", "Página incrustada", "Mostrar más información", "Cerrar", "Envía primero la tarea."),
+  it: a11yStrings("Indietro", "Navigazione", "Diapositiva {n}", "Spazio {n} di {total}", "Pagina incorporata", "Mostra più informazioni", "Chiudi", "Invia prima l'esercizio."),
+  pt: a11yStrings("Voltar", "Navegação", "Diapositivo {n}", "Lacuna {n} de {total}", "Página incorporada", "Mostrar mais informações", "Fechar", "Envie primeiro a tarefa."),
+  nl: a11yStrings("Terug", "Navigatie", "Dia {n}", "Open plek {n} van {total}", "Ingebedde pagina", "Meer informatie tonen", "Sluiten", "Verstuur eerst de opdracht."),
 };
 
 function resultsStrings(element: string, result: string, points: string, total: string, right: string, wrong: string, answered: string, open: string, adjustment: string): Record<ResultsStringKey, string> {

@@ -669,6 +669,10 @@
         "position": {
           "$ref": "#/definitions/BlockPosition"
         },
+        "required": {
+          "description": "A required task, as QuizBlock.required: the page cannot be left by Weiter before the gap text has been submitted. Absent: not required.",
+          "type": "boolean"
+        },
         "tolerance": {
           "description": "How many characters of an answer may be wrong (Levenshtein distance, 0-2; default 0). Very short answers are always exact.",
           "type": "number"
@@ -1972,6 +1976,10 @@
         "questionHtml": {
           "description": "Rich HTML, exactly like TextBlock.html - edited in place on the canvas with the same bold/italic/underline/font/size/color toolbar (see EditableText/TextEditor). A module saved before this held HTML is migrated on load (see unpack.ts) by escaping its old plain text into an equivalent paragraph, so every reader can assume this is always already-safe HTML.",
           "type": "string"
+        },
+        "required": {
+          "description": "A required task (\"Pflichtaufgabe\"): a Weiter that would leave the page - the Weiter button, Space, the arrow, a tap - is held back until it has been submitted, and a button whose action is \"Weiter\" is greyed out meanwhile (see weiter in player.runtime.js). Absent: not required.",
+          "type": "boolean"
         },
         "translations": {
           "additionalProperties": {

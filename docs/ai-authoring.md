@@ -72,6 +72,7 @@ Anders gewünscht? Dann mit `set_trigger` festlegen, was auslöst (das **ersetzt
 
 - Quiz: `questionHtml`, `options` (`id`, `html`), `correctOptionIds`. **`explanation`** ist ein Text, der nach dem Abschicken unter „richtig/falsch" steht – dafür braucht es keinen Umweg über Auslöser. Mehrere richtige Antworten sind möglich.
 - Lückentext: die Antworten stehen als `[[Antwort]]` im Text, mehrere richtige mit `|` (`[[Shakespeare|Shakespear]]`). `caseSensitive` und `tolerance` (Tippfehler, 0 bis 2) steuern, was als richtig gilt. Leerzeichen zählen nie (1 714 ist 1714).
+- **Pflichtaufgabe:** `"required": true` am Quiz oder Lückentext (Standard: aus). Solange sie nicht abgeschickt ist, hält der Player jedes Weiter zurück, das die Folie verlassen würde - Button, Leertaste, Pfeil, Tippen -; Aufbau-Schritte davor laufen weiter. Ein Button mit der Aktion `advance` („Weiter") ist solange ausgegraut, wenn sein nächster Druck die Folie verlassen würde. Ein Button mit `goto` oder ein automatischer Wechsel (zum Beispiel „nach dem Abschicken zur nächsten Folie") ist davon nicht betroffen.
 - Beide brauchen Platz für ihre Rückmeldung unter dem Button: `validate --layout` misst sie mit.
 
 ## Verzweigungen

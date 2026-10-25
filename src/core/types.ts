@@ -469,6 +469,9 @@ export interface QuizBlock extends BaseBlock {
    * and onIncorrect are ignored, onCorrect is what happens on submitting (and it counts as "richtig" for the page's graph), and an
    * answer's own effects are by whether it is ticked (onRight) or not (onWrong). Optional: a module saved before this is a test. */
   open?: boolean;
+  /** A required task ("Pflichtaufgabe"): a Weiter that would leave the page - the Weiter button, Space, the arrow, a tap - is held back until
+   * it has been submitted, and a button whose action is "Weiter" is greyed out meanwhile (see weiter in player.runtime.js). Absent: not required. */
+  required?: boolean;
   /** What happens once the quiz as a whole was answered right / wrong (all options as they should be / not). */
   onCorrect: VariableEffect[];
   onIncorrect: VariableEffect[];
@@ -493,6 +496,8 @@ export interface ClozeBlock extends BaseBlock {
   caseSensitive?: boolean;
   /** How many characters of an answer may be wrong (Levenshtein distance, 0-2; default 0). Very short answers are always exact. */
   tolerance?: number;
+  /** A required task, as QuizBlock.required: the page cannot be left by Weiter before the gap text has been submitted. Absent: not required. */
+  required?: boolean;
   /** What happens for every blank that was answered right. */
   onEachCorrect: VariableEffect[];
   /** What happens, in addition, for a blank whose answer is this one (keyed by what stands in the brackets). */

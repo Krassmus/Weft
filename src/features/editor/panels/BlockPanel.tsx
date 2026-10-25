@@ -1943,6 +1943,12 @@ function ClozeEditor({ block, page, onUpdate }: { block: ClozeBlock; page?: Page
         </Collapsible>
       )}
 
+      <label className="weft-field weft-field-inline">
+        <input type="checkbox" checked={block.required === true} onChange={(e) => onUpdate({ required: e.target.checked ? true : undefined })} />
+        <span>{tr("ui.required_task")}</span>
+      </label>
+      {block.required && <p className="weft-hint">{tr("ui.required_task_hint")}</p>}
+
       <Collapsible title={tr("ui.when_everything_is_correct")} defaultOpen={false}>
         <EffectListEditor effects={block.onCorrect} variables={variables} onChange={(onCorrect) => onUpdate({ onCorrect })} />
         <label className="weft-field weft-field-inline">
@@ -3278,6 +3284,12 @@ function QuizEditor({ block, page, onUpdate }: { block: QuizBlock; page?: Page; 
           onChange={(e) => onUpdate(quizExplanationPatch(block, lang, defaultLang, e.target.value))}
         />
       </Collapsible>
+
+      <label className="weft-field weft-field-inline">
+        <input type="checkbox" checked={block.required === true} onChange={(e) => onUpdate({ required: e.target.checked ? true : undefined })} />
+        <span>{tr("ui.required_task")}</span>
+      </label>
+      {block.required && <p className="weft-hint">{tr("ui.required_task_hint")}</p>}
 
       <Collapsible title={block.open ? tr("ui.after_submitting") : tr("ui.on_a_correct_answer")} defaultOpen={false}>
         <EffectListEditor effects={block.onCorrect} variables={variables} onChange={(onCorrect) => onUpdate({ onCorrect })} />

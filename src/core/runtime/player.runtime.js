@@ -1443,6 +1443,29 @@
   var graphEvents = {}; // by id
   var outgoingTriggers = {}; // event id -> [trigger]
   var performers = {}; // event id -> function that runs the event's action
+  // Required tasks (QuizBlock.required / ClozeBlock.required): the ones on the page being shown that have not been submitted yet, by block
+  // id. While there is one, a Weiter that would leave the page is held back (see weiter) - the builds before it still go on - and the
+  // buttons whose action is "Weiter" are greyed out when their next press would be such a one (advanceButtons).
+  var requiredPending = {};
+  var advanceButtons = [];
+  function hasRequiredPending() {
+    return Object.keys(requiredPending).length > 0;
+  }
+  function weiterIsHeld() {
+    return hasRequiredPending() && !hasPendingBuild();
+  }
+  function updateAdvanceButtons() {
+    var held = weiterIsHeld();
+    advanceButtons.forEach(function (button) {
+      button.disabled = held;
+    });
+  }
+  function requiredDone(blockId) {
+    if (!requiredPending[blockId]) return;
+    delete requiredPending[blockId];
+    updateAdvanceButtons();
+  }
+
   var waitingForWeiter = {}; // trigger id -> trigger, for the triggers whose source has happened and that wait for Weiter
   var triggersDelivered = [];
   // A loop of triggers without delay or Weiter would never let the page breathe: every delivery is asynchronous, and there is a cap
@@ -1500,6 +1523,7 @@
       if (trigger.weiter) waitingForWeiter[trigger.id] = trigger;
       else deliver(trigger, false);
     });
+    updateAdvanceButtons();
   }
 
   // Lets a trigger arrive: after its delay, at its target. `now` runs a trigger without delay right here instead of on the next
@@ -1528,7 +1552,24 @@
   // The learner pressed Weiter (Space, →, a tap, a button): every trigger that is waiting for it arrives.
   function weiter() {
     var waiting = waitingForWeiter;
-    waitingForWeiter = {};
+    // With a required task still open, what would leave the page waits (and stays waiting), and only the builds arrive.
+    var held = {};
+    if (hasRequiredPending()) {
+      Object.keys(waiting).forEach(function (id) {
+        if (!isBuildTrigger(waiting[id])) {
+          held[id] = waiting[id];
+          delete waiting[id];
+        }
+      });
+      if (Object.keys(waiting).length === 0) {
+        // (Nothing is there to arrive: the press is turned down, and a learner who cannot see the button is told.)
+        waitingForWeiter = held;
+        if (Object.keys(held).length > 0) announce(uiString("requiredFirst"));
+        updateAdvanceButtons();
+        return;
+      }
+    }
+    waitingForWeiter = held;
     if (Object.keys(waiting).some(function (id) { return isBuildTrigger(waiting[id]); })) buildsDone++;
     announceAppearing = true;
     try {
@@ -1538,6 +1579,7 @@
     } finally {
       announceAppearing = false;
     }
+    updateAdvanceButtons();
     reportState();
   }
 
@@ -2821,6 +2863,8 @@
     } else {
       // "Weiter" (action "advance") is the same Weiter Space/→ is (see weiter): everything that waits for it arrives - the next
       // build, or the page that is left. "event" does nothing besides the event. Once the module has ended, either restarts it.
+      // (Greyed out while its next press would leave a page that has a required task open, see weiterIsHeld.)
+      if (block.action === "advance") advanceButtons.push(button);
       button.addEventListener("click", function () {
         if (pos >= history.length) {
           restart();
@@ -2854,6 +2898,7 @@
 
   function renderQuizBlock(block) {
     var wrap = el("div", { class: "weft-block weft-block-quiz", "data-weft-block": block.id, style: positionStyle(block.position) });
+    if (block.required) requiredPending[block.id] = true;
     var form = el("form", { class: "weft-quiz" }, []);
 
     var question = el("div", { class: "weft-quiz-question", id: "weft-question-" + block.id }, []);
@@ -2968,6 +3013,7 @@
         ((right ? option.onRight : option.onWrong) || []).forEach(applyEffect);
       });
       scoreRecord(block, mark, open ? "answered" : correct ? "right" : "wrong");
+      requiredDone(block.id);
       // Fires both the plain, outcome-agnostic event (for a trigger configured against the
       // generic "Quiz abgeschickt" node - see quizSubmitNodeId in pageTimeline.ts, built when
       // neither advanceOnCorrect nor advanceOnIncorrect is on) AND the one matching this
@@ -3043,6 +3089,7 @@
 
   function renderClozeBlock(block) {
     var wrap = el("div", { class: "weft-block weft-block-cloze", "data-weft-block": block.id, style: positionStyle(block.position) });
+    if (block.required) requiredPending[block.id] = true;
     var box = el("div", { class: "weft-cloze" }, []);
     var text = el("div", { class: "weft-cloze-text" }, []);
     box.appendChild(text);
@@ -3164,6 +3211,7 @@
       });
       ((allRight ? block.onCorrect : block.onIncorrect) || []).forEach(applyEffect);
       scoreRecord(block, mark, allRight ? "right" : "wrong");
+      requiredDone(block.id);
       // The same events as a quiz (see quizSubmitNodeId in pageTimeline.ts): the plain one and the one of this outcome.
       happened(quizSubmitEventId(block.id));
       happened(quizSubmitEventId(block.id, allRight ? "richtig" : "falsch"));
@@ -3280,6 +3328,8 @@
     languageRefreshers = [];
     languageSwitches = [];
     progressBars = [];
+    requiredPending = {};
+    advanceButtons = [];
     var page = module.pages[pageId];
     setUpGraph(page);
     var stage = el("div", { class: "weft-stage", "data-weft-page": pageId, style: stageStyle(), "data-weft-theme": stageTheme(), "data-weft-style": stageUiStyle() }, []);
@@ -3309,6 +3359,8 @@
     // the page happens here, still before this stage is even returned to be appended to the DOM; what it triggers arrives
     // right after (see deliver), when the blocks are on the page.
     happened("start");
+    // (Whether Weiter is held back is known now: the required tasks of the page are registered and the first builds wait.)
+    updateAdvanceButtons();
     return stage;
   }
 

@@ -6824,16 +6824,16 @@ h2.weft-inspector-header {
   transform: translateX(-50%);
 }
 
-/* (A square with two borders, turned by 45 degrees: its point is 0.2 of its side beyond its box, so the box sits that far in - the point is the end of the line.) */
+/* The arrowhead at the end of the line: a chevron drawn as a mask, so that it is the same on both sides of the line; its point is the line's end. */
 .weft-sort-list::after {
   left: 50%;
-  bottom: 0.13em;
-  width: 0.6em;
-  height: 0.6em;
-  margin-left: -0.3em;
-  border-right: 2px solid var(--slide-line-strong);
-  border-bottom: 2px solid var(--slide-line-strong);
-  transform: rotate(45deg);
+  bottom: 0;
+  width: 0.9em;
+  height: 0.5em;
+  margin-left: -0.45em;
+  background: var(--slide-line-strong);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Cpath d='M1 1 8 8 15 1' fill='none' stroke='black' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Cpath d='M1 1 8 8 15 1' fill='none' stroke='black' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
 }
 
 .weft-sort.is-horizontal .weft-sort-list::before {
@@ -6850,12 +6850,15 @@ h2.weft-inspector-header {
 
 .weft-sort.is-horizontal .weft-sort-list::after {
   left: auto;
-  right: 0.13em;
+  right: 0;
   top: 50%;
   bottom: auto;
+  width: 0.5em;
+  height: 0.9em;
   margin-left: 0;
-  margin-top: -0.3em;
-  transform: rotate(-45deg);
+  margin-top: -0.45em;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 16'%3E%3Cpath d='M1 1 8 8 1 15' fill='none' stroke='black' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 16'%3E%3Cpath d='M1 1 8 8 1 15' fill='none' stroke='black' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
 }
 
 .weft-sort-item {
@@ -6879,24 +6882,31 @@ h2.weft-inspector-header {
   border: 1px solid var(--slide-line-strong);
   border-radius: var(--slide-ui-radius);
   clip-path: var(--slide-ui-clip);
-  cursor: grab;
-  touch-action: none;
   -webkit-appearance: none;
   appearance: none;
   user-select: none;
   -webkit-user-select: none;
-  transition: box-shadow 0.15s, border-color 0.15s;
 }
 
-.weft-sort-item:hover {
-  border-color: var(--slide-accent-ink);
-  box-shadow: 0 0.2em 0.7em rgba(0, 0, 0, 0.15);
+/* On the canvas of a selected block the objects can be dragged into the right order (SortCanvas): the one that is held stands at the place it
+   would be put, and the others make room. (Nothing else reacts to the pointer here: there is no hover.) */
+.weft-sort-item.is-movable {
+  cursor: grab;
+  touch-action: none;
 }
 
-.weft-sort-item:focus-visible,
-.weft-sort-item.is-picked {
-  outline: 2px solid var(--slide-focus-ring);
-  outline-offset: 2px;
+.weft-sort-item.is-grabbed {
+  cursor: grabbing;
+  z-index: 3;
+  box-shadow: 0 0.4em 1.2em rgba(0, 0, 0, 0.25);
+}
+
+.weft-sort-item.is-image.is-grabbed {
+  box-shadow: none;
+}
+
+.weft-sort-item.is-grabbed .weft-matching-frame {
+  box-shadow: 0 0.4em 1.2em rgba(0, 0, 0, 0.25);
 }
 
 .weft-sort-text {
@@ -6915,144 +6925,12 @@ h2.weft-inspector-header {
   box-shadow: none;
 }
 
-.weft-sort-item.is-image:hover .weft-matching-frame {
-  border-color: var(--slide-accent-ink);
-  filter: brightness(1.05);
-}
-
-/* What is dragged: a copy follows the pointer, and the object leaves the silhouette of itself where it would be put. */
-.weft-sort-item.is-ghost {
-  position: absolute;
-  z-index: 5;
-  pointer-events: none;
-  cursor: grabbing;
-  box-shadow: 0 0.5em 1.4em rgba(0, 0, 0, 0.3);
-}
-
-.weft-sort-item.is-image.is-ghost {
-  box-shadow: none;
-}
-
-.weft-sort-item.is-ghost.is-image .weft-matching-frame {
-  box-shadow: 0 0.5em 1.4em rgba(0, 0, 0, 0.3);
-}
-
-.weft-sort-item.is-dragging {
-  background: transparent;
-  border-style: dashed;
-  border-color: var(--slide-line-strong);
-  box-shadow: none;
-  opacity: 0.7;
-}
-
-.weft-sort-item.is-dragging > * {
-  visibility: hidden;
-}
-
-.weft-sort-item.is-image.is-dragging {
-  border: 0;
-}
-
-.weft-sort-item.is-image.is-dragging .weft-matching-frame {
-  visibility: visible;
-  border-style: dashed;
-  background: transparent;
-}
-
-.weft-sort-item.is-image.is-dragging .weft-matching-frame > * {
-  visibility: hidden;
-}
-
-/* After submitting: nothing moves any more, and every object says whether it needed no move (right) or had to be moved (wrong). */
-.weft-sort.is-locked .weft-sort-item {
-  cursor: default;
-}
-
-.weft-sort-item.is-correct {
-  border-color: var(--slide-ok);
-  background: var(--slide-ok-soft);
-}
-
-.weft-sort-item.is-wrong {
-  border-color: var(--slide-bad);
-  background: var(--slide-bad-soft);
-}
-
-.weft-sort-item.is-image.is-correct,
-.weft-sort-item.is-image.is-wrong {
-  background: transparent;
-  border: 0;
-}
-
-.weft-sort-item.is-image.is-correct .weft-matching-frame {
-  border-color: var(--slide-ok);
-}
-
-.weft-sort-item.is-image.is-wrong .weft-matching-frame {
-  border-color: var(--slide-bad);
-}
-
-.weft-sort-item.is-correct,
-.weft-sort-item.is-wrong {
-  padding-right: 1.9em;
-}
-
-.weft-sort-item.is-image.is-correct,
-.weft-sort-item.is-image.is-wrong {
-  padding-right: 0;
-}
-
-.weft-sort-item > .weft-matching-mark {
-  top: 50%;
-  right: 0.5em;
-  transform: translateY(-50%);
-}
-
-.weft-sort-item.is-correct > .weft-matching-mark {
-  color: var(--slide-ok);
-}
-
-.weft-sort-item.is-wrong > .weft-matching-mark {
-  color: var(--slide-bad);
-}
-
-.weft-sort-item.is-correct .weft-matching-frame > .weft-matching-mark,
-.weft-sort-item.is-wrong .weft-matching-frame > .weft-matching-mark {
-  color: inherit;
-}
-
-.weft-sort-item.is-correct .weft-matching-frame > .weft-matching-mark {
-  color: var(--slide-ok);
-}
-
-.weft-sort-item.is-wrong .weft-matching-frame > .weft-matching-mark {
-  color: var(--slide-bad);
-}
-
 .weft-sort-bar .weft-thumb-block-quiz-submit {
   display: inline-flex;
 }
 
-/* The colour of the line that is drawn along the cut corners of an object (futuristic, see stageTheme.css): that of its border, by state. */
+/* The colour of the line that is drawn along the cut corners of an object (futuristic, see stageTheme.css): that of its border. */
 .weft-sort-item {
   --slide-cut-line: var(--slide-line-strong);
   --slide-cut-line-width: 1px;
-}
-
-.weft-sort-item:hover {
-  --slide-cut-line: var(--slide-accent-ink);
-}
-
-.weft-sort-item.is-correct {
-  --slide-cut-line: var(--slide-ok);
-}
-
-.weft-sort-item.is-wrong {
-  --slide-cut-line: var(--slide-bad);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .weft-sort-item {
-    transition: none;
-  }
 }

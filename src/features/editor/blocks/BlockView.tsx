@@ -60,7 +60,7 @@ import { MaskHandles } from "./MaskHandles";
 import { LinkView } from "./LinkView";
 import { CheckerView } from "./CheckerView";
 import { MatchingCanvas } from "./MatchingCanvas";
-import { SortView } from "./SortView";
+import { SortCanvas } from "./SortCanvas";
 import { FilesView } from "./FilesView";
 import { ShapeSvg } from "./ShapeSvg";
 import { CodeView } from "./CodeView";
@@ -905,7 +905,7 @@ function BlockContent({
     case "matching":
       return <MatchingCanvas block={block} selected={selected} onUpdate={onUpdate} />;
     case "sort":
-      return <SortView block={block} lang={lang} defaultLang={defaultLang} />;
+      return <SortCanvas block={block} selected={selected} onUpdate={onUpdate} />;
     case "quiz":
       return (
         <QuizBlockCanvas

@@ -2004,16 +2004,16 @@ summary:focus-visible,
   transform: translateX(-50%);
 }
 
-/* (A square with two borders, turned by 45 degrees: its point is 0.2 of its side beyond its box, so the box sits that far in - the point is the end of the line.) */
+/* The arrowhead at the end of the line: a chevron drawn as a mask, so that it is the same on both sides of the line; its point is the line's end. */
 .weft-sort-list::after {
   left: 50%;
-  bottom: 0.13em;
-  width: 0.6em;
-  height: 0.6em;
-  margin-left: -0.3em;
-  border-right: 2px solid var(--slide-line-strong);
-  border-bottom: 2px solid var(--slide-line-strong);
-  transform: rotate(45deg);
+  bottom: 0;
+  width: 0.9em;
+  height: 0.5em;
+  margin-left: -0.45em;
+  background: var(--slide-line-strong);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Cpath d='M1 1 8 8 15 1' fill='none' stroke='black' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Cpath d='M1 1 8 8 15 1' fill='none' stroke='black' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
 }
 
 .weft-sort.is-horizontal .weft-sort-list::before {
@@ -2030,12 +2030,15 @@ summary:focus-visible,
 
 .weft-sort.is-horizontal .weft-sort-list::after {
   left: auto;
-  right: 0.13em;
+  right: 0;
   top: 50%;
   bottom: auto;
+  width: 0.5em;
+  height: 0.9em;
   margin-left: 0;
-  margin-top: -0.3em;
-  transform: rotate(-45deg);
+  margin-top: -0.45em;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 16'%3E%3Cpath d='M1 1 8 8 1 15' fill='none' stroke='black' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 16'%3E%3Cpath d='M1 1 8 8 1 15' fill='none' stroke='black' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
 }
 
 .weft-sort-item {

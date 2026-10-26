@@ -6625,15 +6625,6 @@ h2.weft-inspector-header {
   cursor: pointer;
 }
 
-.weft-matching-size {
-  display: flex;
-  gap: 10px;
-}
-
-.weft-matching-size input {
-  width: 64px;
-}
-
 /* Pictures: the frame is the picture's own - its corners, in the module's style - and not a button around it; the card is only the room the
    picture may take. The room is a size container (.weft-matching-pic): the frame takes the share of it that the picture's shape - its ratio, which
    the player and the editor set as --ratio when the picture has loaded - allows, so that it is exactly the picture's box. (Lengths of the frame

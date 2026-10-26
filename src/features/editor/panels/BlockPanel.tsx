@@ -3242,6 +3242,36 @@ function QuizOptionRow({
   );
 }
 
+/** The size of the objects of a matching or a sorting puzzle - the share of the block each takes, width and height, 5 to 100 percent: a slider with
+ * "−" and "+" (one percent at a time). It is a share, so it stays the same when the whole block is scaled; the objects scale with it. */
+function ObjectSizeControl({ title, size, onChange }: { title: string; size: { width: number; height: number }; onChange: (size: { width: number; height: number }) => void }) {
+  return (
+    <div className="weft-field">
+      <span>{title}</span>
+      {(["width", "height"] as const).map((dimension) => {
+        const label = dimension === "width" ? tr("ui.matching_width") : tr("ui.matching_height");
+        const set = (value: number) => onChange({ ...size, [dimension]: Math.min(100, Math.max(5, Math.round(value))) });
+        return (
+          <label key={dimension} className="weft-field">
+            <span>
+              {label} ({size[dimension]} %)
+            </span>
+            <span className="weft-delay-control">
+              <button type="button" className="weft-delay-step" aria-label={tr("ui.decrease", { label })} disabled={size[dimension] <= 5} onClick={() => set(size[dimension] - 1)}>
+                −
+              </button>
+              <input type="range" className="weft-delay-slider" min={5} max={100} step={1} value={size[dimension]} onChange={(e) => set(Number(e.target.value))} />
+              <button type="button" className="weft-delay-step" aria-label={tr("ui.increase", { label })} disabled={size[dimension] >= 100} onClick={() => set(size[dimension] + 1)}>
+                +
+              </button>
+            </span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
 /** The settings of a matching (MatchingBlock): the cards of both lists (text or picture; which target each object belongs to, or none: a decoy), their
  * sizes, whether they take each other's places at random, whether it is a required task, and what a right and a wrong assignment do - changes to
  * variables - and the way on to the next slide, as with a quiz. The places of the cards are set by moving them on the slide. */
@@ -3352,27 +3382,7 @@ function MatchingEditor({ block, container, page, onUpdate }: { block: MatchingB
     ));
 
   const sizeFields = (key: "sourceSize" | "targetSize", title: string) => (
-    <div className="weft-field">
-      <span>{title}</span>
-      <div className="weft-matching-size">
-        {(["width", "height"] as const).map((dimension) => (
-          <label key={dimension} className="weft-field weft-field-inline">
-            <span>{dimension === "width" ? tr("ui.matching_width") : tr("ui.matching_height")}</span>
-            <input
-              type="number"
-              min={5}
-              max={100}
-              step={1}
-              value={block[key][dimension]}
-              onChange={(e) => {
-                const value = Math.min(100, Math.max(5, Number(e.target.value) || 5));
-                onUpdate({ [key]: { ...block[key], [dimension]: value } });
-              }}
-            />
-          </label>
-        ))}
-      </div>
-    </div>
+    <ObjectSizeControl title={title} size={block[key]} onChange={(size) => onUpdate({ [key]: size })} />
   );
 
   return (
@@ -3497,27 +3507,7 @@ function SortEditor({ block, container, page, onUpdate }: { block: SortBlock; co
           <input value={sortLabel(block, "end", lang, defaultLang)} onChange={(e) => onUpdate(sortLabelPatch(block, "end", lang, defaultLang, e.target.value))} />
         </label>
         <p className="weft-hint">{tr("ui.sort_labels_hint")}</p>
-        <div className="weft-field">
-          <span>{tr("ui.sort_size")}</span>
-          <div className="weft-matching-size">
-            {(["width", "height"] as const).map((dimension) => (
-              <label key={dimension} className="weft-field weft-field-inline">
-                <span>{dimension === "width" ? tr("ui.matching_width") : tr("ui.matching_height")}</span>
-                <input
-                  type="number"
-                  min={5}
-                  max={100}
-                  step={1}
-                  value={block.itemSize[dimension]}
-                  onChange={(e) => {
-                    const value = Math.min(100, Math.max(5, Number(e.target.value) || 5));
-                    onUpdate({ itemSize: { ...block.itemSize, [dimension]: value } });
-                  }}
-                />
-              </label>
-            ))}
-          </div>
-        </div>
+        <ObjectSizeControl title={tr("ui.sort_size")} size={block.itemSize} onChange={(itemSize) => onUpdate({ itemSize })} />
         <label className="weft-field weft-field-inline">
           <input type="checkbox" checked={block.required === true} onChange={(e) => onUpdate({ required: e.target.checked ? true : undefined })} />
           <span>{tr("ui.required_task")}</span>

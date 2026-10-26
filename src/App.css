@@ -6895,18 +6895,47 @@ h2.weft-inspector-header {
   touch-action: none;
 }
 
-.weft-sort-item.is-grabbed {
+/* What is held: a copy follows the pointer, and the object leaves the silhouette of itself where it would be put (as in the player). */
+.weft-sort-item.is-ghost {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
   cursor: grabbing;
-  z-index: 3;
-  box-shadow: 0 0.4em 1.2em rgba(0, 0, 0, 0.25);
+  box-shadow: 0 0.5em 1.4em rgba(0, 0, 0, 0.3);
 }
 
-.weft-sort-item.is-image.is-grabbed {
+.weft-sort-item.is-image.is-ghost {
   box-shadow: none;
 }
 
-.weft-sort-item.is-grabbed .weft-matching-frame {
-  box-shadow: 0 0.4em 1.2em rgba(0, 0, 0, 0.25);
+.weft-sort-item.is-ghost.is-image .weft-matching-frame {
+  box-shadow: 0 0.5em 1.4em rgba(0, 0, 0, 0.3);
+}
+
+.weft-sort-item.is-dragging {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--slide-line-strong);
+  box-shadow: none;
+  opacity: 0.7;
+}
+
+.weft-sort-item.is-dragging > * {
+  visibility: hidden;
+}
+
+.weft-sort-item.is-image.is-dragging {
+  border: 0;
+}
+
+.weft-sort-item.is-image.is-dragging .weft-matching-frame {
+  visibility: visible;
+  border-style: dashed;
+  background: transparent;
+}
+
+.weft-sort-item.is-image.is-dragging .weft-matching-frame > * {
+  visibility: hidden;
 }
 
 .weft-sort-text {

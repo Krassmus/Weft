@@ -1,4 +1,4 @@
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent, Ref } from "react";
 import { useAssetStore } from "../../../core/assets/assetStore";
 import { sortItemText, sortLabel } from "../../../core/document/translations";
 import { playerStringsFor } from "../../../core/i18n/playerStrings";
@@ -18,23 +18,25 @@ export function SortView({
   order,
   grabbed,
   onItemPointerDown,
+  rootRef,
 }: {
   block: SortBlock;
   lang: string | null;
   defaultLang: string | null;
   /** The ids of the objects in the order to show them in, while one is being dragged (else the block's own). */
   order?: string[] | null;
-  /** The object that is held. */
+  /** The object that is held: it leaves the silhouette of itself where it would be put (the one that follows the pointer is SortCanvas's). */
   grabbed?: string | null;
   /** Given on the canvas of a selected block: the pointer goes down on an object (to move it). */
   onItemPointerDown?: (event: ReactPointerEvent, item: SortItem) => void;
+  rootRef?: Ref<HTMLDivElement>;
 }) {
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
   const vertical = block.orientation !== "horizontal";
   const start = sortLabel(block, "start", lang, defaultLang);
   const end = sortLabel(block, "end", lang, defaultLang);
   return (
-    <div className={"weft-sort weft-sort-view " + (vertical ? "is-vertical" : "is-horizontal")}>
+    <div ref={rootRef} className={"weft-sort weft-sort-view " + (vertical ? "is-vertical" : "is-horizontal")}>
       <div className="weft-sort-body">
         {start !== "" && <span className="weft-sort-end is-start">{start}</span>}
         <div className="weft-sort-list">
@@ -44,7 +46,7 @@ export function SortView({
               <div
                 key={item.id}
                 data-weft-item={item.id}
-                className={"weft-sort-item" + (item.kind === "image" ? " is-image" : "") + (grabbed === item.id ? " is-grabbed" : "") + (onItemPointerDown ? " is-movable" : "")}
+                className={"weft-sort-item" + (item.kind === "image" ? " is-image" : "") + (grabbed === item.id ? " is-dragging" : "") + (onItemPointerDown ? " is-movable" : "")}
                 onPointerDown={onItemPointerDown ? (e) => onItemPointerDown(e, item) : undefined}
                 style={{ width: `${block.itemSize.width}%`, height: `${block.itemSize.height}%` }}
               >

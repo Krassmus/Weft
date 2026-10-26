@@ -6798,8 +6798,10 @@ h2.weft-inspector-header {
   bottom: 0;
 }
 
+/* (Just under the objects: --sort-labels-top is where the lowest of them ends - measured, since a picture's frame can be smaller than the room it
+   takes; until it is, they are --sort-item-h percent of what is above the room for the words, and in the middle of it.) */
 .weft-sort.is-horizontal .weft-sort-end {
-  bottom: 0;
+  top: calc(var(--sort-labels-top, (100% - var(--sort-pad)) * (1 + var(--sort-item-h, 60) / 100) / 2) + 0.4em);
   max-width: 45%;
 }
 
@@ -6841,14 +6843,17 @@ h2.weft-inspector-header {
 }
 
 /* (--sort-pad is the room under a horizontal line for the words: the line and the objects are in the middle of what is above it.) */
-.weft-sort.is-horizontal .weft-sort-list {
+.weft-sort.is-horizontal {
   --sort-pad: 0px;
+}
+
+.weft-sort.is-horizontal .weft-sort-list {
   flex-direction: row;
   padding: 0 0.6em var(--sort-pad);
 }
 
-.weft-sort.is-horizontal.has-start .weft-sort-list,
-.weft-sort.is-horizontal.has-end .weft-sort-list {
+.weft-sort.is-horizontal.has-start,
+.weft-sort.is-horizontal.has-end {
   --sort-pad: 1.6em;
 }
 

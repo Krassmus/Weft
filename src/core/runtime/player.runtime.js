@@ -3608,6 +3608,7 @@
     var wrap = el("div", { class: "weft-block weft-block-sort", "data-weft-block": block.id, style: positionStyle(block.position) });
     if (block.required) requiredPending[block.id] = true;
     var box = el("div", { class: "weft-sort " + (vertical ? "is-vertical" : "is-horizontal") }, []);
+    box.style.setProperty("--sort-item-h", String(block.itemSize.height));
     var body = el("div", { class: "weft-sort-body" }, []);
     var list = el("div", { class: "weft-sort-list" }, []);
     var bar = el("div", { class: "weft-sort-bar" }, []);
@@ -3630,6 +3631,27 @@
     };
     showLabels();
     languageRefreshers.push(showLabels);
+
+    // Under a horizontal line the words stand just under the lowest of the objects (a picture: of its frame, which can be smaller than the room
+    // the object takes) - measured, since the room says nothing about it. Again whenever the line's size or a picture's shape changes.
+    var placeLabelsLater = null;
+    function placeLabels() {
+      placeLabelsLater = null;
+      if (vertical) return;
+      var top = body.getBoundingClientRect().top;
+      var lowest = 0;
+      [].forEach.call(list.children, function (card) {
+        var shown = card.querySelector(".weft-matching-frame") || card;
+        var rect = shown.getBoundingClientRect();
+        if (rect.height > 0) lowest = Math.max(lowest, rect.bottom - top);
+      });
+      if (lowest > 0) body.style.setProperty("--sort-labels-top", Math.round(lowest) + "px");
+    }
+    function placeLabelsSoon() {
+      if (vertical || placeLabelsLater) return;
+      placeLabelsLater = window.requestAnimationFrame ? window.requestAnimationFrame(placeLabels) : setTimeout(placeLabels, 0);
+    }
+    if (!vertical && typeof ResizeObserver !== "undefined") new ResizeObserver(placeLabelsSoon).observe(list);
 
     var cards = {}; // item id -> its button
     var rightPlace = {}; // item id -> its place in the right order
@@ -3656,6 +3678,7 @@
           if (image.naturalWidth && image.naturalHeight) {
             ratios[item.id] = image.naturalWidth / image.naturalHeight;
             frame.style.setProperty("--ratio", String(ratios[item.id]));
+            placeLabelsSoon();
           }
         };
         if (ratios[item.id]) frame.style.setProperty("--ratio", String(ratios[item.id]));

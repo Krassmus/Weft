@@ -1,4 +1,5 @@
-import type { PointerEvent as ReactPointerEvent, Ref } from "react";
+import { useLayoutEffect, useRef } from "react";
+import type { CSSProperties, MutableRefObject, PointerEvent as ReactPointerEvent, Ref } from "react";
 import { useAssetStore } from "../../../core/assets/assetStore";
 import { sortItemText, sortLabel } from "../../../core/document/translations";
 import { playerStringsFor } from "../../../core/i18n/playerStrings";
@@ -33,10 +34,48 @@ export function SortView({
 }) {
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
   const vertical = block.orientation !== "horizontal";
+  const root = useRef<HTMLDivElement | null>(null);
+  const setRoot = (el: HTMLDivElement | null) => {
+    root.current = el;
+    if (typeof rootRef === "function") rootRef(el);
+    else if (rootRef) (rootRef as MutableRefObject<HTMLDivElement | null>).current = el;
+  };
   const start = sortLabel(block, "start", lang, defaultLang);
   const end = sortLabel(block, "end", lang, defaultLang);
+  // Under a horizontal line the words stand just under the lowest of the objects (a picture: of its frame, which can be smaller than the room the
+  // object takes): measured, again when the line's size or a picture's shape changes (the player does the same).
+  const sizeKey = `${block.itemSize.width}x${block.itemSize.height}:${block.items.length}`;
+  useLayoutEffect(() => {
+    const el = root.current;
+    const body = el?.querySelector<HTMLElement>(".weft-sort-body");
+    const list = el?.querySelector<HTMLElement>(".weft-sort-list");
+    if (!el || !body || !list || vertical) return;
+    let frame = 0;
+    const place = () => {
+      const top = body.getBoundingClientRect().top;
+      let lowest = 0;
+      for (const card of Array.from(list.children)) {
+        const rect = (card.querySelector(".weft-matching-frame") ?? card).getBoundingClientRect();
+        if (rect.height > 0) lowest = Math.max(lowest, rect.bottom - top);
+      }
+      if (lowest > 0) body.style.setProperty("--sort-labels-top", `${Math.round(lowest)}px`);
+    };
+    const soon = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(place);
+    };
+    place();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(soon) : null;
+    observer?.observe(list);
+    el.addEventListener("load", soon, true);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      el.removeEventListener("load", soon, true);
+    };
+  }, [vertical, sizeKey, start, end]);
   return (
-    <div ref={rootRef} className={"weft-sort weft-sort-view " + (vertical ? "is-vertical" : "is-horizontal") + (start !== "" ? " has-start" : "") + (end !== "" ? " has-end" : "")}>
+    <div ref={setRoot} style={{ "--sort-item-h": block.itemSize.height } as CSSProperties} className={"weft-sort weft-sort-view " + (vertical ? "is-vertical" : "is-horizontal") + (start !== "" ? " has-start" : "") + (end !== "" ? " has-end" : "")}>
       <div className="weft-sort-body">
         {start !== "" && <span className="weft-sort-end is-start">{start}</span>}
         <div className="weft-sort-list">

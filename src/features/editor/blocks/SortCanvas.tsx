@@ -14,21 +14,22 @@ export function SortCanvas({ block, selected, onUpdate }: { block: SortBlock; se
   const { lang, defaultLang } = useEditingLanguage();
   const [drag, setDrag] = useState<{ id: string; order: string[] } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  const rects = useRef(new Map<string, DOMRect>());
+  const places = useRef(new Map<string, { x: number; y: number }>());
 
-  // The objects that moved glide to their new places (the FLIP way: put them back where they were, then let go).
+  // The objects that moved glide to their new places (the FLIP way: put them back where they were, then let go). Their places are those of the
+  // layout (offsetLeft / offsetTop), not where a gliding object happens to be at the moment.
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root) return;
     const reduced = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     root.querySelectorAll<HTMLElement>(":scope .weft-sort-list > .weft-sort-item").forEach((el) => {
       const id = el.dataset.weftItem as string;
-      const now = el.getBoundingClientRect();
-      const was = rects.current.get(id);
-      rects.current.set(id, now);
+      const now = { x: el.offsetLeft, y: el.offsetTop };
+      const was = places.current.get(id);
+      places.current.set(id, now);
       if (!drag || reduced || !was) return;
-      const dx = was.left - now.left;
-      const dy = was.top - now.top;
+      const dx = was.x - now.x;
+      const dy = was.y - now.y;
       if (!dx && !dy) return;
       el.style.transition = "none";
       el.style.transform = `translate(${dx}px, ${dy}px)`;
@@ -75,13 +76,13 @@ export function SortCanvas({ block, selected, onUpdate }: { block: SortBlock; se
         ghost.style.left = `${e.clientX - bodyRect.left - grab.x}px`;
         ghost.style.top = `${e.clientY - bodyRect.top - grab.y}px`;
       }
-      // It goes after every other object whose middle the pointer has passed.
-      const pointer = vertical ? e.clientY : e.clientX;
+      // It goes after every other object whose middle the pointer has passed (measured from the layout, not from where a gliding object is).
+      const listRect = list.getBoundingClientRect();
+      const pointer = vertical ? e.clientY - listRect.top : e.clientX - listRect.left;
       const others = [...list.querySelectorAll<HTMLElement>(":scope > .weft-sort-item")].filter((el) => el.dataset.weftItem !== item.id);
       let index = 0;
       others.forEach((el, i) => {
-        const rect = el.getBoundingClientRect();
-        if (pointer > (vertical ? rect.top + rect.height / 2 : rect.left + rect.width / 2)) index = i + 1;
+        if (pointer > (vertical ? el.offsetTop + el.offsetHeight / 2 : el.offsetLeft + el.offsetWidth / 2)) index = i + 1;
       });
       const ids = others.map((el) => el.dataset.weftItem as string);
       ids.splice(index, 0, item.id);

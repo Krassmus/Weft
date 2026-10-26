@@ -3645,7 +3645,16 @@
         var rect = shown.getBoundingClientRect();
         if (rect.height > 0) lowest = Math.max(lowest, rect.bottom - top);
       });
-      if (lowest > 0) body.style.setProperty("--sort-labels-top", Math.round(lowest) + "px");
+      if (lowest <= 0) return;
+      body.style.setProperty("--sort-labels-top", Math.round(lowest) + "px");
+      // The button and the message under it move up under the objects and their words (a shift, not a change of the room: that would make
+      // the objects larger again), so that they belong to the line; what is left free is left at the bottom of the block.
+      var used = lowest;
+      [startLabel, endLabel].forEach(function (label) {
+        if (!label.hidden) used = Math.max(used, label.getBoundingClientRect().bottom - top);
+      });
+      var free = body.getBoundingClientRect().height - used;
+      bar.style.transform = free > 0 ? "translateY(" + -Math.round(free) + "px)" : "";
     }
     function placeLabelsSoon() {
       if (vertical || placeLabelsLater) return;

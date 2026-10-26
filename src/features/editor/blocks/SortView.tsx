@@ -49,6 +49,7 @@ export function SortView({
     const el = root.current;
     const body = el?.querySelector<HTMLElement>(".weft-sort-body");
     const list = el?.querySelector<HTMLElement>(".weft-sort-list");
+    const bar = el?.querySelector<HTMLElement>(".weft-sort-bar");
     if (!el || !body || !list || vertical) return;
     let frame = 0;
     const place = () => {
@@ -58,7 +59,13 @@ export function SortView({
         const rect = (card.querySelector(".weft-matching-frame") ?? card).getBoundingClientRect();
         if (rect.height > 0) lowest = Math.max(lowest, rect.bottom - top);
       }
-      if (lowest > 0) body.style.setProperty("--sort-labels-top", `${Math.round(lowest)}px`);
+      if (lowest <= 0) return;
+      body.style.setProperty("--sort-labels-top", `${Math.round(lowest)}px`);
+      // The button moves up under the objects and their words (a shift, not a change of the room), so that it belongs to the line.
+      let used = lowest;
+      for (const label of Array.from(body.querySelectorAll<HTMLElement>(":scope > .weft-sort-end"))) used = Math.max(used, label.getBoundingClientRect().bottom - top);
+      const free = body.getBoundingClientRect().height - used;
+      if (bar) bar.style.transform = free > 0 ? `translateY(${-Math.round(free)}px)` : "";
     };
     const soon = () => {
       cancelAnimationFrame(frame);

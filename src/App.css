@@ -6772,14 +6772,45 @@ h2.weft-inspector-header {
   flex: none;
 }
 
+/* The words at the two ends of the line stand beside it, level with its beginning and with its arrow: right of a vertical line, under a horizontal
+   one (where the end of the line has the room that is left free for them: .has-start / .has-end / .has-ends). */
 .weft-sort-end {
-  flex: none;
-  max-width: 100%;
-  text-align: center;
+  position: absolute;
+  z-index: 2;
   font-size: 0.9em;
+  line-height: 1.25;
   color: var(--slide-muted);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.weft-sort.is-vertical .weft-sort-end {
+  left: calc(50% + 0.9em);
+  max-width: calc(50% - 1em);
+  text-align: left;
+}
+
+.weft-sort.is-vertical .weft-sort-end.is-start {
+  top: 0;
+}
+
+.weft-sort.is-vertical .weft-sort-end.is-end {
+  bottom: 0;
+}
+
+.weft-sort.is-horizontal .weft-sort-end {
+  bottom: 0;
+  max-width: 45%;
+}
+
+.weft-sort.is-horizontal .weft-sort-end.is-start {
+  left: 0;
+  text-align: left;
+}
+
+.weft-sort.is-horizontal .weft-sort-end.is-end {
+  right: 0;
+  text-align: right;
 }
 
 .weft-sort-end[hidden] {
@@ -6801,9 +6832,24 @@ h2.weft-inspector-header {
   padding: 0.6em 0;
 }
 
+.weft-sort.is-vertical.has-start .weft-sort-list {
+  padding-top: 1.5em;
+}
+
+.weft-sort.is-vertical.has-end .weft-sort-list {
+  padding-bottom: 1.5em;
+}
+
+/* (--sort-pad is the room under a horizontal line for the words: the line and the objects are in the middle of what is above it.) */
 .weft-sort.is-horizontal .weft-sort-list {
+  --sort-pad: 0px;
   flex-direction: row;
-  padding: 0 0.6em;
+  padding: 0 0.6em var(--sort-pad);
+}
+
+.weft-sort.is-horizontal.has-start .weft-sort-list,
+.weft-sort.is-horizontal.has-end .weft-sort-list {
+  --sort-pad: 1.6em;
 }
 
 /* The line, with a small arrowhead at its end. */
@@ -6839,7 +6885,7 @@ h2.weft-inspector-header {
 .weft-sort.is-horizontal .weft-sort-list::before {
   left: 0;
   right: 0;
-  top: 50%;
+  top: calc(50% - var(--sort-pad, 0px) / 2);
   bottom: auto;
   width: auto;
   height: 0;
@@ -6851,7 +6897,7 @@ h2.weft-inspector-header {
 .weft-sort.is-horizontal .weft-sort-list::after {
   left: auto;
   right: 0;
-  top: 50%;
+  top: calc(50% - var(--sort-pad, 0px) / 2);
   bottom: auto;
   width: 0.5em;
   height: 0.9em;

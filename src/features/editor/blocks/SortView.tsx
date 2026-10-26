@@ -36,7 +36,7 @@ export function SortView({
   const start = sortLabel(block, "start", lang, defaultLang);
   const end = sortLabel(block, "end", lang, defaultLang);
   return (
-    <div ref={rootRef} className={"weft-sort weft-sort-view " + (vertical ? "is-vertical" : "is-horizontal")}>
+    <div ref={rootRef} className={"weft-sort weft-sort-view " + (vertical ? "is-vertical" : "is-horizontal") + (start !== "" ? " has-start" : "") + (end !== "" ? " has-end" : "")}>
       <div className="weft-sort-body">
         {start !== "" && <span className="weft-sort-end is-start">{start}</span>}
         <div className="weft-sort-list">

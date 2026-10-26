@@ -3623,6 +3623,8 @@
       endLabel.textContent = sortEndLabel(block, "end");
       startLabel.hidden = !startLabel.textContent;
       endLabel.hidden = !endLabel.textContent;
+      box.classList.toggle("has-start", !!startLabel.textContent);
+      box.classList.toggle("has-end", !!endLabel.textContent);
       applyVariablesToNode(startLabel);
       applyVariablesToNode(endLabel);
     };

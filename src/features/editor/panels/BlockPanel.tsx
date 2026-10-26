@@ -3506,7 +3506,6 @@ function SortEditor({ block, container, page, onUpdate }: { block: SortBlock; co
           <span>{tr("ui.sort_end_label")}</span>
           <input value={sortLabel(block, "end", lang, defaultLang)} onChange={(e) => onUpdate(sortLabelPatch(block, "end", lang, defaultLang, e.target.value))} />
         </label>
-        <p className="weft-hint">{tr("ui.sort_labels_hint")}</p>
         <ObjectSizeControl title={tr("ui.sort_size")} size={block.itemSize} onChange={(itemSize) => onUpdate({ itemSize })} />
         <label className="weft-field weft-field-inline">
           <input type="checkbox" checked={block.required === true} onChange={(e) => onUpdate({ required: e.target.checked ? true : undefined })} />

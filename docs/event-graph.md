@@ -74,6 +74,18 @@ die Folie nur auf anderen Wegen verlassen werden (zum Beispiel ein Button, der d
 - **doppelt**: zwischen zwei Knoten gibt es zwei Trigger (siehe „Ein Knoten, mehrere Events“). Doppellinien haben keine
   Beschriftung: Sie sagen, dass hier mehr passiert, als die Linie zeigen kann – Verzögerungen stehen im Panel.
 
+### Pflichtaufgaben: die Bedingungslinie
+
+Eine Pflichtaufgabe (Quiz, Lückentext, Checker, Matching, Sortierrätsel mit „Pflichtangabe“) ist **kein Trigger**: Sie löst „Nächste Folie“
+nicht aus, aber „Nächste Folie“ muss auch auf sie warten - Weiter verlässt die Folie erst, wenn sie abgeschickt ist (die Aufbauten davor laufen
+weiter). Das ist ein „und“, und kein Weg im Graphen. Deshalb ist sie eine eigene Darstellung:
+
+- eine **gepunktete violette Linie** vom Ereignis „abgeschickt“ der Aufgabe zu „Nächste Folie“, das ein **Schloss** unter seinem Titel
+  trägt (auf dem Schloss enden alle Linien; der Hinweis dazu steht dort, wenn man darüberfährt),
+- mehrere Pflichtaufgaben laufen in dasselbe Schloss: ihre Linien werden vor „Nächste Folie“ zusammengeführt,
+- sie ist **abgeleitet** (aus „Pflichtangabe“ im Panel der Aufgabe): Es wird nichts gespeichert, man kann sie nicht bearbeiten, und sie hat
+  keinen Einfluss darauf, wo etwas im Graphen steht.
+
 ### Ein Knoten, mehrere Events
 
 Ein Knoten im Graphen kann mehrere Events zeigen (**Begleiter**), um Platz zu sparen. Jedes ist ein Event für sich – mit eigener ID,

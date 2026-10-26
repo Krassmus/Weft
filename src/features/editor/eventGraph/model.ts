@@ -5,6 +5,7 @@ import {
   getPageLanes,
   listAllNodes,
   quizFillNodeId,
+  quizSubmitNodeId,
   videoStartNodeId,
 } from "../../../core/document/pageTimeline";
 import { isMediaBlock } from "../../../core/types";
@@ -46,9 +47,23 @@ export interface GraphEdgeModel {
   doubled: boolean;
 }
 
+/**
+ * What a required task (QuizBlock.required and the like) means for the page: "Nächste Folie" cannot be reached before it has been submitted.
+ * Not a trigger - nothing here makes "Nächste Folie" happen, it only has to wait for it as well (a "and") - so it is no edge of the graph and
+ * does not change where anything stands: drawn as a dotted violet line from the submission of the task to "Nächste Folie", ending in a lock.
+ */
+export interface GraphConditionModel {
+  id: string;
+  /** The event "submitted" of the required task, and the "Nächste Folie" that waits for it. */
+  from: string;
+  to: string;
+  blockId: string;
+}
+
 export interface GraphModel {
   nodes: GraphNodeModel[];
   edges: GraphEdgeModel[];
+  conditions: GraphConditionModel[];
   /** The node that shows an event: for an event that is shown in another one's node (a companion) that node's id. */
   shownIn: Map<string, string>;
 }
@@ -269,5 +284,17 @@ export function buildGraphModel(page: Page): GraphModel {
     if (from && to && !from.outRight && from.blockId !== to.blockId) edge.down = true;
   }
 
-  return { nodes: primaries, edges: shownEdges, shownIn: fold };
+  // The required tasks of the page: "Nächste Folie" waits for each of them.
+  const conditions: GraphConditionModel[] = [];
+  const end = primaries.find((m) => m.id === "end");
+  if (end) {
+    const shown = new Set(primaries.map((m) => m.id));
+    for (const block of orderedValues(page.blocks)) {
+      if (!("required" in block) || !block.required) continue;
+      const submitted = quizSubmitNodeId(block.id);
+      if (shown.has(submitted)) conditions.push({ id: `required:${block.id}`, from: submitted, to: end.id, blockId: block.id });
+    }
+  }
+
+  return { nodes: primaries, edges: shownEdges, conditions, shownIn: fold };
 }

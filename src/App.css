@@ -4886,6 +4886,44 @@ html {
   opacity: 0.5;
 }
 
+/* A required task: "Nächste Folie" has to wait for it too (not a trigger: it is drawn dotted, in the violet of what the learner does, and ends in a
+   lock). */
+.weft-eg-condition {
+  fill: none;
+  stroke: var(--weft-eg-violet);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 0.1 5;
+  pointer-events: stroke;
+  transition: opacity 0.15s;
+}
+
+.weft-eg-lock circle {
+  fill: var(--weft-panel);
+  stroke: var(--weft-eg-violet);
+  stroke-width: 1.5;
+}
+
+.weft-eg-lock rect {
+  fill: var(--weft-eg-violet);
+}
+
+.weft-eg-lock path {
+  fill: none;
+  stroke: var(--weft-eg-violet);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.weft-eg-conditions.is-dim .weft-eg-condition,
+.weft-eg-conditions.is-dim .weft-eg-lock {
+  opacity: 0.2;
+}
+
+.weft-eg-conditions.is-hot .weft-eg-condition {
+  stroke-width: 2.8;
+}
+
 .weft-eg-line.is-hot {
   stroke-width: 2.4;
   opacity: 1;

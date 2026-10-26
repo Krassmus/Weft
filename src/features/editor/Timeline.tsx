@@ -165,6 +165,8 @@ const FRAME_PAD = 12;
 /** More room above a frame, for the name of the block. */
 const FRAME_TOP = 22;
 const LABEL_HEIGHT = 34;
+/** The lock where the lines of the required tasks end (diameter), and how far it stands from the icon and the title of "Nächste Folie". */
+const LOCK = 20;
 
 interface Point {
   x: number;
@@ -373,7 +375,9 @@ function TimelineGraph({ page }: { page: Page }) {
   const detours = layout.edges.filter((e) => e.route === "detour");
   const graphWidth = 2 * PAD_X + (layout.cols - 1) * columnWidth;
   const rowsHeight = PAD_TOP + ICON / 2 + (layout.rows - 1) * ROW_HEIGHT + ICON / 2 + LABEL_HEIGHT;
-  const graphHeight = rowsHeight + (detours.length > 0 ? 14 + detours.length * 8 : 0);
+  // The lock of the required tasks hangs under the title of "Nächste Folie" - room for it, if that stands in the last row.
+  const lockRoom = model.conditions.length > 0 && model.conditions.some((c) => (layout.row.get(c.to) ?? 0) >= layout.rows - 1) ? LOCK + 8 : 0;
+  const graphHeight = rowsHeight + lockRoom + (detours.length > 0 ? 14 + detours.length * 8 : 0);
 
   // Where every event stands: its place in the layout - or, while one is being dragged, with the others closed up around it.
   const target = useMemo(() => {
@@ -455,6 +459,8 @@ function TimelineGraph({ page }: { page: Page }) {
     }
   }
   const lit = hovered !== null && !drag;
+  const hotConditions = new Set<string>();
+  if (hovered && !drag) for (const c of model.conditions) if (c.from === hovered || c.to === hovered) hotConditions.add(c.id);
 
   // The frame of every event block: round its events, with the kind of block written on it.
   const frames = new Map<string, { kind: string; ids: string[] }>();
@@ -531,6 +537,43 @@ function TimelineGraph({ page }: { page: Page }) {
     window.addEventListener("pointercancel", finish);
   }
 
+  // The required tasks: a dotted violet line from the submission of each to "Nächste Folie", which end together in one lock - under the title
+  // of "Nächste Folie" (above its icon when all the tasks stand higher than it). The lines are drawn from the lock towards the tasks, so that
+  // the dots of the stretch they share lie on each other.
+  function conditionLines() {
+    if (model.conditions.length === 0) return null;
+    const half = ICON / 2;
+    const to = at(model.conditions[0].to);
+    const higher = model.conditions.every((c) => at(c.from).y <= to.y);
+    // Where the lock hangs: under the title of "Nächste Folie", or - when all the tasks stand above it - above its icon.
+    const lock = { x: to.x, y: higher ? to.y - half - LOCK / 2 - 8 : to.y + half + LABEL_HEIGHT + LOCK / 2 + 4 };
+    const lockEdge = { x: lock.x, y: lock.y + (higher ? LOCK / 2 : -LOCK / 2) };
+    const hot = model.conditions.some((c) => hotConditions.has(c.id));
+    const dim = lit && !hot;
+    return (
+      <g className={"weft-eg-conditions" + (hot ? " is-hot" : dim ? " is-dim" : "")}>
+        {model.conditions.map((c) => {
+          const u = at(c.from);
+          const points =
+            u.x + half + 4 < to.x
+              ? [lockEdge, { x: to.x, y: u.y }, { x: u.x + half, y: u.y }]
+              : [lockEdge, { x: u.x, y: u.y + (u.y > lockEdge.y ? -half : half) }];
+          return (
+            <path key={c.id} className="weft-eg-condition" d={roundedPath(points, 9)}>
+              <title>{tr("ui.condition_required_task")}</title>
+            </path>
+          );
+        })}
+        <g className="weft-eg-lock" transform={`translate(${lock.x} ${lock.y})`}>
+          <title>{tr("ui.condition_required_task")}</title>
+          <circle r={LOCK / 2} />
+          <rect x={-3.6} y={-0.6} width={7.2} height={5.4} rx={1.1} />
+          <path d="M -2.4 -0.8 V -2.6 A 2.4 2.4 0 0 1 2.4 -2.6 V -0.8" />
+        </g>
+      </g>
+    );
+  }
+
   let detourIndex = 0;
   return (
     <div className="weft-timeline">
@@ -604,6 +647,7 @@ function TimelineGraph({ page }: { page: Page }) {
                 </g>
               );
             })}
+            {conditionLines()}
           </svg>
           {[...frames.entries()].map(([blockId, frame]) => {
             if (frame.ids.length < 2) return null;

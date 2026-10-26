@@ -3669,6 +3669,11 @@
       }
     }
 
+    function enlarge(item) {
+      if (item.kind !== "image" || !item.assetId) return;
+      openMatchingLightbox(wrap, assetSrc(item.assetId), sortItemLabel(block, item));
+    }
+
     function currentOrder() {
       return [].slice.call(list.children).map(function (card) {
         return card.getAttribute("data-weft-item");
@@ -3757,11 +3762,21 @@
           suppressClick = false;
           return;
         }
-        // A key picks the card up, and puts it down again; a click of the mouse does nothing (it drags).
+        // A click of the mouse on a picture enlarges it (also after submitting); on a text it does nothing (it drags). A key picks the card up,
+        // and puts it down again.
+        if (item.kind === "image" && event.detail > 0) {
+          enlarge(item);
+          return;
+        }
         if (locked || event.detail > 0) return;
         pick(picked === id ? null : id);
       });
       card.addEventListener("keydown", function (event) {
+        if ((event.key === "z" || event.key === "+") && item.kind === "image") {
+          event.preventDefault();
+          enlarge(item);
+          return;
+        }
         if (locked || picked !== id) return;
         var earlier = event.key === "ArrowUp" || event.key === "ArrowLeft";
         var later = event.key === "ArrowDown" || event.key === "ArrowRight";

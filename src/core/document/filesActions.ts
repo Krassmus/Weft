@@ -88,6 +88,23 @@ export async function setMatchingImage(container: BlockContainerRef, blockId: st
   });
 }
 
+/** Gives an object of a sorting puzzle (SortBlock) a picture: the file becomes an asset of the module, and the object shows it. */
+export async function setSortImage(container: BlockContainerRef, blockId: string, itemId: string, file: File): Promise<void> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const id = createId();
+  const mimeType = file.type || "application/octet-stream";
+  useAssetStore.getState().setAsset(id, new Blob([bytes as BlobPart], { type: mimeType }));
+  useDocumentStore.getState().edit("Bild für Sortierrätsel wählen", (m) => {
+    const block = blocksOf(m, container)?.[blockId];
+    if (!block || block.kind !== "sort") return;
+    const item = block.items.find((it) => it.id === itemId);
+    if (!item) return;
+    m.assets.push({ id, fileName: file.name, mimeType });
+    item.kind = "image";
+    item.assetId = id;
+  });
+}
+
 export function removeFileFromBlock(container: BlockContainerRef, blockId: string, fileId: string): void {
   useDocumentStore.getState().edit("Datei entfernen", (m) => {
     const target = blocksOf(m, container)?.[blockId];

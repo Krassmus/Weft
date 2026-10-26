@@ -83,6 +83,17 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
       return [...block.sources.map((item, index) => ({ item, role: `Objekt ${index + 1}` })), ...block.targets.map((item, index) => ({ item, role: `Ziel ${index + 1}` }))]
         .filter(({ item }) => hasWords(item.text))
         .map(({ item, role }) => ({ key: `${id}#item:${item.id}`, source: item.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role: item.kind === "image" ? `${role} (Bildbeschreibung)` : role }));
+    case "sort": {
+      const plain = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      return [
+        ...(block.startLabel?.trim() ? [{ key: `${id}#start`, source: plain(block.startLabel), role: "Wort am Anfang der Linie" }] : []),
+        ...block.items
+          .map((item, index) => ({ item, role: `Objekt ${index + 1}` }))
+          .filter(({ item }) => hasWords(item.text))
+          .map(({ item, role }) => ({ key: `${id}#item:${item.id}`, source: plain(item.text), role: item.kind === "image" ? `${role} (Bildbeschreibung)` : role })),
+        ...(block.endLabel?.trim() ? [{ key: `${id}#end`, source: plain(block.endLabel), role: "Wort am Ende der Linie" }] : []),
+      ];
+    }
     case "link":
     case "checker":
       return hasWords(block.text) ? [{ key: `${id}#label`, source: block.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role: "Text" }] : [];
@@ -118,11 +129,11 @@ function htmlToPlain(html: string): string {
     .trim();
 }
 
-const KIND_NAMES: Record<string, string> = { matching: "Matching", checker: "Checker", link: "Link", text: "Text", cloze: "Lückentext", quiz: "Quiz", list: "Liste", button: "Button", revealer: "Info-Symbol" };
+const KIND_NAMES: Record<string, string> = { matching: "Matching", sort: "Sortierrätsel", checker: "Checker", link: "Link", text: "Text", cloze: "Lückentext", quiz: "Quiz", list: "Liste", button: "Button", revealer: "Info-Symbol" };
 
 /** The text a block has in `language`, if it has been translated (the block's own wording is not a translation). */
 function existingTranslation(block: Block, key: string, language: string): string {
-  const translation = (block as { translations?: Record<string, { html?: string; questionHtml?: string; options?: Record<string, string>; items?: Record<string, string>; text?: string; explanation?: string; title?: string; body?: string; alt?: string }> }).translations?.[language];
+  const translation = (block as { translations?: Record<string, { html?: string; questionHtml?: string; options?: Record<string, string>; items?: Record<string, string>; text?: string; explanation?: string; title?: string; body?: string; alt?: string; startLabel?: string; endLabel?: string }> }).translations?.[language];
   if (!translation) return "";
   const part = key.slice(key.indexOf("#") + 1);
   if (part === "html" || part === "label") return translation.html ?? (part === "label" ? (translation.text ?? "") : "");
@@ -130,11 +141,12 @@ function existingTranslation(block: Block, key: string, language: string): strin
   if (part === "explanation") return translation.explanation ? plainToHtml(translation.explanation) : "";
   if (part === "title" || part === "body" || part === "alt") return translation[part] ? plainToHtml(translation[part] as string) : "";
   if (part === "button") return translation.text ? plainToHtml(translation.text) : "";
+  if (part === "start" || part === "end") return translation[part === "start" ? "startLabel" : "endLabel"] ? plainToHtml(translation[part === "start" ? "startLabel" : "endLabel"] as string) : "";
   if (part.startsWith("option:")) return translation.options?.[part.slice(7)] ?? "";
   if (part.startsWith("item:")) {
     const own = translation.items?.[part.slice(5)] ?? "";
-    // (The cards of a matching are plain texts.)
-    return block.kind === "matching" && own ? plainToHtml(own) : own;
+    // (The cards of a matching and the objects of a sorting puzzle are plain texts.)
+    return (block.kind === "matching" || block.kind === "sort") && own ? plainToHtml(own) : own;
   }
   return "";
 }
@@ -360,8 +372,10 @@ export function importTexts(content: WeftModule, file: TextsFile): ImportReport 
       else if (part === "explanation") target.explanation = htmlToPlain(translated);
       else if (part === "title" || part === "body" || part === "alt") target[part] = htmlToPlain(translated);
       else if (part === "button") target.text = htmlToPlain(translated);
+      else if (part === "start") target.startLabel = htmlToPlain(translated);
+      else if (part === "end") target.endLabel = htmlToPlain(translated);
       else if (part.startsWith("option:")) (target.options ??= {})[part.slice(7)] = translated;
-      else if (part.startsWith("item:")) (target.items ??= {})[part.slice(5)] = block.kind === "matching" ? htmlToPlain(translated) : translated;
+      else if (part.startsWith("item:")) (target.items ??= {})[part.slice(5)] = block.kind === "matching" || block.kind === "sort" ? htmlToPlain(translated) : translated;
       report.applied++;
     }
   }

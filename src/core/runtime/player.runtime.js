@@ -396,7 +396,7 @@
     else if (block.kind === "tex") {
       var mathml = wrap.querySelector(".katex-mathml");
       text = mathml ? mathml.textContent : block.tex || "";
-    } else if (block.kind === "text" || block.kind === "list" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "matching" || block.kind === "code") {
+    } else if (block.kind === "text" || block.kind === "list" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort" || block.kind === "code") {
       text = wrap.textContent || "";
     }
     text = String(text).replace(/\s+/g, " ").trim();
@@ -855,7 +855,7 @@
   // answer was being worked out - measured, not read off the effects, so a "set" counts as the change it made.
 
   function scoringVariableIds(block) {
-    var lists = [block.onCorrect, block.onIncorrect, block.onEachCorrect, block.onEachWrong, block.onChecked, block.onUnchecked];
+    var lists = [block.onCorrect, block.onIncorrect, block.onEachCorrect, block.onEachWrong, block.onChecked, block.onUnchecked, block.onEachError, block.onSubmit];
     Object.keys(block.answerEffects || {}).forEach(function (key) {
       lists.push(block.answerEffects[key]);
     });
@@ -899,7 +899,8 @@
   function gradedTitle(block) {
     if (block.name) return String(block.name);
     var holder = document.createElement("div");
-    if (block.kind === "matching") holder.textContent = block.sources.concat(block.targets).filter(function (item) { return item.kind === "text"; }).map(function (item) { return matchingLabel(block, item); }).join(" / ");
+    if (block.kind === "sort") holder.textContent = block.items.filter(function (item) { return item.kind === "text"; }).map(function (item) { return sortItemLabel(block, item); }).join(" / ");
+    else if (block.kind === "matching") holder.textContent = block.sources.concat(block.targets).filter(function (item) { return item.kind === "text"; }).map(function (item) { return matchingLabel(block, item); }).join(" / ");
     else if (block.kind === "checker") holder.textContent = checkerLabel(block);
     else holder.innerHTML = block.kind === "quiz" ? quizQuestionHtml(block) : blockHtml(block);
     var text = (holder.textContent || "").replace(/\[\[[^\]]*\]\]/g, "\u2026").replace(/\s+/g, " ").trim();
@@ -915,7 +916,7 @@
       var page = module.pages[pageId];
       if (!page) return;
       page.blocks.forEach(function (block) {
-        if (block.kind !== "quiz" && block.kind !== "cloze" && block.kind !== "checker" && block.kind !== "matching") return;
+        if (block.kind !== "quiz" && block.kind !== "cloze" && block.kind !== "checker" && block.kind !== "matching" && block.kind !== "sort") return;
         var ids = scoringVariableIds(block);
         if (ids.length === 0) return;
         var result = (gradedAtPos[index] || []).filter(function (r) {
@@ -1337,7 +1338,7 @@
   // may only be left by its own buttons can't be tapped through either.
   var TAP_INTERACTIVE =
     "a, button, input, select, textarea, label, summary, video, audio, iframe, [contenteditable], [role='button']," +
-    ".weft-block-quiz, .weft-block-matching, .weft-matching-lightbox, .weft-block-revealer, .weft-files, .weft-block-language, .weft-block-iframe, .weft-debug";
+    ".weft-block-quiz, .weft-block-matching, .weft-block-sort, .weft-matching-lightbox, .weft-block-revealer, .weft-files, .weft-block-language, .weft-block-iframe, .weft-debug";
   var lastTapAdvanceAt = 0;
   document.addEventListener("click", function (e) {
     if (e.defaultPrevented || module.keyboardNavigationEnabled === false) return;
@@ -3540,6 +3541,381 @@
     return wrap;
   }
 
+  // ---- SortBlock ("Sortierrätsel"): objects put into the right order ----
+  // Texts or pictures strung on a thin line (it runs behind them, so a text covers it): the learner drags them into the right order - or picks
+  // one up with a key (Enter, Space), moves it with the arrow keys and puts it down - and presses "Abschicken". block.items is the RIGHT order;
+  // the learner sees them mixed up (never in the right order). What counts as a mistake is the fewest moves (take one object and put it
+  // somewhere else) that make the order right: the objects that need no move are marked right, the others wrong, and the effects of the block
+  // happen (see SortBlock in core/types.ts). It has the events of a quiz: the first move, submitted, and "richtig" / "falsch".
+
+  function sortItemLabel(block, item) {
+    var t = currentTranslation(block);
+    return (t && t.items && t.items[item.id] !== undefined ? t.items[item.id] : item.text) || "";
+  }
+
+  function sortEndLabel(block, which) {
+    var t = currentTranslation(block);
+    var key = which + "Label";
+    return (t && t[key] !== undefined ? t[key] : block[key]) || "";
+  }
+
+  // The objects in the order the learner starts with: shuffled (Fisher-Yates), and not the right one.
+  function sortShuffled(ids) {
+    var order = ids.slice();
+    if (order.length < 2) return order;
+    var same = function () {
+      return order.every(function (id, i) {
+        return id === ids[i];
+      });
+    };
+    for (var tries = 0; tries < 20 && (tries === 0 || same()); tries++) {
+      for (var i = order.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var swap = order[i];
+        order[i] = order[j];
+        order[j] = swap;
+      }
+    }
+    if (same()) order.push(order.shift());
+    return order;
+  }
+
+  // The fewest moves that make a row right, given the right place of each object in the order they stand in: all but the longest increasing
+  // run. Returns the number of moves and which objects stay (those of one longest run).
+  function sortMistakes(places) {
+    var n = places.length;
+    var length = [];
+    var previous = [];
+    var best = -1;
+    for (var i = 0; i < n; i++) {
+      length[i] = 1;
+      previous[i] = -1;
+      for (var j = 0; j < i; j++) {
+        if (places[j] < places[i] && length[j] + 1 > length[i]) {
+          length[i] = length[j] + 1;
+          previous[i] = j;
+        }
+      }
+      if (best < 0 || length[i] > length[best]) best = i;
+    }
+    var stays = {};
+    for (var k = best; k >= 0; k = previous[k]) stays[k] = true;
+    return { moves: n - (best < 0 ? 0 : length[best]), stays: stays };
+  }
+
+  function renderSortBlock(block) {
+    var vertical = block.orientation !== "horizontal";
+    var wrap = el("div", { class: "weft-block weft-block-sort", "data-weft-block": block.id, style: positionStyle(block.position) });
+    if (block.required) requiredPending[block.id] = true;
+    var box = el("div", { class: "weft-sort " + (vertical ? "is-vertical" : "is-horizontal") }, []);
+    var body = el("div", { class: "weft-sort-body" }, []);
+    var list = el("div", { class: "weft-sort-list" }, []);
+    var bar = el("div", { class: "weft-sort-bar" }, []);
+    var startLabel = el("span", { class: "weft-sort-end is-start" }, []);
+    var endLabel = el("span", { class: "weft-sort-end is-end" }, []);
+    body.appendChild(startLabel);
+    body.appendChild(list);
+    body.appendChild(endLabel);
+    box.appendChild(body);
+    box.appendChild(bar);
+    var showLabels = function () {
+      startLabel.textContent = sortEndLabel(block, "start");
+      endLabel.textContent = sortEndLabel(block, "end");
+      startLabel.hidden = !startLabel.textContent;
+      endLabel.hidden = !endLabel.textContent;
+      applyVariablesToNode(startLabel);
+      applyVariablesToNode(endLabel);
+    };
+    showLabels();
+    languageRefreshers.push(showLabels);
+
+    var cards = {}; // item id -> its button
+    var rightPlace = {}; // item id -> its place in the right order
+    var itemById = {};
+    block.items.forEach(function (item, index) {
+      rightPlace[item.id] = index;
+      itemById[item.id] = item;
+    });
+    var picked = null; // the object that was picked up by a key
+    var pickedFrom = null; // the order it was picked up in (Escape puts it back)
+    var locked = false;
+    var hasFiredFill = false;
+    var suppressClick = false;
+    var ratios = {};
+
+    // The shape of a picture, once it has loaded: its frame takes exactly that shape.
+    function fillItem(card, item) {
+      card.innerHTML = "";
+      var label = sortItemLabel(block, item);
+      if (item.kind === "image") {
+        var image = el("img", { class: "weft-matching-image", src: item.assetId ? assetSrc(item.assetId) : "", alt: label, draggable: "false" }, []);
+        var frame = el("span", { class: "weft-matching-frame" }, [image]);
+        var measured = function () {
+          if (image.naturalWidth && image.naturalHeight) {
+            ratios[item.id] = image.naturalWidth / image.naturalHeight;
+            frame.style.setProperty("--ratio", String(ratios[item.id]));
+          }
+        };
+        if (ratios[item.id]) frame.style.setProperty("--ratio", String(ratios[item.id]));
+        if (image.complete) measured();
+        else image.addEventListener("load", measured);
+        card.appendChild(el("span", { class: "weft-matching-pic" }, [frame]));
+        card.setAttribute("aria-label", label || "");
+      } else {
+        var text = el("span", { class: "weft-sort-text" }, []);
+        text.textContent = label;
+        applyVariablesToNode(text);
+        card.appendChild(text);
+      }
+    }
+
+    function currentOrder() {
+      return [].slice.call(list.children).map(function (card) {
+        return card.getAttribute("data-weft-item");
+      });
+    }
+
+    // The cards that moved glide to their new places (the FLIP way: put them back where they were, then let go).
+    function reorder(change) {
+      var kids = [].slice.call(list.children);
+      var before = kids.map(function (card) {
+        return card.getBoundingClientRect();
+      });
+      change();
+      if (prefersReducedMotion()) return;
+      kids.forEach(function (card, i) {
+        var after = card.getBoundingClientRect();
+        var dx = before[i].left - after.left;
+        var dy = before[i].top - after.top;
+        if (!dx && !dy) return;
+        card.style.transition = "none";
+        card.style.transform = "translate(" + dx + "px," + dy + "px)";
+        void card.offsetWidth;
+        card.style.transition = "transform 0.18s ease";
+        card.style.transform = "";
+      });
+    }
+
+    var lastOrder = null;
+    function moved() {
+      var now = currentOrder().join(",");
+      if (now === lastOrder) return;
+      lastOrder = now;
+      if (!hasFiredFill) {
+        hasFiredFill = true;
+        happened(quizFillEventId(block.id));
+      }
+    }
+
+    function pick(id) {
+      if (picked && cards[picked]) cards[picked].classList.remove("is-picked");
+      picked = id;
+      pickedFrom = id ? currentOrder() : null;
+      if (id) {
+        cards[id].classList.add("is-picked");
+        announce(uiString("sortPicked"));
+      }
+    }
+
+    function moveBy(id, step) {
+      var order = currentOrder();
+      var at = order.indexOf(id);
+      var to = Math.max(0, Math.min(order.length - 1, at + step));
+      if (to === at) return;
+      var card = cards[id];
+      reorder(function () {
+        var others = [].slice.call(list.children).filter(function (c) {
+          return c !== card;
+        });
+        list.insertBefore(card, others[to] || null);
+      });
+      card.focus({ preventScroll: true });
+      announce(uiStringWith("sortMoved", { n: to + 1, total: order.length }));
+      moved();
+    }
+
+    var startOrder = sortShuffled(
+      block.items.map(function (item) {
+        return item.id;
+      }),
+    );
+    startOrder.forEach(function (id) {
+      var item = itemById[id];
+      var card = el("button", { type: "button", class: "weft-sort-item" + (item.kind === "image" ? " is-image" : ""), "data-weft-item": id }, []);
+      card.style.width = block.itemSize.width + "%";
+      card.style.height = block.itemSize.height + "%";
+      var fill = function () {
+        fillItem(card, item);
+      };
+      fill();
+      languageRefreshers.push(fill);
+      card.addEventListener("pointerdown", function (event) {
+        startDrag(event, id);
+      });
+      card.addEventListener("click", function (event) {
+        if (suppressClick) {
+          suppressClick = false;
+          return;
+        }
+        // A key picks the card up, and puts it down again; a click of the mouse does nothing (it drags).
+        if (locked || event.detail > 0) return;
+        pick(picked === id ? null : id);
+      });
+      card.addEventListener("keydown", function (event) {
+        if (locked || picked !== id) return;
+        var earlier = event.key === "ArrowUp" || event.key === "ArrowLeft";
+        var later = event.key === "ArrowDown" || event.key === "ArrowRight";
+        if (earlier || later) {
+          // (The arrow keys would otherwise turn the page.)
+          event.preventDefault();
+          event.stopPropagation();
+          moveBy(id, earlier ? -1 : 1);
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          var back = pickedFrom;
+          reorder(function () {
+            back.forEach(function (backId) {
+              list.appendChild(cards[backId]);
+            });
+          });
+          pick(null);
+          card.focus({ preventScroll: true });
+          moved();
+        }
+      });
+      cards[id] = card;
+      list.appendChild(card);
+    });
+    lastOrder = currentOrder().join(",");
+
+    // ---- dragging: a picture of the card follows the pointer; the others make room where it would be put ----
+    function startDrag(event, id) {
+      if (locked || event.button !== 0) return;
+      var card = cards[id];
+      var startX = event.clientX;
+      var startY = event.clientY;
+      var started = false;
+      var ghost = null;
+      var grab = { x: 0, y: 0 };
+      var bodyRect = null;
+      function move(e) {
+        if (!started) {
+          if (Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY) < 6) return;
+          started = true;
+          bodyRect = body.getBoundingClientRect();
+          var rect = card.getBoundingClientRect();
+          grab = { x: startX - rect.left, y: startY - rect.top };
+          ghost = card.cloneNode(true);
+          ghost.classList.add("is-ghost");
+          ghost.classList.remove("is-picked");
+          ghost.style.width = rect.width + "px";
+          ghost.style.height = rect.height + "px";
+          body.appendChild(ghost);
+          card.classList.add("is-dragging");
+        }
+        ghost.style.left = e.clientX - bodyRect.left - grab.x + "px";
+        ghost.style.top = e.clientY - bodyRect.top - grab.y + "px";
+        // It goes after every other card whose middle the pointer has passed (measured from the layout, not from where a gliding card is).
+        var listRect = list.getBoundingClientRect();
+        var pointer = vertical ? e.clientY - listRect.top : e.clientX - listRect.left;
+        var others = [].slice.call(list.children).filter(function (c) {
+          return c !== card;
+        });
+        var index = 0;
+        others.forEach(function (c, i) {
+          var middle = vertical ? c.offsetTop + c.offsetHeight / 2 : c.offsetLeft + c.offsetWidth / 2;
+          if (pointer > middle) index = i + 1;
+        });
+        if (index !== [].slice.call(list.children).indexOf(card)) {
+          reorder(function () {
+            list.insertBefore(card, others[index] || null);
+          });
+        }
+      }
+      function end() {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", end);
+        window.removeEventListener("pointercancel", end);
+        if (!started) return;
+        // A click follows the let-go pointer on a card; this was a drag.
+        suppressClick = true;
+        setTimeout(function () {
+          suppressClick = false;
+        }, 0);
+        if (ghost && ghost.parentNode) ghost.parentNode.removeChild(ghost);
+        card.classList.remove("is-dragging");
+        moved();
+      }
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", end);
+      window.addEventListener("pointercancel", end);
+    }
+
+    // ---- submitting ----
+    var submit = el("button", { type: "button", class: "weft-quiz-submit" }, []);
+    var submitIcon = el("span", { class: "weft-quiz-submit-icon", "aria-hidden": "true" }, []);
+    submitIcon.innerHTML = QUIZ_SUBMIT_ICON_SVG;
+    submit.appendChild(submitIcon);
+    var submitLabel = document.createTextNode(uiString("submit"));
+    submit.appendChild(submitLabel);
+    bar.appendChild(submit);
+    var answered = null; // null until submitted, then whether the order was right
+    var feedback = el("div", { class: "weft-quiz-feedback", hidden: "" }, []);
+    var feedbackIcon = el("span", { class: "weft-quiz-feedback-icon", "aria-hidden": "true" }, []);
+    var feedbackTitle = el("strong", { class: "weft-quiz-feedback-title" }, []);
+    feedback.appendChild(feedbackIcon);
+    feedback.appendChild(feedbackTitle);
+    bar.appendChild(feedback);
+    var showFeedbackTitle = function () {
+      feedbackTitle.textContent = uiString(answered ? "correct" : "incorrect");
+    };
+    languageRefreshers.push(function () {
+      submitLabel.nodeValue = uiString("submit");
+      if (answered !== null) showFeedbackTitle();
+    });
+
+    submit.addEventListener("click", function () {
+      if (locked) return;
+      locked = true;
+      pick(null);
+      var mark = scoreMark(block);
+      var order = currentOrder();
+      var result = sortMistakes(
+        order.map(function (id) {
+          return rightPlace[id];
+        }),
+      );
+      (block.onSubmit || []).forEach(applyEffect);
+      for (var m = 0; m < result.moves; m++) (block.onEachError || []).forEach(applyEffect);
+      var allRight = result.moves === 0;
+      order.forEach(function (id, index) {
+        var card = cards[id];
+        var right = !!result.stays[index];
+        card.classList.add(right ? "is-correct" : "is-wrong");
+        var markIcon = el("span", { class: "weft-matching-mark", "aria-hidden": "true" }, []);
+        markIcon.innerHTML = right ? QUIZ_CORRECT_ICON_SVG : QUIZ_INCORRECT_ICON_SVG;
+        (card.querySelector(".weft-matching-frame") || card).appendChild(markIcon);
+      });
+      ((allRight ? block.onCorrect : block.onIncorrect) || []).forEach(applyEffect);
+      scoreRecord(block, mark, allRight ? "right" : "wrong");
+      requiredDone(block.id);
+      happened(quizSubmitEventId(block.id));
+      happened(quizSubmitEventId(block.id, allRight ? "richtig" : "falsch"));
+      box.classList.add("is-locked");
+      submit.hidden = true;
+      feedbackIcon.innerHTML = allRight ? QUIZ_CORRECT_ICON_SVG : QUIZ_INCORRECT_ICON_SVG;
+      answered = allRight;
+      showFeedbackTitle();
+      feedback.className = "weft-quiz-feedback " + (allRight ? "is-correct" : "is-incorrect");
+      feedback.hidden = false;
+      announce(feedbackTitle.textContent);
+    });
+
+    wrap.appendChild(box);
+    return wrap;
+  }
+
   // ---- ClozeBlock ("Lückentext"): kept in sync by hand with core/document/cloze.ts, which this file can't import. ----
 
   var CLOZE_MARKER = /\[\[([^\[\]]+)\]\]/g;
@@ -3734,7 +4110,7 @@
       }
       return el("div", { class: "weft-block weft-block-script", style: "display:none;" }, []);
     }
-    var wrap = block.kind === "progress" ? renderProgressBlock(block) : block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "checker" ? renderCheckerBlock(block) : block.kind === "matching" ? renderMatchingBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : block.kind === "link" ? renderLinkBlock(block) : block.kind === "revealer" ? renderRevealerBlock(block) : renderStaticBlock(block, page);
+    var wrap = block.kind === "progress" ? renderProgressBlock(block) : block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "checker" ? renderCheckerBlock(block) : block.kind === "matching" ? renderMatchingBlock(block) : block.kind === "sort" ? renderSortBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : block.kind === "link" ? renderLinkBlock(block) : block.kind === "revealer" ? renderRevealerBlock(block) : renderStaticBlock(block, page);
     applyBlockEffects(wrap, block, page);
     applyActionEffects(wrap, block);
     if (block.kind === "list" && wrap.weftListItems) applyListItemEffects(block, wrap.weftListItems);

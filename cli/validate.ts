@@ -58,6 +58,7 @@ const KIND_DEFINITIONS: Record<string, string> = {
   link: "LinkBlock",
   checker: "CheckerBlock",
   matching: "MatchingBlock",
+  sort: "SortBlock",
   quiz: "QuizBlock",
   cloze: "ClozeBlock",
   shape: "ShapeBlock",
@@ -182,6 +183,9 @@ function effectsOf(block: Block): { effects: VariableEffect[]; what: string }[] 
   } else if (block.kind === "matching") {
     groups.push({ effects: block.onEachCorrect ?? [], what: "bei jeder richtigen Zuordnung" }, { effects: block.onEachWrong ?? [], what: "bei jeder falschen Zuordnung" });
     groups.push({ effects: block.onCorrect ?? [], what: "wenn alles richtig ist" }, { effects: block.onIncorrect ?? [], what: "wenn nicht alles richtig ist" });
+  } else if (block.kind === "sort") {
+    groups.push({ effects: block.onSubmit ?? [], what: "beim Abschicken" }, { effects: block.onEachError ?? [], what: "bei jedem Fehler" });
+    groups.push({ effects: block.onCorrect ?? [], what: "wenn die Reihenfolge stimmt" }, { effects: block.onIncorrect ?? [], what: "wenn die Reihenfolge nicht stimmt" });
   } else if (block.kind === "checker") {
     groups.push({ effects: block.onChecked ?? [], what: "beim Abschicken mit Haken" }, { effects: block.onUnchecked ?? [], what: "beim Abschicken ohne Haken" });
   } else if (block.kind === "button") {
@@ -230,6 +234,14 @@ export function eventLabel(page: Page, node: TimelineNode, content: WeftModule, 
       "quiz-submit": "Matching abgeschickt",
       "quiz-submit-correct": "Matching abgeschickt (alles richtig)",
       "quiz-submit-incorrect": "Matching abgeschickt (nicht alles richtig)",
+    });
+  }
+  if (block?.kind === "sort") {
+    Object.assign(names, {
+      "quiz-fill-start": "Sortierrätsel: erste Verschiebung",
+      "quiz-submit": "Sortierrätsel abgeschickt",
+      "quiz-submit-correct": "Sortierrätsel abgeschickt (richtige Reihenfolge)",
+      "quiz-submit-incorrect": "Sortierrätsel abgeschickt (falsche Reihenfolge)",
     });
   }
   if (block?.kind === "checker") {
@@ -459,6 +471,19 @@ export function validate(loaded: LoadedWeft): Finding[] {
       }
     }
 
+    // Sorting puzzle.
+    if (block.kind === "sort") {
+      const items = block.items ?? [];
+      if (items.length < 2) add("warning", "sort-too-few", "Das Sortierrätsel braucht mindestens zwei Objekte, sonst gibt es nichts zu sortieren.", here);
+      for (const item of items) {
+        if (item.kind !== "image") continue;
+        if (!item.assetId) add("warning", "sort-no-image", "Ein Objekt des Sortierrätsels ist ein Bild, hat aber noch keins.", here);
+        else if (!content.assets.some((a) => a.id === item.assetId)) add("error", "asset-missing", `Ein Objekt des Sortierrätsels verweist auf die Datei ${item.assetId}, die nicht in der Liste der Dateien steht.`, here);
+        else if (!item.text?.trim()) add("info", "image-no-alt", "Ein Bild des Sortierrätsels ohne Beschreibung (text).", here);
+      }
+      if (block.onEachError?.length === 0 && block.onSubmit?.length === 0 && block.onCorrect?.length === 0 && block.onIncorrect?.length === 0) add("info", "sort-no-effects", "Das Sortierrätsel vergibt keine Punkte (onSubmit / onEachError / onCorrect / onIncorrect sind leer).", here);
+    }
+
     // Link.
     if (block.kind === "link") {
       if ((block.url ?? "").trim() === "" || block.url.trim() === "https://") add("warning", "link-no-target", "Der Link hat noch keine Adresse.", { ...here, hint: "url auf eine Adresse mit https://, mailto: oder tel: setzen." });
@@ -515,12 +540,14 @@ export function validate(loaded: LoadedWeft): Finding[] {
     }
 
     // Translations.
-    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "matching" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
+    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
       const hasWords =
         block.kind === "quiz"
           ? plainTextOfHtml(block.questionHtml).trim() !== ""
           : block.kind === "list"
             ? block.items.length > 0
+            : block.kind === "sort"
+              ? block.items.some((item) => item.text.trim() !== "")
             : block.kind === "matching"
               ? [...block.sources, ...block.targets].some((item) => item.text.trim() !== "")
               : block.kind === "button" || block.kind === "link" || block.kind === "checker"

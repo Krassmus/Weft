@@ -670,6 +670,22 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
         onIncorrect: [],
       };
     }
+    case "sort": {
+      // Four objects in their right order; the learner sees them mixed up.
+      const items = tr("ui.sort_sample_items").split("|").map((text) => ({ id: createId(), kind: "text" as const, text }));
+      return {
+        ...base,
+        kind,
+        position: { x: 25, y: 8, width: 50, height: 84 },
+        items,
+        orientation: "vertical" as const,
+        itemSize: { width: 60, height: 14 },
+        onEachError: [],
+        onSubmit: [],
+        onCorrect: [],
+        onIncorrect: [],
+      };
+    }
     case "checker":
       return {
         ...base,
@@ -868,7 +884,7 @@ export function updateBlock(pageId: string, blockId: string, patch: Partial<Bloc
     // page.timeline.triggers, not on the block itself - see setEventTrigger below.
     const touchesEffect = "entranceEffect" in patch || "exitEffect" in patch;
     const touchesList = block.kind === "list" && ("items" in patch || "itemEntrance" in patch);
-    if (page && (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || block.kind === "matching" || isMediaBlock(block) || touchesEffect || touchesList)) {
+    if (page && (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort" || isMediaBlock(block) || touchesEffect || touchesList)) {
       syncPageTimelineEvents(page);
     }
     // A list whose items have an Aufbau of their own: a new item (or all of them, when the switch has just been turned on) takes its
@@ -1960,7 +1976,7 @@ export function pasteBlockInto(
   target: { kind: "page"; pageId: string } | { kind: "layout"; layoutId: string },
   sourceBlock: Block,
 ): string | null {
-  if (target.kind === "layout" && (sourceBlock.kind === "quiz" || sourceBlock.kind === "cloze" || sourceBlock.kind === "checker" || sourceBlock.kind === "matching" || sourceBlock.kind === "script")) return null;
+  if (target.kind === "layout" && (sourceBlock.kind === "quiz" || sourceBlock.kind === "cloze" || sourceBlock.kind === "checker" || sourceBlock.kind === "matching" || sourceBlock.kind === "sort" || sourceBlock.kind === "script")) return null;
   // A placeholder only exists in a layout.
   if (target.kind === "page" && sourceBlock.kind === "placeholder") return null;
   const newBlock = cloneBlockWithNewId(sourceBlock);

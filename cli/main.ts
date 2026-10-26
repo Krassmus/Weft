@@ -53,7 +53,7 @@ Benutzung:
       Spielt das Modul wie eine Lernperson und sagt nach jedem Schritt, was sich geändert hat (neue und verschwundene
       Blöcke, die Meldung eines Quiz, die neue Folie); dazu ein Bild je Schritt im Ordner -o (Standard weft-spiel).
       Schritte: weiter, zurueck, click <Text>, tick <n>… (Antworten des Quiz, ab 1), submit, fill <Text>… (Lücken),
-      key <Taste>, wait <ms>, shot. Chrome nötig, wie bei render.
+      zuordnen <Objekt> <Ziel> (Matching), sortieren <Objekt>… (Sortierrätsel), key <Taste>, wait <ms>, shot. Chrome nötig, wie bei render.
   weft html <datei> -o <ordner> [--page <nummer>]
       Schreibt die Seite des Players (index.html mit Bildern, Videos und Schriften) in einen Ordner - zum Ansehen im Browser
       oder zum Weiterprüfen. --page: das Modul beginnt mit dieser Folie.

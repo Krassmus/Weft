@@ -136,7 +136,9 @@ npm run weft -- play module.weft --page 4 --steps "tick 1 3 5; submit; weiter" -
 | `weiter` · `zurueck` | press → / ← (the module's keyboard navigation has to be on) |
 | `click <text>` | click the first visible button, answer or link with this text |
 | `tick <n> …` | tick the n-th answers (from 1) of the first quiz that is still open |
-| `submit` | press "Abschicken" of the first quiz or gap text that is still open |
+| `zuordnen <object> <target>` | in the first matching, assign an object (by its text) to a target |
+| `sortieren <object> …` | in the first sorting puzzle that is still open, bring the objects (by their texts) into this order |
+| `submit` | press "Abschicken" of the first quiz, gap text, matching or sorting puzzle that is still open |
 | `fill <text> …` | fill in the blanks of the first open gap text in order |
 | `key <name>` · `wait <ms>` · `shot` | press a key · wait · just a picture |
 

@@ -1,4 +1,4 @@
-import type { BlockTranslation, ButtonBlock, CheckerBlock, ClozeBlock, LinkBlock, MatchItem, MatchingBlock, ListBlock, QuizBlock, RevealerBlock, TextBlock, WeftModule } from "../types";
+import type { BlockTranslation, ButtonBlock, CheckerBlock, ClozeBlock, LinkBlock, MatchItem, MatchingBlock, ListBlock, QuizBlock, RevealerBlock, SortBlock, SortItem, TextBlock, WeftModule } from "../types";
 
 /**
  * Per-language wording of the blocks that carry text (text, quiz, button). The block's own fields
@@ -8,7 +8,7 @@ import type { BlockTranslation, ButtonBlock, CheckerBlock, ClozeBlock, LinkBlock
  * block's own fields.
  */
 
-type Translatable = TextBlock | QuizBlock | ButtonBlock | LinkBlock | CheckerBlock | MatchingBlock | ListBlock | ClozeBlock;
+type Translatable = TextBlock | QuizBlock | ButtonBlock | LinkBlock | CheckerBlock | MatchingBlock | SortBlock | ListBlock | ClozeBlock;
 type Translations = Record<string, BlockTranslation> | undefined;
 
 export function defaultLanguageOf(languages: readonly string[]): string | null {
@@ -70,6 +70,31 @@ export function matchingItemTextPatch(block: MatchingBlock, itemId: string, lang
   }
   const existing = block.translations?.[language] ?? {};
   return { translations: { ...block.translations, [language]: { ...existing, items: { ...existing.items, [itemId]: text } } } };
+}
+
+/** The words of an object of a sorting puzzle in `language`: its translation if there is one, else the object's own (the default language's). */
+export function sortItemText(block: SortBlock, item: SortItem, language: string | null, defaultLanguage: string | null): string {
+  return translationOf(block.translations, language, defaultLanguage)?.items?.[item.id] ?? item.text;
+}
+
+export function sortItemTextPatch(block: SortBlock, itemId: string, language: string | null, defaultLanguage: string | null, text: string): Partial<SortBlock> {
+  if (isOwnWording(language, defaultLanguage) || !language) {
+    return { items: block.items.map((item) => (item.id === itemId ? { ...item, text } : item)) };
+  }
+  const existing = block.translations?.[language] ?? {};
+  return { translations: { ...block.translations, [language]: { ...existing, items: { ...existing.items, [itemId]: text } } } };
+}
+
+/** The words at the start / the end of the line of a sorting puzzle in `language`. */
+export function sortLabel(block: SortBlock, which: "start" | "end", language: string | null, defaultLanguage: string | null): string {
+  const translated = translationOf(block.translations, language, defaultLanguage);
+  return (which === "start" ? translated?.startLabel ?? block.startLabel : translated?.endLabel ?? block.endLabel) ?? "";
+}
+
+export function sortLabelPatch(block: SortBlock, which: "start" | "end", language: string | null, defaultLanguage: string | null, text: string): Partial<SortBlock> {
+  const key = which === "start" ? "startLabel" : "endLabel";
+  if (isOwnWording(language, defaultLanguage) || !language) return { [key]: text };
+  return { translations: { ...block.translations, [language]: { ...(block.translations?.[language] ?? {}), [key]: text } } };
 }
 
 /** The text beside the box of a checker in `language`: its translation if there is one, else the block's own (the default language's). */
@@ -139,6 +164,7 @@ export function isTranslated(block: Translatable, language: string | null, defau
     const first = block.sources[0] ?? block.targets[0];
     return !first || translation?.items?.[first.id] !== undefined;
   }
+  if (block.kind === "sort") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
   return translation?.text !== undefined || translation?.html !== undefined;
 }
 
@@ -331,7 +357,7 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       delete block.translations[newDefault];
       continue;
     }
-    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "link" && block.kind !== "checker" && block.kind !== "matching" && block.kind !== "list") continue;
+    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "link" && block.kind !== "checker" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "list") continue;
     const incoming = block.translations?.[newDefault];
     const outgoing: BlockTranslation = {};
     if (block.kind === "text" || block.kind === "cloze") {
@@ -357,6 +383,16 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
         const translated = incoming?.items?.[item.id];
         if (translated !== undefined) item.text = translated;
       }
+    } else if (block.kind === "sort") {
+      outgoing.items = Object.fromEntries(block.items.map((item) => [item.id, item.text]));
+      for (const item of block.items) {
+        const translated = incoming?.items?.[item.id];
+        if (translated !== undefined) item.text = translated;
+      }
+      outgoing.startLabel = block.startLabel ?? "";
+      outgoing.endLabel = block.endLabel ?? "";
+      if (incoming?.startLabel !== undefined) block.startLabel = incoming.startLabel;
+      if (incoming?.endLabel !== undefined) block.endLabel = incoming.endLabel;
     } else if (block.kind === "list") {
       outgoing.items = Object.fromEntries(block.items.map((item) => [item.id, item.html]));
       for (const item of block.items) {

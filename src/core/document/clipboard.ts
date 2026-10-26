@@ -87,6 +87,8 @@ function blockLines(block: Block): string[] {
       return [block.text];
     case "matching":
       return [...block.sources, ...block.targets].map((item) => item.text).filter((text) => text.trim() !== "");
+    case "sort":
+      return [block.startLabel ?? "", ...block.items.map((item) => item.text), block.endLabel ?? ""].filter((text) => text.trim() !== "");
     case "list":
       return block.items.flatMap((item) => plainLinesOfHtml(item.html));
     case "quiz":

@@ -6743,3 +6743,323 @@ h2.weft-inspector-header {
 .weft-matching-target {
   --slide-cut-line: var(--slide-line-strong);
 }
+
+/* ---- A sorting puzzle (SortBlock, renderSortBlock in player.runtime.js; the editor draws the same in App.css) ----
+   The objects stand on a thin line that runs behind them (a text covers it - the line stops there; a picture's frame does not fill its room, so
+   the line shows beside it), top to bottom or left to right, with the words of the line's two ends before and after them. The objects are
+   buttons and follow the module's style of interactive elements; a picture takes the frame of a matching (.weft-matching-pic / -frame / -image). */
+.weft-sort {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  width: 100%;
+  height: 100%;
+  font-family: var(--slide-ui-font);
+  font-size: calc(1.7cqw * var(--slide-ui-scale));
+  font-weight: var(--slide-ui-weight);
+  letter-spacing: var(--slide-ui-spacing);
+  color: var(--slide-fg);
+}
+
+.weft-sort-body {
+  position: relative;
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.weft-sort.is-horizontal .weft-sort-body {
+  flex-direction: row;
+}
+
+.weft-sort-bar {
+  flex: none;
+}
+
+.weft-sort-end {
+  flex: none;
+  max-width: 100%;
+  text-align: center;
+  font-size: 0.9em;
+  color: var(--slide-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.weft-sort-end[hidden] {
+  display: none;
+}
+
+.weft-sort-list {
+  position: relative;
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  padding: 0.6em 0;
+}
+
+.weft-sort.is-horizontal .weft-sort-list {
+  flex-direction: row;
+  padding: 0 0.6em;
+}
+
+/* The line, with a small arrowhead at its end. */
+.weft-sort-list::before,
+.weft-sort-list::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.weft-sort-list::before {
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 2px solid var(--slide-line-strong);
+  transform: translateX(-50%);
+}
+
+.weft-sort-list::after {
+  left: 50%;
+  bottom: 0;
+  width: 0.55em;
+  height: 0.55em;
+  border-right: 2px solid var(--slide-line-strong);
+  border-bottom: 2px solid var(--slide-line-strong);
+  transform: translate(-50%, 0) rotate(45deg);
+  transform-origin: 70% 70%;
+}
+
+.weft-sort.is-horizontal .weft-sort-list::before {
+  left: 0;
+  right: 0;
+  top: 50%;
+  bottom: auto;
+  width: auto;
+  height: 0;
+  border-left: 0;
+  border-top: 2px solid var(--slide-line-strong);
+  transform: translateY(-50%);
+}
+
+.weft-sort.is-horizontal .weft-sort-list::after {
+  left: auto;
+  right: 0;
+  top: 50%;
+  bottom: auto;
+  transform: translate(0, -50%) rotate(-45deg);
+  transform-origin: 70% 70%;
+}
+
+.weft-sort-item {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0.35em 0.5em;
+  overflow: hidden;
+  text-align: center;
+  line-height: 1.25;
+  font: inherit;
+  color: inherit;
+  background: var(--slide-surface);
+  border: 1px solid var(--slide-line-strong);
+  border-radius: var(--slide-ui-radius);
+  clip-path: var(--slide-ui-clip);
+  cursor: grab;
+  touch-action: none;
+  -webkit-appearance: none;
+  appearance: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.weft-sort-item:hover {
+  border-color: var(--slide-accent-ink);
+  box-shadow: 0 0.2em 0.7em rgba(0, 0, 0, 0.15);
+}
+
+.weft-sort-item:focus-visible,
+.weft-sort-item.is-picked {
+  outline: 2px solid var(--slide-focus-ring);
+  outline-offset: 2px;
+}
+
+.weft-sort-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The picture's own frame (see the matching): the object is only the room it may take. */
+.weft-sort-item.is-image {
+  overflow: visible;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  clip-path: none;
+  box-shadow: none;
+}
+
+.weft-sort-item.is-image:hover .weft-matching-frame {
+  border-color: var(--slide-accent-ink);
+  filter: brightness(1.05);
+}
+
+/* What is dragged: a copy follows the pointer, and the object leaves the silhouette of itself where it would be put. */
+.weft-sort-item.is-ghost {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  cursor: grabbing;
+  box-shadow: 0 0.5em 1.4em rgba(0, 0, 0, 0.3);
+}
+
+.weft-sort-item.is-image.is-ghost {
+  box-shadow: none;
+}
+
+.weft-sort-item.is-ghost.is-image .weft-matching-frame {
+  box-shadow: 0 0.5em 1.4em rgba(0, 0, 0, 0.3);
+}
+
+.weft-sort-item.is-dragging {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--slide-line-strong);
+  box-shadow: none;
+  opacity: 0.7;
+}
+
+.weft-sort-item.is-dragging > * {
+  visibility: hidden;
+}
+
+.weft-sort-item.is-image.is-dragging {
+  border: 0;
+}
+
+.weft-sort-item.is-image.is-dragging .weft-matching-frame {
+  visibility: visible;
+  border-style: dashed;
+  background: transparent;
+}
+
+.weft-sort-item.is-image.is-dragging .weft-matching-frame > * {
+  visibility: hidden;
+}
+
+/* After submitting: nothing moves any more, and every object says whether it needed no move (right) or had to be moved (wrong). */
+.weft-sort.is-locked .weft-sort-item {
+  cursor: default;
+}
+
+.weft-sort-item.is-correct {
+  border-color: var(--slide-ok);
+  background: var(--slide-ok-soft);
+}
+
+.weft-sort-item.is-wrong {
+  border-color: var(--slide-bad);
+  background: var(--slide-bad-soft);
+}
+
+.weft-sort-item.is-image.is-correct,
+.weft-sort-item.is-image.is-wrong {
+  background: transparent;
+  border: 0;
+}
+
+.weft-sort-item.is-image.is-correct .weft-matching-frame {
+  border-color: var(--slide-ok);
+}
+
+.weft-sort-item.is-image.is-wrong .weft-matching-frame {
+  border-color: var(--slide-bad);
+}
+
+.weft-sort-item.is-correct,
+.weft-sort-item.is-wrong {
+  padding-right: 1.9em;
+}
+
+.weft-sort-item.is-image.is-correct,
+.weft-sort-item.is-image.is-wrong {
+  padding-right: 0;
+}
+
+.weft-sort-item > .weft-matching-mark {
+  top: 50%;
+  right: 0.5em;
+  transform: translateY(-50%);
+}
+
+.weft-sort-item.is-correct > .weft-matching-mark {
+  color: var(--slide-ok);
+}
+
+.weft-sort-item.is-wrong > .weft-matching-mark {
+  color: var(--slide-bad);
+}
+
+.weft-sort-item.is-correct .weft-matching-frame > .weft-matching-mark,
+.weft-sort-item.is-wrong .weft-matching-frame > .weft-matching-mark {
+  color: inherit;
+}
+
+.weft-sort-item.is-correct .weft-matching-frame > .weft-matching-mark {
+  color: var(--slide-ok);
+}
+
+.weft-sort-item.is-wrong .weft-matching-frame > .weft-matching-mark {
+  color: var(--slide-bad);
+}
+
+.weft-sort-bar .weft-thumb-block-quiz-submit {
+  display: inline-flex;
+}
+
+/* The colour of the line that is drawn along the cut corners of an object (futuristic, see stageTheme.css): that of its border, by state. */
+.weft-sort-item {
+  --slide-cut-line: var(--slide-line-strong);
+  --slide-cut-line-width: 1px;
+}
+
+.weft-sort-item:hover {
+  --slide-cut-line: var(--slide-accent-ink);
+}
+
+.weft-sort-item.is-correct {
+  --slide-cut-line: var(--slide-ok);
+}
+
+.weft-sort-item.is-wrong {
+  --slide-cut-line: var(--slide-bad);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weft-sort-item {
+    transition: none;
+  }
+}

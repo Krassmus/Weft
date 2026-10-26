@@ -140,6 +140,32 @@ async function perform(session: ChromeSession, step: string): Promise<Outcome> {
       })()`);
       return result ? { problem: result } : { note: `zugeordnet: ${args[0]} → ${args[1]}` };
     }
+    case "sortieren": {
+      // sortieren "Ei" "Raupe" "Puppe": brings the objects into this order (by their texts), as the keyboard does: pick one up, move it with the
+      // arrow keys, put it down - no dragging needed.
+      if (args.length < 2) throw new CliError('In welche Reihenfolge? sortieren "Ei" "Raupe" "Puppe"');
+      const result = await session.eval<string>(`(() => {
+        const wanted = ${JSON.stringify(args)};
+        const block = [...document.querySelectorAll('.weft-block-sort')].find((b) => b.querySelector('.weft-quiz-submit:not([hidden])'));
+        if (!block) return 'kein Sortierrätsel, das noch zu sortieren ist';
+        const list = block.querySelector('.weft-sort-list');
+        const items = () => [...list.children];
+        const textOf = (b) => (b.innerText || b.getAttribute('aria-label') || '').trim().toLowerCase();
+        for (let place = 0; place < wanted.length; place++) {
+          const text = String(wanted[place]).toLowerCase();
+          const card = items().find((b) => textOf(b) === text) || items().find((b) => textOf(b).includes(text));
+          if (!card) return 'kein Objekt „' + wanted[place] + '“';
+          const steps = items().indexOf(card) - place;
+          if (steps === 0) continue;
+          card.focus();
+          card.click();
+          for (let i = 0; i < Math.abs(steps); i++) card.dispatchEvent(new KeyboardEvent('keydown', { key: steps > 0 ? 'ArrowUp' : 'ArrowDown', bubbles: true, cancelable: true }));
+          card.click();
+        }
+        return '';
+      })()`);
+      return result ? { problem: result } : { note: `sortiert: ${args.join(", ")}` };
+    }
     case "submit": {
       const result = await session.eval<string>(`(() => {
         const button = [...document.querySelectorAll('.weft-quiz-submit')].find((b) => !b.hidden && !b.closest('[hidden]') && !b.disabled);
@@ -162,7 +188,7 @@ async function perform(session: ChromeSession, step: string): Promise<Outcome> {
       return result ? { problem: result } : { note: `eingetragen: ${args.join(", ")}` };
     }
     default:
-      throw new CliError(`Unbekannter Schritt „${step}". Möglich: weiter, zurueck, click <Text>, tick <n>…, zuordnen <Objekt> <Ziel>, submit, fill <Text>…, key <Taste>, wait <ms>, shot.`);
+      throw new CliError(`Unbekannter Schritt „${step}". Möglich: weiter, zurueck, click <Text>, tick <n>…, zuordnen <Objekt> <Ziel>, sortieren <Objekt>…, submit, fill <Text>…, key <Taste>, wait <ms>, shot.`);
   }
 }
 

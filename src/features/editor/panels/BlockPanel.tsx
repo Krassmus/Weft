@@ -43,7 +43,7 @@ import { useTranslation } from "../../../core/i18n/useTranslation";
 import { SecondsControl } from "./SecondsControl";
 import { StepperSlider } from "./StepperSlider";
 import { ActionEffectsEditor } from "./ActionEffectsEditor";
-import { addFilesToBlock, removeFileFromBlock, setFilesPassword, setMatchingImage } from "../../../core/document/filesActions";
+import { addFilesToBlock, removeFileFromBlock, setFilesPassword, setMatchingImage, setSortImage } from "../../../core/document/filesActions";
 import { safeLinkUrl } from "../../../core/document/linkUrl";
 import type { BlockContainerRef } from "../../../core/document/store";
 import { confirmDestructive, pickFilesFromDisk, pickFontFile, pickScriptFile, warnAboutVideoUploads } from "../../../core/io/fileIO";
@@ -61,6 +61,8 @@ import type {
   ClozeBlock,
   MatchItem,
   MatchingBlock,
+  SortBlock,
+  SortItem,
   CodeBlock,
   ScriptBlock,
   IframeBlock,
@@ -108,7 +110,7 @@ import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from ".
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { checkerText, checkerTextPatch, matchingItemText, matchingItemTextPatch, linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
+import { checkerText, checkerTextPatch, matchingItemText, matchingItemTextPatch, sortItemText, sortItemTextPatch, sortLabel, sortLabelPatch, linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
 import type { RevealerWording } from "../../../core/document/translations";
 import { revealerIconSvg } from "../../../core/runtime/revealerGeometry";
 import { clozeBlanks } from "../../../core/document/cloze";
@@ -245,6 +247,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, onSetAudio
       {block.kind === "quiz" && <QuizEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "checker" && <CheckerEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "matching" && <MatchingEditor block={block} container={container} page={page} onUpdate={onUpdate} />}
+      {block.kind === "sort" && <SortEditor block={block} container={container} page={page} onUpdate={onUpdate} />}
       {block.kind === "shape" && <ShapeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "arrow" && <ArrowEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "progress" && <ProgressEditor block={block} onUpdate={onUpdate} />}
@@ -3418,6 +3421,175 @@ function MatchingEditor({ block, container, page, onUpdate }: { block: MatchingB
         {goesOn("richtig") && <p className="weft-hint">{tr("ui.happens_1_5_seconds_after_correct")}</p>}
       </Collapsible>
       <Collapsible title={tr("ui.matching_not_all_correct")} defaultOpen={false}>
+        <EffectListEditor effects={block.onIncorrect} variables={variables} onChange={(onIncorrect) => onUpdate({ onIncorrect })} />
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={goesOn("falsch")} disabled={!page} onChange={(e) => page && setQuizAdvance(page.id, block.id, "falsch", e.target.checked)} />
+          <span>{tr("ui.continue_to_the_next_slide")}</span>
+        </label>
+        {goesOn("falsch") && <p className="weft-hint">{tr("ui.happens_1_5_seconds_after_the")}</p>}
+      </Collapsible>
+    </>
+  );
+}
+
+/** The settings of a sorting puzzle (SortBlock): the objects (text or picture) in their RIGHT order - the learner sees them mixed up -, the
+ * direction of the line and the words at its two ends, the size of an object, whether it is a required task, and what the submission, every
+ * mistake and a right / wrong order do - changes to variables - and the way on to the next slide, as with a quiz. */
+function SortEditor({ block, container, page, onUpdate }: { block: SortBlock; container: BlockContainerRef; page?: Page; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const goesOn = (outcome: "richtig" | "falsch") => !!page?.timeline.ends[quizEndNodeId(block.id, outcome)];
+  const variables = useDocumentStore((s) => s.doc.content.variables);
+  const { lang, defaultLang } = useEditingLanguage();
+  const [error, setError] = useState("");
+  const vertical = block.orientation !== "horizontal";
+
+  const withItem = (id: string, patch: Partial<SortItem>) => ({ items: block.items.map((item) => (item.id === id ? { ...item, ...patch } : item)) });
+  function addItem() {
+    onUpdate({ items: [...block.items, { id: createId(), kind: "text", text: tr("ui.sort_add_item") }] });
+  }
+  function removeItem(id: string) {
+    const translations = block.translations
+      ? Object.fromEntries(Object.entries(block.translations).map(([language, t]) => [language, t.items ? { ...t, items: Object.fromEntries(Object.entries(t.items).filter(([key]) => key !== id)) } : t]))
+      : undefined;
+    onUpdate({ items: block.items.filter((item) => item.id !== id), ...(translations ? { translations } : {}) });
+  }
+  function move(index: number, step: -1 | 1) {
+    const items = [...block.items];
+    const to = index + step;
+    if (to < 0 || to >= items.length) return;
+    [items[index], items[to]] = [items[to], items[index]];
+    onUpdate({ items });
+  }
+  // A line that runs the other way wants objects of another shape: the size follows, as long as it is still the one the other direction has.
+  function setOrientation(orientation: "vertical" | "horizontal") {
+    const sizeOf = (o: "vertical" | "horizontal") => (o === "vertical" ? { width: 60, height: 14 } : { width: 20, height: 60 });
+    const current = block.itemSize;
+    const other = sizeOf(orientation === "vertical" ? "horizontal" : "vertical");
+    const itemSize = current.width === other.width && current.height === other.height ? sizeOf(orientation) : current;
+    onUpdate({ orientation, itemSize });
+  }
+  async function chooseImage(itemId: string, file: File) {
+    setError("");
+    try {
+      await setSortImage(container, block.id, itemId, file);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  return (
+    <>
+      <Collapsible title={tr("ui.sort")}>
+        <p className="weft-hint">{tr("ui.sort_hint")}</p>
+        <LanguageSelect block={block} />
+        <label className="weft-field">
+          <span>{tr("ui.sort_orientation")}</span>
+          <select value={vertical ? "vertical" : "horizontal"} onChange={(e) => setOrientation(e.target.value as "vertical" | "horizontal")}>
+            <option value="vertical">{tr("ui.sort_vertical")}</option>
+            <option value="horizontal">{tr("ui.sort_horizontal")}</option>
+          </select>
+        </label>
+        <label className="weft-field">
+          <span>{tr("ui.sort_start_label")}</span>
+          <input value={sortLabel(block, "start", lang, defaultLang)} onChange={(e) => onUpdate(sortLabelPatch(block, "start", lang, defaultLang, e.target.value))} />
+        </label>
+        <label className="weft-field">
+          <span>{tr("ui.sort_end_label")}</span>
+          <input value={sortLabel(block, "end", lang, defaultLang)} onChange={(e) => onUpdate(sortLabelPatch(block, "end", lang, defaultLang, e.target.value))} />
+        </label>
+        <p className="weft-hint">{tr("ui.sort_labels_hint")}</p>
+        <div className="weft-field">
+          <span>{tr("ui.sort_size")}</span>
+          <div className="weft-matching-size">
+            {(["width", "height"] as const).map((dimension) => (
+              <label key={dimension} className="weft-field weft-field-inline">
+                <span>{dimension === "width" ? tr("ui.matching_width") : tr("ui.matching_height")}</span>
+                <input
+                  type="number"
+                  min={5}
+                  max={100}
+                  step={1}
+                  value={block.itemSize[dimension]}
+                  onChange={(e) => {
+                    const value = Math.min(100, Math.max(5, Number(e.target.value) || 5));
+                    onUpdate({ itemSize: { ...block.itemSize, [dimension]: value } });
+                  }}
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={block.required === true} onChange={(e) => onUpdate({ required: e.target.checked ? true : undefined })} />
+          <span>{tr("ui.required_task")}</span>
+        </label>
+        {block.required && <p className="weft-hint">{tr("ui.required_task_hint")}</p>}
+      </Collapsible>
+      <Collapsible title={tr("ui.sort_items")} defaultOpen>
+        {block.items.map((item, index) => (
+          <div key={item.id} className="weft-matching-row">
+            <div className="weft-matching-row-head">
+              <select value={item.kind} aria-label={tr("ui.matching_item_kind")} onChange={(e) => onUpdate(withItem(item.id, { kind: e.target.value as SortItem["kind"] }))}>
+                <option value="text">{tr("ui.matching_kind_text")}</option>
+                <option value="image">{tr("ui.matching_kind_image")}</option>
+              </select>
+              <button type="button" className="weft-icon-button" title={tr("ui.sort_move_up")} aria-label={tr("ui.sort_move_up")} disabled={index === 0} onClick={() => move(index, -1)}>
+                ↑
+              </button>
+              <button type="button" className="weft-icon-button" title={tr("ui.sort_move_down")} aria-label={tr("ui.sort_move_down")} disabled={index === block.items.length - 1} onClick={() => move(index, 1)}>
+                ↓
+              </button>
+              <button type="button" className="weft-icon-button" title={tr("ui.matching_remove_item")} aria-label={tr("ui.matching_remove_item")} onClick={() => removeItem(item.id)}>
+                ×
+              </button>
+            </div>
+            <input
+              value={sortItemText(block, item, lang, defaultLang)}
+              placeholder={item.kind === "image" ? tr("ui.matching_item_alt") : undefined}
+              aria-label={item.kind === "image" ? tr("ui.matching_item_alt") : tr("ui.matching_item_text")}
+              onChange={(e) => onUpdate(sortItemTextPatch(block, item.id, lang, defaultLang, e.target.value))}
+            />
+            {item.kind === "image" && (
+              <>
+                <label className="weft-ghost-button weft-full-width weft-matching-file">
+                  {item.assetId ? tr("ui.matching_change_image") : tr("ui.matching_choose_image")}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (file) void chooseImage(item.id, file);
+                    }}
+                  />
+                </label>
+                {!item.assetId && <p className="weft-hint">{tr("ui.matching_no_image")}</p>}
+              </>
+            )}
+          </div>
+        ))}
+        <button type="button" className="weft-ghost-button weft-full-width" onClick={addItem}>
+          {tr("ui.sort_add_item")}
+        </button>
+        {error && <p className="weft-placeholder-warning">{error}</p>}
+      </Collapsible>
+      <Collapsible title={tr("ui.sort_on_submit")} defaultOpen={false}>
+        <p className="weft-hint">{tr("ui.sort_on_submit_hint")}</p>
+        <EffectListEditor effects={block.onSubmit} variables={variables} onChange={(onSubmit) => onUpdate({ onSubmit })} />
+      </Collapsible>
+      <Collapsible title={tr("ui.sort_each_error")} defaultOpen={false}>
+        <p className="weft-hint">{tr("ui.sort_each_error_hint")}</p>
+        <EffectListEditor effects={block.onEachError} variables={variables} onChange={(onEachError) => onUpdate({ onEachError })} />
+      </Collapsible>
+      <Collapsible title={tr("ui.sort_all_correct")} defaultOpen={false}>
+        <EffectListEditor effects={block.onCorrect} variables={variables} onChange={(onCorrect) => onUpdate({ onCorrect })} />
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={goesOn("richtig")} disabled={!page} onChange={(e) => page && setQuizAdvance(page.id, block.id, "richtig", e.target.checked)} />
+          <span>{tr("ui.continue_to_the_next_slide")}</span>
+        </label>
+        {goesOn("richtig") && <p className="weft-hint">{tr("ui.happens_1_5_seconds_after_correct")}</p>}
+      </Collapsible>
+      <Collapsible title={tr("ui.sort_not_all_correct")} defaultOpen={false}>
         <EffectListEditor effects={block.onIncorrect} variables={variables} onChange={(onIncorrect) => onUpdate({ onIncorrect })} />
         <label className="weft-field weft-field-inline">
           <input type="checkbox" checked={goesOn("falsch")} disabled={!page} onChange={(e) => page && setQuizAdvance(page.id, block.id, "falsch", e.target.checked)} />

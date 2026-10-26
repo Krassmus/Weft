@@ -208,7 +208,7 @@
   position: relative;
 }
 
-:is(.weft-stage, .weft-thumb)[data-weft-style="futuristic"] :is(.weft-block-button-el, .weft-edit-block-button, .weft-thumb-block-button, .weft-matching-card:not(.is-image), .weft-matching-slot:not(.is-image))::after {
+:is(.weft-stage, .weft-thumb)[data-weft-style="futuristic"] :is(.weft-block-button-el, .weft-edit-block-button, .weft-thumb-block-button, .weft-matching-card:not(.is-image), .weft-matching-slot:not(.is-image), .weft-sort-item:not(.is-image))::after {
   content: "";
   position: absolute;
   inset: calc(-1 * var(--slide-cut-line-width, 1px));

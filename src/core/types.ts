@@ -158,6 +158,9 @@ export interface BlockTranslation {
   alt?: string;
   /** QuizBlock: the explanation shown after submitting (plain text). */
   explanation?: string;
+  /** SortBlock: the words at the two ends of the line (plain text). */
+  startLabel?: string;
+  endLabel?: string;
 }
 
 /** The background and border of a text block (TextBlock.box). Colours are "#rrggbb"; lengths are cqw (percent of the slide's width). */
@@ -574,6 +577,47 @@ export interface MatchingBlock extends BaseBlock {
   onIncorrect: VariableEffect[];
 }
 
+/** One object of a sorting puzzle (SortBlock): a text or a picture. The list of a SortBlock holds them in their RIGHT order. */
+export interface SortItem {
+  id: UUID;
+  kind: "text" | "image";
+  /** What a text says; for a picture its description for those who cannot see it. Translatable (BlockTranslation.items). */
+  text: string;
+  /** A picture: its asset (null: none chosen yet). */
+  assetId?: UUID | null;
+}
+
+/**
+ * A sorting puzzle ("Sortierrätsel"): texts or pictures that the learner puts into the right order by drag and drop, then presses "Abschicken".
+ * `items` is the RIGHT order (the learner sees them in a random, never the right, order every time the slide is shown). They are strung on a
+ * thin line behind them - a text covers it, so the line stops there - which runs top to bottom (`orientation` "vertical", the default) or
+ * left to right ("horizontal", better for pictures). The two ends of the line can be named (`startLabel` / `endLabel`: "older" / "younger").
+ * What counts as a mistake is the smallest number of moves (take one object and put it somewhere else) that make the order right; every mistake
+ * has the effects of `onEachError` (minus points, say), and `onSubmit` happens for every submission (the maximum of points, say) - changes to
+ * variables, like the effects of a quiz. It has the events of a quiz in the page's graph, lives on pages only, and its look follows the module's
+ * style of interactive elements.
+ */
+export interface SortBlock extends BaseBlock {
+  kind: "sort";
+  items: SortItem[];
+  orientation?: "vertical" | "horizontal";
+  startLabel?: string;
+  endLabel?: string;
+  /** The size of every object in percent of the block's area (of its width and height; the line is as long as the objects need). */
+  itemSize: { width: number; height: number };
+  /** Other languages' wording: the texts of the objects by item id and the two labels (BlockTranslation.items / startLabel / endLabel). */
+  translations?: Record<string, BlockTranslation>;
+  /** A required task, as QuizBlock.required. Absent: not required. */
+  required?: boolean;
+  /** What happens for every mistake (the number of moves it takes to make the order right). */
+  onEachError: VariableEffect[];
+  /** What happens at every submission, whatever the order. */
+  onSubmit: VariableEffect[];
+  /** What happens when the order was right / not. */
+  onCorrect: VariableEffect[];
+  onIncorrect: VariableEffect[];
+}
+
 /** How a button looks (ButtonBlock.appearance). Lengths are cqw (percent of the slide's width). A part that is missing is what the
  * module's look gives it (the accent colour for the background and the border, see WeftModule.accentColor) and the defaults of
  * DEFAULT_BUTTON_APPEARANCE (core/document/buttonAppearance.ts). The colour of the letters is part of the label. */
@@ -827,7 +871,7 @@ export interface LinkBlock extends BaseBlock {
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
 export type StaticBlock = TextBlock | PlaceholderBlock | ListBlock | LanguageBlock | ProgressBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | AudioBlock | RevealerBlock | IframeBlock | ButtonBlock | LinkBlock | ShapeBlock | ArrowBlock | FilesBlock;
-export type Block = StaticBlock | QuizBlock | ClozeBlock | CheckerBlock | MatchingBlock | ScriptBlock;
+export type Block = StaticBlock | QuizBlock | ClozeBlock | CheckerBlock | MatchingBlock | SortBlock | ScriptBlock;
 
 /** A block as it's first made, before it has been put somewhere (and so given its `order`). */
 export type NewBlock = Block extends infer B ? (B extends Block ? Omit<B, "order"> : never) : never;

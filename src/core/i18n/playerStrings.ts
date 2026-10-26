@@ -18,7 +18,7 @@ export type FilesStringKey = "filesTitle" | "filesPassword" | "filesUnlock" | "f
 
 /** The texts for screen readers and keyboard users (the hidden navigation, the announcement of a slide, ...). {n} and {total} are filled in
  * by the player. A language without its own entry falls back to English. */
-export type A11yStringKey = "previous" | "navigation" | "slide" | "blank" | "embedded" | "revealerOpen" | "revealerClose" | "requiredFirst" | "matchingPicked" | "matchingAssigned";
+export type A11yStringKey = "previous" | "navigation" | "slide" | "blank" | "embedded" | "revealerOpen" | "revealerClose" | "requiredFirst" | "matchingPicked" | "matchingAssigned" | "sortPicked" | "sortMoved";
 
 /** The texts of the table on the finished screen that lists what the graded elements (quizzes, gap texts) gave - see renderDoneSummary in
  * player.runtime.js. A language without its own entry falls back to English. */
@@ -34,18 +34,18 @@ const THANKS: Record<string, string> = {
   zh_TW: "謝謝！", ja: "ありがとうございます！", ko: "감사합니다!", id: "Terima kasih!", vi: "Cảm ơn bạn!", th: "ขอบคุณ!",
 };
 
-function a11yStrings(previous: string, navigation: string, slide: string, blank: string, embedded: string, revealerOpen: string, revealerClose: string, requiredFirst: string, matchingPicked: string, matchingAssigned: string): Record<A11yStringKey, string> {
-  return { previous, navigation, slide, blank, embedded, revealerOpen, revealerClose, requiredFirst, matchingPicked, matchingAssigned };
+function a11yStrings(previous: string, navigation: string, slide: string, blank: string, embedded: string, revealerOpen: string, revealerClose: string, requiredFirst: string, matchingPicked: string, matchingAssigned: string, sortPicked: string, sortMoved: string): Record<A11yStringKey, string> {
+  return { previous, navigation, slide, blank, embedded, revealerOpen, revealerClose, requiredFirst, matchingPicked, matchingAssigned, sortPicked, sortMoved };
 }
 
 const A11Y_TRANSLATIONS: Record<string, Record<A11yStringKey, string>> = {
-  de: a11yStrings("Zurück", "Navigation", "Folie {n}", "Lücke {n} von {total}", "Eingebettete Seite", "Mehr Informationen anzeigen", "Schließen", "Bitte zuerst die Aufgabe abschicken.", "Ausgewählt. Wähle jetzt ein Ziel.", "Zugeordnet."),
-  en: a11yStrings("Back", "Navigation", "Slide {n}", "Blank {n} of {total}", "Embedded page", "Show more information", "Close", "Please submit the task first.", "Picked up. Now choose a target.", "Assigned."),
-  fr: a11yStrings("Retour", "Navigation", "Diapositive {n}", "Trou {n} sur {total}", "Page intégrée", "Afficher plus d'informations", "Fermer", "Veuillez d'abord envoyer l'exercice.", "Sélectionné. Choisissez maintenant une cible.", "Associé."),
-  es: a11yStrings("Atrás", "Navegación", "Diapositiva {n}", "Hueco {n} de {total}", "Página incrustada", "Mostrar más información", "Cerrar", "Envía primero la tarea.", "Seleccionado. Elige ahora un destino.", "Asignado."),
-  it: a11yStrings("Indietro", "Navigazione", "Diapositiva {n}", "Spazio {n} di {total}", "Pagina incorporata", "Mostra più informazioni", "Chiudi", "Invia prima l'esercizio.", "Selezionato. Scegli ora una destinazione.", "Assegnato."),
-  pt: a11yStrings("Voltar", "Navegação", "Diapositivo {n}", "Lacuna {n} de {total}", "Página incorporada", "Mostrar mais informações", "Fechar", "Envie primeiro a tarefa.", "Selecionado. Escolha agora um destino.", "Atribuído."),
-  nl: a11yStrings("Terug", "Navigatie", "Dia {n}", "Open plek {n} van {total}", "Ingebedde pagina", "Meer informatie tonen", "Sluiten", "Verstuur eerst de opdracht.", "Gekozen. Kies nu een doel.", "Toegewezen."),
+  de: a11yStrings("Zurück", "Navigation", "Folie {n}", "Lücke {n} von {total}", "Eingebettete Seite", "Mehr Informationen anzeigen", "Schließen", "Bitte zuerst die Aufgabe abschicken.", "Ausgewählt. Wähle jetzt ein Ziel.", "Zugeordnet.", "Aufgenommen. Verschiebe mit den Pfeiltasten, bestätige mit Enter.", "Platz {n} von {total}."),
+  en: a11yStrings("Back", "Navigation", "Slide {n}", "Blank {n} of {total}", "Embedded page", "Show more information", "Close", "Please submit the task first.", "Picked up. Now choose a target.", "Assigned.", "Picked up. Move it with the arrow keys, confirm with Enter.", "Place {n} of {total}."),
+  fr: a11yStrings("Retour", "Navigation", "Diapositive {n}", "Trou {n} sur {total}", "Page intégrée", "Afficher plus d'informations", "Fermer", "Veuillez d'abord envoyer l'exercice.", "Sélectionné. Choisissez maintenant une cible.", "Associé.", "Sélectionné. Déplacez-le avec les flèches, validez avec Entrée.", "Position {n} sur {total}."),
+  es: a11yStrings("Atrás", "Navegación", "Diapositiva {n}", "Hueco {n} de {total}", "Página incrustada", "Mostrar más información", "Cerrar", "Envía primero la tarea.", "Seleccionado. Elige ahora un destino.", "Asignado.", "Seleccionado. Muévelo con las flechas, confirma con Intro.", "Posición {n} de {total}."),
+  it: a11yStrings("Indietro", "Navigazione", "Diapositiva {n}", "Spazio {n} di {total}", "Pagina incorporata", "Mostra più informazioni", "Chiudi", "Invia prima l'esercizio.", "Selezionato. Scegli ora una destinazione.", "Assegnato.", "Selezionato. Spostalo con le frecce, conferma con Invio.", "Posizione {n} di {total}."),
+  pt: a11yStrings("Voltar", "Navegação", "Diapositivo {n}", "Lacuna {n} de {total}", "Página incorporada", "Mostrar mais informações", "Fechar", "Envie primeiro a tarefa.", "Selecionado. Escolha agora um destino.", "Atribuído.", "Selecionado. Mova-o com as setas, confirme com Enter.", "Posição {n} de {total}."),
+  nl: a11yStrings("Terug", "Navigatie", "Dia {n}", "Open plek {n} van {total}", "Ingebedde pagina", "Meer informatie tonen", "Sluiten", "Verstuur eerst de opdracht.", "Gekozen. Kies nu een doel.", "Toegewezen.", "Gekozen. Verplaats met de pijltjestoetsen, bevestig met Enter.", "Plaats {n} van {total}."),
 };
 
 function resultsStrings(element: string, result: string, points: string, total: string, right: string, wrong: string, answered: string, open: string, adjustment: string, ticked: string, unticked: string): Record<ResultsStringKey, string> {

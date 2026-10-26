@@ -713,6 +713,46 @@ const HANDLERS: Record<string, Handler> = {
     if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
     return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "matching", set, as: op.as });
   },
+  // A sorting puzzle: add_sort {page, items, orientation?, startLabel?, endLabel?, itemSize?, required?, onSubmit?, onEachError?, onCorrect?,
+  // onIncorrect?, x, y, width, height, effect?, name?, as}. `items` is the RIGHT order, a list of {text} or {file | asset, text? (the description
+  // of the picture)}; the learner sees them mixed up. `orientation` is "vertical" (the default) or "horizontal"; startLabel / endLabel are the words
+  // at the two ends of the line ("älter" / "jünger"). onSubmit happens at every submission (the maximum of points: Punkte +5), onEachError for every
+  // mistake (the fewest moves that make the order right: Punkte -1) - lists of variable effects.
+  add_sort(ctx, op) {
+    const container = op.layout !== undefined ? { layout: op.layout } : { page: op.page };
+    const num = (value: unknown, fallback: number) => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
+    if (!Array.isArray(op.items) || op.items.length === 0) fail('"items" fehlt: die Objekte in der RICHTIGEN Reihenfolge ({"text": "…"} oder {"file": "bild.png", "text": "Beschreibung"}).');
+    if (op.orientation !== undefined && op.orientation !== "vertical" && op.orientation !== "horizontal") fail('"orientation" ist "vertical" oder "horizontal".');
+    const horizontal = op.orientation === "horizontal";
+    const specs = op.items as Record<string, unknown>[];
+    const items = specs.map((spec) => {
+      const item: Record<string, unknown> = { id: createId(), kind: "text", text: typeof spec.text === "string" ? spec.text : "" };
+      if (spec.file !== undefined || spec.asset !== undefined) {
+        item.kind = "image";
+        item.assetId = assetFor(ctx, spec, "image").id;
+      }
+      return item;
+    });
+    const given = op.itemSize && typeof op.itemSize === "object" ? (op.itemSize as { width?: number; height?: number }) : {};
+    // (The objects share the line: along it each has the share of the block that is left to it.)
+    const along = Math.max(8, Math.min(30, Math.floor(80 / items.length) - 2));
+    const itemSize = horizontal ? { width: num(given.width, along), height: num(given.height, 60) } : { width: num(given.width, 60), height: num(given.height, along) };
+    const set: Record<string, unknown> = {
+      position: horizontal
+        ? { x: num(op.x, 6), y: num(op.y, 25), width: num(op.width, 88), height: num(op.height, 50) }
+        : { x: num(op.x, 25), y: num(op.y, 8), width: num(op.width, 50), height: num(op.height, 84) },
+      items,
+      orientation: horizontal ? "horizontal" : "vertical",
+      itemSize,
+      onEachError: [],
+      onSubmit: [],
+      onCorrect: [],
+      onIncorrect: [],
+    };
+    for (const key of ["startLabel", "endLabel", "required", "onSubmit", "onEachError", "onCorrect", "onIncorrect", "name"]) if (op[key] !== undefined) set[key] = op[key];
+    if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
+    return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "sort", set, as: op.as });
+  },
   // A checker as its own element: add_checker {page, text?, required?, onChecked?, onUnchecked?, x, y, width, height, effect?, name?, as}.
   // A checkbox with a text beside it and "Abschicken" under it; onChecked / onUnchecked are lists of variable effects
   // ({"variableId": "punkte", "op": "add", "value": 1}) for submitting with and without the tick.

@@ -170,18 +170,14 @@ export function buildOutline(loaded: LoadedWeft, options: { page?: string } = {}
 
   const blockCount = (page: Page) => Object.keys(page.blocks ?? {}).length;
   const usage = new Map<string, number>();
-  for (const page of Object.values(content.pages)) {
-    for (const block of Object.values(page.blocks ?? {})) {
-      const id = (block as { assetId?: string | null }).assetId;
-      if (id) usage.set(id, (usage.get(id) ?? 0) + 1);
-    }
-  }
-  for (const layout of Object.values(content.layouts)) {
-    for (const block of Object.values(layout.blocks ?? {})) {
-      const id = (block as { assetId?: string | null }).assetId;
-      if (id) usage.set(id, (usage.get(id) ?? 0) + 1);
-    }
-  }
+  // (The pictures on the cards of a matching and the objects of a sorting puzzle belong to the block too.)
+  const count = (block: unknown) => {
+    const own = block as { assetId?: string | null; sources?: { assetId?: string | null }[]; targets?: { assetId?: string | null }[]; items?: { assetId?: string | null }[] };
+    const ids = new Set([own.assetId, ...(own.sources ?? []).map((i) => i.assetId), ...(own.targets ?? []).map((i) => i.assetId), ...(own.items ?? []).map((i) => i.assetId)].filter((id): id is string => !!id));
+    for (const id of ids) usage.set(id, (usage.get(id) ?? 0) + 1);
+  };
+  for (const page of Object.values(content.pages)) Object.values(page.blocks ?? {}).forEach(count);
+  for (const layout of Object.values(content.layouts)) Object.values(layout.blocks ?? {}).forEach(count);
 
   return {
     file: loaded.path,

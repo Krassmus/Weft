@@ -275,6 +275,9 @@
           "$ref": "#/definitions/MatchingBlock"
         },
         {
+          "$ref": "#/definitions/SortBlock"
+        },
+        {
           "$ref": "#/definitions/ScriptBlock"
         }
       ]
@@ -405,6 +408,9 @@
         "body": {
           "type": "string"
         },
+        "endLabel": {
+          "type": "string"
+        },
         "explanation": {
           "description": "QuizBlock: the explanation shown after submitting (plain text).",
           "type": "string"
@@ -429,6 +435,10 @@
         },
         "questionHtml": {
           "description": "QuizBlock.",
+          "type": "string"
+        },
+        "startLabel": {
+          "description": "SortBlock: the words at the two ends of the line (plain text).",
           "type": "string"
         },
         "text": {
@@ -2871,6 +2881,171 @@
         "dotted"
       ],
       "type": "string"
+    },
+    "SortBlock": {
+      "additionalProperties": false,
+      "description": "A sorting puzzle (\"Sortierrätsel\"): texts or pictures that the learner puts into the right order by drag and drop, then presses \"Abschicken\". `items` is the RIGHT order (the learner sees them in a random, never the right, order every time the slide is shown). They are strung on a thin line behind them - a text covers it, so the line stops there - which runs top to bottom (`orientation` \"vertical\", the default) or left to right (\"horizontal\", better for pictures). The two ends of the line can be named (`startLabel` / `endLabel`: \"older\" / \"younger\"). What counts as a mistake is the smallest number of moves (take one object and put it somewhere else) that make the order right; every mistake has the effects of `onEachError` (minus points, say), and `onSubmit` happens for every submission (the maximum of points, say) - changes to variables, like the effects of a quiz. It has the events of a quiz in the page's graph, lives on pages only, and its look follows the module's style of interactive elements.",
+      "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
+        "endLabel": {
+          "type": "string"
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "itemSize": {
+          "additionalProperties": false,
+          "description": "The size of every object in percent of the block's area (of its width and height; the line is as long as the objects need).",
+          "properties": {
+            "height": {
+              "type": "number"
+            },
+            "width": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "width",
+            "height"
+          ],
+          "type": "object"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/definitions/SortItem"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "sort",
+          "type": "string"
+        },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
+          "type": "string"
+        },
+        "onCorrect": {
+          "description": "What happens when the order was right / not.",
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        },
+        "onEachError": {
+          "description": "What happens for every mistake (the number of moves it takes to make the order right).",
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        },
+        "onIncorrect": {
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        },
+        "onSubmit": {
+          "description": "What happens at every submission, whatever the order.",
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "orientation": {
+          "enum": [
+            "vertical",
+            "horizontal"
+          ],
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "required": {
+          "description": "A required task, as QuizBlock.required. Absent: not required.",
+          "type": "boolean"
+        },
+        "startLabel": {
+          "type": "string"
+        },
+        "translations": {
+          "additionalProperties": {
+            "$ref": "#/definitions/BlockTranslation"
+          },
+          "description": "Other languages' wording: the texts of the objects by item id and the two labels (BlockTranslation.items / startLabel / endLabel).",
+          "type": "object"
+        }
+      },
+      "required": [
+        "entranceEffect",
+        "exitEffect",
+        "id",
+        "itemSize",
+        "items",
+        "kind",
+        "onCorrect",
+        "onEachError",
+        "onIncorrect",
+        "onSubmit",
+        "order",
+        "position"
+      ],
+      "type": "object"
+    },
+    "SortItem": {
+      "additionalProperties": false,
+      "description": "One object of a sorting puzzle (SortBlock): a text or a picture. The list of a SortBlock holds them in their RIGHT order.",
+      "properties": {
+        "assetId": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UUID"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A picture: its asset (null: none chosen yet)."
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "enum": [
+            "text",
+            "image"
+          ],
+          "type": "string"
+        },
+        "text": {
+          "description": "What a text says; for a picture its description for those who cannot see it. Translatable (BlockTranslation.items).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "text"
+      ],
+      "type": "object"
     },
     "StaticBlock": {
       "anyOf": [

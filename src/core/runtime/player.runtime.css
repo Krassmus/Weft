@@ -2004,15 +2004,16 @@ summary:focus-visible,
   transform: translateX(-50%);
 }
 
+/* (A square with two borders, turned by 45 degrees: its point is 0.2 of its side beyond its box, so the box sits that far in - the point is the end of the line.) */
 .weft-sort-list::after {
   left: 50%;
-  bottom: 0;
-  width: 0.55em;
-  height: 0.55em;
+  bottom: 0.13em;
+  width: 0.6em;
+  height: 0.6em;
+  margin-left: -0.3em;
   border-right: 2px solid var(--slide-line-strong);
   border-bottom: 2px solid var(--slide-line-strong);
-  transform: translate(-50%, 0) rotate(45deg);
-  transform-origin: 70% 70%;
+  transform: rotate(45deg);
 }
 
 .weft-sort.is-horizontal .weft-sort-list::before {
@@ -2029,11 +2030,12 @@ summary:focus-visible,
 
 .weft-sort.is-horizontal .weft-sort-list::after {
   left: auto;
-  right: 0;
+  right: 0.13em;
   top: 50%;
   bottom: auto;
-  transform: translate(0, -50%) rotate(-45deg);
-  transform-origin: 70% 70%;
+  margin-left: 0;
+  margin-top: -0.3em;
+  transform: rotate(-45deg);
 }
 
 .weft-sort-item {

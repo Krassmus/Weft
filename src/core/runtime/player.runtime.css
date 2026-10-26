@@ -1733,6 +1733,8 @@ summary:focus-visible,
   border-radius: var(--slide-ui-image-radius);
   clip-path: var(--slide-ui-image-clip);
   background: var(--slide-surface);
+  /* (A size container, so that the mark of a right or wrong picture can follow the picture's size: a small picture gets a small mark.) */
+  container-type: size;
 }
 
 .weft-matching-frame > .weft-matching-image {
@@ -1840,14 +1842,18 @@ summary:focus-visible,
   border-color: var(--slide-bad);
 }
 
-/* The mark of a right or wrong picture sits on the picture's corner. */
+/* The mark of a right or wrong picture sits at its bottom right corner, a little in from the edge (the cut corner of the futuristic style is no
+   reason to clip it), and it is only as large as a third of the picture's width at most - so that a small picture can still be seen. */
 .weft-matching-frame > .weft-matching-mark {
-  top: 0.3em;
-  right: 0.3em;
+  top: auto;
+  right: 0.15em;
+  bottom: 0.15em;
+  width: min(1em, 30cqw);
+  height: min(1em, 30cqw);
   transform: none;
   /* On a picture the mark has a round ground of the slide's surface (light or dark), so that it can be seen on any picture. */
   box-sizing: content-box;
-  padding: 0.14em;
+  padding: min(0.14em, 4cqw);
   border-radius: 50%;
   background: var(--slide-surface);
   box-shadow: 0 0 0 1px var(--slide-line), 0 1px 4px rgba(0, 0, 0, 0.3);

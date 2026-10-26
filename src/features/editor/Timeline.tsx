@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import gearIconSvg from "../../../mockups/icons/admin.svg?raw";
 import playIconSvg from "../../../mockups/icons/play.svg?raw";
 import arrowRightIconSvg from "../../../mockups/icons/arr_1right.svg?raw";
@@ -165,8 +165,13 @@ const FRAME_PAD = 12;
 /** More room above a frame, for the name of the block. */
 const FRAME_TOP = 22;
 const LABEL_HEIGHT = 34;
-/** The lock where the lines of the required tasks end (diameter), and how far it stands from the icon and the title of "Nächste Folie". */
+/** The lock where the lines of the required tasks end (diameter). */
 const LOCK = 20;
+/** How long the line of a task that is no longer required takes to fade out. */
+const FADE_MS = 260;
+
+/** The lines of the required tasks as they are drawn (see conditionGeometry in TimelineGraph). */
+type ConditionGeometry = { lock: Point; paths: { id: string; d: string; drawD: string }[] };
 
 interface Point {
   x: number;
@@ -445,6 +450,31 @@ function TimelineGraph({ page }: { page: Page }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model]);
 
+  // The lines of the required tasks (see conditionGeometry): a new one is drawn from the task to the lock, which grows into view when it is new
+  // as well; one that goes - the task is no longer required, or gone - fades out where it was drawn.
+  const conditionsSeenRef = useRef<Set<string> | null>(null);
+  const drawnConditionsRef = useRef<ConditionGeometry | null>(null);
+  const [freshConditions, setFreshConditions] = useState<{ ids: Set<string>; lock: boolean }>({ ids: new Set(), lock: false });
+  const [fadingConditions, setFadingConditions] = useState<{ paths: { id: string; d: string }[]; lock: Point | null } | null>(null);
+  useLayoutEffect(() => {
+    const ids = new Set(model.conditions.map((c) => c.id));
+    const previous = conditionsSeenRef.current;
+    conditionsSeenRef.current = ids;
+    if (!previous || prefersReducedMotion()) return;
+    const added = [...ids].filter((id) => !previous.has(id));
+    const removed = [...previous].filter((id) => !ids.has(id));
+    // (No cleanup: a change that comes in between must not leave a line half drawn or a faded one standing.)
+    if (added.length > 0) {
+      setFreshConditions({ ids: new Set(added), lock: previous.size === 0 });
+      setTimeout(() => setFreshConditions({ ids: new Set(), lock: false }), DRAW_MS + APPEAR_MS + 80);
+    }
+    const drawn = drawnConditionsRef.current;
+    if (removed.length > 0 && drawn) {
+      setFadingConditions({ paths: drawn.paths.filter((p) => removed.includes(p.id)), lock: ids.size === 0 ? drawn.lock : null });
+      setTimeout(() => setFadingConditions(null), FADE_MS + 40);
+    }
+  }, [model]);
+
   // Events and lines that stay lit while one is hovered: the event itself, its lines and the events at their other ends.
   const hotNodes = new Set<string>();
   const hotEdges = new Set<string>();
@@ -538,38 +568,69 @@ function TimelineGraph({ page }: { page: Page }) {
   }
 
   // The required tasks: a dotted violet line from the submission of each to "Nächste Folie", which end together in one lock - under the title
-  // of "Nächste Folie" (above its icon when all the tasks stand higher than it). The lines are drawn from the lock towards the tasks, so that
-  // the dots of the stretch they share lie on each other.
-  function conditionLines() {
+  // of "Nächste Folie" (above its icon when all the tasks stand higher than it). The lines run from the lock towards the tasks, so that the
+  // dots of the stretch they share lie on each other; `drawD` is the same line the other way round, along which a new one is drawn.
+  function conditionGeometry(): ConditionGeometry | null {
     if (model.conditions.length === 0) return null;
     const half = ICON / 2;
     const to = at(model.conditions[0].to);
     const higher = model.conditions.every((c) => at(c.from).y <= to.y);
-    // Where the lock hangs: under the title of "Nächste Folie", or - when all the tasks stand above it - above its icon.
     const lock = { x: to.x, y: higher ? to.y - half - LOCK / 2 - 8 : to.y + half + LABEL_HEIGHT + LOCK / 2 + 4 };
     const lockEdge = { x: lock.x, y: lock.y + (higher ? LOCK / 2 : -LOCK / 2) };
-    const hot = model.conditions.some((c) => hotConditions.has(c.id));
-    const dim = lit && !hot;
+    const paths = model.conditions.map((c) => {
+      const u = at(c.from);
+      const points =
+        u.x + half + 4 < to.x
+          ? [lockEdge, { x: to.x, y: u.y }, { x: u.x + half, y: u.y }]
+          : [lockEdge, { x: u.x, y: u.y + (u.y > lockEdge.y ? -half : half) }];
+      return { id: c.id, d: roundedPath(points, 9), drawD: roundedPath([...points].reverse(), 9) };
+    });
+    return { lock, paths };
+  }
+  const conditions = conditionGeometry();
+  // (What was drawn, for the lines that go: they fade out where they were - see the effect above.)
+  useLayoutEffect(() => {
+    drawnConditionsRef.current = conditions;
+  });
+
+  function lockIcon(className: string, at: Point, style?: CSSProperties) {
     return (
-      <g className={"weft-eg-conditions" + (hot ? " is-hot" : dim ? " is-dim" : "")}>
-        {model.conditions.map((c) => {
-          const u = at(c.from);
-          const points =
-            u.x + half + 4 < to.x
-              ? [lockEdge, { x: to.x, y: u.y }, { x: u.x + half, y: u.y }]
-              : [lockEdge, { x: u.x, y: u.y + (u.y > lockEdge.y ? -half : half) }];
-          return (
-            <path key={c.id} className="weft-eg-condition" d={roundedPath(points, 9)}>
-              <title>{tr("ui.condition_required_task")}</title>
-            </path>
-          );
-        })}
-        <g className="weft-eg-lock" transform={`translate(${lock.x} ${lock.y})`}>
-          <title>{tr("ui.condition_required_task")}</title>
+      <g className={className} transform={`translate(${at.x} ${at.y})`}>
+        <title>{tr("ui.condition_required_task")}</title>
+        <g className="weft-eg-lock-inner" style={style}>
           <circle r={LOCK / 2} />
           <rect x={-3.6} y={-0.6} width={7.2} height={5.4} rx={1.1} />
           <path d="M -2.4 -0.8 V -2.6 A 2.4 2.4 0 0 1 2.4 -2.6 V -0.8" />
         </g>
+      </g>
+    );
+  }
+
+  function conditionLines() {
+    if (!conditions && !fadingConditions) return null;
+    const hot = model.conditions.some((c) => hotConditions.has(c.id));
+    const dim = lit && !hot;
+    return (
+      <g className={"weft-eg-conditions" + (hot ? " is-hot" : dim ? " is-dim" : "")}>
+        {fadingConditions?.paths.map((p) => <path key={`gone-${p.id}`} className="weft-eg-condition is-leaving" d={p.d} />)}
+        {fadingConditions?.lock && !conditions && lockIcon("weft-eg-lock is-leaving", fadingConditions.lock)}
+        {conditions?.paths.map((p, index) => {
+          const drawing = freshConditions.ids.has(p.id);
+          return (
+            <g key={p.id}>
+              {drawing && (
+                <mask id={`weft-eg-cmask-${index}`} maskUnits="userSpaceOnUse" x={0} y={0} width={graphWidth} height={graphHeight}>
+                  <path className="weft-eg-mask-path" d={p.drawD} pathLength={1} style={{ animationDuration: `${DRAW_MS}ms` }} />
+                </mask>
+              )}
+              <path className="weft-eg-condition" d={p.d} mask={drawing ? `url(#weft-eg-cmask-${index})` : undefined}>
+                <title>{tr("ui.condition_required_task")}</title>
+              </path>
+            </g>
+          );
+        })}
+        {/* A new lock grows into view when its line has reached it. */}
+        {conditions && lockIcon("weft-eg-lock" + (freshConditions.lock ? " is-new" : ""), conditions.lock, freshConditions.lock ? { animationDelay: `${DRAW_MS}ms` } : undefined)}
       </g>
     );
   }

@@ -145,7 +145,7 @@ async function perform(session: ChromeSession, step: string): Promise<Outcome> {
       // large, with its caption), a click on the open picture (it closes). The note says which picture is shown and, once open, its caption.
       const what = args[0];
       if (!["weiter", "zurueck", "oeffnen", "schliessen"].includes(what ?? "")) throw new CliError("Was mit der Galerie? galerie weiter | zurueck | oeffnen | schliessen");
-      const result = await session.eval<{ problem?: string; note?: string }>(`(() => {
+      const result = await session.eval<{ problem?: string; note?: string }>(`(async () => {
         const what = ${quote(what)};
         if (what === 'schliessen') {
           const open = document.querySelector('.weft-matching-lightbox');
@@ -164,6 +164,8 @@ async function perform(session: ChromeSession, step: string): Promise<Outcome> {
           if (!arrow) return { problem: 'das geöffnete Bild gehört zu keiner Galerie mit mehreren Bildern' };
           if (arrow.disabled) return { problem: what === 'weiter' ? 'das ist schon das letzte Bild' : 'das ist schon das erste Bild' };
           arrow.click();
+          // (The picture changes with a short move: wait for it.)
+          await new Promise((resolve) => setTimeout(resolve, 600));
           const caption = open.querySelector('.weft-matching-lightbox-caption');
           return { note: position() + ' (geöffnet' + (caption && caption.textContent ? ': „' + caption.textContent + '“' : ', ohne Bildunterschrift') + ')' };
         }

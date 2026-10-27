@@ -7174,6 +7174,46 @@ h2.weft-inspector-header {
   overflow-wrap: anywhere;
 }
 
+/* The buttons at the end of the arrow that add a text / a picture (editor only; SortView, on the canvas of a selected block): on the other side of
+   the line from the words of its end - left of a vertical line, above a horizontal one (at the end of its last line). */
+.weft-sort-add {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  gap: 0.3em;
+  font-size: 0.9em;
+}
+
+.weft-sort.is-vertical .weft-sort-add {
+  right: calc(50% / var(--sort-lines, 1) + 0.9em);
+  bottom: 0;
+}
+
+.weft-sort.is-horizontal .weft-sort-add {
+  right: 0;
+  bottom: calc(var(--sort-pad) + ((100% - var(--sort-pad)) - (var(--sort-lines, 1) - 1) * (0.4em + var(--sort-pad))) / (2 * var(--sort-lines, 1)) + 0.3em);
+}
+
+.weft-sort-add-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15em;
+  height: 1.5em;
+  padding: 0 0.45em;
+  font: inherit;
+  line-height: 1;
+  color: #555b66;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #c8ccd0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.weft-sort-add-button:hover {
+  color: #111;
+  border-color: var(--weft-accent);
+}
+
 /* The text of an object written in place on the canvas (a double click): a field that looks like the text. */
 .weft-sort-edit {
   box-sizing: border-box;

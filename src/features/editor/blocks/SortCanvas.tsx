@@ -3,9 +3,11 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import type { Block, SortBlock, SortItem } from "../../../core/types";
 import { useEditingLanguage } from "../useEditingLanguage";
 import { useDocumentStore } from "../../../core/document/store";
-import { setSortImage } from "../../../core/document/filesActions";
+import { addSortImage, setSortImage } from "../../../core/document/filesActions";
 import { sortDropIndex, sortLayout } from "../../../core/document/sortLayout";
 import { sortItemText, sortItemTextPatch } from "../../../core/document/translations";
+import { createId } from "../../../core/id";
+import { tr } from "../../../core/i18n/tr";
 import { SortView } from "./SortView";
 
 /**
@@ -22,6 +24,8 @@ export function SortCanvas({ block, selected, onUpdate }: { block: SortBlock; se
   const pageId = useDocumentStore((s) => Object.values(s.doc.content.pages).find((page) => block.id in page.blocks)?.id);
   const fileInput = useRef<HTMLInputElement>(null);
   const pictureOf = useRef<string | null>(null);
+  // The button "Add picture" opens the same chooser; what is chosen then becomes a new last object instead of the picture of one.
+  const addingPicture = useRef(false);
   // The text of an object being written in place (a double click on it): kept until Enter or the field loses the focus; Escape drops it.
   const [writing, setWriting] = useState<{ id: string; value: string } | null>(null);
   const writingRef = useRef(writing);
@@ -33,6 +37,19 @@ export function SortCanvas({ block, selected, onUpdate }: { block: SortBlock; se
     if (!current || !onUpdate) return;
     const item = block.items.find((it) => it.id === current.id);
     if (item && current.value !== sortItemText(block, item, lang, defaultLang)) onUpdate(sortItemTextPatch(block, current.id, lang, defaultLang, current.value));
+  }
+  // The button "Add text": a new last object whose text is written in place at once.
+  function addText() {
+    if (!onUpdate) return;
+    const text = tr("ui.sort_add_item");
+    const id = createId();
+    onUpdate({ items: [...block.items, { id, kind: "text", text }] });
+    setWriting({ id, value: text });
+  }
+  function addImage() {
+    addingPicture.current = true;
+    pictureOf.current = null;
+    fileInput.current?.click();
   }
   const places = useRef(new Map<string, { x: number; y: number }>());
 
@@ -164,6 +181,8 @@ export function SortCanvas({ block, selected, onUpdate }: { block: SortBlock; se
               }
             : null
         }
+        onAddText={selected && onUpdate ? addText : undefined}
+        onAddImage={selected && onUpdate ? addImage : undefined}
         rootRef={rootRef}
       />
       <input
@@ -176,7 +195,11 @@ export function SortCanvas({ block, selected, onUpdate }: { block: SortBlock; se
           e.target.value = "";
           const itemId = pictureOf.current;
           pictureOf.current = null;
-          if (file && itemId && pageId) setSortImage({ kind: "page", pageId }, block.id, itemId, file).catch((error) => console.error(error));
+          const adding = addingPicture.current;
+          addingPicture.current = false;
+          if (!file || !pageId) return;
+          if (adding) addSortImage({ kind: "page", pageId }, block.id, file).catch((error) => console.error(error));
+          else if (itemId) setSortImage({ kind: "page", pageId }, block.id, itemId, file).catch((error) => console.error(error));
         }}
       />
     </>

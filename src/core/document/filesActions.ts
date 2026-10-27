@@ -105,6 +105,20 @@ export async function setSortImage(container: BlockContainerRef, blockId: string
   });
 }
 
+/** Adds a picture as the last object of a sorting puzzle (SortBlock) - one step of the history: the file becomes an asset of the module. */
+export async function addSortImage(container: BlockContainerRef, blockId: string, file: File): Promise<void> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const id = createId();
+  const mimeType = file.type || "application/octet-stream";
+  useAssetStore.getState().setAsset(id, new Blob([bytes as BlobPart], { type: mimeType }));
+  useDocumentStore.getState().edit("Bild zum Sortierrätsel hinzufügen", (m) => {
+    const block = blocksOf(m, container)?.[blockId];
+    if (!block || block.kind !== "sort") return;
+    m.assets.push({ id, fileName: file.name, mimeType });
+    block.items.push({ id: createId(), kind: "image", text: "", assetId: id });
+  });
+}
+
 export function removeFileFromBlock(container: BlockContainerRef, blockId: string, fileId: string): void {
   useDocumentStore.getState().edit("Datei entfernen", (m) => {
     const target = blocksOf(m, container)?.[blockId];

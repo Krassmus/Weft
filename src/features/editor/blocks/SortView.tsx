@@ -4,6 +4,8 @@ import { useAssetStore } from "../../../core/assets/assetStore";
 import { sortItemBox, sortLayout } from "../../../core/document/sortLayout";
 import { sortItemText, sortLabel } from "../../../core/document/translations";
 import { playerStringsFor } from "../../../core/i18n/playerStrings";
+import { tr } from "../../../core/i18n/tr";
+import { BlockKindIcon } from "../BlockKindIcon";
 import type { SortBlock, SortItem } from "../../../core/types";
 import acceptSvg from "../../../../mockups/icons/accept.svg?raw";
 
@@ -22,6 +24,8 @@ export function SortView({
   onItemPointerDown,
   onItemDoubleClick,
   editing,
+  onAddText,
+  onAddImage,
   rootRef,
 }: {
   block: SortBlock;
@@ -37,6 +41,9 @@ export function SortView({
   onItemDoubleClick?: (item: SortItem) => void;
   /** The text being written in place: that of the object `id`, which is shown as a field instead. */
   editing?: { id: string; value: string; onChange: (value: string) => void; onCommit: () => void; onCancel: () => void } | null;
+  /** Given on the canvas of a selected block: the buttons at the arrow's end that add a text / a picture as the last object. */
+  onAddText?: () => void;
+  onAddImage?: () => void;
   rootRef?: Ref<HTMLDivElement>;
 }) {
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
@@ -163,6 +170,22 @@ export function SortView({
           })}
         </div>
         {end !== "" && <span className="weft-sort-end is-end">{end}</span>}
+        {(onAddText || onAddImage) && (
+          <div className="weft-sort-add" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+            {onAddText && (
+              <button type="button" className="weft-sort-add-button" title={tr("ui.sort_add_text")} aria-label={tr("ui.sort_add_text")} onClick={onAddText}>
+                <span aria-hidden="true">+</span>
+                <BlockKindIcon kind="text" size={13} />
+              </button>
+            )}
+            {onAddImage && (
+              <button type="button" className="weft-sort-add-button" title={tr("ui.sort_add_image")} aria-label={tr("ui.sort_add_image")} onClick={onAddImage}>
+                <span aria-hidden="true">+</span>
+                <BlockKindIcon kind="image" size={13} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
       <div className="weft-sort-bar">
         <div className="weft-thumb-block-quiz-submit">

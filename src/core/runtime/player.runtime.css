@@ -2444,7 +2444,9 @@ summary:focus-visible,
 
 .weft-gallery-arrow {
   position: absolute;
-  top: 50%;
+  /* (Centred by its size, not by a transform: where an element is hit follows its box, in every browser - the arrow was only clickable in a part of it
+     in WebKit when it was moved by translateY(-50%).) */
+  top: calc(50% - 1em);
   z-index: 1;
   display: flex;
   align-items: center;
@@ -2457,13 +2459,14 @@ summary:focus-visible,
   background: rgba(0, 0, 0, 0.5);
   color: #fff;
   cursor: pointer;
-  transform: translateY(-50%);
   transition:
     background 0.15s ease,
     opacity 0.15s ease;
 }
 
 .weft-gallery-arrow svg {
+  /* (The click is the button's, wherever on the arrow it lands.) */
+  pointer-events: none;
   display: block;
   width: 62%;
   height: 62%;
@@ -2493,18 +2496,21 @@ summary:focus-visible,
 
 .weft-gallery-dots {
   position: absolute;
-  left: 50%;
+  left: 0;
+  right: 0;
   bottom: 0.6em;
   z-index: 1;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.45em;
+  box-sizing: border-box;
+  width: fit-content;
   max-width: calc(100% - 7em);
+  margin: 0 auto;
   padding: 0.35em 0.6em;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.38);
-  transform: translateX(-50%);
 }
 
 .weft-gallery-dot {
@@ -2539,6 +2545,7 @@ summary:focus-visible,
 /* The arrows of a gallery's window: light on the dimmed slide, a little larger than the carousel's; the window keeps the place of the caption
    when a picture has none, so that the pictures do not jump. */
 .weft-matching-lightbox .weft-gallery-arrow {
+  top: calc(50% - 1.2em);
   width: 2.4em;
   height: 2.4em;
   background: rgba(255, 255, 255, 0.2);

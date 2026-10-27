@@ -7060,6 +7060,22 @@ h2.weft-inspector-header {
   overflow-wrap: anywhere;
 }
 
+/* The text of an object written in place on the canvas (a double click): a field that looks like the text. */
+.weft-sort-edit {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0.2em;
+  font: inherit;
+  color: inherit;
+  text-align: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--slide-accent-ink);
+  outline: none;
+}
+
 /* The picture's own frame (see the matching): the object is only the room it may take. */
 .weft-sort-item.is-image {
   overflow: visible;

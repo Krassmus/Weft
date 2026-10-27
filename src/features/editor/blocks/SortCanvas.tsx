@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { Block, SortBlock, SortItem } from "../../../core/types";
 import { useEditingLanguage } from "../useEditingLanguage";
+import { sortItemText, sortItemTextPatch } from "../../../core/document/translations";
 import { SortView } from "./SortView";
 
 /**
@@ -14,6 +15,18 @@ export function SortCanvas({ block, selected, onUpdate }: { block: SortBlock; se
   const { lang, defaultLang } = useEditingLanguage();
   const [drag, setDrag] = useState<{ id: string; order: string[] } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  // The text of an object being written in place (a double click on it): kept until Enter or the field loses the focus; Escape drops it.
+  const [writing, setWriting] = useState<{ id: string; value: string } | null>(null);
+  const writingRef = useRef(writing);
+  writingRef.current = writing;
+  function commitWriting() {
+    const current = writingRef.current;
+    setWriting(null);
+    writingRef.current = null;
+    if (!current || !onUpdate) return;
+    const item = block.items.find((it) => it.id === current.id);
+    if (item && current.value !== sortItemText(block, item, lang, defaultLang)) onUpdate(sortItemTextPatch(block, current.id, lang, defaultLang, current.value));
+  }
   const places = useRef(new Map<string, { x: number; y: number }>());
 
   // The objects that moved glide to their new places (the FLIP way: put them back where they were, then let go). Their places are those of the
@@ -44,6 +57,8 @@ export function SortCanvas({ block, selected, onUpdate }: { block: SortBlock; se
 
   function start(event: ReactPointerEvent, item: SortItem) {
     if (!selected || event.button !== 0 || !onUpdate) return;
+    // (The pointer goes down on the field of the text that is being written: that is the field's.)
+    if (writing && writing.id === item.id) return;
     event.stopPropagation();
     event.preventDefault();
     const held = event.currentTarget as HTMLElement;
@@ -103,5 +118,30 @@ export function SortCanvas({ block, selected, onUpdate }: { block: SortBlock; se
     window.addEventListener("pointercancel", end);
   }
 
-  return <SortView block={block} lang={lang} defaultLang={defaultLang} order={drag?.order ?? null} grabbed={drag?.id ?? null} onItemPointerDown={selected ? start : undefined} rootRef={rootRef} />;
+  return (
+    <SortView
+      block={block}
+      lang={lang}
+      defaultLang={defaultLang}
+      order={drag?.order ?? null}
+      grabbed={drag?.id ?? null}
+      onItemPointerDown={selected ? start : undefined}
+      onItemDoubleClick={selected && onUpdate ? (item) => setWriting({ id: item.id, value: sortItemText(block, item, lang, defaultLang) }) : undefined}
+      editing={
+        writing
+          ? {
+              id: writing.id,
+              value: writing.value,
+              onChange: (value) => setWriting({ id: writing.id, value }),
+              onCommit: commitWriting,
+              onCancel: () => {
+                writingRef.current = null;
+                setWriting(null);
+              },
+            }
+          : null
+      }
+      rootRef={rootRef}
+    />
+  );
 }

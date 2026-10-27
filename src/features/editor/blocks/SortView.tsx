@@ -19,6 +19,8 @@ export function SortView({
   order,
   grabbed,
   onItemPointerDown,
+  onItemDoubleClick,
+  editing,
   rootRef,
 }: {
   block: SortBlock;
@@ -30,6 +32,10 @@ export function SortView({
   grabbed?: string | null;
   /** Given on the canvas of a selected block: the pointer goes down on an object (to move it). */
   onItemPointerDown?: (event: ReactPointerEvent, item: SortItem) => void;
+  /** Given on the canvas of a selected block: a double click on an object (to write its text in place). */
+  onItemDoubleClick?: (item: SortItem) => void;
+  /** The text being written in place: that of the object `id`, which is shown as a field instead. */
+  editing?: { id: string; value: string; onChange: (value: string) => void; onCommit: () => void; onCancel: () => void } | null;
   rootRef?: Ref<HTMLDivElement>;
 }) {
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
@@ -94,6 +100,7 @@ export function SortView({
                 data-weft-item={item.id}
                 className={"weft-sort-item" + (item.kind === "image" ? " is-image" : "") + (grabbed === item.id ? " is-dragging" : "") + (onItemPointerDown ? " is-movable" : "")}
                 onPointerDown={onItemPointerDown ? (e) => onItemPointerDown(e, item) : undefined}
+                onDoubleClick={onItemDoubleClick && item.kind === "text" ? () => onItemDoubleClick(item) : undefined}
                 style={{ width: `${block.itemSize.width}%`, height: `${block.itemSize.height}%` }}
               >
                 {item.kind === "image" ? (
@@ -115,6 +122,22 @@ export function SortView({
                       )}
                     </span>
                   </span>
+                ) : editing && editing.id === item.id ? (
+                  <input
+                    className="weft-sort-edit"
+                    value={editing.value}
+                    autoFocus
+                    onFocus={(e) => e.currentTarget.select()}
+                    onChange={(e) => editing.onChange(e.target.value)}
+                    onBlur={editing.onCommit}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onDoubleClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === "Enter") editing.onCommit();
+                      else if (e.key === "Escape") editing.onCancel();
+                    }}
+                  />
                 ) : (
                   <span className="weft-sort-text">{sortItemText(block, item, lang, defaultLang)}</span>
                 )}

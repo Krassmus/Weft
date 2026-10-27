@@ -110,7 +110,7 @@ import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from ".
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { checkerText, checkerTextPatch, matchingItemText, matchingItemTextPatch, sortItemText, sortItemTextPatch, sortLabel, sortLabelPatch, linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
+import { matchingItemText, matchingItemTextPatch, sortItemText, sortItemTextPatch, sortLabel, sortLabelPatch, linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
 import type { RevealerWording } from "../../../core/document/translations";
 import { revealerIconSvg } from "../../../core/runtime/revealerGeometry";
 import { clozeBlanks } from "../../../core/document/cloze";
@@ -3595,15 +3595,10 @@ function SortEditor({ block, container, page, onUpdate }: { block: SortBlock; co
 function CheckerEditor({ block, page, onUpdate }: { block: CheckerBlock; page?: Page; onUpdate: BlockPanelProps["onUpdate"] }) {
   const goesOn = (outcome: "richtig" | "falsch") => !!page?.timeline.ends[quizEndNodeId(block.id, outcome)];
   const variables = useDocumentStore((s) => s.doc.content.variables);
-  const { lang, defaultLang } = useEditingLanguage();
   return (
     <>
       <Collapsible title={tr("ui.checker")}>
         <LanguageSelect block={block} />
-        <label className="weft-field">
-          <span>{tr("ui.checker_text")}</span>
-          <textarea rows={3} value={checkerText(block, lang, defaultLang)} onChange={(e) => onUpdate(checkerTextPatch(block, lang, defaultLang, e.target.value))} />
-        </label>
         <label className="weft-field weft-field-inline">
           <input type="checkbox" checked={block.required === true} onChange={(e) => onUpdate({ required: e.target.checked ? true : undefined })} />
           <span>{tr("ui.required_task")}</span>

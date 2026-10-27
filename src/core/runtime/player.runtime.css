@@ -2045,14 +2045,17 @@ summary:focus-visible,
 
 /* The line, with a small arrowhead at its end. */
 .weft-sort-list::before,
-.weft-sort-list::after {
+.weft-sort-list::after,
+.weft-sort-lane::before,
+.weft-sort-lane::after {
   content: "";
   position: absolute;
   pointer-events: none;
   z-index: 0;
 }
 
-.weft-sort-list::before {
+.weft-sort-list::before,
+.weft-sort-lane::before {
   left: 50%;
   top: 0;
   bottom: 0;
@@ -2062,7 +2065,8 @@ summary:focus-visible,
 }
 
 /* The arrowhead at the end of the line: a chevron drawn as a mask, so that it is the same on both sides of the line; its point is the line's end. */
-.weft-sort-list::after {
+.weft-sort-list::after,
+.weft-sort-lane::after {
   left: 50%;
   bottom: 0;
   width: 0.9em;
@@ -2073,7 +2077,8 @@ summary:focus-visible,
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Cpath d='M1 1 8 8 15 1' fill='none' stroke='black' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
 }
 
-.weft-sort.is-horizontal .weft-sort-list::before {
+.weft-sort.is-horizontal .weft-sort-list::before,
+.weft-sort.is-horizontal .weft-sort-lane::before {
   left: 0;
   right: 0;
   top: calc(50% - var(--sort-pad, 0px) / 2);
@@ -2085,7 +2090,8 @@ summary:focus-visible,
   transform: translateY(-50%);
 }
 
-.weft-sort.is-horizontal .weft-sort-list::after {
+.weft-sort.is-horizontal .weft-sort-list::after,
+.weft-sort.is-horizontal .weft-sort-lane::after {
   left: auto;
   right: 0;
   top: calc(50% - var(--sort-pad, 0px) / 2);
@@ -2096,6 +2102,74 @@ summary:focus-visible,
   margin-top: -0.45em;
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 16'%3E%3Cpath d='M1 1 8 8 1 15' fill='none' stroke='black' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 16'%3E%3Cpath d='M1 1 8 8 1 15' fill='none' stroke='black' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+}
+
+/* Several lines (.is-multi: --sort-lines of them, --sort-per objects on each - sortLayout): the list is a grid, rows along a horizontal line and
+   columns along a vertical one, filled the way text is read; every line has a line of its own (.weft-sort-lane in .weft-sort-lanes, a grid of the
+   same shape behind the list - the list's own line is for a single one). The first words stand at the first line's beginning, the last words at
+   the last line's end. */
+.weft-sort.is-multi .weft-sort-list::before,
+.weft-sort.is-multi .weft-sort-list::after {
+  display: none;
+}
+
+.weft-sort-lanes {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  pointer-events: none;
+}
+
+.weft-sort-lane {
+  position: relative;
+  --sort-pad: 0px;
+}
+
+.weft-sort.is-multi .weft-sort-list {
+  display: grid;
+  justify-content: stretch;
+  justify-items: center;
+  align-items: center;
+}
+
+.weft-sort.is-horizontal.is-multi .weft-sort-list {
+  grid-template-columns: repeat(var(--sort-per), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--sort-lines), minmax(0, 1fr));
+  row-gap: calc(0.4em + var(--sort-pad));
+}
+
+.weft-sort.is-horizontal.is-multi .weft-sort-lanes {
+  inset: 0 0 var(--sort-pad) 0;
+  grid-template-rows: repeat(var(--sort-lines), minmax(0, 1fr));
+  row-gap: calc(0.4em + var(--sort-pad));
+}
+
+.weft-sort.is-vertical.is-multi .weft-sort-list {
+  grid-template-rows: repeat(var(--sort-per), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--sort-lines), minmax(0, 1fr));
+  grid-auto-flow: column;
+}
+
+.weft-sort.is-vertical.is-multi .weft-sort-lanes {
+  grid-template-columns: repeat(var(--sort-lines), minmax(0, 1fr));
+}
+
+.weft-sort.is-vertical.is-multi .weft-sort-end {
+  left: calc(50% / var(--sort-lines) + 0.9em);
+  max-width: calc(50% / var(--sort-lines) - 1em);
+}
+
+.weft-sort.is-vertical.is-multi .weft-sort-end.is-end {
+  left: calc(100% - 50% / var(--sort-lines) + 0.9em);
+}
+
+.weft-sort.is-horizontal.is-multi .weft-sort-end {
+  top: calc(var(--sort-labels-top, calc(100% - var(--sort-pad))) + 0.4em);
+}
+
+.weft-sort.is-horizontal.is-multi .weft-sort-end.is-start {
+  top: calc(var(--sort-start-top, calc((100% - var(--sort-pad)) / var(--sort-lines))) + 0.4em);
 }
 
 .weft-sort-item {

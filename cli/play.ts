@@ -159,7 +159,10 @@ async function perform(session: ChromeSession, step: string): Promise<Outcome> {
           if (steps === 0) continue;
           card.focus();
           card.click();
-          for (let i = 0; i < Math.abs(steps); i++) card.dispatchEvent(new KeyboardEvent('keydown', { key: steps > 0 ? 'ArrowUp' : 'ArrowDown', bubbles: true, cancelable: true }));
+          // (The keys along the line: across it, with several lines, one jumps a whole line.)
+          const vertical = block.querySelector('.weft-sort').classList.contains('is-vertical');
+          const [earlier, later] = vertical ? ['ArrowUp', 'ArrowDown'] : ['ArrowLeft', 'ArrowRight'];
+          for (let i = 0; i < Math.abs(steps); i++) card.dispatchEvent(new KeyboardEvent('keydown', { key: steps > 0 ? earlier : later, bubbles: true, cancelable: true }));
           card.click();
         }
         return '';

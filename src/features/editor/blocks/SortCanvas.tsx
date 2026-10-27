@@ -4,6 +4,7 @@ import type { Block, SortBlock, SortItem } from "../../../core/types";
 import { useEditingLanguage } from "../useEditingLanguage";
 import { useDocumentStore } from "../../../core/document/store";
 import { setSortImage } from "../../../core/document/filesActions";
+import { sortDropIndex, sortLayout } from "../../../core/document/sortLayout";
 import { sortItemText, sortItemTextPatch } from "../../../core/document/translations";
 import { SortView } from "./SortView";
 
@@ -72,6 +73,7 @@ export function SortCanvas({ block, selected, onUpdate }: { block: SortBlock; se
     const body = list?.parentElement;
     if (!list || !body) return;
     const vertical = block.orientation !== "horizontal";
+    const { per } = sortLayout(block);
     const startX = event.clientX;
     const startY = event.clientY;
     let order = block.items.map((it) => it.id);
@@ -97,14 +99,19 @@ export function SortCanvas({ block, selected, onUpdate }: { block: SortBlock; se
         ghost.style.left = `${e.clientX - bodyRect.left - grab.x}px`;
         ghost.style.top = `${e.clientY - bodyRect.top - grab.y}px`;
       }
-      // It goes after every other object whose middle the pointer has passed (measured from the layout, not from where a gliding object is).
+      // It goes after every other object whose middle the pointer has passed - on several lines: on the line whose middle is nearest (measured from
+      // the layout, not from where a gliding object is).
       const listRect = list.getBoundingClientRect();
-      const pointer = vertical ? e.clientY - listRect.top : e.clientX - listRect.left;
-      const others = [...list.querySelectorAll<HTMLElement>(":scope > .weft-sort-item")].filter((el) => el.dataset.weftItem !== item.id);
-      let index = 0;
-      others.forEach((el, i) => {
-        if (pointer > (vertical ? el.offsetTop + el.offsetHeight / 2 : el.offsetLeft + el.offsetWidth / 2)) index = i + 1;
+      const pointerX = e.clientX - listRect.left;
+      const pointerY = e.clientY - listRect.top;
+      const kids = [...list.querySelectorAll<HTMLElement>(":scope > .weft-sort-item")];
+      const others = kids.filter((el) => el.dataset.weftItem !== item.id);
+      const boxes = kids.map((el) => {
+        const x = el.offsetLeft + el.offsetWidth / 2;
+        const y = el.offsetTop + el.offsetHeight / 2;
+        return vertical ? { along: y, cross: x } : { along: x, cross: y };
       });
+      const index = sortDropIndex(per, boxes, kids.findIndex((el) => el.dataset.weftItem === item.id), vertical ? pointerY : pointerX, vertical ? pointerX : pointerY);
       const ids = others.map((el) => el.dataset.weftItem as string);
       ids.splice(index, 0, item.id);
       if (ids.join() !== order.join()) order = ids;

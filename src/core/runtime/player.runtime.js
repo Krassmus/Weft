@@ -3603,18 +3603,62 @@
     return { moves: n - (best < 0 ? 0 : length[best]), stays: stays };
   }
 
+  // How the objects share the room (kept in sync by hand with core/document/sortLayout.ts): on one line, or - when they do not fit on one at the
+  // size the author gave them - on several, each with a line of its own; the right order reads like text, a row (a column) after the other.
+  function sortLayout(block) {
+    var count = block.items.length;
+    var along = block.orientation === "horizontal" ? block.itemSize.width : block.itemSize.height;
+    var fit = Math.max(1, Math.floor(100 / Math.max(1, along) + 0.001));
+    if (count <= fit) return { lines: 1, per: Math.max(1, count) };
+    var per = Math.ceil(count / Math.ceil(count / fit));
+    return { lines: Math.ceil(count / per), per: per };
+  }
+
+  // Where a dragged object goes: among the others (see sortDropIndex in core/document/sortLayout.ts).
+  function sortDropIndex(per, boxes, dragged, along, cross) {
+    var lanes = Math.ceil(boxes.length / per);
+    var lane = 0;
+    var nearest = Infinity;
+    for (var l = 0; l < lanes; l++) {
+      var distance = Math.abs(boxes[l * per].cross - cross);
+      if (distance < nearest) {
+        nearest = distance;
+        lane = l;
+      }
+    }
+    var index = 0;
+    var others = 0;
+    boxes.forEach(function (box, i) {
+      if (i === dragged) return;
+      others++;
+      var boxLane = Math.floor(i / per);
+      if (boxLane < lane || (boxLane === lane && along > box.along)) index = others;
+    });
+    return index;
+  }
+
   function renderSortBlock(block) {
     var vertical = block.orientation !== "horizontal";
+    var layout = sortLayout(block);
+    var multi = layout.lines > 1;
     var wrap = el("div", { class: "weft-block weft-block-sort", "data-weft-block": block.id, style: positionStyle(block.position) });
     if (block.required) requiredPending[block.id] = true;
-    var box = el("div", { class: "weft-sort " + (vertical ? "is-vertical" : "is-horizontal") }, []);
+    var box = el("div", { class: "weft-sort " + (vertical ? "is-vertical" : "is-horizontal") + (multi ? " is-multi" : "") }, []);
     box.style.setProperty("--sort-item-h", String(block.itemSize.height));
+    box.style.setProperty("--sort-lines", String(layout.lines));
+    box.style.setProperty("--sort-per", String(layout.per));
     var body = el("div", { class: "weft-sort-body" }, []);
     var list = el("div", { class: "weft-sort-list" }, []);
     var bar = el("div", { class: "weft-sort-bar" }, []);
     var startLabel = el("span", { class: "weft-sort-end is-start" }, []);
     var endLabel = el("span", { class: "weft-sort-end is-end" }, []);
     body.appendChild(startLabel);
+    if (multi) {
+      // The lines of the lanes (the list's own line is for a single one): one behind each row (column).
+      var lanes = el("div", { class: "weft-sort-lanes", "aria-hidden": "true" }, []);
+      for (var lane = 0; lane < layout.lines; lane++) lanes.appendChild(el("span", { class: "weft-sort-lane" }, []));
+      body.appendChild(lanes);
+    }
     body.appendChild(list);
     body.appendChild(endLabel);
     box.appendChild(body);
@@ -3640,13 +3684,18 @@
       if (vertical) return;
       var top = body.getBoundingClientRect().top;
       var lowest = 0;
-      [].forEach.call(list.children, function (card) {
+      var lowestFirst = 0; // (under several rows: the first row's words stand under the first row, the last row's under the last)
+      [].forEach.call(list.children, function (card, i) {
         var shown = card.querySelector(".weft-matching-frame") || card;
         var rect = shown.getBoundingClientRect();
-        if (rect.height > 0) lowest = Math.max(lowest, rect.bottom - top);
+        if (rect.height <= 0) return;
+        var bottom = rect.bottom - top;
+        if (Math.floor(i / layout.per) === 0) lowestFirst = Math.max(lowestFirst, bottom);
+        if (Math.floor(i / layout.per) === layout.lines - 1) lowest = Math.max(lowest, bottom);
       });
       if (lowest <= 0) return;
       body.style.setProperty("--sort-labels-top", Math.round(lowest) + "px");
+      if (lowestFirst > 0) body.style.setProperty("--sort-start-top", Math.round(lowestFirst) + "px");
       // The button and the message under it move up under the objects and their words (a shift, not a change of the room: that would make
       // the objects larger again), so that they belong to the line; what is left free is left at the bottom of the block.
       var used = lowest;
@@ -3781,9 +3830,18 @@
     startOrder.forEach(function (id) {
       var item = itemById[id];
       var card = el("button", { type: "button", class: "weft-sort-item" + (item.kind === "image" ? " is-image" : ""), "data-weft-item": id }, []);
-      card.style.width = block.itemSize.width + "%";
+      // (Alone on its line an object takes that share of the room; on one of several lines the room is that of its place.)
       // (Along a horizontal line a picture has the room for twice the height; the words under the line move down with the lowest object.)
-      card.style.height = (item.kind === "image" && !vertical ? Math.min(100, block.itemSize.height * 2) : block.itemSize.height) + "%";
+      var itemWidth = block.itemSize.width;
+      var itemHeight = block.itemSize.height;
+      if (vertical) {
+        if (multi) itemHeight = Math.min(100, itemHeight * layout.per);
+      } else {
+        if (multi) itemWidth = Math.min(100, itemWidth * layout.per);
+        if (item.kind === "image") itemHeight = Math.min(100, itemHeight * 2);
+      }
+      card.style.width = itemWidth + "%";
+      card.style.height = itemHeight + "%";
       var fill = function () {
         fillItem(card, item);
       };
@@ -3816,10 +3874,11 @@
         var earlier = event.key === "ArrowUp" || event.key === "ArrowLeft";
         var later = event.key === "ArrowDown" || event.key === "ArrowRight";
         if (earlier || later) {
-          // (The arrow keys would otherwise turn the page.)
+          // (The arrow keys would otherwise turn the page.) Across the lines (up or down along a horizontal one) it is a line further.
           event.preventDefault();
           event.stopPropagation();
-          moveBy(id, earlier ? -1 : 1);
+          var across = vertical ? event.key === "ArrowLeft" || event.key === "ArrowRight" : event.key === "ArrowUp" || event.key === "ArrowDown";
+          moveBy(id, (earlier ? -1 : 1) * (multi && across ? layout.per : 1));
         } else if (event.key === "Escape") {
           event.preventDefault();
           event.stopPropagation();
@@ -3867,17 +3926,26 @@
         ghost.style.left = e.clientX - bodyRect.left - grab.x + "px";
         ghost.style.top = e.clientY - bodyRect.top - grab.y + "px";
         // It goes after every other card whose middle the pointer has passed (measured from the layout, not from where a gliding card is).
+        // (On several lines: on the line whose middle is nearest, after every object of it that the pointer has passed.)
         var listRect = list.getBoundingClientRect();
-        var pointer = vertical ? e.clientY - listRect.top : e.clientX - listRect.left;
-        var others = [].slice.call(list.children).filter(function (c) {
+        var pointerX = e.clientX - listRect.left;
+        var pointerY = e.clientY - listRect.top;
+        var kids = [].slice.call(list.children);
+        var others = kids.filter(function (c) {
           return c !== card;
         });
-        var index = 0;
-        others.forEach(function (c, i) {
-          var middle = vertical ? c.offsetTop + c.offsetHeight / 2 : c.offsetLeft + c.offsetWidth / 2;
-          if (pointer > middle) index = i + 1;
-        });
-        if (index !== [].slice.call(list.children).indexOf(card)) {
+        var index = sortDropIndex(
+          layout.per,
+          kids.map(function (c) {
+            var x = c.offsetLeft + c.offsetWidth / 2;
+            var y = c.offsetTop + c.offsetHeight / 2;
+            return vertical ? { along: y, cross: x } : { along: x, cross: y };
+          }),
+          kids.indexOf(card),
+          vertical ? pointerY : pointerX,
+          vertical ? pointerX : pointerY,
+        );
+        if (index !== kids.indexOf(card)) {
           reorder(function () {
             list.insertBefore(card, others[index] || null);
           });

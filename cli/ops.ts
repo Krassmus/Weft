@@ -734,8 +734,9 @@ const HANDLERS: Record<string, Handler> = {
       return item;
     });
     const given = op.itemSize && typeof op.itemSize === "object" ? (op.itemSize as { width?: number; height?: number }) : {};
-    // (The objects share the line: along it each has the share of the block that is left to it.)
-    const along = Math.max(8, Math.min(30, Math.floor(80 / items.length) - 2));
+    // (The objects share the line: along it each has the share of the block that is left to it - at least 14 percent: with more objects than fit
+    // at that size the line breaks into several, each with a line of its own.)
+    const along = Math.max(14, Math.min(30, Math.floor(80 / items.length) - 2));
     const itemSize = horizontal ? { width: num(given.width, along), height: num(given.height, 60) } : { width: num(given.width, 60), height: num(given.height, along) };
     const set: Record<string, unknown> = {
       position: horizontal

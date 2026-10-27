@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 import type { CSSProperties, MutableRefObject, PointerEvent as ReactPointerEvent, Ref } from "react";
 import { useAssetStore } from "../../../core/assets/assetStore";
+import { sortItemBox, sortLayout } from "../../../core/document/sortLayout";
 import { sortItemText, sortLabel } from "../../../core/document/translations";
 import { playerStringsFor } from "../../../core/i18n/playerStrings";
 import type { SortBlock, SortItem } from "../../../core/types";
@@ -40,6 +41,8 @@ export function SortView({
 }) {
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
   const vertical = block.orientation !== "horizontal";
+  const layout = sortLayout(block);
+  const multi = layout.lines > 1;
   const root = useRef<HTMLDivElement | null>(null);
   const setRoot = (el: HTMLDivElement | null) => {
     root.current = el;
@@ -51,6 +54,7 @@ export function SortView({
   // Under a horizontal line the words stand just under the lowest of the objects (a picture: of its frame, which can be smaller than the room the
   // object takes): measured, again when the line's size or a picture's shape changes (the player does the same).
   const sizeKey = `${block.itemSize.width}x${block.itemSize.height}:${block.items.length}`;
+  const { lines, per } = layout;
   useLayoutEffect(() => {
     const el = root.current;
     const body = el?.querySelector<HTMLElement>(".weft-sort-body");
@@ -61,12 +65,17 @@ export function SortView({
     const place = () => {
       const top = body.getBoundingClientRect().top;
       let lowest = 0;
-      for (const card of Array.from(list.children)) {
+      let lowestFirst = 0; // (under several rows: the first row's words stand under the first row, the last row's under the last)
+      Array.from(list.children).forEach((card, i) => {
         const rect = (card.querySelector(".weft-matching-frame") ?? card).getBoundingClientRect();
-        if (rect.height > 0) lowest = Math.max(lowest, rect.bottom - top);
-      }
+        if (rect.height <= 0) return;
+        const bottom = rect.bottom - top;
+        if (Math.floor(i / per) === 0) lowestFirst = Math.max(lowestFirst, bottom);
+        if (Math.floor(i / per) === lines - 1) lowest = Math.max(lowest, bottom);
+      });
       if (lowest <= 0) return;
       body.style.setProperty("--sort-labels-top", `${Math.round(lowest)}px`);
+      if (lowestFirst > 0) body.style.setProperty("--sort-start-top", `${Math.round(lowestFirst)}px`);
       // The button moves up under the objects and their words (a shift, not a change of the room), so that it belongs to the line.
       let used = lowest;
       for (const label of Array.from(body.querySelectorAll<HTMLElement>(":scope > .weft-sort-end"))) used = Math.max(used, label.getBoundingClientRect().bottom - top);
@@ -86,14 +95,22 @@ export function SortView({
       observer?.disconnect();
       el.removeEventListener("load", soon, true);
     };
-  }, [vertical, sizeKey, start, end]);
+  }, [vertical, sizeKey, lines, per, start, end]);
   return (
-    <div ref={setRoot} style={{ "--sort-item-h": block.itemSize.height } as CSSProperties} className={"weft-sort weft-sort-view " + (vertical ? "is-vertical" : "is-horizontal") + (start !== "" ? " has-start" : "") + (end !== "" ? " has-end" : "")}>
+    <div ref={setRoot} style={{ "--sort-item-h": block.itemSize.height, "--sort-lines": lines, "--sort-per": per } as CSSProperties} className={"weft-sort weft-sort-view " + (vertical ? "is-vertical" : "is-horizontal") + (multi ? " is-multi" : "") + (start !== "" ? " has-start" : "") + (end !== "" ? " has-end" : "")}>
       <div className="weft-sort-body">
         {start !== "" && <span className="weft-sort-end is-start">{start}</span>}
+        {multi && (
+          <div className="weft-sort-lanes" aria-hidden="true">
+            {Array.from({ length: lines }, (_, lane) => (
+              <span key={lane} className="weft-sort-lane" />
+            ))}
+          </div>
+        )}
         <div className="weft-sort-list">
           {(order ? order.map((id) => block.items.find((item) => item.id === id)).filter((item): item is SortItem => !!item) : block.items).map((item) => {
             const src = item.kind === "image" && item.assetId ? getObjectUrl(item.assetId) : undefined;
+            const itemBox = sortItemBox(block, layout, item.kind === "image");
             return (
               <div
                 key={item.id}
@@ -101,7 +118,7 @@ export function SortView({
                 className={"weft-sort-item" + (item.kind === "image" ? " is-image" : "") + (grabbed === item.id ? " is-dragging" : "") + (onItemPointerDown ? " is-movable" : "")}
                 onPointerDown={onItemPointerDown ? (e) => onItemPointerDown(e, item) : undefined}
                 onDoubleClick={onItemDoubleClick ? () => onItemDoubleClick(item) : undefined}
-                style={{ width: `${block.itemSize.width}%`, height: `${item.kind === "image" && !vertical ? Math.min(100, block.itemSize.height * 2) : block.itemSize.height}%` }}
+                style={{ width: `${itemBox.width}%`, height: `${itemBox.height}%` }}
               >
                 {item.kind === "image" ? (
                   <span className="weft-matching-pic">

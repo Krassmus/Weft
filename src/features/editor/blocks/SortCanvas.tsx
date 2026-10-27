@@ -2,6 +2,8 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { Block, SortBlock, SortItem } from "../../../core/types";
 import { useEditingLanguage } from "../useEditingLanguage";
+import { useDocumentStore } from "../../../core/document/store";
+import { setSortImage } from "../../../core/document/filesActions";
 import { sortItemText, sortItemTextPatch } from "../../../core/document/translations";
 import { SortView } from "./SortView";
 
@@ -15,6 +17,10 @@ export function SortCanvas({ block, selected, onUpdate }: { block: SortBlock; se
   const { lang, defaultLang } = useEditingLanguage();
   const [drag, setDrag] = useState<{ id: string; order: string[] } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  // A double click on a picture asks for another file for it (the field is hidden, the click opens the chooser). A sorting puzzle lives on pages.
+  const pageId = useDocumentStore((s) => Object.values(s.doc.content.pages).find((page) => block.id in page.blocks)?.id);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const pictureOf = useRef<string | null>(null);
   // The text of an object being written in place (a double click on it): kept until Enter or the field loses the focus; Escape drops it.
   const [writing, setWriting] = useState<{ id: string; value: string } | null>(null);
   const writingRef = useRef(writing);
@@ -119,29 +125,53 @@ export function SortCanvas({ block, selected, onUpdate }: { block: SortBlock; se
   }
 
   return (
-    <SortView
-      block={block}
-      lang={lang}
-      defaultLang={defaultLang}
-      order={drag?.order ?? null}
-      grabbed={drag?.id ?? null}
-      onItemPointerDown={selected ? start : undefined}
-      onItemDoubleClick={selected && onUpdate ? (item) => setWriting({ id: item.id, value: sortItemText(block, item, lang, defaultLang) }) : undefined}
-      editing={
-        writing
-          ? {
-              id: writing.id,
-              value: writing.value,
-              onChange: (value) => setWriting({ id: writing.id, value }),
-              onCommit: commitWriting,
-              onCancel: () => {
-                writingRef.current = null;
-                setWriting(null);
-              },
-            }
-          : null
-      }
-      rootRef={rootRef}
-    />
+    <>
+      <SortView
+        block={block}
+        lang={lang}
+        defaultLang={defaultLang}
+        order={drag?.order ?? null}
+        grabbed={drag?.id ?? null}
+        onItemPointerDown={selected ? start : undefined}
+        onItemDoubleClick={
+          selected && onUpdate
+            ? (item) => {
+                if (item.kind === "image") {
+                  pictureOf.current = item.id;
+                  fileInput.current?.click();
+                } else setWriting({ id: item.id, value: sortItemText(block, item, lang, defaultLang) });
+              }
+            : undefined
+        }
+        editing={
+          writing
+            ? {
+                id: writing.id,
+                value: writing.value,
+                onChange: (value) => setWriting({ id: writing.id, value }),
+                onCommit: commitWriting,
+                onCancel: () => {
+                  writingRef.current = null;
+                  setWriting(null);
+                },
+              }
+            : null
+        }
+        rootRef={rootRef}
+      />
+      <input
+        ref={fileInput}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          const itemId = pictureOf.current;
+          pictureOf.current = null;
+          if (file && itemId && pageId) setSortImage({ kind: "page", pageId }, block.id, itemId, file).catch((error) => console.error(error));
+        }}
+      />
+    </>
   );
 }

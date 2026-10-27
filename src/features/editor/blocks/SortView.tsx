@@ -32,7 +32,7 @@ export function SortView({
   grabbed?: string | null;
   /** Given on the canvas of a selected block: the pointer goes down on an object (to move it). */
   onItemPointerDown?: (event: ReactPointerEvent, item: SortItem) => void;
-  /** Given on the canvas of a selected block: a double click on an object (to write its text in place). */
+  /** Given on the canvas of a selected block: a double click on an object (to write its text in place, or to choose another picture). */
   onItemDoubleClick?: (item: SortItem) => void;
   /** The text being written in place: that of the object `id`, which is shown as a field instead. */
   editing?: { id: string; value: string; onChange: (value: string) => void; onCommit: () => void; onCancel: () => void } | null;
@@ -100,7 +100,7 @@ export function SortView({
                 data-weft-item={item.id}
                 className={"weft-sort-item" + (item.kind === "image" ? " is-image" : "") + (grabbed === item.id ? " is-dragging" : "") + (onItemPointerDown ? " is-movable" : "")}
                 onPointerDown={onItemPointerDown ? (e) => onItemPointerDown(e, item) : undefined}
-                onDoubleClick={onItemDoubleClick && item.kind === "text" ? () => onItemDoubleClick(item) : undefined}
+                onDoubleClick={onItemDoubleClick ? () => onItemDoubleClick(item) : undefined}
                 style={{ width: `${block.itemSize.width}%`, height: `${block.itemSize.height}%` }}
               >
                 {item.kind === "image" ? (

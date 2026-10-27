@@ -58,7 +58,7 @@ import { usePendingEdit } from "./pendingEditStore";
 import { ImageSvg } from "./ImageSvg";
 import { MaskHandles } from "./MaskHandles";
 import { LinkView } from "./LinkView";
-import { CheckerView } from "./CheckerView";
+import { CheckerCanvas } from "./CheckerCanvas";
 import { MatchingCanvas } from "./MatchingCanvas";
 import { SortCanvas } from "./SortCanvas";
 import { FilesView } from "./FilesView";
@@ -901,7 +901,7 @@ function BlockContent({
     case "link":
       return <LinkView block={block} lang={lang} defaultLang={defaultLang} />;
     case "checker":
-      return <CheckerView block={block} lang={lang} defaultLang={defaultLang} />;
+      return <CheckerCanvas block={block} selected={selected} onUpdate={onUpdate} />;
     case "matching":
       return <MatchingCanvas block={block} selected={selected} onUpdate={onUpdate} />;
     case "sort":

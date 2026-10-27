@@ -6582,6 +6582,25 @@ h2.weft-inspector-header {
   white-space: pre-wrap;
 }
 
+/* The words written in place on the canvas (a double click): a field that looks like them. */
+.weft-checker-edit {
+  box-sizing: border-box;
+  display: block;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--slide-accent-ink);
+  outline: none;
+}
+
 /* A matching (MatchingBlock, blocks/MatchingView.tsx; the player has the same in player.runtime.css): an area with the cards of both lists at their
    places - positions and sizes in percent of the area - and the button under it. The cards follow the module's style of interactive elements. */
 .weft-matching {

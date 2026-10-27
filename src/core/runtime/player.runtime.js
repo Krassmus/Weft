@@ -2568,6 +2568,10 @@
       var fillText = function () {
         wrap.innerHTML = blockHtml(block);
         applyVariablesToNode(wrap);
+        // A text without words (the empty text a page makes for a placeholder of its layout when its field is clicked, say) is a rectangle nobody sees:
+        // it does not take the clicks of what lies under it (the arrow of a gallery, a button).
+        var empty = !block.box && (wrap.textContent || "").trim() === "" && !wrap.querySelector("img, a, svg, video, audio, iframe, canvas, input");
+        wrap.classList.toggle("is-empty", empty);
       };
       fillText();
       languageRefreshers.push(fillText);

@@ -1805,6 +1805,11 @@ summary:focus-visible,
   background: transparent;
 }
 
+/* An empty text takes no clicks (see fillText in player.runtime.js). */
+.weft-block-text.is-empty {
+  pointer-events: none;
+}
+
 .weft-block-matching {
   /* The shadow of a hovered button or card reaches beyond the box of the block. */
   overflow: visible;

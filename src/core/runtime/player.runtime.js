@@ -3561,20 +3561,60 @@
     }
     overlay.appendChild(close);
     var current = gallery ? gallery.index : 0;
-    var go = function (to) {
-      if (!gallery) return;
-      to = Math.max(0, Math.min(gallery.total - 1, to));
-      if (to === current) return;
-      current = to;
-      var shown = gallery.get(to);
+    // The picture changes with a short move: the old one slides out the way the move goes and the new one slides in from the other side, the caption
+    // fading with it. Clicks that come in the meantime are collected - the last picture asked for is the one that is shown (no motion for those
+    // who asked for less).
+    var latest = null;
+    var latestDirection = 1;
+    var shownNow = null;
+    var changing = false;
+    var apply = function (shown) {
+      shownNow = shown;
       image.src = shown.src;
       image.alt = shown.alt || "";
       overlay.setAttribute("aria-label", shown.alt || "");
       words.textContent = shown.caption || "";
       applyVariablesToNode(words);
+    };
+    var swap = function () {
+      if (changing || !latest || latest === shownNow) return;
+      if (prefersReducedMotion() || !image.animate) {
+        apply(latest);
+        return;
+      }
+      changing = true;
+      var dir = latestDirection;
+      var away = { fill: "forwards", duration: 130, easing: "ease-in" };
+      var outs = [image.animate([{ opacity: 1, transform: "translateX(0)" }, { opacity: 0, transform: "translateX(" + -dir * 64 + "px)" }], away), words.animate([{ opacity: 1 }, { opacity: 0 }], away)];
+      outs[0].onfinish = function () {
+        apply(latest);
+        var ready = function () {
+          var toward = latestDirection;
+          outs.forEach(function (animation) {
+            animation.cancel();
+          });
+          var arrive = { duration: 260, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" };
+          image.animate([{ opacity: 0, transform: "translateX(" + toward * 64 + "px)" }, { opacity: 1, transform: "translateX(0)" }], arrive);
+          words.animate([{ opacity: 0 }, { opacity: 1 }], arrive);
+          changing = false;
+          swap();
+        };
+        // (Once the picture can be drawn: it does not come in empty.)
+        if (image.decode) image.decode().then(ready, ready);
+        else ready();
+      };
+    };
+    var go = function (to) {
+      if (!gallery) return;
+      to = Math.max(0, Math.min(gallery.total - 1, to));
+      if (to === current) return;
+      latestDirection = to > current ? 1 : -1;
+      current = to;
+      latest = gallery.get(to);
       gallery.changed(to);
       if (previous) previous.disabled = to === 0;
       if (following) following.disabled = to === gallery.total - 1;
+      swap();
       // (The neighbours are loaded already when the next step comes.)
       [to - 1, to + 1].forEach(function (n) {
         if (n >= 0 && n < gallery.total) new Image().src = gallery.get(n).src;

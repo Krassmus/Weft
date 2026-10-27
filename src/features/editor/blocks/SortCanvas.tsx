@@ -9,6 +9,7 @@ import { sortItemText, sortItemTextPatch } from "../../../core/document/translat
 import { createId } from "../../../core/id";
 import { tr } from "../../../core/i18n/tr";
 import { SortView } from "./SortView";
+import { useWritingEnd } from "./useWritingEnd";
 
 /**
  * A sorting puzzle on the canvas: the objects can be put into the right order by dragging - once the block is selected (before that a press on it
@@ -38,6 +39,7 @@ export function SortCanvas({ block, selected, onUpdate }: { block: SortBlock; se
     const item = block.items.find((it) => it.id === current.id);
     if (item && current.value !== sortItemText(block, item, lang, defaultLang)) onUpdate(sortItemTextPatch(block, current.id, lang, defaultLang, current.value));
   }
+  useWritingEnd(writing !== null, selected, commitWriting);
   // The button "Add text": a new last object whose text is written in place at once.
   function addText() {
     if (!onUpdate) return;
@@ -81,8 +83,6 @@ export function SortCanvas({ block, selected, onUpdate }: { block: SortBlock; se
 
   function start(event: ReactPointerEvent, item: SortItem) {
     if (!selected || event.button !== 0 || !onUpdate) return;
-    // (The pointer goes down on the field of the text that is being written: that is the field's.)
-    if (writing && writing.id === item.id) return;
     event.stopPropagation();
     event.preventDefault();
     const held = event.currentTarget as HTMLElement;

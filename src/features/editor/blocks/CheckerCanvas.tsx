@@ -3,6 +3,7 @@ import type { Block, CheckerBlock } from "../../../core/types";
 import { checkerText, checkerTextPatch } from "../../../core/document/translations";
 import { useEditingLanguage } from "../useEditingLanguage";
 import { CheckerView } from "./CheckerView";
+import { useWritingEnd } from "./useWritingEnd";
 
 /**
  * A checker on the canvas: once the block is selected (before that a press on it moves the block, like with any other), a double click on its words
@@ -19,6 +20,7 @@ export function CheckerCanvas({ block, selected, onUpdate }: { block: CheckerBlo
     writingRef.current = null;
     if (value !== null && onUpdate && value !== checkerText(block, lang, defaultLang)) onUpdate(checkerTextPatch(block, lang, defaultLang, value));
   }
+  useWritingEnd(writing !== null, selected, commit);
   return (
     <CheckerView
       block={block}

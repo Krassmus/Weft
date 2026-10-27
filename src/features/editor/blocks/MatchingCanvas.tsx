@@ -7,6 +7,7 @@ import { matchingItemText, matchingItemTextPatch } from "../../../core/document/
 import { useEditingLanguage } from "../useEditingLanguage";
 import { MatchingView } from "./MatchingView";
 import type { MatchingDrag } from "./MatchingView";
+import { useWritingEnd } from "./useWritingEnd";
 
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), Math.max(low, high));
 
@@ -34,11 +35,10 @@ export function MatchingCanvas({ block, selected, onUpdate }: { block: MatchingB
     const item = [...block.sources, ...block.targets].find((it) => it.id === current.id);
     if (item && current.value !== matchingItemText(block, item, lang, defaultLang)) onUpdate(matchingItemTextPatch(block, current.id, lang, defaultLang, current.value));
   }
+  useWritingEnd(writing !== null, selected, commitWriting);
 
   function start(event: ReactPointerEvent, item: MatchItem, side: "source" | "target") {
     if (!selected || event.button !== 0 || !onUpdate) return;
-    // (The pointer goes down on the card whose text is being written: that is the field's.)
-    if (writing && writing.id === item.id) return;
     event.stopPropagation();
     event.preventDefault();
     const area = (event.currentTarget as HTMLElement).closest(".weft-matching-area") as HTMLElement | null;

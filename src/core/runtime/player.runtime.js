@@ -1075,6 +1075,16 @@
     return lines;
   }
 
+  // The date and the time the certificate is made, as the learner's language writes them ("27. Oktober 2026 um 14:35").
+  function certificateDate() {
+    var now = new Date();
+    try {
+      return now.toLocaleString((currentLanguage || "de").replace("_", "-"), { dateStyle: "long", timeStyle: "short" });
+    } catch (e) {
+      return now.toLocaleString();
+    }
+  }
+
   // The pages as canvases (A4 at CERT_SCALE): the heading and the module's name, then the table - the head again on every page, a row never
   // split between two pages, the sum under the last row.
   function certificateCanvases(data) {
@@ -1157,7 +1167,8 @@
     var NAME = 15;
     var titleLines = wrapped(uiString("certificateTitle"), contentW, TITLE, 700);
     var nameLines = module.title ? wrapped(module.title, contentW, NAME, 400) : [];
-    var headingH = titleLines.length * 32 + 10 + 3 + 16 + nameLines.length * 21 + (nameLines.length ? 26 : 10);
+    var dateText = certificateDate();
+    var headingH = titleLines.length * 32 + 10 + 3 + 16 + nameLines.length * 21 + (nameLines.length ? 4 : 0) + 16 + 24;
 
     // Which rows go on which page.
     var BOTTOM = CERT_H - 50;
@@ -1218,7 +1229,9 @@
         nameLines.forEach(function (t, i) {
           text(t, NAME, 400, false, INK, MARGIN, contentW, "start", cursor + i * 21 + 10.5);
         });
-        cursor += nameLines.length * 21 + (nameLines.length ? 26 : 10);
+        cursor += nameLines.length * 21 + (nameLines.length ? 4 : 0);
+        text(dateText, 11, 400, false, MUTED, MARGIN, contentW, "start", cursor + 8);
+        cursor += 16 + 24;
       }
       var drawRow = function (laid, weight, italic, colorOf) {
         laid.lines.forEach(function (cellLines, c) {

@@ -28,7 +28,11 @@ export type ResultsStringKey = "resultsElement" | "resultsResult" | "resultsPoin
  * downloads it. A language without its own entry falls back to English. */
 export type CertificateStringKey = "certificateTitle" | "certificateDownload";
 
-type Strings = Record<PlayerStringKey | FilesStringKey | A11yStringKey | ResultsStringKey | CertificateStringKey | "thanks", string>;
+/** The texts of a gallery's carousel for screen readers and the arrows' tooltips: the two arrows and the position of a picture ({n} and {total} are filled
+ * in by the player). A language without its own entry falls back to English. */
+export type GalleryStringKey = "galleryPrevious" | "galleryNext" | "galleryPicture";
+
+type Strings = Record<PlayerStringKey | FilesStringKey | A11yStringKey | ResultsStringKey | CertificateStringKey | GalleryStringKey | "thanks", string>;
 
 /** What an open question (no right or wrong, see QuizBlock.open) says once it is submitted. A language without its own falls back to English. */
 const THANKS: Record<string, string> = {
@@ -140,6 +144,46 @@ const FILES_TRANSLATIONS: Record<string, Record<FilesStringKey, string>> = {
   it: filesStrings("File", "Password", "Apri", "Password errata.", "Scarica", "Il download non è riuscito."),
 };
 
+function galleryStrings(previous: string, next: string, picture: string): Record<GalleryStringKey, string> {
+  return { galleryPrevious: previous, galleryNext: next, galleryPicture: picture };
+}
+
+const GALLERY_TRANSLATIONS: Record<string, Record<GalleryStringKey, string>> = {
+  de: galleryStrings("Vorheriges Bild", "Nächstes Bild", "Bild {n} von {total}"),
+  en: galleryStrings("Previous picture", "Next picture", "Picture {n} of {total}"),
+  fr: galleryStrings("Image précédente", "Image suivante", "Image {n} sur {total}"),
+  es: galleryStrings("Imagen anterior", "Imagen siguiente", "Imagen {n} de {total}"),
+  it: galleryStrings("Immagine precedente", "Immagine successiva", "Immagine {n} di {total}"),
+  pt: galleryStrings("Imagem anterior", "Imagem seguinte", "Imagem {n} de {total}"),
+  ca: galleryStrings("Imatge anterior", "Imatge següent", "Imatge {n} de {total}"),
+  nl: galleryStrings("Vorige afbeelding", "Volgende afbeelding", "Afbeelding {n} van {total}"),
+  sv: galleryStrings("Föregående bild", "Nästa bild", "Bild {n} av {total}"),
+  da: galleryStrings("Forrige billede", "Næste billede", "Billede {n} af {total}"),
+  nb: galleryStrings("Forrige bilde", "Neste bilde", "Bilde {n} av {total}"),
+  fi: galleryStrings("Edellinen kuva", "Seuraava kuva", "Kuva {n} / {total}"),
+  pl: galleryStrings("Poprzedni obraz", "Następny obraz", "Obraz {n} z {total}"),
+  cs: galleryStrings("Předchozí obrázek", "Další obrázek", "Obrázek {n} z {total}"),
+  sk: galleryStrings("Predchádzajúci obrázok", "Ďalší obrázok", "Obrázok {n} z {total}"),
+  hu: galleryStrings("Előző kép", "Következő kép", "{n}. kép, összesen {total}"),
+  ro: galleryStrings("Imaginea anterioară", "Imaginea următoare", "Imaginea {n} din {total}"),
+  bg: galleryStrings("Предишна снимка", "Следваща снимка", "Снимка {n} от {total}"),
+  hr: galleryStrings("Prethodna slika", "Sljedeća slika", "Slika {n} od {total}"),
+  ru: galleryStrings("Предыдущее изображение", "Следующее изображение", "Изображение {n} из {total}"),
+  uk: galleryStrings("Попереднє зображення", "Наступне зображення", "Зображення {n} з {total}"),
+  el: galleryStrings("Προηγούμενη εικόνα", "Επόμενη εικόνα", "Εικόνα {n} από {total}"),
+  tr: galleryStrings("Önceki görsel", "Sonraki görsel", "Görsel {n} / {total}"),
+  ar: galleryStrings("الصورة السابقة", "الصورة التالية", "الصورة {n} من {total}"),
+  he: galleryStrings("התמונה הקודמת", "התמונה הבאה", "תמונה {n} מתוך {total}"),
+  hi: galleryStrings("पिछली तस्वीर", "अगली तस्वीर", "तस्वीर {n} / {total}"),
+  zh: galleryStrings("上一张图片", "下一张图片", "第 {n} 张，共 {total} 张"),
+  zh_TW: galleryStrings("上一張圖片", "下一張圖片", "第 {n} 張，共 {total} 張"),
+  ja: galleryStrings("前の画像", "次の画像", "画像 {n} / {total}"),
+  ko: galleryStrings("이전 이미지", "다음 이미지", "이미지 {n} / {total}"),
+  id: galleryStrings("Gambar sebelumnya", "Gambar berikutnya", "Gambar {n} dari {total}"),
+  vi: galleryStrings("Ảnh trước", "Ảnh tiếp theo", "Ảnh {n} trên {total}"),
+  th: galleryStrings("รูปก่อนหน้า", "รูปถัดไป", "รูปที่ {n} จาก {total}"),
+};
+
 function strings(
   submit: string,
   correct: string,
@@ -150,7 +194,7 @@ function strings(
   play: string,
   language: string,
 ): Strings {
-  return { submit, correct, incorrect, restart, done, next, play, language, thanks: THANKS.en, ...FILES_TRANSLATIONS.en, ...A11Y_TRANSLATIONS.en, ...RESULTS_TRANSLATIONS.en, ...CERTIFICATE_TRANSLATIONS.en };
+  return { submit, correct, incorrect, restart, done, next, play, language, thanks: THANKS.en, ...FILES_TRANSLATIONS.en, ...A11Y_TRANSLATIONS.en, ...RESULTS_TRANSLATIONS.en, ...CERTIFICATE_TRANSLATIONS.en, ...GALLERY_TRANSLATIONS.en };
 }
 
 // Keyed by language code (the part of a locale before the "_"); Chinese is also keyed by "zh_TW" for
@@ -198,7 +242,7 @@ const ALIASES: Record<string, string> = { no: "nb", nn: "nb", zh_HK: "zh_TW", zh
 /** The fixed texts for a locale ("fr_FR"): its own, else its language's, else English - and German
  * for `null`, a module without languages. */
 export function playerStringsFor(locale: string | null): Strings {
-  if (locale === null) return { ...TRANSLATIONS.de, ...FILES_TRANSLATIONS.de, ...A11Y_TRANSLATIONS.de, ...RESULTS_TRANSLATIONS.de, ...CERTIFICATE_TRANSLATIONS.de, thanks: THANKS.de };
+  if (locale === null) return { ...TRANSLATIONS.de, ...FILES_TRANSLATIONS.de, ...A11Y_TRANSLATIONS.de, ...RESULTS_TRANSLATIONS.de, ...CERTIFICATE_TRANSLATIONS.de, ...GALLERY_TRANSLATIONS.de, thanks: THANKS.de };
   const base = locale.split("_")[0];
   const key = [locale, base].map((k) => ALIASES[k] ?? k).find((k) => k in TRANSLATIONS);
   return {
@@ -207,6 +251,7 @@ export function playerStringsFor(locale: string | null): Strings {
     ...(A11Y_TRANSLATIONS[key ?? "en"] ?? A11Y_TRANSLATIONS.en),
     ...(RESULTS_TRANSLATIONS[key ?? "en"] ?? RESULTS_TRANSLATIONS.en),
     ...(CERTIFICATE_TRANSLATIONS[key ?? "en"] ?? CERTIFICATE_TRANSLATIONS.en),
+    ...(GALLERY_TRANSLATIONS[key ?? "en"] ?? GALLERY_TRANSLATIONS.en),
     thanks: THANKS[key ?? "en"] ?? THANKS.en,
   };
 }

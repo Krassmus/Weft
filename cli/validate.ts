@@ -59,6 +59,7 @@ const KIND_DEFINITIONS: Record<string, string> = {
   checker: "CheckerBlock",
   matching: "MatchingBlock",
   sort: "SortBlock",
+  gallery: "GalleryBlock",
   quiz: "QuizBlock",
   cloze: "ClozeBlock",
   shape: "ShapeBlock",
@@ -484,6 +485,17 @@ export function validate(loaded: LoadedWeft): Finding[] {
       if (block.onEachError?.length === 0 && block.onSubmit?.length === 0 && block.onCorrect?.length === 0 && block.onIncorrect?.length === 0) add("info", "sort-no-effects", "Das Sortierrätsel vergibt keine Punkte (onSubmit / onEachError / onCorrect / onIncorrect sind leer).", here);
     }
 
+    // Gallery.
+    if (block.kind === "gallery") {
+      const items = block.items ?? [];
+      if (items.length === 0) add("warning", "gallery-empty", "Die Galerie hat noch kein Bild.", here);
+      for (const item of items) {
+        if (!item.assetId) add("warning", "gallery-no-image", "Ein Bild der Galerie hat noch keine Datei.", here);
+        else if (!content.assets.some((a) => a.id === item.assetId)) add("error", "asset-missing", `Ein Bild der Galerie verweist auf die Datei ${item.assetId}, die nicht in der Liste der Dateien steht.`, here);
+        else if (!item.caption?.trim()) add("info", "image-no-alt", "Ein Bild der Galerie ohne Bildunterschrift (caption) - sie ist auch die Beschreibung für alle, die das Bild nicht sehen.", here);
+      }
+    }
+
     // Link.
     if (block.kind === "link") {
       if ((block.url ?? "").trim() === "" || block.url.trim() === "https://") add("warning", "link-no-target", "Der Link hat noch keine Adresse.", { ...here, hint: "url auf eine Adresse mit https://, mailto: oder tel: setzen." });
@@ -540,12 +552,14 @@ export function validate(loaded: LoadedWeft): Finding[] {
     }
 
     // Translations.
-    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
+    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort" || block.kind === "gallery" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
       const hasWords =
         block.kind === "quiz"
           ? plainTextOfHtml(block.questionHtml).trim() !== ""
           : block.kind === "list"
             ? block.items.length > 0
+            : block.kind === "gallery"
+              ? block.items.some((item) => item.caption.trim() !== "")
             : block.kind === "sort"
               ? block.items.some((item) => item.text.trim() !== "")
             : block.kind === "matching"

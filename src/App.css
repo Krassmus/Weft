@@ -7249,3 +7249,190 @@ h2.weft-inspector-header {
   --slide-cut-line: var(--slide-line-strong);
   --slide-cut-line-width: 1px;
 }
+
+/* A gallery: pictures in a carousel - a track of slides as wide as the viewport, moved sideways to show one - with an arrow to each side and, below,
+   a dot for every picture. The viewport takes the corners of the module's style (not a border: a cut corner would cut it off). */
+.weft-gallery {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-gallery-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: var(--slide-ui-image-radius);
+  clip-path: var(--slide-ui-image-clip);
+  background: var(--slide-surface-quiet);
+  /* (A swipe sideways is the carousel's; one downwards still scrolls the page.) */
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.weft-gallery-track {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.weft-gallery-slide {
+  flex: 0 0 100%;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.weft-gallery-slide:focus-visible {
+  outline: 2px solid var(--slide-accent, #3b82f6);
+  outline-offset: -3px;
+}
+
+.weft-gallery-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+.weft-gallery.is-contain .weft-gallery-image {
+  object-fit: contain;
+}
+
+.weft-gallery-arrow,
+.weft-gallery-dot,
+.weft-gallery-slide {
+  /* (A button does not take the size of the letters of its surroundings by itself: the arrows and dots grow and shrink with the slide.) */
+  font: inherit;
+}
+
+.weft-gallery-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2em;
+  height: 2em;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.weft-gallery-arrow svg {
+  display: block;
+  width: 62%;
+  height: 62%;
+}
+
+.weft-gallery-arrow.is-prev {
+  left: 0.6em;
+}
+
+.weft-gallery-arrow.is-next {
+  right: 0.6em;
+}
+
+.weft-gallery-arrow:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.weft-gallery-arrow:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.weft-gallery-arrow:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.weft-gallery-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 0.6em;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.45em;
+  max-width: calc(100% - 7em);
+  padding: 0.35em 0.6em;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.38);
+  transform: translateX(-50%);
+}
+
+.weft-gallery-dot {
+  box-sizing: border-box;
+  width: 0.6em;
+  height: 0.6em;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+}
+
+.weft-gallery-dot.is-current {
+  background: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weft-gallery-track {
+    transition: none;
+  }
+}
+
+/* A gallery without a picture yet (editor and thumbnails only: the player shows nothing). */
+.weft-gallery-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--slide-line-strong);
+  border-radius: var(--slide-ui-image-radius);
+  color: var(--slide-muted);
+  font-size: 0.9em;
+}
+
+/* The small preview of a picture in the panel of a gallery (it stands before the buttons of its row). */
+.weft-gallery-thumb {
+  flex: 1 1 auto;
+  display: block;
+  height: 2.4em;
+  min-width: 0;
+  border-radius: 4px;
+  background: var(--weft-surface-2, rgba(128, 128, 128, 0.18));
+  overflow: hidden;
+}
+
+.weft-gallery-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

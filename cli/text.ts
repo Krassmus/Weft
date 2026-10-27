@@ -90,6 +90,8 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
       const ends = block.startLabel || block.endLabel ? ` (${block.startLabel ?? ""} … ${block.endLabel ?? ""})` : "";
       return `richtige Reihenfolge: ${items}${ends}${block.orientation === "horizontal" ? " [waagerecht]" : ""}${block.required ? " [Pflicht]" : ""}`;
     }
+    case "gallery":
+      return `${block.items.length} Bilder: ${block.items.map((item) => `[${words(item.caption, 20) || "ohne Bildunterschrift"}]`).join(", ")}${block.fit === "contain" ? " [ganz gezeigt]" : ""}`;
     case "checker":
       return `„${words(block.text, 40) || "(ohne Text)"}"${block.required ? " [Pflicht]" : ""}`;
     case "link":

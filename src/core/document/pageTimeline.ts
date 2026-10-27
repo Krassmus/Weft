@@ -202,6 +202,7 @@ const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
   get checker() { return tr("ui.checker"); },
   get matching() { return tr("ui.matching"); },
   get sort() { return tr("ui.sort"); },
+  get gallery() { return tr("ui.gallery"); },
   get cloze() { return tr("ui.gap_text"); },
   get shape() { return tr("ui.shape"); },
   get arrow() { return tr("ui.arrow"); },

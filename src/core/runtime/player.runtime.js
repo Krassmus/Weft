@@ -1705,7 +1705,7 @@
   // may only be left by its own buttons can't be tapped through either.
   var TAP_INTERACTIVE =
     "a, button, input, select, textarea, label, summary, video, audio, iframe, [contenteditable], [role='button']," +
-    ".weft-block-quiz, .weft-block-matching, .weft-block-sort, .weft-matching-lightbox, .weft-block-revealer, .weft-files, .weft-block-language, .weft-block-iframe, .weft-debug";
+    ".weft-block-quiz, .weft-block-matching, .weft-block-sort, .weft-block-gallery, .weft-matching-lightbox, .weft-block-revealer, .weft-files, .weft-block-language, .weft-block-iframe, .weft-debug";
   var lastTapAdvanceAt = 0;
   document.addEventListener("click", function (e) {
     if (e.defaultPrevented || module.keyboardNavigationEnabled === false) return;
@@ -3542,13 +3542,20 @@
   }
 
   // A picture shown large, over the slide, until a click, a key or Escape closes it.
-  function openMatchingLightbox(from, src, alt) {
+  function openMatchingLightbox(from, src, alt, caption) {
     var stage = from.closest ? from.closest(".weft-stage") : null;
-    var overlay = el("div", { class: "weft-matching-lightbox", role: "dialog", "aria-modal": "true", "aria-label": alt || "" }, []);
+    var overlay = el("div", { class: "weft-matching-lightbox" + (caption ? " has-caption" : ""), role: "dialog", "aria-modal": "true", "aria-label": alt || "" }, []);
     var image = el("img", { src: src, alt: alt || "" }, []);
     var close = el("button", { type: "button", class: "weft-matching-lightbox-close", "aria-label": uiString("revealerClose") }, []);
-    close.textContent = "×";
+    close.textContent = "\u00d7";
     overlay.appendChild(image);
+    // (A gallery's caption stands under the picture.)
+    if (caption) {
+      var words = el("p", { class: "weft-matching-lightbox-caption" }, []);
+      words.textContent = caption;
+      applyVariablesToNode(words);
+      overlay.appendChild(words);
+    }
     overlay.appendChild(close);
     var done = function () {
       window.removeEventListener("keydown", onKey, true);
@@ -3566,6 +3573,177 @@
     window.addEventListener("keydown", onKey, true);
     (stage || document.body).appendChild(overlay);
     close.focus({ preventScroll: true });
+    return done;
+  }
+
+  // ---- gallery ----
+  // Pictures in a carousel: one at a time, an arrow to each side (or a swipe, or the arrow keys when it has the focus); a click on the picture
+  // opens it large, with its caption, in the window of the matching's pictures. No events, nothing to answer. A picture that has none chosen
+  // yet is left out.
+  function galleryCaption(block, item) {
+    var t = currentTranslation(block);
+    return (t && t.items && t.items[item.id] !== undefined ? t.items[item.id] : item.caption) || "";
+  }
+
+  function renderGalleryBlock(block) {
+    var wrap = el("div", { class: "weft-block weft-block-gallery", "data-weft-block": block.id, style: positionStyle(block.position) });
+    var items = block.items.filter(function (item) {
+      return item.assetId;
+    });
+    if (items.length === 0) return wrap;
+    var box = el("div", { class: "weft-gallery" + (block.fit === "contain" ? " is-contain" : ""), role: "group", "aria-roledescription": "carousel" }, []);
+    var viewport = el("div", { class: "weft-gallery-viewport" }, []);
+    var track = el("div", { class: "weft-gallery-track" }, []);
+    viewport.appendChild(track);
+    box.appendChild(viewport);
+    var chevron = function (d) {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    };
+    var prev = el("button", { type: "button", class: "weft-gallery-arrow is-prev" }, []);
+    var next = el("button", { type: "button", class: "weft-gallery-arrow is-next" }, []);
+    prev.innerHTML = chevron("M15 5l-7 7 7 7");
+    next.innerHTML = chevron("M9 5l7 7-7 7");
+    var dotsBox = el("div", { class: "weft-gallery-dots" }, []);
+    var slides = [];
+    var dots = [];
+    var index = 0;
+    var open = function (i) {
+      var item = items[i];
+      openMatchingLightbox(wrap, assetSrc(item.assetId), galleryCaption(block, item), galleryCaption(block, item));
+    };
+    items.forEach(function (item, i) {
+      var slide = el("button", { type: "button", class: "weft-gallery-slide", "data-weft-picture": item.id }, []);
+      slide.appendChild(el("img", { class: "weft-gallery-image", src: assetSrc(item.assetId), alt: "", draggable: "false" }, []));
+      slide.addEventListener("click", function () {
+        open(i);
+      });
+      track.appendChild(slide);
+      slides.push(slide);
+      var dot = el("button", { type: "button", class: "weft-gallery-dot" }, []);
+      dot.addEventListener("click", function () {
+        show(i);
+      });
+      dotsBox.appendChild(dot);
+      dots.push(dot);
+    });
+
+    function label(i) {
+      var caption = galleryCaption(block, items[i]);
+      var position = uiStringWith("galleryPicture", { n: i + 1, total: items.length });
+      return caption ? position + ": " + caption : position;
+    }
+    function show(i, announceIt) {
+      i = Math.max(0, Math.min(items.length - 1, i));
+      var changed = i !== index;
+      index = i;
+      track.style.transition = prefersReducedMotion() ? "none" : "";
+      track.style.transform = "translateX(" + -index * 100 + "%)";
+      slides.forEach(function (slide, k) {
+        // (Only the picture that is shown can be reached by Tab.)
+        slide.tabIndex = k === index ? 0 : -1;
+        slide.setAttribute("aria-hidden", k === index ? "false" : "true");
+        if (dots[k]) {
+          dots[k].classList.toggle("is-current", k === index);
+          if (k === index) dots[k].setAttribute("aria-current", "true");
+          else dots[k].removeAttribute("aria-current");
+        }
+      });
+      prev.disabled = index === 0;
+      next.disabled = index === items.length - 1;
+      if (changed || announceIt) announce(label(index));
+    }
+    function refresh() {
+      prev.setAttribute("aria-label", uiString("galleryPrevious"));
+      next.setAttribute("aria-label", uiString("galleryNext"));
+      slides.forEach(function (slide, k) {
+        slide.setAttribute("role", "group");
+        slide.setAttribute("aria-roledescription", "slide");
+        slide.setAttribute("aria-label", label(k));
+        dots[k].setAttribute("aria-label", uiStringWith("galleryPicture", { n: k + 1, total: items.length }));
+      });
+    }
+    refresh();
+    show(0);
+    languageRefreshers.push(refresh);
+
+    if (items.length > 1) {
+      prev.addEventListener("click", function () {
+        show(index - 1);
+      });
+      next.addEventListener("click", function () {
+        show(index + 1);
+      });
+      box.appendChild(prev);
+      box.appendChild(next);
+      box.appendChild(dotsBox);
+      // The arrow keys go through the pictures while the carousel has the focus (not through the slides).
+      wrap.addEventListener("keydown", function (e) {
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        e.stopPropagation();
+        e.preventDefault();
+        show(index + (e.key === "ArrowRight" ? 1 : -1));
+      });
+
+      // A swipe (or a drag with the mouse): the pictures follow the pointer, and the one that is more than a third in view stays.
+      var start = null;
+      var swiping = false;
+      var swiped = false;
+      viewport.addEventListener("pointerdown", function (e) {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        start = { x: e.clientX, y: e.clientY, id: e.pointerId };
+        swiping = false;
+      });
+      viewport.addEventListener("pointermove", function (e) {
+        if (!start || e.pointerId !== start.id) return;
+        var dx = e.clientX - start.x;
+        var dy = e.clientY - start.y;
+        if (!swiping) {
+          if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
+          swiping = true;
+          try {
+            viewport.setPointerCapture(e.pointerId);
+          } catch (error) {
+            /* (a pointer that is gone) */
+          }
+          track.style.transition = "none";
+        }
+        var width = viewport.getBoundingClientRect().width || 1;
+        // (At the ends the pictures give way less.)
+        var edge = (index === 0 && dx > 0) || (index === items.length - 1 && dx < 0);
+        track.style.transform = "translateX(calc(" + -index * 100 + "% + " + (edge ? dx / 3 : dx) + "px))";
+        start.width = width;
+      });
+      var end = function (e) {
+        if (!start || e.pointerId !== start.id) return;
+        var dx = e.clientX - start.x;
+        var width = start.width || viewport.getBoundingClientRect().width || 1;
+        var wasSwiping = swiping;
+        start = null;
+        swiping = false;
+        if (!wasSwiping) return;
+        // (The click that ends a swipe is not a click on the picture.)
+        swiped = true;
+        setTimeout(function () {
+          swiped = false;
+        }, 0);
+        if (Math.abs(dx) > Math.min(60, width / 3)) show(index + (dx < 0 ? 1 : -1));
+        else show(index);
+      };
+      viewport.addEventListener("pointerup", end);
+      viewport.addEventListener("pointercancel", end);
+      viewport.addEventListener(
+        "click",
+        function (e) {
+          if (swiped) {
+            e.stopPropagation();
+            e.preventDefault();
+          }
+        },
+        true,
+      );
+    }
+    wrap.appendChild(box);
+    return wrap;
   }
 
   function renderMatchingBlock(block) {
@@ -4595,7 +4773,7 @@
       }
       return el("div", { class: "weft-block weft-block-script", style: "display:none;" }, []);
     }
-    var wrap = block.kind === "progress" ? renderProgressBlock(block) : block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "checker" ? renderCheckerBlock(block) : block.kind === "matching" ? renderMatchingBlock(block) : block.kind === "sort" ? renderSortBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : block.kind === "link" ? renderLinkBlock(block) : block.kind === "revealer" ? renderRevealerBlock(block) : renderStaticBlock(block, page);
+    var wrap = block.kind === "progress" ? renderProgressBlock(block) : block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "checker" ? renderCheckerBlock(block) : block.kind === "matching" ? renderMatchingBlock(block) : block.kind === "sort" ? renderSortBlock(block) : block.kind === "gallery" ? renderGalleryBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : block.kind === "link" ? renderLinkBlock(block) : block.kind === "revealer" ? renderRevealerBlock(block) : renderStaticBlock(block, page);
     applyBlockEffects(wrap, block, page);
     applyActionEffects(wrap, block);
     if (block.kind === "list" && wrap.weftListItems) applyListItemEffects(block, wrap.weftListItems);

@@ -138,6 +138,7 @@ npm run weft -- play modul.weft --page 4 --steps "tick 1 3 5; submit; weiter" -o
 | `tick <n> …` | die n-ten Antworten (ab 1) des ersten noch offenen Quiz ankreuzen |
 | `zuordnen <Objekt> <Ziel>` | im ersten Matching ein Objekt (nach seinem Text) einem Ziel zuordnen |
 | `sortieren <Objekt> …` | im ersten noch offenen Sortierrätsel die Objekte (nach ihren Texten) in diese Reihenfolge bringen |
+| `galerie weiter\|zurueck\|oeffnen\|schliessen` | in der ersten Galerie zum nächsten / vorigen Bild blättern, das gezeigte Bild groß öffnen (mit Bildunterschrift) oder das geöffnete schließen |
 | `submit` | „Abschicken" des ersten noch offenen Quiz, Lückentextes, Matchings oder Sortierrätsels drücken |
 | `fill <Text> …` | die Lücken des ersten offenen Lückentextes der Reihe nach ausfüllen |
 | `key <Taste>` · `wait <ms>` · `shot` | eine Taste drücken · warten · nur ein Bild |

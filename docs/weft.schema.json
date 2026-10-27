@@ -278,6 +278,9 @@
           "$ref": "#/definitions/SortBlock"
         },
         {
+          "$ref": "#/definitions/GalleryBlock"
+        },
+        {
           "$ref": "#/definitions/ScriptBlock"
         }
       ]
@@ -423,7 +426,7 @@
           "additionalProperties": {
             "type": "string"
           },
-          "description": "ListBlock: each item's html by item id.",
+          "description": "ListBlock: each item's html by item id; the other blocks with objects: their words by item id (the captions of a gallery's pictures).",
           "type": "object"
         },
         "options": {
@@ -1009,6 +1012,106 @@
         "salt",
         "iterations",
         "verifier"
+      ],
+      "type": "object"
+    },
+    "GalleryBlock": {
+      "additionalProperties": false,
+      "description": "A gallery (\"Bildergalerie\"): pictures in a carousel - one at a time, with an arrow to each side (or a swipe, or the arrow keys) to go through them. A click on the picture that is shown opens it at full size in a window over the slide, with its caption (if it has one) under it. It has no events and nothing to answer, lives on pages only, and its arrows and window follow the module's style of interactive elements.",
+      "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "fit": {
+          "description": "How a picture fills the carousel: cut to fill it (\"cover\", the default) or shown whole, with room around it if its shape differs (\"contain\").",
+          "enum": [
+            "cover",
+            "contain"
+          ],
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/definitions/GalleryItem"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "gallery",
+          "type": "string"
+        },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
+          "type": "string"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "translations": {
+          "additionalProperties": {
+            "$ref": "#/definitions/BlockTranslation"
+          },
+          "description": "Other languages' wording: the captions by item id (BlockTranslation.items).",
+          "type": "object"
+        }
+      },
+      "required": [
+        "entranceEffect",
+        "exitEffect",
+        "id",
+        "items",
+        "kind",
+        "order",
+        "position"
+      ],
+      "type": "object"
+    },
+    "GalleryItem": {
+      "additionalProperties": false,
+      "description": "One picture of a gallery (GalleryBlock): its file and, optionally, the caption shown under it when it is opened large.",
+      "properties": {
+        "assetId": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UUID"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The picture: its asset (null: none chosen yet)."
+        },
+        "caption": {
+          "description": "The caption under the picture in the window that shows it large - also what a script reads for the picture. Empty: none. Translatable (BlockTranslation.items).",
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        }
+      },
+      "required": [
+        "id",
+        "assetId",
+        "caption"
       ],
       "type": "object"
     },

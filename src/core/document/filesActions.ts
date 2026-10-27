@@ -119,6 +119,43 @@ export async function addSortImage(container: BlockContainerRef, blockId: string
   });
 }
 
+/** Adds pictures to a gallery (GalleryBlock), each as its last picture - one step of the history, however many files: they become assets of the module. */
+export async function addGalleryImages(container: BlockContainerRef, blockId: string, files: File[]): Promise<void> {
+  const made: { id: string; fileName: string; mimeType: string }[] = [];
+  for (const file of files) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const id = createId();
+    const mimeType = file.type || "application/octet-stream";
+    useAssetStore.getState().setAsset(id, new Blob([bytes as BlobPart], { type: mimeType }));
+    made.push({ id, fileName: file.name, mimeType });
+  }
+  if (made.length === 0) return;
+  useDocumentStore.getState().edit(made.length === 1 ? "Bild zur Galerie hinzufügen" : "Bilder zur Galerie hinzufügen", (m) => {
+    const block = blocksOf(m, container)?.[blockId];
+    if (!block || block.kind !== "gallery") return;
+    for (const asset of made) {
+      m.assets.push(asset);
+      block.items.push({ id: createId(), assetId: asset.id, caption: "" });
+    }
+  });
+}
+
+/** Gives a picture of a gallery (GalleryBlock) another file. */
+export async function setGalleryImage(container: BlockContainerRef, blockId: string, itemId: string, file: File): Promise<void> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const id = createId();
+  const mimeType = file.type || "application/octet-stream";
+  useAssetStore.getState().setAsset(id, new Blob([bytes as BlobPart], { type: mimeType }));
+  useDocumentStore.getState().edit("Bild der Galerie wählen", (m) => {
+    const block = blocksOf(m, container)?.[blockId];
+    if (!block || block.kind !== "gallery") return;
+    const item = block.items.find((it) => it.id === itemId);
+    if (!item) return;
+    m.assets.push({ id, fileName: file.name, mimeType });
+    item.assetId = id;
+  });
+}
+
 export function removeFileFromBlock(container: BlockContainerRef, blockId: string, fileId: string): void {
   useDocumentStore.getState().edit("Datei entfernen", (m) => {
     const target = blocksOf(m, container)?.[blockId];

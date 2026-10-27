@@ -1,4 +1,4 @@
-import type { BlockTranslation, ButtonBlock, CheckerBlock, ClozeBlock, LinkBlock, MatchItem, MatchingBlock, ListBlock, QuizBlock, RevealerBlock, SortBlock, SortItem, TextBlock, WeftModule } from "../types";
+import type { BlockTranslation, ButtonBlock, CheckerBlock, ClozeBlock, LinkBlock, GalleryBlock, GalleryItem, MatchItem, MatchingBlock, ListBlock, QuizBlock, RevealerBlock, SortBlock, SortItem, TextBlock, WeftModule } from "../types";
 
 /**
  * Per-language wording of the blocks that carry text (text, quiz, button). The block's own fields
@@ -8,7 +8,7 @@ import type { BlockTranslation, ButtonBlock, CheckerBlock, ClozeBlock, LinkBlock
  * block's own fields.
  */
 
-type Translatable = TextBlock | QuizBlock | ButtonBlock | LinkBlock | CheckerBlock | MatchingBlock | SortBlock | ListBlock | ClozeBlock;
+type Translatable = TextBlock | QuizBlock | ButtonBlock | LinkBlock | CheckerBlock | MatchingBlock | SortBlock | GalleryBlock | ListBlock | ClozeBlock;
 type Translations = Record<string, BlockTranslation> | undefined;
 
 export function defaultLanguageOf(languages: readonly string[]): string | null {
@@ -83,6 +83,19 @@ export function sortItemTextPatch(block: SortBlock, itemId: string, language: st
   }
   const existing = block.translations?.[language] ?? {};
   return { translations: { ...block.translations, [language]: { ...existing, items: { ...existing.items, [itemId]: text } } } };
+}
+
+/** The caption of a gallery's picture in `language`: its translation if there is one, else the picture's own (the default language's). */
+export function galleryCaption(block: GalleryBlock, item: GalleryItem, language: string | null, defaultLanguage: string | null): string {
+  return translationOf(block.translations, language, defaultLanguage)?.items?.[item.id] ?? item.caption;
+}
+
+export function galleryCaptionPatch(block: GalleryBlock, itemId: string, language: string | null, defaultLanguage: string | null, caption: string): Partial<GalleryBlock> {
+  if (isOwnWording(language, defaultLanguage) || !language) {
+    return { items: block.items.map((item) => (item.id === itemId ? { ...item, caption } : item)) };
+  }
+  const existing = block.translations?.[language] ?? {};
+  return { translations: { ...block.translations, [language]: { ...existing, items: { ...existing.items, [itemId]: caption } } } };
 }
 
 /** The words at the start / the end of the line of a sorting puzzle in `language`. */
@@ -165,6 +178,7 @@ export function isTranslated(block: Translatable, language: string | null, defau
     return !first || translation?.items?.[first.id] !== undefined;
   }
   if (block.kind === "sort") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
+  if (block.kind === "gallery") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
   return translation?.text !== undefined || translation?.html !== undefined;
 }
 
@@ -357,7 +371,7 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       delete block.translations[newDefault];
       continue;
     }
-    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "link" && block.kind !== "checker" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "list") continue;
+    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "link" && block.kind !== "checker" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "gallery" && block.kind !== "list") continue;
     const incoming = block.translations?.[newDefault];
     const outgoing: BlockTranslation = {};
     if (block.kind === "text" || block.kind === "cloze") {
@@ -393,6 +407,12 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       outgoing.endLabel = block.endLabel ?? "";
       if (incoming?.startLabel !== undefined) block.startLabel = incoming.startLabel;
       if (incoming?.endLabel !== undefined) block.endLabel = incoming.endLabel;
+    } else if (block.kind === "gallery") {
+      outgoing.items = Object.fromEntries(block.items.map((item) => [item.id, item.caption]));
+      for (const item of block.items) {
+        const translated = incoming?.items?.[item.id];
+        if (translated !== undefined) item.caption = translated;
+      }
     } else if (block.kind === "list") {
       outgoing.items = Object.fromEntries(block.items.map((item) => [item.id, item.html]));
       for (const item of block.items) {

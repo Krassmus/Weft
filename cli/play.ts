@@ -140,6 +140,37 @@ async function perform(session: ChromeSession, step: string): Promise<Outcome> {
       })()`);
       return result ? { problem: result } : { note: `zugeordnet: ${args[0]} → ${args[1]}` };
     }
+    case "galerie": {
+      // galerie weiter | zurueck | oeffnen | schliessen: the arrows of the first gallery on the slide, a click on the picture that is shown (it opens
+      // large, with its caption), a click on the open picture (it closes). The note says which picture is shown and, once open, its caption.
+      const what = args[0];
+      if (!["weiter", "zurueck", "oeffnen", "schliessen"].includes(what ?? "")) throw new CliError("Was mit der Galerie? galerie weiter | zurueck | oeffnen | schliessen");
+      const result = await session.eval<{ problem?: string; note?: string }>(`(() => {
+        const what = ${quote(what)};
+        if (what === 'schliessen') {
+          const open = document.querySelector('.weft-matching-lightbox');
+          if (!open) return { problem: 'kein Bild ist geöffnet' };
+          open.click();
+          return { note: 'Bild geschlossen' };
+        }
+        const gallery = [...document.querySelectorAll('.weft-block-gallery')].find((b) => b.querySelector('.weft-gallery'));
+        if (!gallery) return { problem: 'keine Galerie auf dieser Folie (oder sie hat noch kein Bild)' };
+        if (what === 'oeffnen') {
+          const slide = gallery.querySelector('.weft-gallery-slide[tabindex="0"]');
+          slide.click();
+          const box = document.querySelector('.weft-matching-lightbox');
+          const caption = box && box.querySelector('.weft-matching-lightbox-caption');
+          return { note: 'Bild geöffnet' + (caption ? ': „' + caption.textContent + '“' : ' (ohne Bildunterschrift)') };
+        }
+        const arrow = gallery.querySelector(what === 'weiter' ? '.weft-gallery-arrow.is-next' : '.weft-gallery-arrow.is-prev');
+        if (!arrow) return { problem: 'die Galerie hat nur ein Bild' };
+        if (arrow.disabled) return { problem: what === 'weiter' ? 'das ist schon das letzte Bild' : 'das ist schon das erste Bild' };
+        arrow.click();
+        const slides = [...gallery.querySelectorAll('.weft-gallery-slide')];
+        return { note: 'Bild ' + (slides.findIndex((s) => s.tabIndex === 0) + 1) + ' von ' + slides.length };
+      })()`);
+      return result.problem ? { problem: result.problem } : { note: result.note };
+    }
     case "sortieren": {
       // sortieren "Ei" "Raupe" "Puppe": brings the objects into this order (by their texts), as the keyboard does: pick one up, move it with the
       // arrow keys, put it down - no dragging needed.
@@ -191,7 +222,7 @@ async function perform(session: ChromeSession, step: string): Promise<Outcome> {
       return result ? { problem: result } : { note: `eingetragen: ${args.join(", ")}` };
     }
     default:
-      throw new CliError(`Unbekannter Schritt „${step}". Möglich: weiter, zurueck, click <Text>, tick <n>…, zuordnen <Objekt> <Ziel>, sortieren <Objekt>…, submit, fill <Text>…, key <Taste>, wait <ms>, shot.`);
+      throw new CliError(`Unbekannter Schritt „${step}". Möglich: weiter, zurueck, click <Text>, tick <n>…, zuordnen <Objekt> <Ziel>, sortieren <Objekt>…, galerie weiter|zurueck|oeffnen|schliessen, submit, fill <Text>…, key <Taste>, wait <ms>, shot.`);
   }
 }
 

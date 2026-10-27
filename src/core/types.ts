@@ -150,7 +150,7 @@ export interface BlockTranslation {
   options?: Record<UUID, string>;
   /** ButtonBlock: the label as plain text (what `html` says, without the formatting). */
   text?: string;
-  /** ListBlock: each item's html by item id. */
+  /** ListBlock: each item's html by item id; the other blocks with objects: their words by item id (the captions of a gallery's pictures). */
   items?: Record<UUID, string>;
   /** RevealerBlock: the heading, the text of its window and the description of its picture (`text` is its button's label). */
   title?: string;
@@ -618,6 +618,29 @@ export interface SortBlock extends BaseBlock {
   onIncorrect: VariableEffect[];
 }
 
+/** One picture of a gallery (GalleryBlock): its file and, optionally, the caption shown under it when it is opened large. */
+export interface GalleryItem {
+  id: UUID;
+  /** The picture: its asset (null: none chosen yet). */
+  assetId: UUID | null;
+  /** The caption under the picture in the window that shows it large - also what a script reads for the picture. Empty: none. Translatable (BlockTranslation.items). */
+  caption: string;
+}
+
+/**
+ * A gallery ("Bildergalerie"): pictures in a carousel - one at a time, with an arrow to each side (or a swipe, or the arrow keys) to go through
+ * them. A click on the picture that is shown opens it at full size in a window over the slide, with its caption (if it has one) under it. It
+ * has no events and nothing to answer, lives on pages only, and its arrows and window follow the module's style of interactive elements.
+ */
+export interface GalleryBlock extends BaseBlock {
+  kind: "gallery";
+  items: GalleryItem[];
+  /** How a picture fills the carousel: cut to fill it ("cover", the default) or shown whole, with room around it if its shape differs ("contain"). */
+  fit?: "cover" | "contain";
+  /** Other languages' wording: the captions by item id (BlockTranslation.items). */
+  translations?: Record<string, BlockTranslation>;
+}
+
 /** How a button looks (ButtonBlock.appearance). Lengths are cqw (percent of the slide's width). A part that is missing is what the
  * module's look gives it (the accent colour for the background and the border, see WeftModule.accentColor) and the defaults of
  * DEFAULT_BUTTON_APPEARANCE (core/document/buttonAppearance.ts). The colour of the letters is part of the label. */
@@ -871,7 +894,7 @@ export interface LinkBlock extends BaseBlock {
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
 export type StaticBlock = TextBlock | PlaceholderBlock | ListBlock | LanguageBlock | ProgressBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | AudioBlock | RevealerBlock | IframeBlock | ButtonBlock | LinkBlock | ShapeBlock | ArrowBlock | FilesBlock;
-export type Block = StaticBlock | QuizBlock | ClozeBlock | CheckerBlock | MatchingBlock | SortBlock | ScriptBlock;
+export type Block = StaticBlock | QuizBlock | ClozeBlock | CheckerBlock | MatchingBlock | SortBlock | GalleryBlock | ScriptBlock;
 
 /** A block as it's first made, before it has been put somewhere (and so given its `order`). */
 export type NewBlock = Block extends infer B ? (B extends Block ? Omit<B, "order"> : never) : never;

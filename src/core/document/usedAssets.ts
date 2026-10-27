@@ -19,6 +19,7 @@ function assetIdsOf(block: Block | StaticBlock): string[] {
 
 function assetIdsOfPlain(block: Block | StaticBlock): string[] {
   if (block.kind === "files") return block.files.map((file) => file.id);
+  if (block.kind === "gallery") return block.items.flatMap((item) => (item.assetId ? [item.assetId] : []));
   if (block.kind === "sort") return block.items.flatMap((item) => (item.kind === "image" && item.assetId ? [item.assetId] : []));
   if (block.kind === "matching") return [...block.sources, ...block.targets].flatMap((item) => (item.kind === "image" && item.assetId ? [item.assetId] : []));
   if (block.kind === "revealer") return block.imageAssetId ? [block.imageAssetId] : [];

@@ -686,6 +686,9 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
         onIncorrect: [],
       };
     }
+    case "gallery":
+      // No pictures yet: they are chosen in the panel (or by a drop of files on the block).
+      return { ...base, kind, position: { x: 20, y: 15, width: 60, height: 70 }, items: [] };
     case "checker":
       return {
         ...base,
@@ -1976,7 +1979,7 @@ export function pasteBlockInto(
   target: { kind: "page"; pageId: string } | { kind: "layout"; layoutId: string },
   sourceBlock: Block,
 ): string | null {
-  if (target.kind === "layout" && (sourceBlock.kind === "quiz" || sourceBlock.kind === "cloze" || sourceBlock.kind === "checker" || sourceBlock.kind === "matching" || sourceBlock.kind === "sort" || sourceBlock.kind === "script")) return null;
+  if (target.kind === "layout" && (sourceBlock.kind === "quiz" || sourceBlock.kind === "cloze" || sourceBlock.kind === "checker" || sourceBlock.kind === "matching" || sourceBlock.kind === "sort" || sourceBlock.kind === "gallery" || sourceBlock.kind === "script")) return null;
   // A placeholder only exists in a layout.
   if (target.kind === "page" && sourceBlock.kind === "placeholder") return null;
   const newBlock = cloneBlockWithNewId(sourceBlock);

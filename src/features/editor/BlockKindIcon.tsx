@@ -7,6 +7,16 @@ const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeL
 const ICONS: Record<Kind, ReactNode> = {
   text: <path d="M5 6V4h14v2M12 4v16M9 20h6" />,
   sort: <path d="M12 4v16M8 8l4-4 4 4M8 16l4 4 4-4" />,
+  gallery: (
+    <>
+      <rect x="6" y="5" width="12" height="11" rx="1.6" />
+      <path d="M6 13l3.4-3.4 3 3 2.2-2.2L18 14" />
+      <path d="M3 10.5v1M21 10.5v1" />
+      <circle cx="10" cy="19" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="19" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="14" cy="19" r="0.9" fill="currentColor" stroke="none" />
+    </>
+  ),
   matching: (
     <>
       <rect x="3" y="4" width="7" height="6" rx="1.4" />

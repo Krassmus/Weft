@@ -57,6 +57,7 @@ const baseEn = {
   "block.checker": "Checker",
   "block.matching": "Matching",
   "block.sort": "Sorting puzzle",
+  "block.gallery": "Gallery",
   "block.placeholder": "Text placeholder",
   "block.script": "Logic block",
 
@@ -158,6 +159,7 @@ const baseDe: Record<keyof typeof baseEn, string> = {
   "block.checker": "Checker",
   "block.matching": "Matching",
   "block.sort": "Sortierrätsel",
+  "block.gallery": "Bildergalerie",
   "block.placeholder": "Platzhalter-Text",
   "block.script": "Logikblock",
 
@@ -253,6 +255,7 @@ export const BLOCK_KIND_KEYS: Record<Block["kind"], Extract<TranslationKey, `blo
   checker: "block.checker",
   matching: "block.matching",
   sort: "block.sort",
+  gallery: "block.gallery",
   placeholder: "block.placeholder",
   script: "block.script",
 };

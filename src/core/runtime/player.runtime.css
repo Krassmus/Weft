@@ -182,6 +182,14 @@ body {
   padding: 10px 28px;
 }
 
+/* The buttons of the finished screen (the certificate, starting over) side by side. */
+.weft-done-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
 .weft-block {
   /* Hidden unless a block opts in to scrolling (a text block set to "Scrollbar" - see below): a block
      that merely fills its box (image, video, iframe, ...) should never grow a scrollbar, which a

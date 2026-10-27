@@ -24,7 +24,11 @@ export type A11yStringKey = "previous" | "navigation" | "slide" | "blank" | "emb
  * player.runtime.js. A language without its own entry falls back to English. */
 export type ResultsStringKey = "resultsElement" | "resultsResult" | "resultsPoints" | "resultsTotal" | "resultsRight" | "resultsWrong" | "resultsAnswered" | "resultsOpen" | "resultsAdjustment" | "resultsTicked" | "resultsUnticked";
 
-type Strings = Record<PlayerStringKey | FilesStringKey | A11yStringKey | ResultsStringKey | "thanks", string>;
+/** The texts of the certificate (a PDF of the finished screen's table, see renderCertificate in player.runtime.js): its heading and the button that
+ * downloads it. A language without its own entry falls back to English. */
+export type CertificateStringKey = "certificateTitle" | "certificateDownload";
+
+type Strings = Record<PlayerStringKey | FilesStringKey | A11yStringKey | ResultsStringKey | CertificateStringKey | "thanks", string>;
 
 /** What an open question (no right or wrong, see QuizBlock.open) says once it is submitted. A language without its own falls back to English. */
 const THANKS: Record<string, string> = {
@@ -62,6 +66,16 @@ const RESULTS_TRANSLATIONS: Record<string, Record<ResultsStringKey, string>> = {
   nl: resultsStrings("Onderdeel", "Resultaat", "Punten", "Totaal", "Goed", "Fout", "Beantwoord", "Niet beantwoord", "Overige wijzigingen", "Aangevinkt", "Niet aangevinkt"),
 };
 
+const CERTIFICATE_TRANSLATIONS: Record<string, Record<CertificateStringKey, string>> = {
+  de: { certificateTitle: "Weft-Zertifikat", certificateDownload: "Zertifikat herunterladen" },
+  en: { certificateTitle: "Weft Certificate", certificateDownload: "Download certificate" },
+  fr: { certificateTitle: "Certificat Weft", certificateDownload: "Télécharger le certificat" },
+  es: { certificateTitle: "Certificado Weft", certificateDownload: "Descargar certificado" },
+  it: { certificateTitle: "Certificato Weft", certificateDownload: "Scarica il certificato" },
+  pt: { certificateTitle: "Certificado Weft", certificateDownload: "Descarregar certificado" },
+  nl: { certificateTitle: "Weft-certificaat", certificateDownload: "Certificaat downloaden" },
+};
+
 function filesStrings(title: string, password: string, unlock: string, wrongPassword: string, download: string, failed: string): Record<FilesStringKey, string> {
   return { filesTitle: title, filesPassword: password, filesUnlock: unlock, filesWrongPassword: wrongPassword, filesDownload: download, filesFailed: failed };
 }
@@ -84,7 +98,7 @@ function strings(
   play: string,
   language: string,
 ): Strings {
-  return { submit, correct, incorrect, restart, done, next, play, language, thanks: THANKS.en, ...FILES_TRANSLATIONS.en, ...A11Y_TRANSLATIONS.en, ...RESULTS_TRANSLATIONS.en };
+  return { submit, correct, incorrect, restart, done, next, play, language, thanks: THANKS.en, ...FILES_TRANSLATIONS.en, ...A11Y_TRANSLATIONS.en, ...RESULTS_TRANSLATIONS.en, ...CERTIFICATE_TRANSLATIONS.en };
 }
 
 // Keyed by language code (the part of a locale before the "_"); Chinese is also keyed by "zh_TW" for
@@ -132,7 +146,7 @@ const ALIASES: Record<string, string> = { no: "nb", nn: "nb", zh_HK: "zh_TW", zh
 /** The fixed texts for a locale ("fr_FR"): its own, else its language's, else English - and German
  * for `null`, a module without languages. */
 export function playerStringsFor(locale: string | null): Strings {
-  if (locale === null) return { ...TRANSLATIONS.de, ...FILES_TRANSLATIONS.de, ...A11Y_TRANSLATIONS.de, ...RESULTS_TRANSLATIONS.de, thanks: THANKS.de };
+  if (locale === null) return { ...TRANSLATIONS.de, ...FILES_TRANSLATIONS.de, ...A11Y_TRANSLATIONS.de, ...RESULTS_TRANSLATIONS.de, ...CERTIFICATE_TRANSLATIONS.de, thanks: THANKS.de };
   const base = locale.split("_")[0];
   const key = [locale, base].map((k) => ALIASES[k] ?? k).find((k) => k in TRANSLATIONS);
   return {
@@ -140,6 +154,7 @@ export function playerStringsFor(locale: string | null): Strings {
     ...(FILES_TRANSLATIONS[key ?? "en"] ?? FILES_TRANSLATIONS.en),
     ...(A11Y_TRANSLATIONS[key ?? "en"] ?? A11Y_TRANSLATIONS.en),
     ...(RESULTS_TRANSLATIONS[key ?? "en"] ?? RESULTS_TRANSLATIONS.en),
+    ...(CERTIFICATE_TRANSLATIONS[key ?? "en"] ?? CERTIFICATE_TRANSLATIONS.en),
     thanks: THANKS[key ?? "en"] ?? THANKS.en,
   };
 }

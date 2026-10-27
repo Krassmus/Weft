@@ -938,7 +938,9 @@
     return String(Math.round(value * 100) / 100);
   }
 
-  function renderDoneSummary() {
+  // The table of the finished screen as data - the head, the rows (what the graded elements gave, and the changes that no element accounts for) and
+  // the sum -, every cell {text, cls}: renderDoneSummary draws it as HTML, the certificate as a PDF. null when there is nothing to list.
+  function doneTableData() {
     var summary = doneSummary();
     if (!summary) return null;
     var names = summary.columns.map(function (id) {
@@ -949,30 +951,25 @@
             return v.id === id;
           })[0].name;
     });
-    var cell = function (tag, text, className) {
-      var c = el(tag, className ? { class: className } : {}, []);
-      c.textContent = text;
-      return c;
-    };
-    var head = el("tr", {}, [cell("th", uiString("resultsElement")), cell("th", uiString("resultsResult"))]);
+    var head = [{ text: uiString("resultsElement"), cls: "" }, { text: uiString("resultsResult"), cls: "" }];
     names.forEach(function (name) {
-      head.appendChild(cell("th", name, "weft-done-number"));
+      head.push({ text: name, cls: "weft-done-number" });
     });
-    var body = el("tbody", {}, []);
+    var rows = [];
     var totals = summary.columns.map(function () {
       return 0;
     });
     summary.rows.forEach(function (row) {
-      var tr = el("tr", {}, [
-        cell("td", row.title),
-        cell("td", uiString({ right: "resultsRight", wrong: "resultsWrong", answered: "resultsAnswered", open: "resultsOpen", ticked: "resultsTicked", unticked: "resultsUnticked" }[row.outcome]), "weft-done-" + row.outcome),
-      ]);
+      var cells = [
+        { text: row.title, cls: "" },
+        { text: uiString({ right: "resultsRight", wrong: "resultsWrong", answered: "resultsAnswered", open: "resultsOpen", ticked: "resultsTicked", unticked: "resultsUnticked" }[row.outcome]), cls: "weft-done-" + row.outcome },
+      ];
       summary.columns.forEach(function (id, i) {
         var has = Object.prototype.hasOwnProperty.call(row.deltas, id);
         if (has) totals[i] += row.deltas[id];
-        tr.appendChild(cell("td", has ? formatPoints(row.deltas[id]) : "", "weft-done-number"));
+        cells.push({ text: has ? formatPoints(row.deltas[id]) : "", cls: "weft-done-number" });
       });
-      body.appendChild(tr);
+      rows.push({ cells: cells, cls: "", outcome: row.outcome });
     });
     // What the variables really are at the end (what they gained since the start - which is what the LMS has been told): the elements above
     // cannot account for what else changed them - a logic block, a button's effect -, so the difference is a row of its own, and the sum
@@ -991,17 +988,374 @@
         return difference !== 0;
       })
     ) {
-      var adjustment = el("tr", { class: "weft-done-adjustment" }, [cell("td", uiString("resultsAdjustment")), cell("td", "")]);
+      var adjustment = [{ text: uiString("resultsAdjustment"), cls: "" }, { text: "", cls: "" }];
       differences.forEach(function (difference) {
-        adjustment.appendChild(cell("td", difference !== 0 ? formatPoints(difference) : "", "weft-done-number"));
+        adjustment.push({ text: difference !== 0 ? formatPoints(difference) : "", cls: "weft-done-number" });
       });
-      body.appendChild(adjustment);
+      rows.push({ cells: adjustment, cls: "weft-done-adjustment", outcome: "adjustment" });
     }
-    var foot = el("tr", {}, [cell("th", uiString("resultsTotal")), cell("th", "")]);
+    var foot = [{ text: uiString("resultsTotal"), cls: "" }, { text: "", cls: "" }];
     gained.forEach(function (total) {
-      foot.appendChild(cell("th", formatPoints(total), "weft-done-number"));
+      foot.push({ text: formatPoints(total), cls: "weft-done-number" });
     });
-    return el("div", { class: "weft-done-summary" }, [el("table", {}, [el("thead", {}, [head]), body, el("tfoot", {}, [foot])])]);
+    return { head: head, rows: rows, foot: foot };
+  }
+
+  function renderDoneSummary() {
+    var data = doneTableData();
+    if (!data) return null;
+    var row = function (tag, cells, className) {
+      return el(
+        "tr",
+        className ? { class: className } : {},
+        cells.map(function (c) {
+          var cell = el(tag, c.cls ? { class: c.cls } : {}, []);
+          cell.textContent = c.text;
+          return cell;
+        }),
+      );
+    };
+    var body = el(
+      "tbody",
+      {},
+      data.rows.map(function (r) {
+        return row("td", r.cells, r.cls);
+      }),
+    );
+    return el("div", { class: "weft-done-summary" }, [el("table", {}, [el("thead", {}, [row("th", data.head)]), body, el("tfoot", {}, [row("th", data.foot)])])]);
+  }
+
+  // ---- the certificate ----
+  // A PDF - A4, with as many pages as the table needs - of the finished screen's table, under the heading "Weft-Zertifikat" and the name of the
+  // module, offered for download on the finished screen. Made here, without a library: the pages are drawn on a canvas - which brings the writing of
+  // every language with it, the right-to-left ones too, in the fonts of the system or of the module - and put into the PDF as pictures (JPEG), the
+  // way the editor's PDF export does it (core/io/pdfWriter.ts); the text on them cannot be selected.
+  var CERT_W = 595.28; // A4 in points
+  var CERT_H = 841.89;
+  var CERT_SCALE = 200 / 72; // pixels per point: 200 dpi
+
+  // The lines a text breaks into within `width` (the measuring context has its font set): at the words - where a language has none the browser
+  // knows where to (Intl.Segmenter) -, and a word that is too long for a line breaks anywhere.
+  function certificateWrap(ctx, text, width) {
+    var lines = [];
+    String(text)
+      .split("\n")
+      .forEach(function (paragraph) {
+        var pieces;
+        if (typeof Intl !== "undefined" && Intl.Segmenter) {
+          pieces = Array.from(new Intl.Segmenter(currentLanguage ? currentLanguage.replace("_", "-") : "de", { granularity: "word" }).segment(paragraph)).map(function (part) {
+            return part.segment;
+          });
+        } else pieces = paragraph.split(/(\s+)/);
+        var line = "";
+        pieces.forEach(function (piece) {
+          if (ctx.measureText(line + piece).width <= width) {
+            line += piece;
+            return;
+          }
+          if (line.trim() !== "") {
+            lines.push(line.replace(/\s+$/, ""));
+            line = "";
+          }
+          piece = piece.replace(/^\s+/, "");
+          if (ctx.measureText(piece).width <= width) {
+            line = piece;
+            return;
+          }
+          Array.from(piece).forEach(function (ch) {
+            if (line !== "" && ctx.measureText(line + ch).width > width) {
+              lines.push(line);
+              line = "";
+            }
+            line += ch;
+          });
+        });
+        lines.push(line.replace(/\s+$/, ""));
+      });
+    return lines;
+  }
+
+  // The pages as canvases (A4 at CERT_SCALE): the heading and the module's name, then the table - the head again on every page, a row never
+  // split between two pages, the sum under the last row.
+  function certificateCanvases(data) {
+    var MARGIN = 56.7; // 2 cm
+    var PAD = 5;
+    var LINE = 14;
+    var FS = 10.5;
+    var rtl = /^(ar|he)(_|$)/.test(currentLanguage || "");
+    var stageEl = document.querySelector(".weft-stage-done") || document.body;
+    var computed = getComputedStyle(stageEl);
+    var family = computed.fontFamily || "sans-serif";
+    var accent = computed.getPropertyValue("--slide-accent-color").trim() || "#2563eb";
+    var INK = "#1f2328";
+    var MUTED = "#6b7280";
+    var font = function (size, weight, italic) {
+      return (italic ? "italic " : "") + weight + " " + size + "px " + family;
+    };
+    var measure = document.createElement("canvas").getContext("2d");
+    var widthOf = function (text, size, weight, italic) {
+      measure.font = font(size, weight, italic);
+      return measure.measureText(text).width;
+    };
+    var wrapped = function (text, width, size, weight, italic) {
+      measure.font = font(size, weight, italic);
+      return certificateWrap(measure, text, width);
+    };
+
+    var contentW = CERT_W - 2 * MARGIN;
+    var cols = data.head.length;
+    // The number columns are as wide as their widest cell, the result column as its widest result (at most 120 pt: then it breaks lines), the
+    // first one takes what is left.
+    var widths = [0, 0];
+    var widest = function (c) {
+      var w = widthOf(data.head[c].text, FS, 600);
+      w = Math.max(w, widthOf(data.foot[c].text, FS, 700));
+      data.rows.forEach(function (r) {
+        w = Math.max(w, widthOf(r.cells[c].text, FS, 400, r.outcome === "adjustment"));
+      });
+      return w;
+    };
+    widths[1] = Math.min(120, Math.max(60, widest(1) + 2 * PAD));
+    var fixed = widths[1];
+    for (var c = 2; c < cols; c++) {
+      widths[c] = Math.max(40, widest(c) + 2 * PAD);
+      fixed += widths[c];
+    }
+    if (contentW - fixed < 120) {
+      var shrink = (contentW - 120) / fixed;
+      for (var k = 1; k < cols; k++) widths[k] *= shrink;
+      fixed *= shrink;
+    }
+    widths[0] = contentW - fixed;
+    var colX = [];
+    var at = MARGIN;
+    widths.forEach(function (w) {
+      colX.push(at);
+      at += w;
+    });
+
+    // The rows: what each cell says, broken into lines, and how high the row is.
+    var layoutRow = function (cells, weight, italic) {
+      var lines = cells.map(function (cell, i) {
+        return i < 2 ? wrapped(cell.text, widths[i] - 2 * PAD, FS, weight, italic) : [cell.text];
+      });
+      var most = Math.max.apply(null, lines.map(function (l) {
+        return l.length;
+      }));
+      return { lines: lines, height: most * LINE + 10 };
+    };
+    var head = layoutRow(data.head, 600, false);
+    var foot = layoutRow(data.foot, 700, false);
+    var rows = data.rows.map(function (r) {
+      var laid = layoutRow(r.cells, 400, r.outcome === "adjustment");
+      laid.row = r;
+      return laid;
+    });
+
+    // The heading block on the first page.
+    var TITLE = 26;
+    var NAME = 15;
+    var titleLines = wrapped(uiString("certificateTitle"), contentW, TITLE, 700);
+    var nameLines = module.title ? wrapped(module.title, contentW, NAME, 400) : [];
+    var headingH = titleLines.length * 32 + 10 + 3 + 16 + nameLines.length * 21 + (nameLines.length ? 26 : 10);
+
+    // Which rows go on which page.
+    var BOTTOM = CERT_H - 50;
+    var pages = [[]];
+    var y = MARGIN + headingH + head.height;
+    rows.forEach(function (r) {
+      var current = pages[pages.length - 1];
+      if (y + r.height > BOTTOM && current.length > 0) {
+        pages.push([]);
+        y = MARGIN + head.height;
+      }
+      pages[pages.length - 1].push(r);
+      y += r.height;
+    });
+    if (y + foot.height > BOTTOM) {
+      // (The sum does not stand alone under the head of a page: the last row comes along.)
+      var last = pages[pages.length - 1];
+      pages.push(last.length > 1 ? [last.pop()] : []);
+    }
+
+    var canvases = pages.map(function (pageRows, pageIndex) {
+      var canvas = document.createElement("canvas");
+      canvas.width = Math.round(CERT_W * CERT_SCALE);
+      canvas.height = Math.round(CERT_H * CERT_SCALE);
+      var ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.scale(CERT_SCALE, CERT_SCALE);
+      ctx.textBaseline = "middle";
+      // x of a box that is `x`, `w` wide from the left edge in a left-to-right page; mirrored on a right-to-left one.
+      var boxX = function (x, w) {
+        return rtl ? CERT_W - x - w : x;
+      };
+      var text = function (value, size, weight, italic, color, x, w, align, centerY) {
+        // (align "start" is the left edge in a left-to-right page, the right edge in a right-to-left one; "end" the other way round.)
+        var left = (align === "start") !== rtl;
+        ctx.font = font(size, weight, italic);
+        ctx.fillStyle = color;
+        // (The direction of the text itself, not of the page: a Latin word with a full stop after it, on a right-to-left page, keeps it behind.)
+        ctx.direction = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/.test(value) ? "rtl" : "ltr";
+        ctx.textAlign = left ? "left" : "right";
+        var bx = boxX(x, w);
+        ctx.fillText(value, left ? bx : bx + w, centerY);
+      };
+      var line = function (yy, thickness, color) {
+        ctx.fillStyle = color;
+        ctx.fillRect(MARGIN, yy - thickness / 2, contentW, thickness);
+      };
+      var cursor = MARGIN;
+      if (pageIndex === 0) {
+        titleLines.forEach(function (t, i) {
+          text(t, TITLE, 700, false, INK, MARGIN, contentW, "start", cursor + i * 32 + 16);
+        });
+        cursor += titleLines.length * 32 + 10;
+        ctx.fillStyle = accent;
+        ctx.fillRect(boxX(MARGIN, 64), cursor, 64, 3);
+        cursor += 3 + 16;
+        nameLines.forEach(function (t, i) {
+          text(t, NAME, 400, false, INK, MARGIN, contentW, "start", cursor + i * 21 + 10.5);
+        });
+        cursor += nameLines.length * 21 + (nameLines.length ? 26 : 10);
+      }
+      var drawRow = function (laid, weight, italic, colorOf) {
+        laid.lines.forEach(function (cellLines, c) {
+          cellLines.forEach(function (t, i) {
+            text(t, FS, weight, italic, colorOf(c), colX[c], widths[c], c < 2 ? "start" : "end", cursor + 5 + i * LINE + LINE / 2);
+          });
+        });
+        cursor += laid.height;
+      };
+      // Runs `fn` with the text boxes narrowed by PAD on both sides (the padding of the cells).
+      var padded = function (fn) {
+        var saved = { x: colX.slice(), w: widths.slice() };
+        for (var i = 0; i < colX.length; i++) {
+          colX[i] += PAD;
+          widths[i] -= 2 * PAD;
+        }
+        fn();
+        colX = saved.x;
+        widths = saved.w;
+      };
+      padded(function () {
+        drawRow(head, 600, false, function () {
+          return MUTED;
+        });
+      });
+      line(cursor, 1, "#8c959f");
+      pageRows.forEach(function (laid) {
+        var outcome = laid.row.outcome;
+        var tone = outcome === "right" || outcome === "ticked" ? "#1a7f37" : outcome === "wrong" ? "#c62828" : outcome === "open" || outcome === "unticked" ? MUTED : INK;
+        padded(function () {
+          drawRow(laid, 400, outcome === "adjustment", function (c) {
+            return outcome === "adjustment" ? MUTED : c === 1 ? tone : INK;
+          });
+        });
+        line(cursor, 0.5, "#d0d7de");
+      });
+      if (pageIndex === pages.length - 1) {
+        line(cursor, 1.5, "#57606a");
+        padded(function () {
+          drawRow(foot, 700, false, function () {
+            return INK;
+          });
+        });
+      }
+      if (pages.length > 1) {
+        ctx.direction = "ltr";
+        ctx.textAlign = "center";
+        ctx.font = font(9, 400);
+        ctx.fillStyle = MUTED;
+        ctx.fillText(pageIndex + 1 + " / " + pages.length, CERT_W / 2, CERT_H - 28);
+      }
+      return canvas;
+    });
+    return canvases;
+  }
+
+  // The bytes of a PDF with one A4 page per picture (JPEG): catalog, page tree, info and for every page the page, its content and the image.
+  function certificatePdf(canvases, title) {
+    var encoder = new TextEncoder();
+    var parts = [];
+    var offsets = [];
+    var length = 0;
+    var push = function (data) {
+      var bytes = typeof data === "string" ? encoder.encode(data) : data;
+      parts.push(bytes);
+      length += bytes.length;
+    };
+    var object = function (id, body) {
+      offsets[id] = length;
+      push(id + " 0 obj\n");
+      if (typeof body === "string") push(body);
+      else body.forEach(push);
+      push("\nendobj\n");
+    };
+    // A PDF text string: the plain characters if they are ASCII, else UTF-16BE with a byte order mark (as a hex string).
+    var pdfString = function (text) {
+      if (/^[\x20-\x7e]*$/.test(text)) return "(" + text.replace(/[\\()]/g, "\\$&") + ")";
+      var hex = "FEFF";
+      for (var i = 0; i < text.length; i++) hex += ("0000" + text.charCodeAt(i).toString(16)).slice(-4).toUpperCase();
+      return "<" + hex + ">";
+    };
+    var jpegs = canvases.map(function (canvas) {
+      var binary = atob(canvas.toDataURL("image/jpeg", 0.92).split(",")[1]);
+      var bytes = new Uint8Array(binary.length);
+      for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return { bytes: bytes, width: canvas.width, height: canvas.height };
+    });
+    var pageObject = function (i) {
+      return 4 + i * 3;
+    };
+    push("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+    object(1, "<< /Type /Catalog /Pages 2 0 R >>");
+    object(2, "<< /Type /Pages /Count " + jpegs.length + " /Kids [" + jpegs.map(function (_, i) { return pageObject(i) + " 0 R"; }).join(" ") + "] >>");
+    object(3, "<< /Title " + pdfString(title) + " /Producer (Weft) >>");
+    jpegs.forEach(function (jpeg, i) {
+      var id = pageObject(i);
+      object(id, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + CERT_W + " " + CERT_H + "] /Resources << /XObject << /Im0 " + (id + 2) + " 0 R >> >> /Contents " + (id + 1) + " 0 R >>");
+      var content = "q " + CERT_W + " 0 0 " + CERT_H + " 0 0 cm /Im0 Do Q";
+      object(id + 1, "<< /Length " + content.length + " >>\nstream\n" + content + "\nendstream");
+      object(id + 2, [
+        "<< /Type /XObject /Subtype /Image /Width " + jpeg.width + " /Height " + jpeg.height + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + jpeg.bytes.length + " >>\nstream\n",
+        jpeg.bytes,
+        "\nendstream",
+      ]);
+    });
+    var count = 4 + jpegs.length * 3;
+    var xrefAt = length;
+    var xref = "xref\n0 " + count + "\n0000000000 65535 f \n";
+    for (var id = 1; id < count; id++) xref += ("0000000000" + offsets[id]).slice(-10) + " 00000 n \n";
+    push(xref);
+    push("trailer\n<< /Size " + count + " /Root 1 0 R /Info 3 0 R >>\nstartxref\n" + xrefAt + "\n%%EOF\n");
+    var out = new Uint8Array(length);
+    var written = 0;
+    parts.forEach(function (part) {
+      out.set(part, written);
+      written += part.length;
+    });
+    return out;
+  }
+
+  // Offers the certificate for download (as a file of a files block is: the page around the editor's preview saves it there).
+  function downloadCertificate(button) {
+    button.disabled = true;
+    Promise.resolve(document.fonts && document.fonts.ready)
+      .then(function () {
+        var data = doneTableData();
+        if (!data) return;
+        var heading = uiString("certificateTitle");
+        var name = (heading + (module.title ? " - " + module.title : "")).replace(/[\\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+        filesSave(certificatePdf(certificateCanvases(data), heading + (module.title ? " - " + module.title : "")), { name: name + ".pdf", mimeType: "application/pdf" });
+      })
+      .catch(function (error) {
+        console.error(error);
+      })
+      .then(function () {
+        button.disabled = false;
+      });
   }
 
   // ---- logic blocks (see ScriptBlock in core/types.ts) ----
@@ -4364,6 +4718,17 @@
       // What the graded elements gave, if there are any that give points.
       var doneSummaryTable = renderDoneSummary();
       if (doneSummaryTable) doneParts.push(doneSummaryTable);
+      var doneButtons = [];
+      // With a table there is the certificate to take along: the same as a PDF.
+      if (doneSummaryTable) {
+        var certificateBtn = el("button", { type: "button", class: "weft-block-button-el weft-done-restart weft-done-certificate" }, [
+          document.createTextNode(uiString("certificateDownload")),
+        ]);
+        certificateBtn.addEventListener("click", function () {
+          downloadCertificate(certificateBtn);
+        });
+        doneButtons.push(certificateBtn);
+      }
       // Starting over is a way to move through the module like the others: where the learner may not (the setting "Navigation durch Weiter
       // erlauben"), the module is not to be played again from here either.
       if (module.keyboardNavigationEnabled !== false) {
@@ -4371,8 +4736,9 @@
           document.createTextNode(uiString("restart")),
         ]);
         restartBtn.addEventListener("click", restart);
-        doneParts.push(restartBtn);
+        doneButtons.push(restartBtn);
       }
+      if (doneButtons.length > 0) doneParts.push(el("div", { class: "weft-done-actions" }, doneButtons));
       var doneStage = el("div", { class: "weft-stage weft-stage-done", style: stageStyle(), "data-weft-theme": stageTheme(), "data-weft-style": stageUiStyle() }, doneParts);
       wrap.appendChild(doneStage);
     } else {

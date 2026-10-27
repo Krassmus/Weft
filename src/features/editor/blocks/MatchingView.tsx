@@ -71,7 +71,7 @@ export function MatchingView({
   drag?: MatchingDrag | null;
   /** Given on the canvas of a selected block: the pointer goes down on a card (to move it). */
   onCardPointerDown?: (event: ReactPointerEvent, item: MatchItem, side: "source" | "target") => void;
-  /** Given on the canvas of a selected block: a double click on a card (to write its text in place). */
+  /** Given on the canvas of a selected block: a double click on a card (to write its text in place, or to choose another picture). */
   onCardDoubleClick?: (item: MatchItem) => void;
   /** The text being written in place: that of the card `id`, which is shown as a field instead. */
   editing?: MatchingEditing | null;
@@ -87,7 +87,7 @@ export function MatchingView({
         className={"weft-matching-card weft-matching-" + side + (item.kind === "image" ? " is-image" : "") + (drag?.id === item.id ? " is-dragged" : "") + (onCardPointerDown ? " is-movable" : "")}
         style={{ left: `${place.x}%`, top: `${place.y}%`, width: `${size.width}%`, height: `${size.height}%` }}
         onPointerDown={onCardPointerDown ? (e) => onCardPointerDown(e, item, side) : undefined}
-        onDoubleClick={onCardDoubleClick && item.kind === "text" ? () => onCardDoubleClick(item) : undefined}
+        onDoubleClick={onCardDoubleClick ? () => onCardDoubleClick(item) : undefined}
       >
         {item.kind === "image" ? (
           <span className="weft-matching-pic">

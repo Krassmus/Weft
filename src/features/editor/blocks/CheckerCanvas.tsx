@@ -25,7 +25,19 @@ export function CheckerCanvas({ block, selected, onUpdate }: { block: CheckerBlo
       lang={lang}
       defaultLang={defaultLang}
       onTextDoubleClick={selected && onUpdate ? () => setWriting(checkerText(block, lang, defaultLang)) : undefined}
-      editing={writing === null ? null : { value: writing, onChange: setWriting, onCommit: commit, onCancel: () => setWriting(null) }}
+      editing={
+        writing === null
+          ? null
+          : {
+              value: writing,
+              onChange: setWriting,
+              onCommit: commit,
+              onCancel: () => {
+                writingRef.current = null;
+                setWriting(null);
+              },
+            }
+      }
     />
   );
 }

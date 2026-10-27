@@ -3782,7 +3782,8 @@
       var item = itemById[id];
       var card = el("button", { type: "button", class: "weft-sort-item" + (item.kind === "image" ? " is-image" : ""), "data-weft-item": id }, []);
       card.style.width = block.itemSize.width + "%";
-      card.style.height = block.itemSize.height + "%";
+      // (Along a horizontal line a picture has the room for twice the height; the words under the line move down with the lowest object.)
+      card.style.height = (item.kind === "image" && !vertical ? Math.min(100, block.itemSize.height * 2) : block.itemSize.height) + "%";
       var fill = function () {
         fillItem(card, item);
       };

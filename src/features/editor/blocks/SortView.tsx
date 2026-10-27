@@ -101,7 +101,7 @@ export function SortView({
                 className={"weft-sort-item" + (item.kind === "image" ? " is-image" : "") + (grabbed === item.id ? " is-dragging" : "") + (onItemPointerDown ? " is-movable" : "")}
                 onPointerDown={onItemPointerDown ? (e) => onItemPointerDown(e, item) : undefined}
                 onDoubleClick={onItemDoubleClick ? () => onItemDoubleClick(item) : undefined}
-                style={{ width: `${block.itemSize.width}%`, height: `${block.itemSize.height}%` }}
+                style={{ width: `${block.itemSize.width}%`, height: `${item.kind === "image" && !vertical ? Math.min(100, block.itemSize.height * 2) : block.itemSize.height}%` }}
               >
                 {item.kind === "image" ? (
                   <span className="weft-matching-pic">

@@ -25,13 +25,20 @@ export function CheckerView({
   editing?: { value: string; onChange: (value: string) => void; onCommit: () => void; onCancel: () => void } | null;
 }) {
   const field = useRef<HTMLTextAreaElement>(null);
-  // The field is as high as its text.
+  // The field is as high as its text - again when the block is scaled (the text then changes its size and where it breaks its lines).
+  const writing = editing !== null && editing !== undefined;
   useLayoutEffect(() => {
     const el = field.current;
     if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [editing?.value, editing !== null && editing !== undefined]);
+    const fit = () => {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    };
+    fit();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(fit) : null;
+    observer?.observe(el);
+    return () => observer?.disconnect();
+  }, [editing?.value, writing]);
   return (
     <div className="weft-thumb-block-quiz weft-checker-view">
       <div className="weft-thumb-block-quiz-options">

@@ -6597,7 +6597,6 @@ h2.weft-inspector-header {
   overflow: hidden;
   background: transparent;
   border: 0;
-  border-bottom: 1px solid var(--slide-accent-ink);
   outline: none;
 }
 
@@ -7165,7 +7164,6 @@ h2.weft-inspector-header {
   text-align: center;
   background: transparent;
   border: 0;
-  border-bottom: 1px solid var(--slide-accent-ink);
   outline: none;
 }
 

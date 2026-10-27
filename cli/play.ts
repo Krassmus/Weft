@@ -155,6 +155,18 @@ async function perform(session: ChromeSession, step: string): Promise<Outcome> {
         }
         const gallery = [...document.querySelectorAll('.weft-block-gallery')].find((b) => b.querySelector('.weft-gallery'));
         if (!gallery) return { problem: 'keine Galerie auf dieser Folie (oder sie hat noch kein Bild)' };
+        const slides = [...gallery.querySelectorAll('.weft-gallery-slide')];
+        const position = () => 'Bild ' + (slides.findIndex((s) => s.tabIndex === 0) + 1) + ' von ' + slides.length;
+        // (While a picture is open large, the arrows of its window go on - and the carousel behind it follows.)
+        const open = document.querySelector('.weft-matching-lightbox');
+        if (open && (what === 'weiter' || what === 'zurueck')) {
+          const arrow = open.querySelector(what === 'weiter' ? '.weft-gallery-arrow.is-next' : '.weft-gallery-arrow.is-prev');
+          if (!arrow) return { problem: 'das geöffnete Bild gehört zu keiner Galerie mit mehreren Bildern' };
+          if (arrow.disabled) return { problem: what === 'weiter' ? 'das ist schon das letzte Bild' : 'das ist schon das erste Bild' };
+          arrow.click();
+          const caption = open.querySelector('.weft-matching-lightbox-caption');
+          return { note: position() + ' (geöffnet' + (caption && caption.textContent ? ': „' + caption.textContent + '“' : ', ohne Bildunterschrift') + ')' };
+        }
         if (what === 'oeffnen') {
           const slide = gallery.querySelector('.weft-gallery-slide[tabindex="0"]');
           slide.click();
@@ -166,8 +178,7 @@ async function perform(session: ChromeSession, step: string): Promise<Outcome> {
         if (!arrow) return { problem: 'die Galerie hat nur ein Bild' };
         if (arrow.disabled) return { problem: what === 'weiter' ? 'das ist schon das letzte Bild' : 'das ist schon das erste Bild' };
         arrow.click();
-        const slides = [...gallery.querySelectorAll('.weft-gallery-slide')];
-        return { note: 'Bild ' + (slides.findIndex((s) => s.tabIndex === 0) + 1) + ' von ' + slides.length };
+        return { note: position() };
       })()`);
       return result.problem ? { problem: result.problem } : { note: result.note };
     }

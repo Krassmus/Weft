@@ -2536,6 +2536,30 @@ summary:focus-visible,
   min-height: 0;
 }
 
+/* The arrows of a gallery's window: light on the dimmed slide, a little larger than the carousel's; the window keeps the place of the caption
+   when a picture has none, so that the pictures do not jump. */
+.weft-matching-lightbox .weft-gallery-arrow {
+  width: 2.4em;
+  height: 2.4em;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.weft-matching-lightbox .weft-gallery-arrow:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.36);
+}
+
+.weft-matching-lightbox .weft-gallery-arrow.is-prev {
+  left: 1.2em;
+}
+
+.weft-matching-lightbox .weft-gallery-arrow.is-next {
+  right: 1.2em;
+}
+
+.weft-matching-lightbox-caption:empty {
+  min-height: 1.4em;
+}
+
 .weft-matching-lightbox-caption {
   flex: none;
   max-width: 80%;

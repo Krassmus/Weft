@@ -1017,7 +1017,7 @@
     },
     "GalleryBlock": {
       "additionalProperties": false,
-      "description": "A gallery (\"Bildergalerie\"): pictures in a carousel - one at a time, with an arrow to each side (or a swipe, or the arrow keys) to go through them. A click on the picture that is shown opens it at full size in a window over the slide, with its caption (if it has one) under it. It has no events and nothing to answer, lives on pages only, and its arrows and window follow the module's style of interactive elements.",
+      "description": "A gallery (\"Bildergalerie\"): pictures in a carousel - one at a time, with an arrow to each side (or a swipe, or the arrow keys) to go through them. A click on the picture that is shown opens it at full size in a window over the slide, with its caption (if it has one) under it - and in that window the arrows, the arrow keys and a swipe go on through the pictures. It has no events and nothing to answer, lives on pages only, and its arrows and window follow the module's style of interactive elements.",
       "properties": {
         "actionEffects": {
           "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",

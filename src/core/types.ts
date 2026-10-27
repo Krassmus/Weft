@@ -629,7 +629,7 @@ export interface GalleryItem {
 
 /**
  * A gallery ("Bildergalerie"): pictures in a carousel - one at a time, with an arrow to each side (or a swipe, or the arrow keys) to go through
- * them. A click on the picture that is shown opens it at full size in a window over the slide, with its caption (if it has one) under it. It
+ * them. A click on the picture that is shown opens it at full size in a window over the slide, with its caption (if it has one) under it - and in that window the arrows, the arrow keys and a swipe go on through the pictures. It
  * has no events and nothing to answer, lives on pages only, and its arrows and window follow the module's style of interactive elements.
  */
 export interface GalleryBlock extends BaseBlock {

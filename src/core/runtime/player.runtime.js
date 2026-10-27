@@ -3542,26 +3542,112 @@
   }
 
   // A picture shown large, over the slide, until a click, a key or Escape closes it.
-  function openMatchingLightbox(from, src, alt, caption) {
+  // `gallery` (a gallery's pictures): { index, total, get(i) -> { src, alt, caption }, changed(i) } - the window then has an arrow to each side (and
+  // the arrow keys, and a swipe) to go on through the pictures; `changed` tells the carousel behind it which picture was reached.
+  function openMatchingLightbox(from, src, alt, caption, gallery) {
     var stage = from.closest ? from.closest(".weft-stage") : null;
-    var overlay = el("div", { class: "weft-matching-lightbox" + (caption ? " has-caption" : ""), role: "dialog", "aria-modal": "true", "aria-label": alt || "" }, []);
+    var overlay = el("div", { class: "weft-matching-lightbox" + (caption || gallery ? " has-caption" : ""), role: "dialog", "aria-modal": "true", "aria-label": alt || "" }, []);
     var image = el("img", { src: src, alt: alt || "" }, []);
     var close = el("button", { type: "button", class: "weft-matching-lightbox-close", "aria-label": uiString("revealerClose") }, []);
     close.textContent = "\u00d7";
     overlay.appendChild(image);
-    // (A gallery's caption stands under the picture.)
-    if (caption) {
-      var words = el("p", { class: "weft-matching-lightbox-caption" }, []);
-      words.textContent = caption;
+    // (A gallery's caption stands under the picture - its place stays when a picture has none, so that the pictures do not jump.)
+    var words = null;
+    if (caption || gallery) {
+      words = el("p", { class: "weft-matching-lightbox-caption" }, []);
+      words.textContent = caption || "";
       applyVariablesToNode(words);
       overlay.appendChild(words);
     }
     overlay.appendChild(close);
+    var current = gallery ? gallery.index : 0;
+    var go = function (to) {
+      if (!gallery) return;
+      to = Math.max(0, Math.min(gallery.total - 1, to));
+      if (to === current) return;
+      current = to;
+      var shown = gallery.get(to);
+      image.src = shown.src;
+      image.alt = shown.alt || "";
+      overlay.setAttribute("aria-label", shown.alt || "");
+      words.textContent = shown.caption || "";
+      applyVariablesToNode(words);
+      gallery.changed(to);
+      if (previous) previous.disabled = to === 0;
+      if (following) following.disabled = to === gallery.total - 1;
+      // (The neighbours are loaded already when the next step comes.)
+      [to - 1, to + 1].forEach(function (n) {
+        if (n >= 0 && n < gallery.total) new Image().src = gallery.get(n).src;
+      });
+    };
+    var previous = null;
+    var following = null;
+    if (gallery && gallery.total > 1) {
+      var chevron = function (d) {
+        return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      };
+      previous = el("button", { type: "button", class: "weft-gallery-arrow is-prev", "aria-label": uiString("galleryPrevious") }, []);
+      following = el("button", { type: "button", class: "weft-gallery-arrow is-next", "aria-label": uiString("galleryNext") }, []);
+      previous.innerHTML = chevron("M15 5l-7 7 7 7");
+      following.innerHTML = chevron("M9 5l7 7-7 7");
+      previous.disabled = current === 0;
+      following.disabled = current === gallery.total - 1;
+      // (A click on an arrow goes on; it does not close the window.)
+      previous.addEventListener("click", function (e) {
+        e.stopPropagation();
+        go(current - 1);
+      });
+      following.addEventListener("click", function (e) {
+        e.stopPropagation();
+        go(current + 1);
+      });
+      overlay.appendChild(previous);
+      overlay.appendChild(following);
+      // A swipe sideways goes on, too (the click that ends it does not close the window).
+      var start = null;
+      var swiped = false;
+      overlay.style.touchAction = "pan-y";
+      overlay.addEventListener("pointerdown", function (e) {
+        if (e.target.closest && e.target.closest("button")) return;
+        start = { x: e.clientX, y: e.clientY };
+      });
+      overlay.addEventListener("pointerup", function (e) {
+        if (!start) return;
+        var dx = e.clientX - start.x;
+        var dy = e.clientY - start.y;
+        start = null;
+        if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+        swiped = true;
+        setTimeout(function () {
+          swiped = false;
+        }, 0);
+        go(current + (dx < 0 ? 1 : -1));
+      });
+      overlay.addEventListener(
+        "click",
+        function (e) {
+          if (swiped) {
+            e.stopPropagation();
+            e.preventDefault();
+          }
+        },
+        true,
+      );
+    }
     var done = function () {
       window.removeEventListener("keydown", onKey, true);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
     };
     var onKey = function (e) {
+      if (gallery && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        // (The arrow keys would otherwise turn the page.)
+        e.stopPropagation();
+        e.preventDefault();
+        go(current + (e.key === "ArrowRight" ? 1 : -1));
+        return;
+      }
+      // (Enter and Space on an arrow of the window press that arrow, they do not close the window.)
+      if ((e.key === "Enter" || e.key === " ") && e.target && e.target.closest && e.target.closest(".weft-gallery-arrow")) return;
       if (e.key === "Escape" || e.key === "Enter" || e.key === " ") {
         // (Escape would otherwise leave the presentation, Space would turn the page.)
         e.stopPropagation();
@@ -3609,7 +3695,17 @@
     var index = 0;
     var open = function (i) {
       var item = items[i];
-      openMatchingLightbox(wrap, assetSrc(item.assetId), galleryCaption(block, item), galleryCaption(block, item));
+      openMatchingLightbox(wrap, assetSrc(item.assetId), galleryCaption(block, item), galleryCaption(block, item), {
+        index: i,
+        total: items.length,
+        get: function (n) {
+          return { src: assetSrc(items[n].assetId), alt: galleryCaption(block, items[n]), caption: galleryCaption(block, items[n]) };
+        },
+        // (The carousel behind the window follows, so that closing it leaves the picture that was seen last.)
+        changed: function (n) {
+          show(n);
+        },
+      });
     };
     items.forEach(function (item, i) {
       var slide = el("button", { type: "button", class: "weft-gallery-slide", "data-weft-picture": item.id }, []);

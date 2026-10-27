@@ -6659,6 +6659,28 @@ h2.weft-inspector-header {
   overflow-wrap: anywhere;
 }
 
+/* The words of a card written in place on the canvas (a double click): a field that looks like them. */
+.weft-matching-edit {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  color: inherit;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
 .weft-matching-image {
   display: block;
   max-width: 100%;

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { Block, MatchItem, MatchingBlock } from "../../../core/types";
+import { matchingItemText, matchingItemTextPatch } from "../../../core/document/translations";
 import { useEditingLanguage } from "../useEditingLanguage";
 import { MatchingView } from "./MatchingView";
 import type { MatchingDrag } from "./MatchingView";
@@ -10,14 +11,28 @@ const clamp = (value: number, low: number, high: number) => Math.min(Math.max(va
 /**
  * A matching on the canvas: every card of both lists can be moved on the area with the pointer - once the block is selected (before that a press
  * on it moves the block, like with any other). While a card is dragged only the picture moves; the block is changed once, when the pointer is let
- * go, so that a move is one step of the history.
+ * go, so that a move is one step of the history. A double click on a text card writes its words in place (Enter or leaving the field keeps them, one
+ * step of the history, in the editing language; Escape drops them).
  */
 export function MatchingCanvas({ block, selected, onUpdate }: { block: MatchingBlock; selected: boolean; onUpdate?: (patch: Partial<Block>) => void }) {
   const { lang, defaultLang } = useEditingLanguage();
   const [drag, setDrag] = useState<MatchingDrag | null>(null);
+  const [writing, setWriting] = useState<{ id: string; value: string } | null>(null);
+  const writingRef = useRef(writing);
+  writingRef.current = writing;
+  function commitWriting() {
+    const current = writingRef.current;
+    setWriting(null);
+    writingRef.current = null;
+    if (!current || !onUpdate) return;
+    const item = [...block.sources, ...block.targets].find((it) => it.id === current.id);
+    if (item && current.value !== matchingItemText(block, item, lang, defaultLang)) onUpdate(matchingItemTextPatch(block, current.id, lang, defaultLang, current.value));
+  }
 
   function start(event: ReactPointerEvent, item: MatchItem, side: "source" | "target") {
     if (!selected || event.button !== 0 || !onUpdate) return;
+    // (The pointer goes down on the card whose text is being written: that is the field's.)
+    if (writing && writing.id === item.id) return;
     event.stopPropagation();
     event.preventDefault();
     const area = (event.currentTarget as HTMLElement).closest(".weft-matching-area") as HTMLElement | null;
@@ -49,5 +64,15 @@ export function MatchingCanvas({ block, selected, onUpdate }: { block: MatchingB
     window.addEventListener("pointercancel", end);
   }
 
-  return <MatchingView block={block} lang={lang} defaultLang={defaultLang} drag={drag} onCardPointerDown={selected ? start : undefined} />;
+  return (
+    <MatchingView
+      block={block}
+      lang={lang}
+      defaultLang={defaultLang}
+      drag={drag}
+      onCardPointerDown={selected ? start : undefined}
+      onCardDoubleClick={selected && onUpdate ? (item) => setWriting({ id: item.id, value: matchingItemText(block, item, lang, defaultLang) }) : undefined}
+      editing={writing ? { id: writing.id, value: writing.value, onChange: (value) => setWriting({ id: writing.id, value }), onCommit: commitWriting, onCancel: () => setWriting(null) } : null}
+    />
+  );
 }

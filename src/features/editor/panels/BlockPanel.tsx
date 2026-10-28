@@ -114,7 +114,7 @@ import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from ".
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { matchingItemText, matchingItemTextPatch, sortItemText, sortItemTextPatch, sortLabel, sortLabelPatch, linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
+import { matchingItemText, matchingItemTextPatch, sortItemText, sortItemTextPatch, sortLabel, sortLabelPatch, fieldWording, fieldWordingPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
 import type { RevealerWording } from "../../../core/document/translations";
 import { revealerIconSvg } from "../../../core/runtime/revealerGeometry";
 import { clozeBlanks } from "../../../core/document/cloze";
@@ -2462,7 +2462,7 @@ function LinkEditor({ block, onUpdate }: { block: LinkBlock; onUpdate: BlockPane
       <LanguageSelect block={block} />
       <label className="weft-field">
         <span>{tr("ui.link_text")}</span>
-        <input value={linkText(block, lang, defaultLang)} onChange={(e) => onUpdate(linkTextPatch(block, lang, defaultLang, e.target.value))} />
+        <input value={fieldWording(block, "text", lang, defaultLang)} onChange={(e) => onUpdate(fieldWordingPatch(block, "text", lang, defaultLang, e.target.value))} />
       </label>
     </Collapsible>
   );

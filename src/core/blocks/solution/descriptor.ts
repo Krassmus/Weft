@@ -29,6 +29,7 @@ export const solutionBlock: BlockDescriptor<SolutionBlock> = {
       translatable: true,
       translationKey: "text",
       shown: true,
+      variables: true,
       cli: { part: "label", role: "Text im leeren Feld" },
       ui: { label: "ui.solution_placeholder", placeholderString: "solutionWord" },
     },

@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
-import type { Block, GalleryBlock, IframeBlock, SolutionBlock } from "../../../core/types";
+import type { Block, GalleryBlock, IframeBlock, LinkBlock, SolutionBlock } from "../../../core/types";
 import { GalleryCanvas } from "./GalleryCanvas";
 import { GalleryView } from "./GalleryView";
 import { IframeView } from "./IframeView";
+import { LinkView } from "./LinkView";
 import { SolutionView } from "./SolutionView";
 
 /** What a view is given. */
@@ -47,10 +48,16 @@ const iframeView: BlockViewSpec<IframeBlock> = {
   freelyMovable: true,
 };
 
+const linkView: BlockViewSpec<LinkBlock> = {
+  View: ({ block, lang, defaultLang, mode }) => <LinkView block={block} lang={lang} defaultLang={defaultLang} mode={mode} />,
+  freelyMovable: true,
+};
+
 const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   solution: solutionView as BlockViewSpec<never>,
   gallery: galleryView as BlockViewSpec<never>,
   iframe: iframeView as BlockViewSpec<never>,
+  link: linkView as BlockViewSpec<never>,
 };
 
 /** The editor's views of a kind, if it has them here. */

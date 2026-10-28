@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { parseHTML } from "linkedom";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { renderIframe } from "../src/core/blocks/iframe/render.js";
+import { linkHref, renderLink } from "../src/core/blocks/link/render.js";
 import { renderSolution } from "../src/core/blocks/solution/render.js";
 
 /**
@@ -40,7 +41,7 @@ const textWith = (key: string, values: Record<string, string | number>) => text(
 const ICONS = { submit: "<svg id='submit'></svg>", correct: "<svg id='ok'></svg>", incorrect: "<svg id='no'></svg>", globe: "<svg id='globe'></svg>", qr: "<svg id='qr'></svg>" };
 
 /** Every render.js there is must be run here: this is the list of what is run (a new one fails the test below until it is added). */
-const RENDERERS = ["solution", "iframe"];
+const RENDERERS = ["solution", "iframe", "link"];
 
 describe("the render functions", () => {
   it("are all tested here", () => {
@@ -57,7 +58,7 @@ describe("the render functions", () => {
     const inlined = source.replace(/^export /gm, "");
     expect(inlined).not.toMatch(/\bexport\b\s+(function|var|const|let|default)/);
     // The way the page has it: a script of its own that leaves the function there for the player after it.
-    const name = kind === "solution" ? "renderSolution" : "renderIframe";
+    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink" }[kind];
     expect(new Function(`${inlined}; return typeof ${name};`)()).toBe("function");
   });
 });
@@ -205,6 +206,86 @@ describe.each(MODES)("an embedded page drawn for %s", (mode) => {
       expect(find(root, ".weft-qr-code") !== null).toBe(mode === "edit");
       expect(find(root, ".weft-qr-code.is-empty") !== null).toBe(mode === "edit");
       expect(find(root, ".weft-qr-link")?.textContent).toBe("(keine Adresse)");
+    });
+  }
+});
+
+// ---- the link ---------------------------------------------------------------------------------------------------------------------------
+
+describe("where a link leads", () => {
+  it("is a page, a mail address or a phone number - and nothing else", () => {
+    expect(linkHref("https://example.org/a")).toBe("https://example.org/a");
+    expect(linkHref(" http://example.org ")).toBe("http://example.org");
+    expect(linkHref("mailto:a@example.org")).toBe("mailto:a@example.org");
+    expect(linkHref("tel:+4912345")).toBe("tel:+4912345");
+    for (const url of ["", "https://", "javascript:alert(1)", "data:text/html,x", "example.org", "ftp://example.org", undefined]) expect(linkHref(url as string)).toBe("");
+  });
+});
+
+describe.each(MODES)("a link drawn for %s", (mode) => {
+  const props = { href: "https://example.org/seite", label: "Zur Seite" };
+  const open = vi.fn();
+  const context = (withOpen = false) => ({ mode, icon: ICONS.globe, ...(withOpen ? { open } : {}) });
+
+  it("is drawn, can be drawn again with other words, and goes away - with words, with the symbol alone and with an address that leads nowhere", () => {
+    for (const shown of [props, { ...props, label: "" }, { href: "", label: "Tot" }]) {
+      const root = element();
+      const instance = renderLink(root, shown, context());
+      expect(root.childNodes.length).toBeGreaterThan(0);
+      expect(find(root, ".weft-link-icon")?.innerHTML).toContain("globe");
+      expect((find(root, ".weft-link-text") as HTMLElement).hidden).toBe(!shown.label);
+      instance.update({ ...shown, label: "Andere Worte" });
+      expect(find(root, ".weft-link-text")?.textContent).toBe("Andere Worte");
+      instance.destroy();
+      expect(root.childNodes.length).toBe(0);
+    }
+  });
+
+  if (mode === "play") {
+    it("is a link: it leads to the address, a page in a new tab, a mail address to the program that sends it", () => {
+      const root = element();
+      renderLink(root, props, context());
+      const link = find(root, ".weft-link") as HTMLElement;
+      expect(link.tagName).toBe("A");
+      expect(link.getAttribute("href")).toBe("https://example.org/seite");
+      expect(link.getAttribute("target")).toBe("_blank");
+      expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+      expect(link.getAttribute("aria-label")).toBeNull();
+      const mail = element();
+      renderLink(mail, { href: "mailto:a@example.org", label: "" }, context());
+      expect(find(mail, ".weft-link")?.getAttribute("target")).toBeNull();
+      // (A link that is only a symbol is named by where it leads.)
+      expect(find(mail, ".weft-link")?.getAttribute("aria-label")).toBe("mailto:a@example.org");
+    });
+
+    it("hands the address to the window around it where the page cannot open a tab", () => {
+      const root = element();
+      renderLink(root, props, context(true));
+      const click = new window.Event("click", { bubbles: true, cancelable: true });
+      find(root, ".weft-link")?.dispatchEvent(click);
+      expect(open).toHaveBeenCalledWith("https://example.org/seite");
+      expect(click.defaultPrevented).toBe(true);
+    });
+
+    it("is no link where the address leads nowhere", () => {
+      const root = element();
+      renderLink(root, { href: "", label: "Tot" }, context());
+      expect(find(root, ".weft-link")?.tagName).toBe("SPAN");
+      expect(find(root, "a")).toBeNull();
+    });
+  } else {
+    it("is only a picture of a link: nothing to click", () => {
+      const root = element();
+      renderLink(root, props, context(true));
+      const link = find(root, ".weft-link") as HTMLElement;
+      expect(link.tagName).toBe("SPAN");
+      expect(find(root, "a")).toBeNull();
+      expect(link.getAttribute("href")).toBeNull();
+    });
+
+    it(mode === "print" ? "has the address as a link of the PDF where it stands" : "has no link in the PDF to make", () => {
+      const link = find((() => { const root = element(); renderLink(root, props, context()); return root; })(), ".weft-link") as HTMLElement;
+      expect(link.getAttribute("data-pdf-link")).toBe(mode === "print" ? "https://example.org/seite" : null);
     });
   }
 });

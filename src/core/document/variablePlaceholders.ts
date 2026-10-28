@@ -1,5 +1,5 @@
 import type { Block } from "../types";
-import { shownWordings } from "../blocks/registry";
+import { variableWordings } from "../blocks/registry";
 
 import { tr } from "../i18n/tr";
 // Must match VARIABLE_PLACEHOLDER in player.runtime.js: a placeholder is recognised only when it
@@ -62,7 +62,7 @@ export function placeholderSources(block: Block): string[] {
       return [escapeText(block.text), ...Object.values(block.translations ?? {}).flatMap((t) => (t.text !== undefined ? [escapeText(t.text)] : []))];
     default:
       // (A block that describes itself says which of its texts are seen: plain texts, escaped first.)
-      return shownWordings(block).flatMap(({ own, translated }) => [...(own ? [escapeText(own)] : []), ...translated.map(escapeText)]);
+      return variableWordings(block).flatMap(({ own, translated }) => [...(own ? [escapeText(own)] : []), ...translated.map(escapeText)]);
   }
 }
 

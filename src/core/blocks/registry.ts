@@ -2,6 +2,7 @@ import type { Block } from "../types";
 import type { BlockDescriptor, FieldSpec, ListField, TaskSpec, TextField } from "./types";
 import { galleryBlock } from "./gallery/descriptor";
 import { iframeBlock } from "./iframe/descriptor";
+import { linkBlock } from "./link/descriptor";
 import { solutionBlock } from "./solution/descriptor";
 
 /**
@@ -17,6 +18,7 @@ export function registerBlock<B extends Block>(descriptor: BlockDescriptor<B>): 
 registerBlock(solutionBlock);
 registerBlock(galleryBlock);
 registerBlock(iframeBlock);
+registerBlock(linkBlock);
 
 /** The descriptor of a kind, if it has one. */
 export function descriptorOf<B extends Block>(block: B): BlockDescriptor<B> | undefined;
@@ -81,22 +83,19 @@ export function assetIdsOfFields(block: Block): string[] {
   return ids.filter((id): id is string => typeof id === "string" && id !== "");
 }
 
-/**
- * The texts of a block that the learner sees (the fields marked `shown`, and those of the items of its lists), each as the block's own wording and
- * every other language's - for a block without a descriptor none.
- */
-export function shownWordings(block: Block): { own: string; translated: string[] }[] {
+type Flag = "shown" | "variables";
+
+function wordingsWith(block: Block, flag: Flag): { own: string; translated: string[] }[] {
   const record = block as unknown as Record<string, unknown>;
   const translations = Object.values((record.translations as Record<string, Record<string, unknown>> | undefined) ?? {});
   const wordings: { own: string; translated: string[] }[] = [];
   for (const [name, spec] of fieldsOf(block)) {
-    if (spec.type === "text" && spec.shown) {
+    if (spec.type === "text" && spec[flag]) {
       const key = spec.translationKey || name;
       wordings.push({ own: (record[name] as string | undefined) ?? "", translated: translations.flatMap((t) => (typeof t[key] === "string" ? [t[key] as string] : [])) });
     } else if (spec.type === "list") {
       const textName = itemTextName(spec);
-      const shown = textName && (spec.item[textName] as TextField).shown;
-      if (!textName || !shown) continue;
+      if (!textName || !(spec.item[textName] as TextField)[flag]) continue;
       for (const item of (record[name] as (Items[number] & Record<string, unknown>)[] | undefined) ?? []) {
         wordings.push({
           own: (item[textName] as string | undefined) ?? "",
@@ -109,6 +108,19 @@ export function shownWordings(block: Block): { own: string; translated: string[]
     }
   }
   return wordings;
+}
+
+/**
+ * The texts of a block that the learner sees (the fields marked `shown`, and those of the items of its lists), each as the block's own wording and
+ * every other language's - for a block without a descriptor none.
+ */
+export function shownWordings(block: Block): { own: string; translated: string[] }[] {
+  return wordingsWith(block, "shown");
+}
+
+/** The texts of a block in which the player puts in the values of variables for placeholders (the fields marked `variables`): as `shownWordings`. */
+export function variableWordings(block: Block): { own: string; translated: string[] }[] {
+  return wordingsWith(block, "variables");
 }
 
 /** The texts of a block that `weft text export` lists: its translatable text fields that say what they are (`cli`), in the order of the descriptor. */

@@ -25,7 +25,7 @@ export const galleryBlock: BlockDescriptor<GalleryBlock> = {
       type: "list",
       item: {
         assetId: { type: "asset", kind: "image" },
-        caption: { type: "text", translatable: true, shown: true, ui: { label: "ui.gallery_caption" } },
+        caption: { type: "text", translatable: true, shown: true, variables: true, ui: { label: "ui.gallery_caption" } },
       },
       newItem: (asset) => ({ id: createId(), assetId: asset, caption: "" }),
       history: { add: "Bild zur Galerie hinzufügen", addMany: "Bilder zur Galerie hinzufügen", change: "Bild der Galerie wählen" },

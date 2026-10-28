@@ -6398,44 +6398,6 @@ h2.weft-inspector-header {
   padding: 2px 0;
 }
 
-/* A link (LinkBlock, blocks/LinkView.tsx; the player has the same in player.runtime.css): a button of the module's style - the dark grey of a
-   revealer's window, the corners and the typeface of the interactive elements - with a globe (or a download symbol) in front of the text. */
-.weft-link {
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5em;
-  width: 100%;
-  height: 100%;
-  padding: 0 var(--slide-ui-pad-x);
-  overflow: hidden;
-  white-space: nowrap;
-  border-radius: var(--slide-ui-radius);
-  clip-path: var(--slide-ui-clip);
-  background: #1c2230;
-  color: #d7deee;
-  font-family: var(--slide-ui-font);
-  font-size: calc(1.7cqw * var(--slide-ui-scale));
-  font-weight: var(--slide-ui-weight);
-  letter-spacing: var(--slide-ui-spacing);
-  line-height: 1.2;
-  text-decoration: none;
-}
-
-.weft-link-icon {
-  display: inline-flex;
-  flex: none;
-  font-size: 1.15em;
-  /* The globe is in the accent colour (as it stands out from the dark grey), the text stays light. */
-  color: var(--slide-accent-on-dark, #3b82f6);
-}
-
-.weft-link-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 /* A checker (CheckerBlock, blocks/CheckerView.tsx): a quiz's one answer and its button, on the canvas as in the thumbnails - the sizes and the
    look of both are the .weft-thumb-block-quiz-* ones above. The text keeps its line breaks. */
 .weft-checker-view {

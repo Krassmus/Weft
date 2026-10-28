@@ -34,9 +34,12 @@ export interface TextField {
   translatable?: boolean;
   /** The key in a BlockTranslation, where it is not the field's own name (a placeholder is kept as `text`: the field is older than the key). */
   translationKey?: keyof BlockTranslation;
-  /** The learner sees it: it may hold placeholders for variables ("{{punkte}}"), is found when a variable is looked for, and is part of the block's plain
-   * text (the clipboard's). */
+  /** The learner sees it: it is part of the block's plain text (the clipboard's). */
   shown?: boolean;
+  /** The player puts the value of a variable in for a placeholder in it ("{{punkte}}"): it is found when a variable is looked for, and checked. */
+  variables?: boolean;
+  /** A value that is valid for the field, where not every text is (an address): what the tests fill it with. */
+  sample?: string;
   /** `weft text export`: the key of the text is `<block>#<part>`, `role` says what it is for (German, like the tool). */
   cli?: { part: string; role: string };
   ui?: FieldUi;
@@ -135,6 +138,8 @@ export interface BlockProblem {
   level: "error" | "warning" | "info";
   code: string;
   message: string;
+  /** What to do about it (German). */
+  hint?: string;
 }
 
 export interface BlockDescriptor<B extends Block = Block> {

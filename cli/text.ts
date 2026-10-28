@@ -104,7 +104,8 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
     case "checker":
       return `„${words(block.text, 40) || "(ohne Text)"}"${block.required ? " [Pflicht]" : ""}`;
     case "link":
-      return `„${words(block.text, 40) || "(ohne Text)"}" → ${block.url ?? "(ohne Adresse)"}`;
+      // (Described above.)
+      return "";
     case "files":
       return `${block.files.length} Dateien${block.protection ? ", geschützt" : ""}`;
     case "language":

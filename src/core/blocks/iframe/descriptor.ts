@@ -15,7 +15,7 @@ export const iframeBlock: BlockDescriptor<IframeBlock> = {
   description: "Eine eingebettete Seite (oder ein QR-Code dafür).",
   placement: { pageOnly: false, box: { x: 10, y: 40, width: 80, height: 20 } },
   fields: {
-    url: { type: "text" },
+    url: { type: "text", sample: "https://example.org/seite" },
     allow: { type: "text" },
     qrCode: { type: "bool" },
     presentationUrl: { type: "text" },

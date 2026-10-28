@@ -7,7 +7,6 @@ import { orderedValues } from "../src/core/document/ordering";
 import { pageLabels } from "../src/core/document/pageLabels";
 import { branchPageIds, sequenceOf } from "../src/core/document/sequence";
 import { isTranslated, plainTextOfHtml } from "../src/core/document/translations";
-import { safeLinkUrl } from "../src/core/document/linkUrl";
 import { placeholderSources } from "../src/core/document/variablePlaceholders";
 import { virtualVariablesFor } from "../src/core/document/virtualVariables";
 import { formulaProblem } from "../src/core/document/variables";
@@ -56,7 +55,6 @@ const KIND_DEFINITIONS: Record<string, string> = {
   video: "VideoBlock",
   audio: "AudioBlock",
   button: "ButtonBlock",
-  link: "LinkBlock",
   checker: "CheckerBlock",
   matching: "MatchingBlock",
   sort: "SortBlock",
@@ -500,13 +498,7 @@ export function validate(loaded: LoadedWeft): Finding[] {
     }
 
     // What a block that describes itself (see core/blocks) says is wrong with it.
-    for (const problem of descriptorOf(block)?.validate?.(block as never, content) ?? []) add(problem.level, problem.code, problem.message, here);
-
-    // Link.
-    if (block.kind === "link") {
-      if ((block.url ?? "").trim() === "" || block.url.trim() === "https://") add("warning", "link-no-target", "Der Link hat noch keine Adresse.", { ...here, hint: "url auf eine Adresse mit https://, mailto: oder tel: setzen." });
-      else if (safeLinkUrl(block.url) === null) add("error", "link-url-invalid", `Der Link führt zu „${block.url}", dahin kann ein Link nicht führen.`, { ...here, hint: "Nur Adressen mit http(s)://, mailto: oder tel: sind erlaubt." });
-    }
+    for (const problem of descriptorOf(block)?.validate?.(block as never, content) ?? []) add(problem.level, problem.code, problem.message, problem.hint ? { ...here, hint: problem.hint } : here);
 
     // Quiz.
     if (block.kind === "quiz") {
@@ -571,7 +563,7 @@ export function validate(loaded: LoadedWeft): Finding[] {
     };
     // (A block that describes itself: any of its texts has words.)
     if (languages.length > 1 && descriptorOf(block) && [...exportedTexts(block), ...exportedItemTexts(block)].some(({ value }) => value.trim() !== "")) markUntranslated();
-    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
+    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
       const hasWords =
         block.kind === "quiz"
           ? plainTextOfHtml(block.questionHtml).trim() !== ""
@@ -581,7 +573,7 @@ export function validate(loaded: LoadedWeft): Finding[] {
               ? block.items.some((item) => item.text.trim() !== "")
             : block.kind === "matching"
               ? [...block.sources, ...block.targets].some((item) => item.text.trim() !== "")
-              : block.kind === "button" || block.kind === "link" || block.kind === "checker"
+              : block.kind === "button" || block.kind === "checker"
               ? block.text.trim() !== ""
               : plainTextOfHtml(block.html).trim() !== "";
       // A text that stands for a placeholder of the layout is the page's own, and has its words in each language like any other.

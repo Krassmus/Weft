@@ -13,6 +13,7 @@ import "./fonts.css";
 import "./core/runtime/stageTheme.css";
 import "./core/runtime/quizCard.css";
 import "./core/blocks/iframe/render.css";
+import "./core/blocks/link/render.css";
 import "./App.css";
 
 /** The settings window (see src-tauri/src/lib.rs's "weft-settings" menu handler) loads this

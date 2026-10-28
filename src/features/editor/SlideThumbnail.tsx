@@ -29,12 +29,10 @@ import video2IconSvg from "../../../mockups/icons/video2.svg?raw";
 import checkboxCheckedSvg from "../../../mockups/icons/checkbox-checked.svg?raw";
 import checkboxUncheckedSvg from "../../../mockups/icons/checkbox-unchecked.svg?raw";
 import acceptSvg from "../../../mockups/icons/accept.svg?raw";
-import { LinkView } from "./blocks/LinkView";
 import { CheckerView } from "./blocks/CheckerView";
 import { MatchingView } from "./blocks/MatchingView";
 import { viewOf } from "./blocks/blockViews";
 import { SortView } from "./blocks/SortView";
-import { safeLinkUrl } from "../../core/document/linkUrl";
 import { ScriptHexagon } from "./blocks/ScriptHexagon";
 
 const THUMB_MAX_HEIGHT_PX = 150;
@@ -351,15 +349,6 @@ function ThumbBlockBody({
         ) : (
           playerStringsFor(lang).next
         )}
-      </div>
-    );
-  }
-  if (block.kind === "link") {
-    // (In the PDF a link is a link: where it stands in the picture, the address is clickable - see exportPdf.tsx.)
-    const address = safeLinkUrl(block.url);
-    return (
-      <div className="weft-thumb-block weft-thumb-block-link" style={style} {...(address ? { "data-pdf-link": address } : {})}>
-        <LinkView block={block} lang={lang} defaultLang={defaultLang} />
       </div>
     );
   }

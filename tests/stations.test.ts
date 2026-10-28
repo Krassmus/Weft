@@ -5,7 +5,7 @@ import { runOperations } from "../cli/ops";
 import { setCurrentModule } from "../cli/storeStub";
 import { collectTexts, exportTexts, importTexts } from "../cli/texts";
 import { validate } from "../cli/validate";
-import { describedKinds, descriptorOf, exportedItemTexts, exportedTexts, fieldsOf, isPageOnlyKind, isTaskBlock, listFieldsOf, shownWordings } from "../src/core/blocks/registry";
+import { describedKinds, descriptorOf, exportedItemTexts, exportedTexts, fieldsOf, isPageOnlyKind, isTaskBlock, listFieldsOf, shownWordings, variableWordings } from "../src/core/blocks/registry";
 import type { BlockDescriptor, FieldSpec, ListField } from "../src/core/blocks/types";
 import { pasteBlockInto } from "../src/core/document/actions";
 import { clipboardEntryPlainText } from "../src/core/document/clipboard";
@@ -38,7 +38,7 @@ type Fields = Record<string, unknown>;
 function sampleOf(name: string, spec: FieldSpec, ids: { asset: string; variable: string }): unknown {
   switch (spec.type) {
     case "text":
-      return `Beispiel ${name}`;
+      return spec.sample ?? `Beispiel ${name}`;
     case "bool":
       return true;
     case "int":
@@ -207,17 +207,17 @@ describe.each(KINDS)("%s with every field filled", (kind) => {
     if (wanted.size === 0) for (const id of ["asset-1", "asset-2"]) expect(used.has(id), id).toBe(false);
   });
 
-  it("is found by the variable placeholders and the clipboard where it shows words", () => {
+  it("is found by the clipboard where it shows words, and by the variable placeholders where the player puts values in", () => {
     const { block } = moduleWith(kind, true);
-    const shown = shownWordings(block).filter((wording) => hasWords(wording.own));
-    const sources = placeholderSources(block);
     const text = clipboardEntryPlainText({ kind: "block", block } as never);
-    for (const wording of shown) {
-      expect(sources, wording.own).toContain(escapeText(wording.own));
-      expect(text, wording.own).toContain(wording.own);
-    }
-    // (A block that shows no words has none to find.)
-    if (shownWordings(block).length === 0) expect(sources).toEqual([]);
+    for (const wording of shownWordings(block).filter((wording) => hasWords(wording.own))) expect(text, wording.own).toContain(wording.own);
+    const sources = placeholderSources(block);
+    const withValues = variableWordings(block);
+    for (const wording of withValues.filter((wording) => hasWords(wording.own))) expect(sources, wording.own).toContain(escapeText(wording.own));
+    // (What the player puts nothing in for is not looked at.)
+    expect(sources.length).toBe(withValues.reduce((count, wording) => count + (wording.own ? 1 : 0) + wording.translated.length, 0));
+    // (Every text that has placeholders is a text that is shown.)
+    expect(shownWordings(block).length).toBeGreaterThanOrEqual(withValues.length);
   });
 });
 

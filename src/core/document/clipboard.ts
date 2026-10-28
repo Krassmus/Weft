@@ -83,7 +83,6 @@ function blockLines(block: Block): string[] {
       return plainLinesOfHtml(block.html);
     case "button":
       return plainLinesOfHtml(block.html ?? block.text);
-    case "link":
     case "checker":
       return [block.text];
     case "matching":

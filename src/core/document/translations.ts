@@ -166,15 +166,6 @@ function translatableFields(block: Block): { name: string; key: keyof BlockTrans
     .map(([name]) => ({ name, key: wordingKey(block, name) }));
 }
 
-/** The text of a link in `language`: its translation if there is one, else the block's own (the default language's). */
-export function linkText(block: LinkBlock, language: string | null, defaultLanguage: string | null): string {
-  return translationOf(block.translations, language, defaultLanguage)?.text ?? block.text;
-}
-
-export function linkTextPatch(block: LinkBlock, language: string | null, defaultLanguage: string | null, text: string) {
-  return wordingPatch(block, language, defaultLanguage, { text }, (t) => ({ ...t, text })) as Partial<LinkBlock>;
-}
-
 /** The presenter notes of a page in `language` (see Page.notes): the translation if there is one, else the default language's. */
 export function pageNotes(page: { notes?: string; notesTranslations?: Record<string, string> }, language: string | null, defaultLanguage: string | null): string {
   if (isOwnWording(language, defaultLanguage) || !language) return page.notes ?? "";
@@ -454,13 +445,13 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       (block as Translatable).translations = translations;
       continue;
     }
-    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "link" && block.kind !== "checker" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "list") continue;
+    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "checker" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "list") continue;
     const incoming = block.translations?.[newDefault];
     const outgoing: BlockTranslation = {};
     if (block.kind === "text" || block.kind === "cloze") {
       outgoing.html = block.html;
       if (incoming?.html !== undefined) block.html = incoming.html;
-    } else if (block.kind === "link" || block.kind === "checker") {
+    } else if (block.kind === "checker") {
       outgoing.text = block.text;
       if (incoming?.text !== undefined) block.text = incoming.text;
     } else if (block.kind === "button") {

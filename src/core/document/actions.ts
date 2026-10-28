@@ -691,11 +691,9 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
       };
     }
     case "solution":
+    case "gallery":
       // (A kind with a descriptor is made above - it has no case of its own.)
       throw new Error(`The kind "${kind}" has no descriptor.`);
-    case "gallery":
-      // No pictures yet: they are chosen in the panel (or by a drop of files on the block).
-      return { ...base, kind, position: { x: 20, y: 15, width: 60, height: 70 }, items: [] };
     case "checker":
       return {
         ...base,

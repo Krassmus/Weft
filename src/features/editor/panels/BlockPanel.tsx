@@ -43,7 +43,7 @@ import { useTranslation } from "../../../core/i18n/useTranslation";
 import { SecondsControl } from "./SecondsControl";
 import { StepperSlider } from "./StepperSlider";
 import { ActionEffectsEditor } from "./ActionEffectsEditor";
-import { addFilesToBlock, addGalleryImages, removeFileFromBlock, setFilesPassword, setGalleryImage, setMatchingImage, setSortImage } from "../../../core/document/filesActions";
+import { addFilesToBlock, removeFileFromBlock, setFilesPassword, setMatchingImage, setSortImage } from "../../../core/document/filesActions";
 import { safeLinkUrl } from "../../../core/document/linkUrl";
 import type { BlockContainerRef } from "../../../core/document/store";
 import { confirmDestructive, pickFilesFromDisk, pickFontFile, pickScriptFile, warnAboutVideoUploads } from "../../../core/io/fileIO";
@@ -61,7 +61,6 @@ import type {
   ClozeBlock,
   MatchItem,
   MatchingBlock,
-  GalleryBlock,
   SortBlock,
   SortItem,
   CodeBlock,
@@ -114,7 +113,7 @@ import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from ".
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { galleryCaption, galleryCaptionPatch, matchingItemText, matchingItemTextPatch, sortItemText, sortItemTextPatch, sortLabel, sortLabelPatch, linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
+import { matchingItemText, matchingItemTextPatch, sortItemText, sortItemTextPatch, sortLabel, sortLabelPatch, linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
 import type { RevealerWording } from "../../../core/document/translations";
 import { revealerIconSvg } from "../../../core/runtime/revealerGeometry";
 import { clozeBlanks } from "../../../core/document/cloze";
@@ -249,11 +248,10 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, onSetAudio
       {block.kind === "link" && <LinkEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "revealer" && <RevealerEditor block={block} page={page} onUpdate={onUpdate} onSetImage={onSetImage} />}
       {block.kind === "quiz" && <QuizEditor block={block} page={page} onUpdate={onUpdate} />}
-      {descriptorOf(block) && <FieldsPanel block={block} page={page} onUpdate={onUpdate} />}
+      {descriptorOf(block) && <FieldsPanel block={block} container={container} page={page} onUpdate={onUpdate} />}
       {block.kind === "checker" && <CheckerEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "matching" && <MatchingEditor block={block} container={container} page={page} onUpdate={onUpdate} />}
-      {block.kind === "gallery" && <GalleryEditor block={block} container={container} onUpdate={onUpdate} />}
-      {block.kind === "sort" && <SortEditor block={block} container={container} page={page} onUpdate={onUpdate} />}
+            {block.kind === "sort" && <SortEditor block={block} container={container} page={page} onUpdate={onUpdate} />}
       {block.kind === "shape" && <ShapeEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "arrow" && <ArrowEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "progress" && <ProgressEditor block={block} onUpdate={onUpdate} />}
@@ -3452,102 +3450,6 @@ function MatchingEditor({ block, container, page, onUpdate }: { block: MatchingB
 /** The settings of a sorting puzzle (SortBlock): the objects (text or picture) in their RIGHT order - the learner sees them mixed up -, the
  * direction of the line and the words at its two ends, the size of an object, whether it is a required task, and what the submission, every
  * mistake and a right / wrong order do - changes to variables - and the way on to the next slide, as with a quiz. */
-function GalleryEditor({ block, container, onUpdate }: { block: GalleryBlock; container: BlockContainerRef; onUpdate: BlockPanelProps["onUpdate"] }) {
-  const { lang, defaultLang } = useEditingLanguage();
-  const [error, setError] = useState("");
-
-  async function run(task: Promise<void>) {
-    setError("");
-    try {
-      await task;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  }
-  function removeItem(id: string) {
-    const translations = block.translations
-      ? Object.fromEntries(Object.entries(block.translations).map(([language, t]) => [language, t.items ? { ...t, items: Object.fromEntries(Object.entries(t.items).filter(([key]) => key !== id)) } : t]))
-      : undefined;
-    onUpdate({ items: block.items.filter((item) => item.id !== id), ...(translations ? { translations } : {}) });
-  }
-  function move(index: number, step: -1 | 1) {
-    const items = [...block.items];
-    const to = index + step;
-    if (to < 0 || to >= items.length) return;
-    [items[index], items[to]] = [items[to], items[index]];
-    onUpdate({ items });
-  }
-
-  return (
-    <>
-      <Collapsible title={tr("ui.gallery")}>
-        <p className="weft-hint">{tr("ui.gallery_hint")}</p>
-        <LanguageSelect block={block} />
-      </Collapsible>
-      <Collapsible title={tr("ui.gallery_pictures")} defaultOpen>
-        {block.items.length === 0 && <p className="weft-hint">{tr("ui.gallery_empty")}</p>}
-        {block.items.map((item, index) => (
-          <div key={item.id} className="weft-matching-row">
-            <div className="weft-matching-row-head">
-              <GalleryThumb assetId={item.assetId} />
-              <button type="button" className="weft-icon-button" title={tr("ui.gallery_move_up")} aria-label={tr("ui.gallery_move_up")} disabled={index === 0} onClick={() => move(index, -1)}>
-                ↑
-              </button>
-              <button type="button" className="weft-icon-button" title={tr("ui.gallery_move_down")} aria-label={tr("ui.gallery_move_down")} disabled={index === block.items.length - 1} onClick={() => move(index, 1)}>
-                ↓
-              </button>
-              <button type="button" className="weft-icon-button" title={tr("ui.gallery_remove_picture")} aria-label={tr("ui.gallery_remove_picture")} onClick={() => removeItem(item.id)}>
-                ×
-              </button>
-            </div>
-            <input
-              value={galleryCaption(block, item, lang, defaultLang)}
-              placeholder={tr("ui.gallery_caption")}
-              aria-label={tr("ui.gallery_caption")}
-              onChange={(e) => onUpdate(galleryCaptionPatch(block, item.id, lang, defaultLang, e.target.value))}
-            />
-            <label className="weft-ghost-button weft-full-width weft-matching-file">
-              {item.assetId ? tr("ui.gallery_change_picture") : tr("ui.gallery_choose_picture")}
-              <input
-                type="file"
-                accept="image/*"
-                hidden
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  if (file) void run(setGalleryImage(container, block.id, item.id, file));
-                }}
-              />
-            </label>
-          </div>
-        ))}
-        <label className="weft-ghost-button weft-full-width weft-matching-file">
-          {tr("ui.gallery_add_pictures")}
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={(e) => {
-              const files = [...(e.target.files ?? [])];
-              e.target.value = "";
-              if (files.length > 0) void run(addGalleryImages(container, block.id, files));
-            }}
-          />
-        </label>
-        {error && <p className="weft-placeholder-warning">{error}</p>}
-      </Collapsible>
-    </>
-  );
-}
-
-/** A small preview of a gallery's picture in the panel. */
-function GalleryThumb({ assetId }: { assetId: string | null }) {
-  const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
-  const src = assetId ? getObjectUrl(assetId) : undefined;
-  return <span className="weft-gallery-thumb">{src && <img src={src} alt="" draggable={false} />}</span>;
-}
-
 function SortEditor({ block, container, page, onUpdate }: { block: SortBlock; container: BlockContainerRef; page?: Page; onUpdate: BlockPanelProps["onUpdate"] }) {
   const goesOn = (outcome: "richtig" | "falsch") => !!page?.timeline.ends[quizEndNodeId(block.id, outcome)];
   const variables = useDocumentStore((s) => s.doc.content.variables);

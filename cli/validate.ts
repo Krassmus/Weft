@@ -1,5 +1,5 @@
 import Ajv from "ajv";
-import { descriptorOf, exportedTexts, fieldsOf } from "../src/core/blocks/registry";
+import { descriptorOf, exportedItemTexts, exportedTexts, fieldsOf } from "../src/core/blocks/registry";
 import type { ErrorObject } from "ajv";
 import schema from "../docs/weft.schema.json";
 import { buildGraphModel } from "../src/features/editor/eventGraph/model";
@@ -61,7 +61,6 @@ const KIND_DEFINITIONS: Record<string, string> = {
   checker: "CheckerBlock",
   matching: "MatchingBlock",
   sort: "SortBlock",
-  gallery: "GalleryBlock",
   quiz: "QuizBlock",
   cloze: "ClozeBlock",
   shape: "ShapeBlock",
@@ -502,18 +501,7 @@ export function validate(loaded: LoadedWeft): Finding[] {
     }
 
     // What a block that describes itself (see core/blocks) says is wrong with it.
-    for (const problem of descriptorOf(block)?.validate?.(block as never) ?? []) add(problem.level, problem.code, problem.message, here);
-
-    // Gallery.
-    if (block.kind === "gallery") {
-      const items = block.items ?? [];
-      if (items.length === 0) add("warning", "gallery-empty", "Die Galerie hat noch kein Bild.", here);
-      for (const item of items) {
-        if (!item.assetId) add("warning", "gallery-no-image", "Ein Bild der Galerie hat noch keine Datei.", here);
-        else if (!content.assets.some((a) => a.id === item.assetId)) add("error", "asset-missing", `Ein Bild der Galerie verweist auf die Datei ${item.assetId}, die nicht in der Liste der Dateien steht.`, here);
-        else if (!item.caption?.trim()) add("info", "image-no-alt", "Ein Bild der Galerie ohne Bildunterschrift (caption) - sie ist auch die Beschreibung für alle, die das Bild nicht sehen.", here);
-      }
-    }
+    for (const problem of descriptorOf(block)?.validate?.(block as never, content) ?? []) add(problem.level, problem.code, problem.message, here);
 
     // Link.
     if (block.kind === "link") {
@@ -583,15 +571,13 @@ export function validate(loaded: LoadedWeft): Finding[] {
       }
     };
     // (A block that describes itself: any of its texts has words.)
-    if (languages.length > 1 && descriptorOf(block) && exportedTexts(block).some(({ value }) => value.trim() !== "")) markUntranslated();
-    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort" || block.kind === "gallery" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
+    if (languages.length > 1 && descriptorOf(block) && [...exportedTexts(block), ...exportedItemTexts(block)].some(({ value }) => value.trim() !== "")) markUntranslated();
+    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
       const hasWords =
         block.kind === "quiz"
           ? plainTextOfHtml(block.questionHtml).trim() !== ""
           : block.kind === "list"
             ? block.items.length > 0
-            : block.kind === "gallery"
-              ? block.items.some((item) => item.caption.trim() !== "")
             : block.kind === "sort"
               ? block.items.some((item) => item.text.trim() !== "")
             : block.kind === "matching"

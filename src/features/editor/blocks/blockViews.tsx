@@ -1,34 +1,46 @@
 import type { ReactNode } from "react";
-import type { Block, SolutionBlock } from "../../../core/types";
+import type { Block, GalleryBlock, SolutionBlock } from "../../../core/types";
+import { GalleryCanvas } from "./GalleryCanvas";
+import { GalleryView } from "./GalleryView";
 import { SolutionView } from "./SolutionView";
+
+/** What a view is given. */
+export interface BlockViewProps<B extends Block = Block> {
+  block: B;
+  lang: string | null;
+  defaultLang: string | null;
+  selected: boolean;
+  onUpdate?: (patch: Partial<Block>) => void;
+}
 
 /**
  * What the editor draws of a kind of block that describes itself (see core/blocks/registry.ts): the editor's half of the descriptor - the things
- * that are React. The canvas and the thumbnails draw the same `View`; a block that can be used in the editor itself (dragged, written into) has
- * a canvas of its own and is not in here yet.
+ * that are React. The icon is in describedIcons.tsx.
  */
 export interface BlockViewSpec<B extends Block = Block> {
-  /** The paths of the icon (24 by 24, drawn with lines) - in the "+" menu and in the list of a slide's elements. */
-  icon: ReactNode;
-  /** The block as it is drawn; nothing in it can be used. */
-  View(props: { block: B; lang: string | null; defaultLang: string | null }): ReactNode;
+  /** The block as it is drawn in a thumbnail (and, without a `Canvas`, on the canvas); nothing in it can be used. */
+  View(props: BlockViewProps<B>): ReactNode;
+  /** The block on the canvas, where it can be used a little (a selected gallery is paged through). */
+  Canvas?(props: BlockViewProps<B>): ReactNode;
   /** Dragged from anywhere on it (not only by its frame). */
   freelyMovable: boolean;
 }
 
 const solutionView: BlockViewSpec<SolutionBlock> = {
-  icon: (
-    <>
-      <rect x="3" y="5" width="18" height="8" rx="1.8" />
-      <path d="M7 9h.01M11 9h.01M15 9h.01" strokeWidth="2.6" />
-      <rect x="8" y="16" width="8" height="3.6" rx="1.4" />
-    </>
-  ),
-  View: SolutionView,
+  View: ({ block, lang, defaultLang }) => <SolutionView block={block} lang={lang} defaultLang={defaultLang} />,
   freelyMovable: true,
 };
 
-const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = { solution: solutionView as BlockViewSpec<never> };
+const galleryView: BlockViewSpec<GalleryBlock> = {
+  View: ({ block }) => <GalleryView block={block} />,
+  Canvas: ({ block, selected }) => <GalleryCanvas block={block} selected={selected} />,
+  freelyMovable: true,
+};
+
+const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
+  solution: solutionView as BlockViewSpec<never>,
+  gallery: galleryView as BlockViewSpec<never>,
+};
 
 /** The editor's views of a kind, if it has them here. */
 export function viewOf(kind: Block["kind"]): BlockViewSpec | undefined {

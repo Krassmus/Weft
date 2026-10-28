@@ -46,8 +46,9 @@ Guides: [docs/ai-authoring.en.md](docs/ai-authoring.en.md), [docs/operations.en.
   die alle Blöcke gleich behandeln (Menü, Standardwerte, Übersetzungen, Event-Graph, Textexport,
   `weft validate` / `inspect` / `schema`, das Panel in der Seitenleiste), fragen die Registry
   (`registry.ts`) statt eines eigenen `switch (block.kind)`. Der React-Teil (Icon, Ansicht) steht im
-  Editor in `features/editor/blocks/blockViews.tsx`. Bisher beschreibt sich nur das Lösungswort so
-  (`blocks/solution/`); die anderen Arten sind noch von Hand an diesen Stellen eingetragen. Der Deskriptor
+  Editor in `features/editor/blocks/blockViews.tsx`. Bisher beschreiben sich das Lösungswort und die Galerie so
+  (`blocks/solution/`, `blocks/gallery/`; Feldtypen: Text, Ja/Nein, Zahl, Variablen-Effekte, Datei, Liste von
+  Elementen mit Datei und Text); die anderen Arten sind noch von Hand an diesen Stellen eingetragen. Der Deskriptor
   ist so geschnitten (nur Daten und reine Funktionen auf dem JSON des Blocks), dass er das Manifest
   eines Plugin-Blocks werden kann.
 - **Undo/Redo über immer-Patches**, gespeichert *im Dokument selbst*

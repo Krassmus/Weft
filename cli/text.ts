@@ -95,7 +95,8 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
       return `richtige Reihenfolge: ${items}${ends}${block.orientation === "horizontal" ? " [waagerecht]" : ""}${block.required ? " [Pflicht]" : ""}`;
     }
     case "gallery":
-      return `${block.items.length} Bilder: ${block.items.map((item) => `[${words(item.caption, 20) || "ohne Bildunterschrift"}]`).join(", ")}`;
+      // (Described above.)
+      return "";
     case "solution":
       // (Described above.)
       return "";

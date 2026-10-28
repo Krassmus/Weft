@@ -35,7 +35,6 @@ import { tr } from "../../core/i18n/tr";
 import { LinkView } from "./blocks/LinkView";
 import { CheckerView } from "./blocks/CheckerView";
 import { MatchingView } from "./blocks/MatchingView";
-import { GalleryView } from "./blocks/GalleryView";
 import { viewOf } from "./blocks/blockViews";
 import { SortView } from "./blocks/SortView";
 import { safeLinkUrl } from "../../core/document/linkUrl";
@@ -392,14 +391,7 @@ function ThumbBlockBody({
   if (view) {
     return (
       <div className="weft-thumb-block" style={style}>
-        <view.View block={block} lang={lang} defaultLang={defaultLang} />
-      </div>
-    );
-  }
-  if (block.kind === "gallery") {
-    return (
-      <div className="weft-thumb-block" style={style}>
-        <GalleryView block={block} />
+        <view.View block={block} lang={lang} defaultLang={defaultLang} selected={false} />
       </div>
     );
   }

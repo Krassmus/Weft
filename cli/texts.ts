@@ -2,7 +2,7 @@ import { orderedValues } from "../src/core/document/ordering";
 import { pageLabels } from "../src/core/document/pageLabels";
 import { branchPageIds, sequenceOf } from "../src/core/document/sequence";
 import { buildLanguageCatalog } from "../src/core/i18n/languages";
-import { descriptorOf, exportedTexts } from "../src/core/blocks/registry";
+import { descriptorOf, exportedItemTexts, exportedTexts } from "../src/core/blocks/registry";
 import { plainTextOfHtml } from "../src/core/document/translations";
 import type { Block, WeftModule } from "../src/core/types";
 import { CliError } from "./load";
@@ -95,11 +95,6 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
         ...(block.endLabel?.trim() ? [{ key: `${id}#end`, source: plain(block.endLabel), role: "Wort am Ende der Linie" }] : []),
       ];
     }
-    case "gallery":
-      return block.items
-        .map((item, index) => ({ item, role: `Bild ${index + 1} (Bildunterschrift)` }))
-        .filter(({ item }) => hasWords(item.caption))
-        .map(({ item, role }) => ({ key: `${id}#item:${item.id}`, source: item.caption.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role }));
     case "link":
     case "checker":
       return hasWords(block.text) ? [{ key: `${id}#label`, source: block.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role: "Text" }] : [];
@@ -115,7 +110,13 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
       // A block that describes itself (see core/blocks): its translatable texts are plain texts.
       return exportedTexts(block)
         .filter(({ value }) => hasWords(value))
-        .map(({ part, role, value }) => ({ key: `${id}#${part}`, source: value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role }));
+        .map(({ part, role, value }) => ({ key: `${id}#${part}`, source: value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role }))
+        // (And the words of the items of its lists - a picture's caption: plain texts, escaped first, with the id of the item in the key.)
+        .concat(
+          exportedItemTexts(block)
+            .filter(({ value }) => hasWords(value))
+            .map(({ itemId, role, value }) => ({ key: `${id}#item:${itemId}`, source: value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role })),
+        );
   }
 }
 
@@ -138,7 +139,7 @@ function htmlToPlain(html: string): string {
     .trim();
 }
 
-const KIND_NAMES: Record<string, string> = { matching: "Matching", sort: "Sortierrätsel", gallery: "Bildergalerie", checker: "Checker", link: "Link", text: "Text", cloze: "Lückentext", quiz: "Quiz", list: "Liste", button: "Button", revealer: "Info-Symbol" };
+const KIND_NAMES: Record<string, string> = { matching: "Matching", sort: "Sortierrätsel", checker: "Checker", link: "Link", text: "Text", cloze: "Lückentext", quiz: "Quiz", list: "Liste", button: "Button", revealer: "Info-Symbol" };
 
 /** The text a block has in `language`, if it has been translated (the block's own wording is not a translation). */
 function existingTranslation(block: Block, key: string, language: string): string {
@@ -158,7 +159,7 @@ function existingTranslation(block: Block, key: string, language: string): strin
   if (part.startsWith("item:")) {
     const own = translation.items?.[part.slice(5)] ?? "";
     // (The cards of a matching and the objects of a sorting puzzle are plain texts.)
-    return (block.kind === "matching" || block.kind === "sort" || block.kind === "gallery") && own ? plainToHtml(own) : own;
+    return (block.kind === "matching" || block.kind === "sort" || descriptorOf(block)) && own ? plainToHtml(own) : own;
   }
   return "";
 }
@@ -389,7 +390,7 @@ export function importTexts(content: WeftModule, file: TextsFile): ImportReport 
       else if (part === "start") target.startLabel = htmlToPlain(translated);
       else if (part === "end") target.endLabel = htmlToPlain(translated);
       else if (part.startsWith("option:")) (target.options ??= {})[part.slice(7)] = translated;
-      else if (part.startsWith("item:")) (target.items ??= {})[part.slice(5)] = block.kind === "matching" || block.kind === "sort" || block.kind === "gallery" ? htmlToPlain(translated) : translated;
+      else if (part.startsWith("item:")) (target.items ??= {})[part.slice(5)] = block.kind === "matching" || block.kind === "sort" || descriptorOf(block) ? htmlToPlain(translated) : translated;
       report.applied++;
     }
   }

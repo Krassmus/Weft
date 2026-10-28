@@ -1,6 +1,6 @@
-import { descriptorOf, fieldsOf } from "../blocks/registry";
+import { descriptorOf, fieldsOf, itemTextName, listFieldsOf } from "../blocks/registry";
 import type { FieldSpec } from "../blocks/types";
-import type { Block, BlockTranslation, ButtonBlock, CheckerBlock, SolutionBlock, ClozeBlock, LinkBlock, GalleryBlock, GalleryItem, MatchItem, MatchingBlock, ListBlock, QuizBlock, RevealerBlock, SortBlock, SortItem, TextBlock, WeftModule } from "../types";
+import type { Block, BlockTranslation, ButtonBlock, CheckerBlock, SolutionBlock, ClozeBlock, LinkBlock, GalleryBlock, MatchItem, MatchingBlock, ListBlock, QuizBlock, RevealerBlock, SortBlock, SortItem, TextBlock, WeftModule } from "../types";
 
 /**
  * Per-language wording of the blocks that carry text (text, quiz, button). The block's own fields
@@ -87,17 +87,34 @@ export function sortItemTextPatch(block: SortBlock, itemId: string, language: st
   return { translations: { ...block.translations, [language]: { ...existing, items: { ...existing.items, [itemId]: text } } } };
 }
 
-/** The caption of a gallery's picture in `language`: its translation if there is one, else the picture's own (the default language's). */
-export function galleryCaption(block: GalleryBlock, item: GalleryItem, language: string | null, defaultLanguage: string | null): string {
-  return translationOf(block.translations, language, defaultLanguage)?.items?.[item.id] ?? item.caption;
+/**
+ * The words of an item of a list of a block that describes itself (a gallery's caption) in `language`: its translation if there is one, else the
+ * item's own (the default language's).
+ */
+export function itemWording(block: Block, listName: string, itemId: string, language: string | null, defaultLanguage: string | null): string {
+  const textName = itemTextNameOf(block, listName);
+  const own = textName ? ((listItems(block, listName).find((item) => item.id === itemId)?.[textName] as string | undefined) ?? "") : "";
+  return translationOf((block as Translatable).translations, language, defaultLanguage)?.items?.[itemId] ?? own;
 }
 
-export function galleryCaptionPatch(block: GalleryBlock, itemId: string, language: string | null, defaultLanguage: string | null, caption: string): Partial<GalleryBlock> {
+export function itemWordingPatch(block: Block, listName: string, itemId: string, language: string | null, defaultLanguage: string | null, text: string): Partial<Block> {
+  const textName = itemTextNameOf(block, listName);
+  if (!textName) return {};
   if (isOwnWording(language, defaultLanguage) || !language) {
-    return { items: block.items.map((item) => (item.id === itemId ? { ...item, caption } : item)) };
+    return { [listName]: listItems(block, listName).map((item) => (item.id === itemId ? { ...item, [textName]: text } : item)) } as Partial<Block>;
   }
-  const existing = block.translations?.[language] ?? {};
-  return { translations: { ...block.translations, [language]: { ...existing, items: { ...existing.items, [itemId]: caption } } } };
+  const translations = (block as Translatable).translations;
+  const existing = translations?.[language] ?? {};
+  return { translations: { ...translations, [language]: { ...existing, items: { ...existing.items, [itemId]: text } } } } as Partial<Block>;
+}
+
+function listItems(block: Block, listName: string): ({ id: string } & Record<string, unknown>)[] {
+  return ((block as unknown as Record<string, unknown>)[listName] as ({ id: string } & Record<string, unknown>)[] | undefined) ?? [];
+}
+
+function itemTextNameOf(block: Block, listName: string): string | undefined {
+  const spec = (descriptorOf(block)?.fields as Record<string, FieldSpec | undefined> | undefined)?.[listName];
+  return spec?.type === "list" ? itemTextName(spec) : undefined;
 }
 
 /** The words at the start / the end of the line of a sorting puzzle in `language`. */
@@ -209,10 +226,16 @@ export function isTranslated(block: Translatable, language: string | null, defau
   }
   if (descriptorOf(block)) {
     // (Every text of the block that has words has to be there in the language.)
-    return translatableFields(block).every(({ name, key }) => ((block as unknown as Record<string, string | undefined>)[name] ?? "").trim() === "" || translation?.[key] !== undefined);
+    const own = block as unknown as Record<string, string | undefined>;
+    const textsThere = translatableFields(block).every(({ name, key }) => (own[name] ?? "").trim() === "" || translation?.[key] !== undefined);
+    // (And the first item of every list: the others are translated with it, as with a list or a matching.)
+    const itemsThere = listFieldsOf(block).every(([name]) => {
+      const first = listItems(block, name)[0];
+      return !first || translation?.items?.[first.id] !== undefined;
+    });
+    return textsThere && itemsThere;
   }
   if (block.kind === "sort") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
-  if (block.kind === "gallery") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
   return translation?.text !== undefined || translation?.html !== undefined;
 }
 
@@ -415,12 +438,22 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
         const translated = incomingWords?.[key as "text"];
         if (translated !== undefined) own[name] = translated;
       }
+      for (const [listName, spec] of listFieldsOf(block)) {
+        const textName = itemTextName(spec);
+        if (!textName) continue;
+        const items = listItems(block, listName);
+        outgoingWords.items = { ...outgoingWords.items, ...Object.fromEntries(items.map((item) => [item.id, (item[textName] as string | undefined) ?? ""])) };
+        for (const item of items) {
+          const translated = incomingWords?.items?.[item.id];
+          if (translated !== undefined) item[textName] = translated;
+        }
+      }
       const translations = { ...(block as Translatable).translations, [oldDefault]: outgoingWords };
       delete translations[newDefault];
       (block as Translatable).translations = translations;
       continue;
     }
-    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "link" && block.kind !== "checker" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "gallery" && block.kind !== "list") continue;
+    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "link" && block.kind !== "checker" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "list") continue;
     const incoming = block.translations?.[newDefault];
     const outgoing: BlockTranslation = {};
     if (block.kind === "text" || block.kind === "cloze") {
@@ -456,12 +489,6 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       outgoing.endLabel = block.endLabel ?? "";
       if (incoming?.startLabel !== undefined) block.startLabel = incoming.startLabel;
       if (incoming?.endLabel !== undefined) block.endLabel = incoming.endLabel;
-    } else if (block.kind === "gallery") {
-      outgoing.items = Object.fromEntries(block.items.map((item) => [item.id, item.caption]));
-      for (const item of block.items) {
-        const translated = incoming?.items?.[item.id];
-        if (translated !== undefined) item.caption = translated;
-      }
     } else if (block.kind === "list") {
       outgoing.items = Object.fromEntries(block.items.map((item) => [item.id, item.html]));
       for (const item of block.items) {

@@ -3,6 +3,8 @@ import { filesCheckPassword, filesCreateProtection, filesDecrypt, filesEncrypt }
 import type { FilesKey } from "../runtime/filesCrypto.js";
 import type { Block, FileEntry, FilesBlock, FilesProtection } from "../types";
 import { createId } from "../id";
+import { descriptorOf } from "../blocks/registry";
+import type { FieldSpec, ListField } from "../blocks/types";
 import { plain, removeWhere } from "./plain";
 import type { BlockContainerRef } from "./store";
 import { useDocumentStore } from "./store";
@@ -119,8 +121,16 @@ export async function addSortImage(container: BlockContainerRef, blockId: string
   });
 }
 
-/** Adds pictures to a gallery (GalleryBlock), each as its last picture - one step of the history, however many files: they become assets of the module. */
-export async function addGalleryImages(container: BlockContainerRef, blockId: string, files: File[]): Promise<void> {
+/** The asset field of the items of a list of a block that describes itself (see core/blocks), and the list. */
+function listAssetOf(block: { kind: string }, listName: string): { list: ListField; assetName: string } | undefined {
+  const spec = (descriptorOf(block.kind)?.fields as Record<string, FieldSpec | undefined> | undefined)?.[listName];
+  if (spec?.type !== "list") return undefined;
+  const assetName = Object.entries(spec.item).find(([, itemSpec]) => itemSpec.type === "asset")?.[0];
+  return assetName ? { list: spec, assetName } : undefined;
+}
+
+/** Adds files to a list of a block that describes itself (a gallery's pictures), each as its last item - one step of the history, however many files: they become assets of the module. */
+export async function addListAssets(container: BlockContainerRef, blockId: string, listName: string, files: File[]): Promise<void> {
   const made: { id: string; fileName: string; mimeType: string }[] = [];
   for (const file of files) {
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -130,29 +140,35 @@ export async function addGalleryImages(container: BlockContainerRef, blockId: st
     made.push({ id, fileName: file.name, mimeType });
   }
   if (made.length === 0) return;
-  useDocumentStore.getState().edit(made.length === 1 ? "Bild zur Galerie hinzufügen" : "Bilder zur Galerie hinzufügen", (m) => {
-    const block = blocksOf(m, container)?.[blockId];
-    if (!block || block.kind !== "gallery") return;
+  const kind = blocksOf(useDocumentStore.getState().doc.content, container)?.[blockId]?.kind;
+  const list = kind ? listAssetOf({ kind }, listName)?.list : undefined;
+  if (!list) return;
+  useDocumentStore.getState().edit(made.length === 1 ? list.history.add : list.history.addMany, (m) => {
+    const block = blocksOf(m, container)?.[blockId] as unknown as Record<string, unknown> | undefined;
+    const items = block?.[listName] as unknown[] | undefined;
+    if (!items) return;
     for (const asset of made) {
       m.assets.push(asset);
-      block.items.push({ id: createId(), assetId: asset.id, caption: "" });
+      items.push(list.newItem(asset.id));
     }
   });
 }
 
-/** Gives a picture of a gallery (GalleryBlock) another file. */
-export async function setGalleryImage(container: BlockContainerRef, blockId: string, itemId: string, file: File): Promise<void> {
+/** Gives an item of a list of a block that describes itself another file (a gallery's picture). */
+export async function setListItemAsset(container: BlockContainerRef, blockId: string, listName: string, itemId: string, file: File): Promise<void> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const id = createId();
   const mimeType = file.type || "application/octet-stream";
   useAssetStore.getState().setAsset(id, new Blob([bytes as BlobPart], { type: mimeType }));
-  useDocumentStore.getState().edit("Bild der Galerie wählen", (m) => {
-    const block = blocksOf(m, container)?.[blockId];
-    if (!block || block.kind !== "gallery") return;
-    const item = block.items.find((it) => it.id === itemId);
+  const kind = blocksOf(useDocumentStore.getState().doc.content, container)?.[blockId]?.kind;
+  const described = kind ? listAssetOf({ kind }, listName) : undefined;
+  if (!described) return;
+  useDocumentStore.getState().edit(described.list.history.change, (m) => {
+    const block = blocksOf(m, container)?.[blockId] as unknown as Record<string, unknown> | undefined;
+    const item = (block?.[listName] as Record<string, unknown>[] | undefined)?.find((it) => it.id === itemId);
     if (!item) return;
     m.assets.push({ id, fileName: file.name, mimeType });
-    item.assetId = id;
+    item[described.assetName] = id;
   });
 }
 

@@ -1,4 +1,5 @@
 import type { Block, StaticBlock, WeftModule } from "../types";
+import { assetIdsOfFields, descriptorOf } from "../blocks/registry";
 import { placeholderSources } from "./variablePlaceholders";
 
 /** The pictures behind the letters of the texts of a block (see data-weft-bg-asset in richText.ts). */
@@ -19,7 +20,8 @@ function assetIdsOf(block: Block | StaticBlock): string[] {
 
 function assetIdsOfPlain(block: Block | StaticBlock): string[] {
   if (block.kind === "files") return block.files.map((file) => file.id);
-  if (block.kind === "gallery") return block.items.flatMap((item) => (item.assetId ? [item.assetId] : []));
+  // (A block that describes itself - see core/blocks - says which of its fields are files.)
+  if (descriptorOf(block)) return assetIdsOfFields(block as Block);
   if (block.kind === "sort") return block.items.flatMap((item) => (item.kind === "image" && item.assetId ? [item.assetId] : []));
   if (block.kind === "matching") return [...block.sources, ...block.targets].flatMap((item) => (item.kind === "image" && item.assetId ? [item.assetId] : []));
   if (block.kind === "revealer") return block.imageAssetId ? [block.imageAssetId] : [];

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { DragEvent as ReactDragEvent } from "react";
-import { addGalleryImages } from "../../../core/document/filesActions";
+import { addListAssets } from "../../../core/document/filesActions";
 import type { BlockContainerRef } from "../../../core/document/store";
 
 /** Whether a drag carries files (from the Finder) - not our own dragging of blocks, which uses pointer events and has no "Files" payload. */
@@ -40,7 +40,7 @@ export function useGalleryDrop(container: BlockContainerRef | null, blockId: str
         e.preventDefault();
         setOver(false);
         const images = droppedImages(e);
-        if (images.length > 0) addGalleryImages(container, blockId, images).catch((error) => console.error(error));
+        if (images.length > 0) addListAssets(container, blockId, "items", images).catch((error) => console.error(error));
       },
     },
   };

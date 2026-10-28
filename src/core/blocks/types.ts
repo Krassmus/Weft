@@ -64,7 +64,44 @@ export interface EffectsField {
   ui?: FieldUi;
 }
 
-export type FieldSpec = TextField | BoolField | IntField | EffectsField;
+/** A file of the module (an asset): the id of the asset, or null while none is chosen. */
+export interface AssetField {
+  type: "asset";
+  kind: "image";
+}
+
+/**
+ * A list of things the author adds, orders and removes - each with an `id` and fields of its own (a text, a file). The words of its items are kept
+ * in a translation by the id of the item (`translations[language].items[id]`); they are the one translatable text field of an item.
+ */
+export interface ListField {
+  type: "list";
+  /** The fields of one item, by name. */
+  item: { [name: string]: TextField | AssetField };
+  /** The item that is made for a file that is added (`asset` is the id of the asset the file became). */
+  newItem(asset: string): Record<string, unknown>;
+  /** What the steps are called in the history (German): files added (one, several), the file of an item changed. */
+  history: { add: string; addMany: string; change: string };
+  /** `weft text export`: what the words of the item with this number (from 1) are (German). */
+  cliRole?: (number: number) => string;
+  ui?: ListUi;
+}
+
+/** How a list is shown in the panel: its items in rows, with a button that adds files. */
+export interface ListUi {
+  /** What is said while the list is empty. */
+  empty: TranslationKey;
+  /** The label of the field of an item that has words, of the button that adds files, of the one that gives an item another file (or a first one). */
+  textLabel: TranslationKey;
+  add: TranslationKey;
+  change: TranslationKey;
+  choose: TranslationKey;
+  moveUp: TranslationKey;
+  moveDown: TranslationKey;
+  remove: TranslationKey;
+}
+
+export type FieldSpec = TextField | BoolField | IntField | EffectsField | AssetField | ListField;
 
 /**
  * A block with a task, as a quiz has: the events "first answer", "submitted", and "submitted - right / wrong" in the page's graph, which what is to
@@ -122,5 +159,5 @@ export interface BlockDescriptor<B extends Block = Block> {
   /** What `weft inspect` says about the block, in one line (German). */
   summary?(block: B): string;
   /** What is wrong with the block (`weft validate`; German). */
-  validate?(block: B): BlockProblem[];
+  validate?(block: B, module: { assets: { id: string }[] }): BlockProblem[];
 }

@@ -31,7 +31,7 @@ import {
   updateEndTransition,
 } from "../../core/document/actions";
 import type { VideoUploadResult } from "../../core/document/actions";
-import { addGalleryImages } from "../../core/document/filesActions";
+import { addListAssets } from "../../core/document/filesActions";
 import { useDocumentStore } from "../../core/document/store";
 import { findNode } from "../../core/document/pageTimeline";
 import { DEFAULT_IRIS_CENTER } from "../../core/document/transitions";
@@ -913,7 +913,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
     const images = mediaFiles.filter((f) => f.type.startsWith("image/"));
     let imagesDone = false;
     if (images.length > 0 && galleryId && container.kind === "page") {
-      await addGalleryImages(container, galleryId, images);
+      await addListAssets(container, galleryId, "items", images);
       lastBlockId = galleryId;
       imagesDone = true;
     } else if (images.length > 1 && addGallery) {

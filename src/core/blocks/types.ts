@@ -164,5 +164,5 @@ export interface BlockDescriptor<B extends Block = Block> {
   /** What `weft inspect` says about the block, in one line (German). */
   summary?(block: B): string;
   /** What is wrong with the block (`weft validate`; German). */
-  validate?(block: B, module: { assets: { id: string }[] }): BlockProblem[];
+  validate?(block: B, module: { assets: { id: string }[]; variables: { name: string; type: string }[] }): BlockProblem[];
 }

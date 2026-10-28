@@ -3697,26 +3697,6 @@ button.weft-timeline-node-icon:hover {
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
 }
 
-/* ---- Language switch block (editor canvas preview; the real select is in the player) ---- */
-
-.weft-edit-block-language {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5em;
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  padding: 0 0.7em;
-  border: 1px solid var(--slide-line-strong);
-  border-radius: 4px;
-  background: var(--slide-surface);
-  color: var(--slide-fg);
-  font-size: 1.7cqw;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
 /* ---- Language list in the Einstellungen (panels/SettingsTab.tsx's LanguagesField) ---- */
 
 .weft-language-list,
@@ -6349,29 +6329,6 @@ h2.weft-inspector-header {
 
 .weft-action-path-add {
   border-color: #ef4444;
-}
-
-/* ---- A progress bar on the canvas (ProgressCanvas in blocks/BlockView.tsx) ---- */
-.weft-edit-progress {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.weft-edit-progress.is-rounded {
-  border-radius: 999px;
-}
-
-.weft-edit-progress-fill {
-  height: 100%;
-}
-
-.weft-thumb-block-progress {
-  overflow: hidden;
-}
-
-.weft-thumb-block-progress.is-rounded {
-  border-radius: 999px;
 }
 
 /* The glass of a rectangle or ellipse that blurs what is behind it (backdropBlur.ts): under the shape, over the rest of the slide. */

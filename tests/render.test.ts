@@ -2,6 +2,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { parseHTML } from "linkedom";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { renderIframe } from "../src/core/blocks/iframe/render.js";
+import { renderLanguage } from "../src/core/blocks/language/render.js";
+import { renderProgress } from "../src/core/blocks/progress/render.js";
 import { linkHref, renderLink } from "../src/core/blocks/link/render.js";
 import { renderSolution } from "../src/core/blocks/solution/render.js";
 
@@ -19,6 +21,22 @@ beforeAll(() => {
   // (A page has an address: a relative one is read against it.)
   (window as unknown as { location: unknown }).location = { href: "https://player.example/index.html" };
   Object.assign(globalThis, { window, document });
+  // (linkedom's drop-down cannot be given a value: it is told by the option that is selected, which is what a browser does.)
+  const select = (window as unknown as { HTMLSelectElement: { prototype: object } }).HTMLSelectElement.prototype;
+  Object.defineProperty(select, "value", {
+    configurable: true,
+    get(this: Element) {
+      const options = [...this.querySelectorAll("option")];
+      const chosen = options.find((option) => option.hasAttribute("selected")) ?? options[0];
+      return chosen ? (chosen.getAttribute("value") ?? chosen.textContent ?? "") : "";
+    },
+    set(this: Element, value: string) {
+      for (const option of this.querySelectorAll("option")) {
+        if ((option.getAttribute("value") ?? option.textContent) === value) option.setAttribute("selected", "");
+        else option.removeAttribute("selected");
+      }
+    },
+  });
 });
 
 const element = () => document.createElement("div");
@@ -28,6 +46,7 @@ const fire = (target: Element, type: string) => target.dispatchEvent(new window.
 // ---- what each renderer is given ---------------------------------------------------------------------------------------------------------
 
 const WORDS: Record<string, string> = {
+  language: "Sprache",
   submit: "Abschicken",
   correct: "Richtig",
   incorrect: "Falsch",
@@ -41,7 +60,7 @@ const textWith = (key: string, values: Record<string, string | number>) => text(
 const ICONS = { submit: "<svg id='submit'></svg>", correct: "<svg id='ok'></svg>", incorrect: "<svg id='no'></svg>", globe: "<svg id='globe'></svg>", qr: "<svg id='qr'></svg>" };
 
 /** Every render.js there is must be run here: this is the list of what is run (a new one fails the test below until it is added). */
-const RENDERERS = ["solution", "iframe", "link"];
+const RENDERERS = ["solution", "iframe", "link", "progress", "language"];
 
 describe("the render functions", () => {
   it("are all tested here", () => {
@@ -58,7 +77,7 @@ describe("the render functions", () => {
     const inlined = source.replace(/^export /gm, "");
     expect(inlined).not.toMatch(/\bexport\b\s+(function|var|const|let|default)/);
     // The way the page has it: a script of its own that leaves the function there for the player after it.
-    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink" }[kind];
+    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage" }[kind];
     expect(new Function(`${inlined}; return typeof ${name};`)()).toBe("function");
   });
 });
@@ -286,6 +305,110 @@ describe.each(MODES)("a link drawn for %s", (mode) => {
     it(mode === "print" ? "has the address as a link of the PDF where it stands" : "has no link in the PDF to make", () => {
       const link = find((() => { const root = element(); renderLink(root, props, context()); return root; })(), ".weft-link") as HTMLElement;
       expect(link.getAttribute("data-pdf-link")).toBe(mode === "print" ? "https://example.org/seite" : null);
+    });
+  }
+});
+
+// ---- the progress bar -------------------------------------------------------------------------------------------------------------------
+
+describe.each(MODES)("a progress bar drawn for %s", (mode) => {
+  const props = { value: 40, moveMs: 0, color: "#16a34a", trackColor: "#e5e7eb", rounded: true, label: "punkte" };
+  const fillOf = (root: Element) => find(root, ".weft-progress-fill") as HTMLElement;
+
+  it("is drawn with its colours and as full as it says, can be drawn again, and goes away", () => {
+    const root = element();
+    const instance = renderProgress(root, props, { mode });
+    expect(fillOf(root).style.width).toBe("40%");
+    expect(fillOf(root).style.background).toBe("#16a34a");
+    expect(find(root, ".weft-progress-track")?.className).toContain("is-rounded");
+    instance.update({ ...props, rounded: false });
+    expect(find(root, ".weft-progress-track")?.className).not.toContain("is-rounded");
+    instance.destroy();
+    expect(root.childNodes.length).toBe(0);
+  });
+
+  it("jumps on the first drawing and moves to another value as long as it is told (0: it jumps)", () => {
+    const root = element();
+    const instance = renderProgress(root, { ...props, moveMs: 800 }, { mode });
+    expect(fillOf(root).style.transition).toBe("none");
+    instance.update({ ...props, value: 90, moveMs: 800 });
+    expect(fillOf(root).style.width).toBe("90%");
+    expect(fillOf(root).style.transition).toContain("800ms");
+    instance.update({ ...props, value: 10, moveMs: 0 });
+    expect(fillOf(root).style.width).toBe("10%");
+    expect(fillOf(root).style.transition).toBe("none");
+  });
+
+  it(mode === "play" ? "is a progress bar for assistive technology, and says its value" : "is only a picture: it is not a progress bar to anything", () => {
+    const root = element();
+    const instance = renderProgress(root, props, { mode });
+    instance.update({ ...props, value: 62.4 });
+    expect(root.getAttribute("role")).toBe(mode === "play" ? "progressbar" : null);
+    expect(root.getAttribute("aria-valuenow")).toBe(mode === "play" ? "62" : null);
+    expect(root.getAttribute("aria-label")).toBe(mode === "play" ? "punkte" : null);
+  });
+
+  it("has the colours the player gives a bar that has none", () => {
+    const root = element();
+    renderProgress(root, { ...props, color: "", trackColor: "", rounded: undefined as unknown as boolean }, { mode });
+    expect(fillOf(root).style.background).toBe("#3b82f6");
+    expect(find(root, ".weft-progress-track")?.className).toContain("is-rounded");
+  });
+});
+
+// ---- the language switch ----------------------------------------------------------------------------------------------------------------
+
+describe.each(MODES)("a language switch drawn for %s", (mode) => {
+  const props = { languages: ["de_DE", "en_GB", "fr_FR"], labels: { de_DE: "Deutsch", en_GB: "English", fr_FR: "Français" }, current: "en_GB" };
+  const context = () => ({ mode, text, setLanguage: vi.fn() });
+
+  if (mode === "play" || mode === "edit") {
+    it("is a drop-down of the languages, each by its own name, showing the one in use", () => {
+      const root = element();
+      renderLanguage(root, props, context());
+      const select = find(root, ".weft-language-select") as HTMLSelectElement;
+      expect([...select.querySelectorAll("option")].map((option) => option.textContent)).toEqual(["Deutsch", "English", "Français"]);
+      expect(select.value).toBe("en_GB");
+      expect(select.getAttribute("aria-label")).toBe("Sprache");
+    });
+
+    it("shows the new language when it is told, and is named in it", () => {
+      const root = element();
+      const instance = renderLanguage(root, props, context());
+      WORDS.language = "Language";
+      instance.update({ ...props, current: "fr_FR" });
+      expect((find(root, ".weft-language-select") as HTMLSelectElement).value).toBe("fr_FR");
+      expect(find(root, ".weft-language-select")?.getAttribute("aria-label")).toBe("Language");
+      WORDS.language = "Sprache";
+      instance.destroy();
+      expect(root.childNodes.length).toBe(0);
+    });
+
+    it("has a globe where the module has no languages any more", () => {
+      const root = element();
+      renderLanguage(root, { languages: [], labels: {}, current: "" }, context());
+      expect(find(root, "option")?.textContent).toBe("\uD83C\uDF10");
+    });
+
+    it(mode === "play" ? "picks a language: what is picked is the place's to do" : "is only a picture: nothing can be picked", () => {
+      const root = element();
+      const ctx = context();
+      renderLanguage(root, props, ctx);
+      const select = find(root, ".weft-language-select") as HTMLSelectElement;
+      select.value = "fr_FR";
+      fire(select, "change");
+      if (mode === "play") expect(ctx.setLanguage).toHaveBeenCalledWith("fr_FR");
+      else expect(ctx.setLanguage).not.toHaveBeenCalled();
+    });
+  } else {
+    it("is a grey box with a globe: a drop-down means nothing here", () => {
+      const root = element();
+      const instance = renderLanguage(root, props, context());
+      expect(find(root, "select")).toBeNull();
+      expect(find(root, ".weft-language-placeholder")?.textContent).toBe("\uD83C\uDF10");
+      instance.update({ ...props, current: "de_DE" });
+      instance.destroy();
+      expect(root.childNodes.length).toBe(0);
     });
   }
 });

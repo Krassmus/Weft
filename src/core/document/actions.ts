@@ -721,10 +721,9 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
         spacing: 1.2,
       };
     case "language":
-      return { ...base, kind, position: { x: 74, y: 3, width: 23, height: 7 } };
     case "progress":
-      // A thin bar across the bottom of the slide (usually put on a layout, so that it is on every slide).
-      return { ...base, kind, position: { x: 10, y: 93, width: 80, height: 2.2 }, variable: "progress", color: "#3b82f6", trackColor: "#dbe4f5", rounded: true, animate: true };
+      // (A kind with a descriptor is made above - it has no case of its own.)
+      throw new Error(`The kind "${kind}" has no descriptor.`);
     case "script":
       // A hexagon that is a square on the usual 16:9 slide (the percentages are of the slide's width and height).
       return { ...base, kind, position: { x: 44.5, y: 40.25, width: 11, height: 19.5 }, code: tr("ui.script_default_code") };

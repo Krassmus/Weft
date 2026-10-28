@@ -163,7 +163,6 @@ function ThumbBlockBody({
   placeholderSlots?: boolean;
 }) {
   const slideAspect = useDocumentStore((s) => aspectRatioNumeric(s.doc.content.aspectRatio));
-  const variables = useDocumentStore((s) => s.doc.content.variables);
   const { lang, defaultLang } = useEditingLanguage();
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
   const style = {
@@ -225,13 +224,6 @@ function ThumbBlockBody({
       </div>
     );
   }
-  if (block.kind === "language") {
-    return (
-      <div className="weft-thumb-block weft-thumb-block-placeholder" style={style}>
-        🌐
-      </div>
-    );
-  }
   if (block.kind === "script") {
     return (
       <div className="weft-thumb-block" style={style}>
@@ -275,17 +267,6 @@ function ThumbBlockBody({
       </div>
     ) : (
       <div className="weft-thumb-block weft-thumb-block-placeholder" style={style} />
-    );
-  }
-  if (block.kind === "progress") {
-    const declared = variables.find((v) => v.name === block.variable);
-    const initial = declared && declared.type === "number" ? Number(declared.initialValue) : NaN;
-    const known = Number.isFinite(initial) ? initial : (block.variable || "progress") === "progress" && progress !== null ? progress : 50;
-    const fill = Math.min(100, Math.max(0, known));
-    return (
-      <div className={"weft-thumb-block weft-thumb-block-progress" + (block.rounded ? " is-rounded" : "")} style={{ ...style, background: block.trackColor }}>
-        <div style={{ width: `${fill}%`, height: "100%", background: block.color }} />
-      </div>
     );
   }
   if (block.kind === "revealer") {
@@ -357,7 +338,7 @@ function ThumbBlockBody({
   if (view) {
     return (
       <div className="weft-thumb-block" style={style}>
-        <view.View block={block} lang={lang} defaultLang={defaultLang} selected={false} mode={exportPxPerCqw ? "print" : "thumbnail"} qrSvg={qrSvg} />
+        <view.View block={block} lang={lang} defaultLang={defaultLang} selected={false} mode={exportPxPerCqw ? "print" : "thumbnail"} qrSvg={qrSvg} progress={progress} />
       </div>
     );
   }

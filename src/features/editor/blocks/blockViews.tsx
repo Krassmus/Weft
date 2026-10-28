@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
-import type { Block, GalleryBlock, IframeBlock, LinkBlock, SolutionBlock } from "../../../core/types";
+import type { Block, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ProgressBlock, SolutionBlock } from "../../../core/types";
 import { GalleryCanvas } from "./GalleryCanvas";
 import { GalleryView } from "./GalleryView";
 import { IframeView } from "./IframeView";
+import { LanguageView } from "./LanguageView";
 import { LinkView } from "./LinkView";
+import { ProgressView } from "./ProgressView";
 import { SolutionView } from "./SolutionView";
 
 /** What a view is given. */
@@ -16,6 +18,8 @@ export interface BlockViewProps<B extends Block = Block> {
   mode: "edit" | "thumbnail" | "print";
   /** A QR code made for the block (for the PDF). */
   qrSvg?: string;
+  /** The value of `progress` on the page a thumbnail is the picture of, where it is known (a progress bar shows it). */
+  progress?: number | null;
   onUpdate?: (patch: Partial<Block>) => void;
 }
 
@@ -53,11 +57,23 @@ const linkView: BlockViewSpec<LinkBlock> = {
   freelyMovable: true,
 };
 
+const progressView: BlockViewSpec<ProgressBlock> = {
+  View: ({ block, mode, progress }) => <ProgressView block={block} mode={mode} progress={progress} />,
+  freelyMovable: true,
+};
+
+const languageView: BlockViewSpec<LanguageBlock> = {
+  View: ({ lang, mode }) => <LanguageView lang={lang} mode={mode} />,
+  freelyMovable: true,
+};
+
 const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   solution: solutionView as BlockViewSpec<never>,
   gallery: galleryView as BlockViewSpec<never>,
   iframe: iframeView as BlockViewSpec<never>,
   link: linkView as BlockViewSpec<never>,
+  progress: progressView as BlockViewSpec<never>,
+  language: languageView as BlockViewSpec<never>,
 };
 
 /** The editor's views of a kind, if it has them here. */

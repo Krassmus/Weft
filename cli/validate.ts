@@ -48,7 +48,6 @@ function moduleSchema() {
 const KIND_DEFINITIONS: Record<string, string> = {
   text: "TextBlock",
   placeholder: "PlaceholderBlock",
-  language: "LanguageBlock",
   code: "CodeBlock",
   tex: "TexBlock",
   image: "ImageBlock",
@@ -66,7 +65,6 @@ const KIND_DEFINITIONS: Record<string, string> = {
   list: "ListBlock",
   script: "ScriptBlock",
   revealer: "RevealerBlock",
-  progress: "ProgressBlock",
 };
 
 function describe(error: ErrorObject): string {
@@ -424,10 +422,6 @@ export function validate(loaded: LoadedWeft): Finding[] {
     }
     if ((block.kind === "image" || block.kind === "video" || block.kind === "audio") && !block.assetId) {
       add("warning", "media-empty", `${block.kind}-Block hat noch keine Datei.`, here);
-    }
-    if (block.kind === "progress") {
-      const known = block.variable === "progress" || content.variables.some((v) => v.name === block.variable && (v.type === "number" || v.type === "computed"));
-      if (!known) add("warning", "progress-variable-unknown", `Der Fortschrittsbalken zeigt „${block.variable}“, aber das ist weder „progress“ noch eine Zahlen-Variable des Moduls (er bleibt leer).`, { ...here, hint: "variable auf „progress“ oder den Namen einer Zahlen-Variable setzen." });
     }
     if (block.kind === "revealer") {
       if (block.imageAssetId) {

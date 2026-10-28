@@ -36,9 +36,7 @@ const BLOCK_KINDS_BY_HAND: Record<string, { definition: string; what: string }> 
   shape: { definition: "ShapeBlock", what: "Eine Form: Rechteck, Ellipse, Vieleck, Stern." },
   arrow: { definition: "ArrowBlock", what: "Ein Pfeil durch mehrere Punkte." },
   revealer: { definition: "RevealerBlock", what: "Ein Icon (Info, Warnung, Ausrufe- oder Fragezeichen), das beim Klick ein Fenster mit Überschrift, optional Text, Bild und Button öffnet; kann auch per Ereignis geöffnet werden." },
-  progress: { definition: "ProgressBlock", what: "Ein Fortschrittsbalken: so lang wie der Wert einer Variable (0 bis 100) sagt; standardmäßig `progress` (wie weit die Lernperson im Modul ist). Auch auf einem Layout." },
   files: { definition: "FilesBlock", what: "Dateien zum Herunterladen, optional mit Passwort." },
-  language: { definition: "LanguageBlock", what: "Sprachumschalter (nur sinnvoll in mehrsprachigen Modulen)." },
   script: { definition: "ScriptBlock", what: "Logikblock: JavaScript (`code`), das läuft, wenn sein Ereignis erreicht wird (nur auf Folien). Im Code: vars, debug(), trigger(), jump(), VanillaLM." },
 };
 

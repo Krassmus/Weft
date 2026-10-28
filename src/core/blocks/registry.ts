@@ -2,7 +2,9 @@ import type { Block } from "../types";
 import type { BlockDescriptor, FieldSpec, ListField, TaskSpec, TextField } from "./types";
 import { galleryBlock } from "./gallery/descriptor";
 import { iframeBlock } from "./iframe/descriptor";
+import { languageBlock } from "./language/descriptor";
 import { linkBlock } from "./link/descriptor";
+import { progressBlock } from "./progress/descriptor";
 import { solutionBlock } from "./solution/descriptor";
 
 /**
@@ -19,6 +21,8 @@ registerBlock(solutionBlock);
 registerBlock(galleryBlock);
 registerBlock(iframeBlock);
 registerBlock(linkBlock);
+registerBlock(progressBlock);
+registerBlock(languageBlock);
 
 /** The descriptor of a kind, if it has one. */
 export function descriptorOf<B extends Block>(block: B): BlockDescriptor<B> | undefined;

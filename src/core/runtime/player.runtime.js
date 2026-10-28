@@ -465,6 +465,11 @@
   var languageRefreshers = [];
   var languageSwitches = [];
 
+  // What a language switch says (renderLanguage, blocks/language/render.js, inlined ahead of this file): the module's languages, their names, the one in use.
+  function languageProps() {
+    return { languages: languages, labels: languageLabels, current: currentLanguage };
+  }
+
   function setLanguage(locale) {
     if (locale === currentLanguage || languages.indexOf(locale) === -1) return;
     currentLanguage = locale;
@@ -472,8 +477,8 @@
     languageRefreshers.forEach(function (refill) {
       refill();
     });
-    languageSwitches.forEach(function (select) {
-      select.value = locale;
+    languageSwitches.forEach(function (languageSwitch) {
+      languageSwitch.update(languageProps());
     });
     refreshVariableDisplays();
     updateNavigation();
@@ -2612,19 +2617,7 @@
       wrap.appendChild(listBox);
       wrap.weftListItems = listItemElements;
     } else if (block.kind === "language") {
-      var languageSelect = el("select", { class: "weft-language-select", "aria-label": uiString("language") }, []);
-      languageRefreshers.push(function () {
-        languageSelect.setAttribute("aria-label", uiString("language"));
-      });
-      languages.forEach(function (locale) {
-        languageSelect.appendChild(el("option", { value: locale }, [document.createTextNode(languageLabels[locale] || locale)]));
-      });
-      languageSelect.value = currentLanguage;
-      languageSelect.addEventListener("change", function () {
-        setLanguage(languageSelect.value);
-      });
-      languageSwitches.push(languageSelect);
-      wrap.appendChild(languageSelect);
+      languageSwitches.push(renderLanguage(wrap, languageProps(), { mode: "play", text: uiString, setLanguage: setLanguage }));
     } else if (block.kind === "code") {
       // Same markup and font-size math as the editor's CodeView.tsx.
       var codeBox = el("div", {
@@ -2950,26 +2943,28 @@
     return Math.min(100, Math.max(0, value));
   }
 
+  // What a progress bar says, as renderProgress (blocks/progress/render.js, inlined ahead of this file) draws it: how full it is and how long the fill
+  // takes to get there (0: it jumps).
+  function progressProps(block, value, moveMs) {
+    return {
+      value: value,
+      moveMs: moveMs,
+      color: block.color,
+      trackColor: block.trackColor,
+      rounded: block.rounded !== false,
+      label: block.variable || "progress",
+    };
+  }
+
   function renderProgressBlock(block) {
-    var fill = el("div", { class: "weft-progress-fill", style: "background:" + (block.color || "#3b82f6") + ";" }, []);
-    var track = el(
-      "div",
-      { class: "weft-progress-track" + (block.rounded === false ? "" : " is-rounded"), style: "background:" + (block.trackColor || "#dbe4f5") + ";" },
-      [fill],
-    );
-    var wrap = el(
-      "div",
-      { class: "weft-block weft-block-progress", "data-weft-block": block.id, style: positionStyle(block.position), role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-label": block.variable || "progress" },
-      [track],
-    );
+    var wrap = el("div", { class: "weft-block weft-block-progress", "data-weft-block": block.id, style: positionStyle(block.position) });
     var target = progressTarget(block);
     var animated = !!block.animate && !renderAll;
     // Where the bar starts: where it stood (a first showing: empty), or - without animation, or in a picture of the slide - the value itself.
     var start = animated ? (shownProgress[block.id] !== undefined ? shownProgress[block.id] : 0) : target;
     if (!animated) shownProgress[block.id] = target;
-    fill.style.width = start + "%";
-    wrap.setAttribute("aria-valuenow", String(Math.round(start)));
-    progressBars.push({ block: block, wrap: wrap, fill: fill, shown: start, animated: animated });
+    var instance = renderProgress(wrap, progressProps(block, start, 0), { mode: "play" });
+    progressBars.push({ block: block, instance: instance, shown: start, animated: animated });
     return wrap;
   }
 
@@ -2981,9 +2976,7 @@
       if (target === bar.shown) return;
       bar.shown = target;
       shownProgress[bar.block.id] = target;
-      bar.wrap.setAttribute("aria-valuenow", String(Math.round(target)));
-      bar.fill.style.transition = bar.animated && !prefersReducedMotion() ? "width " + PROGRESS_MOVE_MS + "ms ease" : "none";
-      bar.fill.style.width = target + "%";
+      bar.instance.update(progressProps(bar.block, target, bar.animated && !prefersReducedMotion() ? PROGRESS_MOVE_MS : 0));
     });
   }
 

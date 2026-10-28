@@ -30,18 +30,15 @@ import {
   textHtml,
   textHtmlPatch,
 } from "../../../core/document/translations";
-import { autonymLabel } from "../../../core/i18n/languages";
 import { playerStringsFor } from "../../../core/i18n/playerStrings";
 import { useEditingLanguage } from "../useEditingLanguage";
 import { useAssetStore } from "../../../core/assets/assetStore";
 import { textBoxCss } from "../../../core/document/textBox";
 import { hasBackdropBlur, shapeBackdropCss } from "../../../core/document/backdropBlur";
-import { pageProgress } from "../../../core/document/pageProgress";
-import { useStagePageId } from "./stagePage";
 import { useDocumentStore } from "../../../core/document/store";
 import { createId } from "../../../core/id";
 import { confirmDestructive } from "../../../core/io/fileIO";
-import type { ArrowPoint, Block, BlockPosition, ClozeBlock, ImageMask, ListBlock, ProgressBlock, QuizBlock, RevealerBlock } from "../../../core/types";
+import type { ArrowPoint, Block, BlockPosition, ClozeBlock, ImageMask, ListBlock, QuizBlock, RevealerBlock } from "../../../core/types";
 import { ListMarkerView } from "./ListMarkerView";
 import { caretAt, caretOnLine, caretX, fitListMarkers, focusItem, textLength } from "./listCaret";
 import { ContextMenu, isContextMenuKey, useContextMenu } from "../ContextMenu";
@@ -297,7 +294,7 @@ export function BlockView({
     block.kind === "cloze" ||
     block.kind === "quiz" ||
     block.kind === "list";
-  const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "language" || block.kind === "checker" || !!viewOf(block.kind)?.freelyMovable || block.kind === "matching" || block.kind === "sort" || block.kind === "script" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "audio" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files" || block.kind === "revealer" || block.kind === "progress";
+  const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "checker" || !!viewOf(block.kind)?.freelyMovable || block.kind === "matching" || block.kind === "sort" || block.kind === "script" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "audio" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files" || block.kind === "revealer" || block.kind === "progress";
   // Only an image, video or revealer (an icon) has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
   // given, so unlike image/video it keeps the full edge+corner handle set below instead of being
@@ -814,14 +811,8 @@ function BlockContent({
         </div>
       );
     case "language":
-      // What a learner will get: a drop-down showing the current language by its own name. Inert here
-      // (see isFreelyMovableBlock) - the real one lives in the player.
-      return (
-        <div className="weft-edit-block-language">
-          {lang ? autonymLabel(lang) : "🌐"}
-          <span aria-hidden>▾</span>
-        </div>
-      );
+      // (Drawn by its view above.)
+      return null;
     case "script":
       return <ScriptHexagon />;
     case "code":
@@ -857,7 +848,8 @@ function BlockContent({
     case "revealer":
       return <RevealerCanvas block={block} selected={selected} />;
     case "progress":
-      return <ProgressCanvas block={block} />;
+      // (Drawn by its view above.)
+      return null;
     case "audio":
       // A sound has nothing to show: a bar like a player (or, for one that is not visible on the slide, a dashed frame) marks the place.
       return block.assetId ? (
@@ -1007,25 +999,6 @@ function RevealerCanvas({ block, selected }: { block: RevealerBlock; selected: b
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-/** A progress bar on the canvas: the value its variable has on this page where that is known (`progress`: see pageProgress; a number
- * variable: its starting value), else half - nothing moves here. */
-function ProgressCanvas({ block }: { block: ProgressBlock }) {
-  const pageId = useStagePageId();
-  const variables = useDocumentStore((s) => s.doc.content.variables);
-  const declared = variables.find((v) => v.name === block.variable);
-  const initial = declared && declared.type === "number" ? Number(declared.initialValue) : NaN;
-  const ofPage = useDocumentStore((s) =>
-    pageId && !Number.isFinite(initial) && (block.variable || "progress") === "progress" && !declared ? pageProgress(s.doc.content, pageId) : null,
-  );
-  const known = Number.isFinite(initial) ? initial : (ofPage ?? 50);
-  const value = Math.min(100, Math.max(0, known));
-  return (
-    <div className={"weft-edit-progress" + (block.rounded ? " is-rounded" : "")} style={{ background: block.trackColor }}>
-      <div className="weft-edit-progress-fill" style={{ width: `${value}%`, background: block.color }} />
     </div>
   );
 }

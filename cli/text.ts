@@ -58,7 +58,8 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
       return `„${label}" → ${action}`;
     }
     case "progress":
-      return `zeigt „${block.variable}“${block.animate ? ", animiert" : ""}`;
+      // (Described above.)
+      return "";
     case "revealer":
       return `${block.icon}: „${block.title}"${block.body ? " + Text" : ""}${block.imageAssetId ? " + Bild" : ""}${block.button ? ` + Button „${block.button.text}"` : ""}`;
     case "image": {
@@ -109,7 +110,8 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
     case "files":
       return `${block.files.length} Dateien${block.protection ? ", geschützt" : ""}`;
     case "language":
-      return "Sprachumschalter";
+      // (Described above.)
+      return "";
     case "script":
       return `Logikblock: ${(block.code.split("\n").find((line) => line.trim() !== "" && !line.trim().startsWith("//")) ?? "").trim().slice(0, 50)}`;
   }

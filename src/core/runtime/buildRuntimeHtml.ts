@@ -13,6 +13,10 @@ import iframeRenderSource from "../blocks/iframe/render.js?raw";
 import iframeCss from "../blocks/iframe/render.css?raw";
 import linkRenderSource from "../blocks/link/render.js?raw";
 import linkCss from "../blocks/link/render.css?raw";
+import progressRenderSource from "../blocks/progress/render.js?raw";
+import progressCss from "../blocks/progress/render.css?raw";
+import languageRenderSource from "../blocks/language/render.js?raw";
+import languageCss from "../blocks/language/render.css?raw";
 import playerRuntimeSource from "./player.runtime.js?raw";
 import quizCardCss from "./quizCard.css?raw";
 import playerRuntimeCss from "./player.runtime.css?raw";
@@ -95,6 +99,8 @@ export async function buildRuntimeHtml(
 <style>${quizCardCss}</style>
 <style>${iframeCss}</style>
 <style>${linkCss}</style>
+<style>${progressCss}</style>
+<style>${languageCss}</style>
 <style>${playerRuntimeCss}</style>
 <style>${fontFaceCss}</style>
 ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` : ""}${hasTex ? `<style>${buildKatexCss()}</style>\n` : ""}</head>
@@ -121,6 +127,8 @@ ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` 
 <script>${solutionRenderSource.replace(/^export /gm, "")}</script>
 <script>${iframeRenderSource.replace(/^export /gm, "")}</script>
 <script>${linkRenderSource.replace(/^export /gm, "")}</script>
+<script>${progressRenderSource.replace(/^export /gm, "")}</script>
+<script>${languageRenderSource.replace(/^export /gm, "")}</script>
 <script>${playerRuntimeSource}</script>
 </body>
 </html>

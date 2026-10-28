@@ -329,6 +329,29 @@ describe.each(KINDS)("the texts of %s in `weft text export` and `weft text impor
   });
 });
 
+describe("what `weft validate` says about a block that is wrong", () => {
+  // (What is wrong is the author's to know: each descriptor that has a check is shown a block that fails it.)
+  const cases: [string, (block: Fields) => void, string, "error" | "warning" | "info"][] = [
+    ["solution", (block) => (block.solution = ""), "solution-empty", "warning"],
+    ["solution", (block) => (block.attempts = 0), "solution-attempts", "error"],
+    ["gallery", (block) => (block.items = []), "gallery-empty", "warning"],
+    ["gallery", (block) => ((block.items as Fields[])[0].assetId = null), "gallery-no-image", "warning"],
+    ["gallery", (block) => ((block.items as Fields[])[0].assetId = "gibt-es-nicht"), "asset-missing", "error"],
+    ["gallery", (block) => ((block.items as Fields[])[0].caption = ""), "image-no-alt", "info"],
+    ["link", (block) => (block.url = "https://"), "link-no-target", "warning"],
+    ["link", (block) => (block.url = "javascript:alert(1)"), "link-url-invalid", "error"],
+    ["progress", (block) => (block.variable = "gibt-es-nicht"), "progress-variable-unknown", "warning"],
+  ];
+  it.each(cases)("%s: %#", (kind, spoil, code, level) => {
+    const { block, content, descriptor } = moduleWith(kind, true);
+    expect(descriptor.validate?.(block as never, content).map((problem) => problem.code) ?? []).not.toContain(code);
+    spoil(block as unknown as Fields);
+    const found = (descriptor.validate?.(block as never, content) ?? []).find((problem) => problem.code === code);
+    expect(found, `no "${code}"`).toBeDefined();
+    expect(found?.level).toBe(level);
+  });
+});
+
 describe("a field of every type", () => {
   // The field types the stations are told about (blocks/types.ts): a type that is new has to be in a descriptor that is tested above, or it is
   // not tested at all.

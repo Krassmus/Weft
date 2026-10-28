@@ -99,6 +99,8 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
         .map((item, index) => ({ item, role: `Bild ${index + 1} (Bildunterschrift)` }))
         .filter(({ item }) => hasWords(item.caption))
         .map(({ item, role }) => ({ key: `${id}#item:${item.id}`, source: item.caption.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role }));
+    case "solution":
+      return hasWords(block.placeholder ?? "") ? [{ key: `${id}#label`, source: (block.placeholder as string).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role: "Text im leeren Feld" }] : [];
     case "link":
     case "checker":
       return hasWords(block.text) ? [{ key: `${id}#label`, source: block.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role: "Text" }] : [];
@@ -134,7 +136,7 @@ function htmlToPlain(html: string): string {
     .trim();
 }
 
-const KIND_NAMES: Record<string, string> = { matching: "Matching", sort: "Sortierrätsel", gallery: "Bildergalerie", checker: "Checker", link: "Link", text: "Text", cloze: "Lückentext", quiz: "Quiz", list: "Liste", button: "Button", revealer: "Info-Symbol" };
+const KIND_NAMES: Record<string, string> = { matching: "Matching", sort: "Sortierrätsel", gallery: "Bildergalerie", solution: "Lösungswort", checker: "Checker", link: "Link", text: "Text", cloze: "Lückentext", quiz: "Quiz", list: "Liste", button: "Button", revealer: "Info-Symbol" };
 
 /** The text a block has in `language`, if it has been translated (the block's own wording is not a translation). */
 function existingTranslation(block: Block, key: string, language: string): string {
@@ -371,7 +373,7 @@ export function importTexts(content: WeftModule, file: TextsFile): ImportReport 
       const target = (translations[language] ??= {});
       if (part === "html") target.html = translated;
       else if (part === "label") {
-        if (block.kind !== "link" && block.kind !== "checker") target.html = translated;
+        if (block.kind !== "link" && block.kind !== "checker" && block.kind !== "solution") target.html = translated;
         target.text = plainTextOfHtml(translated);
       } else if (part === "question") target.questionHtml = translated;
       else if (part === "explanation") target.explanation = htmlToPlain(translated);

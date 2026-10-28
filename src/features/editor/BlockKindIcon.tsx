@@ -7,6 +7,13 @@ const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeL
 const ICONS: Record<Kind, ReactNode> = {
   text: <path d="M5 6V4h14v2M12 4v16M9 20h6" />,
   sort: <path d="M12 4v16M8 8l4-4 4 4M8 16l4 4 4-4" />,
+  solution: (
+    <>
+      <rect x="3" y="5" width="18" height="8" rx="1.8" />
+      <path d="M7 9h.01M11 9h.01M15 9h.01" strokeWidth="2.6" />
+      <rect x="8" y="16" width="8" height="3.6" rx="1.4" />
+    </>
+  ),
   gallery: (
     <>
       <rect x="6" y="5" width="12" height="11" rx="1.6" />

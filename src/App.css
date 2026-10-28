@@ -7448,3 +7448,16 @@ h2.weft-inspector-header {
   height: 100%;
   object-fit: cover;
 }
+
+/* A solution word (SolutionBlock, blocks/SolutionView.tsx): a quiz's one answer with the words of the empty field in it, and its button - the sizes and the
+   look of both are the .weft-thumb-block-quiz-* ones above. */
+.weft-solution-view {
+  font-size: 1.7cqw;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-solution-view-hint {
+  color: var(--slide-muted);
+  white-space: pre-wrap;
+}

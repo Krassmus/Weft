@@ -33,6 +33,7 @@ import {
 import type { ResolvedTrigger } from "../../../core/document/pageTimeline";
 import { DIRECTION_LABELS } from "../../../core/document/transitions";
 import { useAssetStore } from "../../../core/assets/assetStore";
+import { playerStringsFor } from "../../../core/i18n/playerStrings";
 import { formatTimeMMSS } from "../../../core/formatTime";
 import { useDocumentStore } from "../../../core/document/store";
 import { isBooleanVariable, isSettableVariable } from "../../../core/document/variables";
@@ -58,6 +59,7 @@ import type {
   ButtonAppearance,
   ButtonBlock,
   CheckerBlock,
+  SolutionBlock,
   ClozeBlock,
   MatchItem,
   MatchingBlock,
@@ -111,7 +113,7 @@ import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from ".
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { galleryCaption, galleryCaptionPatch, matchingItemText, matchingItemTextPatch, sortItemText, sortItemTextPatch, sortLabel, sortLabelPatch, linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
+import { solutionPlaceholderPatch, solutionPlaceholderText, galleryCaption, galleryCaptionPatch, matchingItemText, matchingItemTextPatch, sortItemText, sortItemTextPatch, sortLabel, sortLabelPatch, linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
 import type { RevealerWording } from "../../../core/document/translations";
 import { revealerIconSvg } from "../../../core/runtime/revealerGeometry";
 import { clozeBlanks } from "../../../core/document/cloze";
@@ -246,6 +248,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, onSetAudio
       {block.kind === "link" && <LinkEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "revealer" && <RevealerEditor block={block} page={page} onUpdate={onUpdate} onSetImage={onSetImage} />}
       {block.kind === "quiz" && <QuizEditor block={block} page={page} onUpdate={onUpdate} />}
+      {block.kind === "solution" && <SolutionEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "checker" && <CheckerEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "matching" && <MatchingEditor block={block} container={container} page={page} onUpdate={onUpdate} />}
       {block.kind === "gallery" && <GalleryEditor block={block} container={container} onUpdate={onUpdate} />}
@@ -3684,6 +3687,84 @@ function SortEditor({ block, container, page, onUpdate }: { block: SortBlock; co
         {goesOn("richtig") && <p className="weft-hint">{tr("ui.happens_1_5_seconds_after_correct")}</p>}
       </Collapsible>
       <Collapsible title={tr("ui.sort_not_all_correct")} defaultOpen={false}>
+        <EffectListEditor effects={block.onIncorrect} variables={variables} onChange={(onIncorrect) => onUpdate({ onIncorrect })} />
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={goesOn("falsch")} disabled={!page} onChange={(e) => page && setQuizAdvance(page.id, block.id, "falsch", e.target.checked)} />
+          <span>{tr("ui.continue_to_the_next_slide")}</span>
+        </label>
+        {goesOn("falsch") && <p className="weft-hint">{tr("ui.happens_1_5_seconds_after_the")}</p>}
+      </Collapsible>
+    </>
+  );
+}
+
+/** The settings of a solution word (SolutionBlock): the word, whether capital letters count, the words in the empty field, how many tries there are, whether it
+ * is required, and what a right word and every wrong one does - changes to variables, and the way on to the next slide, as with a quiz. (What else is to
+ * follow hangs on its events in the event graph.) */
+function SolutionEditor({ block, page, onUpdate }: { block: SolutionBlock; page?: Page; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const goesOn = (outcome: "richtig" | "falsch") => !!page?.timeline.ends[quizEndNodeId(block.id, outcome)];
+  const variables = useDocumentStore((s) => s.doc.content.variables);
+  const { lang, defaultLang } = useEditingLanguage();
+  const limited = block.attempts !== undefined && block.attempts > 0;
+  return (
+    <>
+      <Collapsible title={tr("ui.solution")}>
+        <p className="weft-hint">{tr("ui.solution_hint")}</p>
+        <LanguageSelect block={block} />
+        <label className="weft-field">
+          <span>{tr("ui.solution_word")}</span>
+          <input value={block.solution} autoComplete="off" spellCheck={false} onChange={(e) => onUpdate({ solution: e.target.value })} />
+        </label>
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={block.caseSensitive === true} onChange={(e) => onUpdate({ caseSensitive: e.target.checked ? true : undefined })} />
+          <span>{tr("ui.solution_case")}</span>
+        </label>
+        <label className="weft-field">
+          <span>{tr("ui.solution_placeholder")}</span>
+          <input
+            value={solutionPlaceholderText(block, lang, defaultLang)}
+            placeholder={playerStringsFor(lang).solutionWord}
+            onChange={(e) => onUpdate(solutionPlaceholderPatch(block, lang, defaultLang, e.target.value))}
+          />
+        </label>
+        <label className="weft-field">
+          <span>{tr("ui.solution_attempts")}</span>
+          <select value={limited ? "limited" : "unlimited"} onChange={(e) => onUpdate({ attempts: e.target.value === "limited" ? 1 : undefined })}>
+            <option value="unlimited">{tr("ui.solution_attempts_unlimited")}</option>
+            <option value="limited">{tr("ui.solution_attempts_limited")}</option>
+          </select>
+        </label>
+        {limited && (
+          <label className="weft-field">
+            <span>{tr("ui.solution_attempts_count")}</span>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={block.attempts}
+              onChange={(e) => {
+                const n = Math.floor(Number(e.target.value));
+                if (Number.isFinite(n) && n >= 1) onUpdate({ attempts: n });
+              }}
+            />
+          </label>
+        )}
+        {limited && <p className="weft-hint">{tr("ui.solution_attempts_hint")}</p>}
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={block.required === true} onChange={(e) => onUpdate({ required: e.target.checked ? true : undefined })} />
+          <span>{tr("ui.required_task")}</span>
+        </label>
+        {block.required && <p className="weft-hint">{tr("ui.required_task_hint")}</p>}
+      </Collapsible>
+      <Collapsible title={tr("ui.solution_when_correct")} defaultOpen={false}>
+        <EffectListEditor effects={block.onCorrect} variables={variables} onChange={(onCorrect) => onUpdate({ onCorrect })} />
+        <label className="weft-field weft-field-inline">
+          <input type="checkbox" checked={goesOn("richtig")} disabled={!page} onChange={(e) => page && setQuizAdvance(page.id, block.id, "richtig", e.target.checked)} />
+          <span>{tr("ui.continue_to_the_next_slide")}</span>
+        </label>
+        {goesOn("richtig") && <p className="weft-hint">{tr("ui.happens_1_5_seconds_after_correct")}</p>}
+      </Collapsible>
+      <Collapsible title={tr("ui.solution_when_wrong")} defaultOpen={false}>
         <EffectListEditor effects={block.onIncorrect} variables={variables} onChange={(onIncorrect) => onUpdate({ onIncorrect })} />
         <label className="weft-field weft-field-inline">
           <input type="checkbox" checked={goesOn("falsch")} disabled={!page} onChange={(e) => page && setQuizAdvance(page.id, block.id, "falsch", e.target.checked)} />

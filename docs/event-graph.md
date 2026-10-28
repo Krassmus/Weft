@@ -76,7 +76,7 @@ die Folie nur auf anderen Wegen verlassen werden (zum Beispiel ein Button, der d
 
 ### Pflichtaufgaben: die Bedingungslinie
 
-Eine Pflichtaufgabe (Quiz, Lückentext, Checker, Matching, Sortierrätsel mit „Pflichtangabe“) ist **kein Trigger**: Sie löst „Nächste Folie“
+Eine Pflichtaufgabe (Quiz, Lückentext, Checker, Lösungswort, Matching, Sortierrätsel mit „Pflichtangabe“) ist **kein Trigger**: Sie löst „Nächste Folie“
 nicht aus, aber „Nächste Folie“ muss auch auf sie warten - Weiter verlässt die Folie erst, wenn sie abgeschickt ist (die Aufbauten davor laufen
 weiter). Das ist ein „und“, und kein Weg im Graphen. Deshalb ist sie eine eigene Darstellung:
 

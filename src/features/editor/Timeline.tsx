@@ -783,7 +783,7 @@ function TimelineGraph({ page }: { page: Page }) {
   );
 }
 
-const BLOCK_FRAME_LABELS: Record<string, string> = { get quiz() { return tr("ui.quiz"); }, get cloze() { return tr("ui.gap_text"); }, get checker() { return tr("ui.checker"); }, get matching() { return tr("ui.matching"); }, get sort() { return tr("ui.sort"); }, get video() { return tr("ui.video"); }, get audio() { return tr("ui.audio"); } };
+const BLOCK_FRAME_LABELS: Record<string, string> = { get quiz() { return tr("ui.quiz"); }, get cloze() { return tr("ui.gap_text"); }, get checker() { return tr("ui.checker"); }, get solution() { return tr("ui.solution"); }, get matching() { return tr("ui.matching"); }, get sort() { return tr("ui.sort"); }, get video() { return tr("ui.video"); }, get audio() { return tr("ui.audio"); } };
 
 function TimelineNodeIcon({
   node,

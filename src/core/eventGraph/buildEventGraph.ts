@@ -72,7 +72,7 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
       events.push({ id: videoEndNodeId(block.id), kind: "video-end" });
     }
 
-    if (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort") {
+    if (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || block.kind === "solution" || block.kind === "matching" || block.kind === "sort") {
       events.push({ id: quizFillNodeId(block.id), kind: "quiz-fill" });
       // The player lets the plain "submitted" event happen, and the one of the outcome as well.
       events.push({ id: quizSubmitNodeId(block.id), kind: "quiz-submit" });

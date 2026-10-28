@@ -89,6 +89,8 @@ function blockLines(block: Block): string[] {
       return [...block.sources, ...block.targets].map((item) => item.text).filter((text) => text.trim() !== "");
     case "sort":
       return [block.startLabel ?? "", ...block.items.map((item) => item.text), block.endLabel ?? ""].filter((text) => text.trim() !== "");
+    case "solution":
+      return (block.placeholder ?? "").trim() === "" ? [] : [block.placeholder as string];
     case "gallery":
       return block.items.map((item) => item.caption).filter((text) => text.trim() !== "");
     case "list":

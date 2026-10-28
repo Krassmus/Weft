@@ -2589,3 +2589,57 @@ summary:focus-visible,
     transition: none;
   }
 }
+
+/* A solution word: the field is an answer of a quiz (the same card, the same corners and lines of the module's style) with a field in it. */
+.weft-solution-field {
+  cursor: text;
+}
+
+.weft-solution-field:not(.is-correct):not(.is-incorrect):focus-within {
+  --slide-option-line: var(--slide-accent-ink);
+}
+
+.weft-solution-input {
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+.weft-solution-input::placeholder {
+  color: var(--slide-muted);
+  opacity: 1;
+}
+
+.weft-solution-input:disabled {
+  cursor: default;
+  -webkit-text-fill-color: currentColor;
+  opacity: 1;
+}
+
+.weft-solution-field.is-correct {
+  --slide-option-line: var(--slide-ok);
+  background-color: var(--slide-ok-soft);
+  color: var(--slide-ok-text);
+}
+
+.weft-solution-field.is-incorrect {
+  --slide-option-line: var(--slide-bad);
+  background-color: var(--slide-bad-soft);
+  color: var(--slide-bad-text);
+}
+
+/* How many tries are left: a line of its own under the words of the feedback. */
+.weft-solution-tries {
+  display: block;
+  font-size: 0.8em;
+  font-weight: 400;
+}

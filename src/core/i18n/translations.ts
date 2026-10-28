@@ -58,6 +58,7 @@ const baseEn = {
   "block.matching": "Matching",
   "block.sort": "Sorting puzzle",
   "block.gallery": "Gallery",
+  "block.solution": "Solution word",
   "block.placeholder": "Text placeholder",
   "block.script": "Logic block",
 
@@ -160,6 +161,7 @@ const baseDe: Record<keyof typeof baseEn, string> = {
   "block.matching": "Matching",
   "block.sort": "Sortierrätsel",
   "block.gallery": "Bildergalerie",
+  "block.solution": "Lösungswort",
   "block.placeholder": "Platzhalter-Text",
   "block.script": "Logikblock",
 
@@ -256,6 +258,7 @@ export const BLOCK_KIND_KEYS: Record<Block["kind"], Extract<TranslationKey, `blo
   matching: "block.matching",
   sort: "block.sort",
   gallery: "block.gallery",
+  solution: "block.solution",
   placeholder: "block.placeholder",
   script: "block.script",
 };

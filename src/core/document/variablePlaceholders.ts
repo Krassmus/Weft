@@ -56,6 +56,9 @@ export function placeholderSources(block: Block): string[] {
         ...[block.startLabel, block.endLabel].filter((t): t is string => !!t).map(escapeText),
         ...Object.values(block.translations ?? {}).flatMap((t) => [...Object.values(t.items ?? {}), t.startLabel, t.endLabel].filter((x): x is string => !!x).map(escapeText)),
       ];
+    case "solution":
+      // (The words in the empty field: a plain text, escaped first.)
+      return [...(block.placeholder ? [escapeText(block.placeholder)] : []), ...Object.values(block.translations ?? {}).flatMap((t) => (t.text !== undefined ? [escapeText(t.text)] : []))];
     case "gallery":
       // The captions (plain texts, escaped first), in every language.
       return [

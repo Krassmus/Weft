@@ -57,6 +57,7 @@ const KIND_DEFINITIONS: Record<string, string> = {
   button: "ButtonBlock",
   link: "LinkBlock",
   checker: "CheckerBlock",
+  solution: "SolutionBlock",
   matching: "MatchingBlock",
   sort: "SortBlock",
   gallery: "GalleryBlock",
@@ -187,6 +188,8 @@ function effectsOf(block: Block): { effects: VariableEffect[]; what: string }[] 
   } else if (block.kind === "sort") {
     groups.push({ effects: block.onSubmit ?? [], what: "beim Abschicken" }, { effects: block.onEachError ?? [], what: "bei jedem Fehler" });
     groups.push({ effects: block.onCorrect ?? [], what: "wenn die Reihenfolge stimmt" }, { effects: block.onIncorrect ?? [], what: "wenn die Reihenfolge nicht stimmt" });
+  } else if (block.kind === "solution") {
+    groups.push({ effects: block.onCorrect ?? [], what: "wenn das Wort richtig ist" }, { effects: block.onIncorrect ?? [], what: "bei jedem falschen Versuch" });
   } else if (block.kind === "checker") {
     groups.push({ effects: block.onChecked ?? [], what: "beim Abschicken mit Haken" }, { effects: block.onUnchecked ?? [], what: "beim Abschicken ohne Haken" });
   } else if (block.kind === "button") {
@@ -243,6 +246,14 @@ export function eventLabel(page: Page, node: TimelineNode, content: WeftModule, 
       "quiz-submit": "Sortierrätsel abgeschickt",
       "quiz-submit-correct": "Sortierrätsel abgeschickt (richtige Reihenfolge)",
       "quiz-submit-incorrect": "Sortierrätsel abgeschickt (falsche Reihenfolge)",
+    });
+  }
+  if (block?.kind === "solution") {
+    Object.assign(names, {
+      "quiz-fill-start": "Lösungswort: erster Buchstabe getippt",
+      "quiz-submit": "Lösungswort abgeschickt",
+      "quiz-submit-correct": "Lösungswort abgeschickt (richtig)",
+      "quiz-submit-incorrect": "Lösungswort abgeschickt (falsch)",
     });
   }
   if (block?.kind === "checker") {
@@ -485,6 +496,12 @@ export function validate(loaded: LoadedWeft): Finding[] {
       if (block.onEachError?.length === 0 && block.onSubmit?.length === 0 && block.onCorrect?.length === 0 && block.onIncorrect?.length === 0) add("info", "sort-no-effects", "Das Sortierrätsel vergibt keine Punkte (onSubmit / onEachError / onCorrect / onIncorrect sind leer).", here);
     }
 
+    // Solution word.
+    if (block.kind === "solution") {
+      if ((block.solution ?? "").trim() === "") add("warning", "solution-empty", "Das Lösungswort hat noch keine Lösung (solution): so ist jede Eingabe falsch.", here);
+      if (block.attempts !== undefined && (!Number.isInteger(block.attempts) || block.attempts < 1)) add("error", "solution-attempts", "Die Zahl der Versuche (attempts) ist eine ganze Zahl ab 1 - oder fehlt für beliebig viele.", here);
+    }
+
     // Gallery.
     if (block.kind === "gallery") {
       const items = block.items ?? [];
@@ -552,12 +569,14 @@ export function validate(loaded: LoadedWeft): Finding[] {
     }
 
     // Translations.
-    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort" || block.kind === "gallery" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
+    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort" || block.kind === "gallery" || block.kind === "solution" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
       const hasWords =
         block.kind === "quiz"
           ? plainTextOfHtml(block.questionHtml).trim() !== ""
           : block.kind === "list"
             ? block.items.length > 0
+            : block.kind === "solution"
+              ? (block.placeholder ?? "").trim() !== ""
             : block.kind === "gallery"
               ? block.items.some((item) => item.caption.trim() !== "")
             : block.kind === "sort"

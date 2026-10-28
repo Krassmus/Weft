@@ -754,6 +754,26 @@ const HANDLERS: Record<string, Handler> = {
     if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
     return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "sort", set, as: op.as });
   },
+  // A solution word: add_solution {page, solution, caseSensitive?, placeholder?, attempts?, required?, onCorrect?, onIncorrect?, x, y, width, height,
+  // effect?, name?, as}. A field for a word and "Abschicken" - nothing else. The word is right when it is `solution` (capital letters count only with
+  // caseSensitive); `attempts` is how many tries the learner has (absent: as many as they like; 1: one). The events are those of a quiz
+  // ("quiz-submit:<block>:richtig" is the right word) - what is to happen then hangs on them like on a quiz's (add_trigger). onCorrect happens once,
+  // onIncorrect for every wrong try - lists of variable effects.
+  add_solution(ctx, op) {
+    const container = op.layout !== undefined ? { layout: op.layout } : { page: op.page };
+    const num = (value: unknown, fallback: number) => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
+    if (typeof op.solution !== "string" || op.solution.trim() === "") fail('"solution" fehlt: das Lösungswort, das richtig ist.');
+    if (op.attempts !== undefined && (!Number.isInteger(op.attempts) || (op.attempts as number) < 1)) fail('"attempts" ist eine ganze Zahl ab 1 (die Zahl der Versuche) - oder fehlt für beliebig viele.');
+    const set: Record<string, unknown> = {
+      position: { x: num(op.x, 25), y: num(op.y, 34), width: num(op.width, 50), height: num(op.height, 32) },
+      solution: op.solution,
+      onCorrect: [],
+      onIncorrect: [],
+    };
+    for (const key of ["caseSensitive", "placeholder", "attempts", "required", "onCorrect", "onIncorrect", "name"]) if (op[key] !== undefined) set[key] = op[key];
+    if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
+    return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "solution", set, as: op.as });
+  },
   // A gallery: add_gallery {page, items, fit?, x, y, width, height, effect?, name?, as}. Pictures in a carousel (arrows, swipe, arrow keys); a click
   // on one opens it large with its caption. `items` is a list of {file | asset, caption?} in the order they are shown; `fit` is "cover" (the pictures
   // are cut to fill the carousel, the default) or "contain" (shown whole). A gallery lives on slides only.

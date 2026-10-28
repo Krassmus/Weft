@@ -902,6 +902,7 @@
     if (block.kind === "sort") holder.textContent = block.items.filter(function (item) { return item.kind === "text"; }).map(function (item) { return sortItemLabel(block, item); }).join(" / ");
     else if (block.kind === "matching") holder.textContent = block.sources.concat(block.targets).filter(function (item) { return item.kind === "text"; }).map(function (item) { return matchingLabel(block, item); }).join(" / ");
     else if (block.kind === "checker") holder.textContent = checkerLabel(block);
+    else if (block.kind === "solution") holder.textContent = solutionPlaceholder(block);
     else holder.innerHTML = block.kind === "quiz" ? quizQuestionHtml(block) : blockHtml(block);
     var text = (holder.textContent || "").replace(/\[\[[^\]]*\]\]/g, "\u2026").replace(/\s+/g, " ").trim();
     return text.length > 80 ? text.slice(0, 79) + "\u2026" : text;
@@ -916,7 +917,7 @@
       var page = module.pages[pageId];
       if (!page) return;
       page.blocks.forEach(function (block) {
-        if (block.kind !== "quiz" && block.kind !== "cloze" && block.kind !== "checker" && block.kind !== "matching" && block.kind !== "sort") return;
+        if (block.kind !== "quiz" && block.kind !== "cloze" && block.kind !== "checker" && block.kind !== "solution" && block.kind !== "matching" && block.kind !== "sort") return;
         var ids = scoringVariableIds(block);
         if (ids.length === 0) return;
         var result = (gradedAtPos[index] || []).filter(function (r) {
@@ -3517,6 +3518,151 @@
     return wrap;
   }
 
+  // ---- SolutionBlock ("Lösungswort"): a field for a word, and "Abschicken" ----
+  // The field has the look of an answer of a quiz (the module's style: corners, typeface), the button is the quiz's. It has the events of a quiz: the
+  // first letter typed (quiz-fill), submitted (quiz-submit) and, with it, "richtig" for the solution and "falsch" for any other word - for every
+  // try. It is locked once the word was right or the last try was wrong; with no limit it is only locked by the right word.
+
+  function solutionPlaceholder(block) {
+    var t = currentTranslation(block);
+    return ((t && t.text !== undefined ? t.text : block.placeholder) || "").trim() || uiString("solutionWord");
+  }
+
+  // The words are the same when only spaces around them or between their words differ - and capital letters, unless they count (and the same
+  // letters written composed or taken apart, as a Mac does).
+  function solutionNormal(text, caseSensitive) {
+    var t = String(text).replace(/\s+/g, " ").trim();
+    if (t.normalize) t = t.normalize("NFC");
+    return caseSensitive ? t : t.toLowerCase();
+  }
+
+  function solutionIsRight(block, typed) {
+    var solution = solutionNormal(block.solution || "", block.caseSensitive === true);
+    return solution !== "" && solutionNormal(typed, block.caseSensitive === true) === solution;
+  }
+
+  function renderSolutionBlock(block) {
+    var wrap = el("div", { class: "weft-block weft-block-solution", "data-weft-block": block.id, style: positionStyle(block.position) });
+    if (block.required) requiredPending[block.id] = true;
+    var form = el("form", { class: "weft-quiz weft-solution" }, []);
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+    });
+
+    var field = el("label", { class: "weft-quiz-option weft-solution-field" }, []);
+    var input = el("input", { type: "text", class: "weft-solution-input", name: "solution-" + block.id, autocomplete: "off", autocapitalize: "off", autocorrect: "off", spellcheck: "false" }, []);
+    field.appendChild(input);
+    form.appendChild(field);
+
+    var submit = el("button", { type: "button", class: "weft-quiz-submit" }, []);
+    var submitIcon = el("span", { class: "weft-quiz-submit-icon", "aria-hidden": "true" }, []);
+    submitIcon.innerHTML = QUIZ_SUBMIT_ICON_SVG;
+    submit.appendChild(submitIcon);
+    var submitLabel = document.createTextNode(uiString("submit"));
+    submit.appendChild(submitLabel);
+    form.appendChild(submit);
+
+    var feedback = el("div", { class: "weft-quiz-feedback", hidden: "" }, []);
+    var feedbackIcon = el("span", { class: "weft-quiz-feedback-icon", "aria-hidden": "true" }, []);
+    var feedbackTitle = el("strong", { class: "weft-quiz-feedback-title" }, []);
+    feedback.appendChild(feedbackIcon);
+    feedback.appendChild(feedbackTitle);
+    form.appendChild(feedback);
+
+    var maxTries = block.attempts > 0 ? Math.floor(block.attempts) : Infinity;
+    var tries = 0;
+    var finished = false; // the word was right, or the last try was used
+    var lastRight = null; // how the last try went (null: no try yet)
+    var mark = null;
+    var hasFiredFill = false;
+
+    var triesLeft = function () {
+      return maxTries === Infinity ? null : maxTries - tries;
+    };
+    // The words of the feedback: right / wrong, and for a wrong word with tries left how many there are.
+    var showFeedbackTitle = function () {
+      if (lastRight === null) return;
+      var left = triesLeft();
+      feedbackTitle.textContent = uiString(lastRight ? "correct" : "incorrect");
+      if (!lastRight && !finished && left !== null) {
+        feedbackTitle.appendChild(document.createTextNode(" "));
+        var more = el("span", { class: "weft-solution-tries" }, []);
+        more.textContent = uiStringWith("solutionAttemptsLeft", { n: left });
+        feedbackTitle.appendChild(more);
+      }
+    };
+    var fillTexts = function () {
+      var placeholder = solutionPlaceholder(block);
+      input.setAttribute("placeholder", placeholder);
+      input.setAttribute("aria-label", placeholder);
+    };
+    fillTexts();
+    languageRefreshers.push(function () {
+      fillTexts();
+      submitLabel.nodeValue = uiString("submit");
+      showFeedbackTitle();
+    });
+
+    // The first letter typed is the quiz's "first answer" (see quizFillEventId).
+    input.addEventListener("input", function () {
+      // (A word that was wrong is not marked as wrong any more once it is being changed.)
+      field.classList.remove("is-incorrect");
+      input.removeAttribute("aria-invalid");
+      if (hasFiredFill) return;
+      hasFiredFill = true;
+      happened(quizFillEventId(block.id));
+    });
+
+    var attempt = function () {
+      if (finished) return;
+      var typed = input.value;
+      // (Nothing written is not a try.)
+      if (typed.trim() === "") {
+        input.focus();
+        return;
+      }
+      if (!mark) mark = scoreMark(block);
+      var right = solutionIsRight(block, typed);
+      tries++;
+      lastRight = right;
+      ((right ? block.onCorrect : block.onIncorrect) || []).forEach(applyEffect);
+      finished = right || tries >= maxTries;
+      if (finished) {
+        scoreRecord(block, mark, right ? "right" : "wrong");
+        requiredDone(block.id);
+      }
+      // The same events as a quiz (see quizSubmitNodeId in pageTimeline.ts): the plain one and the one of the outcome - for every try.
+      happened(quizSubmitEventId(block.id));
+      happened(quizSubmitEventId(block.id, right ? "richtig" : "falsch"));
+      field.classList.toggle("is-correct", right);
+      field.classList.toggle("is-incorrect", !right);
+      if (!right) input.setAttribute("aria-invalid", "true");
+      feedbackIcon.innerHTML = right ? QUIZ_CORRECT_ICON_SVG : QUIZ_INCORRECT_ICON_SVG;
+      feedback.className = "weft-quiz-feedback " + (right ? "is-correct" : "is-incorrect");
+      feedback.hidden = false;
+      if (finished) {
+        input.disabled = true;
+        submit.hidden = true;
+      } else {
+        // (Another try: the word is selected, to be written over.)
+        input.focus();
+        input.select();
+      }
+      showFeedbackTitle();
+      announce(feedbackTitle.textContent);
+    };
+    submit.addEventListener("click", attempt);
+    // Enter in the field is "Abschicken".
+    input.addEventListener("keydown", function (event) {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      attempt();
+    });
+
+    wrap.appendChild(form);
+    return wrap;
+  }
+
   // ---- MatchingBlock ("Zuordnung"): objects dragged onto targets ----
   // Two lists of cards on an area: the learner drags the cards of the first (sources) onto those of the second (targets) - or picks one (a
   // click, Enter) and then a target - and presses "Abschicken": what was right and what was not is marked, and the effects of the block happen
@@ -4913,7 +5059,7 @@
       }
       return el("div", { class: "weft-block weft-block-script", style: "display:none;" }, []);
     }
-    var wrap = block.kind === "progress" ? renderProgressBlock(block) : block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "checker" ? renderCheckerBlock(block) : block.kind === "matching" ? renderMatchingBlock(block) : block.kind === "sort" ? renderSortBlock(block) : block.kind === "gallery" ? renderGalleryBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : block.kind === "link" ? renderLinkBlock(block) : block.kind === "revealer" ? renderRevealerBlock(block) : renderStaticBlock(block, page);
+    var wrap = block.kind === "progress" ? renderProgressBlock(block) : block.kind === "cloze" ? renderClozeBlock(block) : block.kind === "checker" ? renderCheckerBlock(block) : block.kind === "solution" ? renderSolutionBlock(block) : block.kind === "matching" ? renderMatchingBlock(block) : block.kind === "sort" ? renderSortBlock(block) : block.kind === "gallery" ? renderGalleryBlock(block) : block.kind === "quiz" ? renderQuizBlock(block) : block.kind === "button" ? renderButtonBlock(block) : block.kind === "link" ? renderLinkBlock(block) : block.kind === "revealer" ? renderRevealerBlock(block) : renderStaticBlock(block, page);
     applyBlockEffects(wrap, block, page);
     applyActionEffects(wrap, block);
     if (block.kind === "list" && wrap.weftListItems) applyListItemEffects(block, wrap.weftListItems);

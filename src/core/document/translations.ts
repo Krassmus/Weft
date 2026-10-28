@@ -1,4 +1,4 @@
-import type { BlockTranslation, ButtonBlock, CheckerBlock, ClozeBlock, LinkBlock, GalleryBlock, GalleryItem, MatchItem, MatchingBlock, ListBlock, QuizBlock, RevealerBlock, SortBlock, SortItem, TextBlock, WeftModule } from "../types";
+import type { BlockTranslation, ButtonBlock, CheckerBlock, SolutionBlock, ClozeBlock, LinkBlock, GalleryBlock, GalleryItem, MatchItem, MatchingBlock, ListBlock, QuizBlock, RevealerBlock, SortBlock, SortItem, TextBlock, WeftModule } from "../types";
 
 /**
  * Per-language wording of the blocks that carry text (text, quiz, button). The block's own fields
@@ -8,7 +8,7 @@ import type { BlockTranslation, ButtonBlock, CheckerBlock, ClozeBlock, LinkBlock
  * block's own fields.
  */
 
-type Translatable = TextBlock | QuizBlock | ButtonBlock | LinkBlock | CheckerBlock | MatchingBlock | SortBlock | GalleryBlock | ListBlock | ClozeBlock;
+type Translatable = TextBlock | QuizBlock | ButtonBlock | LinkBlock | CheckerBlock | SolutionBlock | MatchingBlock | SortBlock | GalleryBlock | ListBlock | ClozeBlock;
 type Translations = Record<string, BlockTranslation> | undefined;
 
 export function defaultLanguageOf(languages: readonly string[]): string | null {
@@ -119,6 +119,15 @@ export function checkerTextPatch(block: CheckerBlock, language: string | null, d
   return wordingPatch(block, language, defaultLanguage, { text }, (t) => ({ ...t, text })) as Partial<CheckerBlock>;
 }
 
+/** What stands in the empty field of a solution word in `language`: its translation if there is one, else the block's own (the default language's). */
+export function solutionPlaceholderText(block: SolutionBlock, language: string | null, defaultLanguage: string | null): string {
+  return translationOf(block.translations, language, defaultLanguage)?.text ?? block.placeholder ?? "";
+}
+
+export function solutionPlaceholderPatch(block: SolutionBlock, language: string | null, defaultLanguage: string | null, text: string) {
+  return wordingPatch(block, language, defaultLanguage, { placeholder: text }, (t) => ({ ...t, text })) as Partial<SolutionBlock>;
+}
+
 /** The text of a link in `language`: its translation if there is one, else the block's own (the default language's). */
 export function linkText(block: LinkBlock, language: string | null, defaultLanguage: string | null): string {
   return translationOf(block.translations, language, defaultLanguage)?.text ?? block.text;
@@ -177,6 +186,7 @@ export function isTranslated(block: Translatable, language: string | null, defau
     const first = block.sources[0] ?? block.targets[0];
     return !first || translation?.items?.[first.id] !== undefined;
   }
+  if (block.kind === "solution") return (block.placeholder ?? "").trim() === "" || translation?.text !== undefined;
   if (block.kind === "sort") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
   if (block.kind === "gallery") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
   return translation?.text !== undefined || translation?.html !== undefined;
@@ -371,12 +381,15 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       delete block.translations[newDefault];
       continue;
     }
-    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "link" && block.kind !== "checker" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "gallery" && block.kind !== "list") continue;
+    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "link" && block.kind !== "checker" && block.kind !== "solution" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "gallery" && block.kind !== "list") continue;
     const incoming = block.translations?.[newDefault];
     const outgoing: BlockTranslation = {};
     if (block.kind === "text" || block.kind === "cloze") {
       outgoing.html = block.html;
       if (incoming?.html !== undefined) block.html = incoming.html;
+    } else if (block.kind === "solution") {
+      outgoing.text = block.placeholder ?? "";
+      if (incoming?.text !== undefined) block.placeholder = incoming.text;
     } else if (block.kind === "link" || block.kind === "checker") {
       outgoing.text = block.text;
       if (incoming?.text !== undefined) block.text = incoming.text;

@@ -686,6 +686,8 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
         onIncorrect: [],
       };
     }
+    case "solution":
+      return { ...base, kind, position: { x: 25, y: 34, width: 50, height: 32 }, solution: "", onCorrect: [], onIncorrect: [] };
     case "gallery":
       // No pictures yet: they are chosen in the panel (or by a drop of files on the block).
       return { ...base, kind, position: { x: 20, y: 15, width: 60, height: 70 }, items: [] };
@@ -887,7 +889,7 @@ export function updateBlock(pageId: string, blockId: string, patch: Partial<Bloc
     // page.timeline.triggers, not on the block itself - see setEventTrigger below.
     const touchesEffect = "entranceEffect" in patch || "exitEffect" in patch;
     const touchesList = block.kind === "list" && ("items" in patch || "itemEntrance" in patch);
-    if (page && (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort" || isMediaBlock(block) || touchesEffect || touchesList)) {
+    if (page && (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || block.kind === "solution" || block.kind === "matching" || block.kind === "sort" || isMediaBlock(block) || touchesEffect || touchesList)) {
       syncPageTimelineEvents(page);
     }
     // A list whose items have an Aufbau of their own: a new item (or all of them, when the switch has just been turned on) takes its
@@ -1979,7 +1981,7 @@ export function pasteBlockInto(
   target: { kind: "page"; pageId: string } | { kind: "layout"; layoutId: string },
   sourceBlock: Block,
 ): string | null {
-  if (target.kind === "layout" && (sourceBlock.kind === "quiz" || sourceBlock.kind === "cloze" || sourceBlock.kind === "checker" || sourceBlock.kind === "matching" || sourceBlock.kind === "sort" || sourceBlock.kind === "gallery" || sourceBlock.kind === "script")) return null;
+  if (target.kind === "layout" && (sourceBlock.kind === "quiz" || sourceBlock.kind === "cloze" || sourceBlock.kind === "checker" || sourceBlock.kind === "solution" || sourceBlock.kind === "matching" || sourceBlock.kind === "sort" || sourceBlock.kind === "gallery" || sourceBlock.kind === "script")) return null;
   // A placeholder only exists in a layout.
   if (target.kind === "page" && sourceBlock.kind === "placeholder") return null;
   const newBlock = cloneBlockWithNewId(sourceBlock);

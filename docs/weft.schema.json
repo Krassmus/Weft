@@ -272,6 +272,9 @@
           "$ref": "#/definitions/CheckerBlock"
         },
         {
+          "$ref": "#/definitions/SolutionBlock"
+        },
+        {
           "$ref": "#/definitions/MatchingBlock"
         },
         {
@@ -2984,6 +2987,97 @@
         "dotted"
       ],
       "type": "string"
+    },
+    "SolutionBlock": {
+      "additionalProperties": false,
+      "description": "A solution word (\"Lösungswort\"): a text field and a button \"Abschicken\" - nothing else. The learner writes the word, and it is right when it is `solution` (the letters count as they are, or not: `caseSensitive`; spaces around it and doubled ones inside it never do). `attempts` is how many tries there are (absent: as many as the learner likes; 1: one) - the field is locked once it was right or the last try was wrong. It has the events of a quiz in the page's graph (the first letter typed, submitted - plain, and with the outcome: \"richtig\" is the solution, \"falsch\" every other word), so that what follows can hang on them - the Aufbau of a block, the next slide - and it can change variables for them (`onCorrect`, once; `onIncorrect`, for every wrong try). It lives on pages only (it holds a state), and looks like the other interactive elements of the module's style (the corners and the typeface).",
+      "properties": {
+        "actionEffects": {
+          "description": "What the block does between its Aufbau and its Abbau (see ActionEffect) - in the order they were made; when they happen is a matter of the page's graph. Absent: none (a module saved before they existed).",
+          "items": {
+            "$ref": "#/definitions/ActionEffect"
+          },
+          "type": "array"
+        },
+        "attempts": {
+          "description": "How many tries the learner has (a whole number, 1 or more). Absent: as many as they like.",
+          "type": "number"
+        },
+        "caseSensitive": {
+          "description": "Capital and small letters are different letters. Absent: they are not.",
+          "type": "boolean"
+        },
+        "entranceEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block appears - defaults to \"off\" (see BlockEffectType's own doc comment): just there from the moment the slide is, i.e. exactly how every block behaved before this field existed."
+        },
+        "exitEffect": {
+          "$ref": "#/definitions/BlockEffect",
+          "description": "How this block disappears *before* the slide itself does - defaults to \"off\": never happens at all, i.e. exactly how every block behaved before this field existed - it simply stays until the slide changes."
+        },
+        "id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "kind": {
+          "const": "solution",
+          "type": "string"
+        },
+        "name": {
+          "description": "What the author calls this block (optional): shown instead of its kind in the event graph, in the list of a page's elements and in what `weft inspect` says, and a way for tools to refer to it. Never shown to learners.",
+          "type": "string"
+        },
+        "onCorrect": {
+          "description": "What happens when the word is right (once) / for every wrong try.",
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        },
+        "onIncorrect": {
+          "items": {
+            "$ref": "#/definitions/VariableEffect"
+          },
+          "type": "array"
+        },
+        "order": {
+          "$ref": "#/definitions/OrderKey",
+          "description": "Stacking order among the blocks of its page/layout (later = on top) - see ordering.ts."
+        },
+        "placeholder": {
+          "description": "What stands in the empty field (plain text; translatable: BlockTranslation.text). Absent or empty: the player's own word for it (\"Lösungswort\").",
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/definitions/BlockPosition"
+        },
+        "required": {
+          "description": "A required task, as QuizBlock.required: the page cannot be left by Weiter before the word was right or the last try was used. Absent: not required.",
+          "type": "boolean"
+        },
+        "solution": {
+          "description": "The right word (plain text). Empty: nothing is right yet.",
+          "type": "string"
+        },
+        "translations": {
+          "additionalProperties": {
+            "$ref": "#/definitions/BlockTranslation"
+          },
+          "description": "Other languages' wording (`placeholder`), by locale - see BlockTranslation.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "entranceEffect",
+        "exitEffect",
+        "id",
+        "kind",
+        "onCorrect",
+        "onIncorrect",
+        "order",
+        "position",
+        "solution"
+      ],
+      "type": "object"
     },
     "SortBlock": {
       "additionalProperties": false,

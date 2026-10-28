@@ -32,7 +32,11 @@ export type CertificateStringKey = "certificateTitle" | "certificateDownload";
  * in by the player). A language without its own entry falls back to English. */
 export type GalleryStringKey = "galleryPrevious" | "galleryNext" | "galleryPicture";
 
-type Strings = Record<PlayerStringKey | FilesStringKey | A11yStringKey | ResultsStringKey | CertificateStringKey | GalleryStringKey | "thanks", string>;
+/** The texts of a solution word: what the empty field says (and what a screen reader calls it) and how many tries are left ({n} is filled in by the
+ * player). A language without its own entry falls back to English. */
+export type SolutionStringKey = "solutionWord" | "solutionAttemptsLeft";
+
+type Strings = Record<PlayerStringKey | FilesStringKey | A11yStringKey | ResultsStringKey | CertificateStringKey | GalleryStringKey | SolutionStringKey | "thanks", string>;
 
 /** What an open question (no right or wrong, see QuizBlock.open) says once it is submitted. A language without its own falls back to English. */
 const THANKS: Record<string, string> = {
@@ -184,6 +188,46 @@ const GALLERY_TRANSLATIONS: Record<string, Record<GalleryStringKey, string>> = {
   th: galleryStrings("รูปก่อนหน้า", "รูปถัดไป", "รูปที่ {n} จาก {total}"),
 };
 
+function solutionStrings(word: string, attemptsLeft: string): Record<SolutionStringKey, string> {
+  return { solutionWord: word, solutionAttemptsLeft: attemptsLeft };
+}
+
+const SOLUTION_TRANSLATIONS: Record<string, Record<SolutionStringKey, string>> = {
+  de: solutionStrings("Lösungswort", "Verbleibende Versuche: {n}"),
+  en: solutionStrings("Solution word", "Attempts left: {n}"),
+  fr: solutionStrings("Mot solution", "Essais restants : {n}"),
+  es: solutionStrings("Palabra solución", "Intentos restantes: {n}"),
+  it: solutionStrings("Parola soluzione", "Tentativi rimasti: {n}"),
+  pt: solutionStrings("Palavra-solução", "Tentativas restantes: {n}"),
+  ca: solutionStrings("Paraula solució", "Intents restants: {n}"),
+  nl: solutionStrings("Oplossingswoord", "Resterende pogingen: {n}"),
+  sv: solutionStrings("Lösningsord", "Försök kvar: {n}"),
+  da: solutionStrings("Løsningsord", "Forsøg tilbage: {n}"),
+  nb: solutionStrings("Løsningsord", "Forsøk igjen: {n}"),
+  fi: solutionStrings("Ratkaisusana", "Yrityksiä jäljellä: {n}"),
+  pl: solutionStrings("Hasło rozwiązania", "Pozostałe próby: {n}"),
+  cs: solutionStrings("Slovo řešení", "Zbývající pokusy: {n}"),
+  sk: solutionStrings("Slovo riešenia", "Zostávajúce pokusy: {n}"),
+  hu: solutionStrings("Megoldószó", "Hátralévő próbálkozások: {n}"),
+  ro: solutionStrings("Cuvântul soluție", "Încercări rămase: {n}"),
+  bg: solutionStrings("Дума за решение", "Оставащи опити: {n}"),
+  hr: solutionStrings("Riječ rješenja", "Preostali pokušaji: {n}"),
+  ru: solutionStrings("Слово-решение", "Осталось попыток: {n}"),
+  uk: solutionStrings("Слово-розв’язок", "Залишилось спроб: {n}"),
+  el: solutionStrings("Λέξη λύσης", "Προσπάθειες που απομένουν: {n}"),
+  tr: solutionStrings("Çözüm kelimesi", "Kalan deneme: {n}"),
+  ar: solutionStrings("كلمة الحل", "المحاولات المتبقية: {n}"),
+  he: solutionStrings("מילת הפתרון", "ניסיונות שנותרו: {n}"),
+  hi: solutionStrings("समाधान शब्द", "शेष प्रयास: {n}"),
+  zh: solutionStrings("答案词", "剩余尝试次数：{n}"),
+  zh_TW: solutionStrings("答案詞", "剩餘嘗試次數：{n}"),
+  ja: solutionStrings("答えの言葉", "残りの回数: {n}"),
+  ko: solutionStrings("정답 단어", "남은 시도: {n}"),
+  id: solutionStrings("Kata solusi", "Sisa percobaan: {n}"),
+  vi: solutionStrings("Từ đáp án", "Số lần thử còn lại: {n}"),
+  th: solutionStrings("คำตอบ", "จำนวนครั้งที่เหลือ: {n}"),
+};
+
 function strings(
   submit: string,
   correct: string,
@@ -194,7 +238,7 @@ function strings(
   play: string,
   language: string,
 ): Strings {
-  return { submit, correct, incorrect, restart, done, next, play, language, thanks: THANKS.en, ...FILES_TRANSLATIONS.en, ...A11Y_TRANSLATIONS.en, ...RESULTS_TRANSLATIONS.en, ...CERTIFICATE_TRANSLATIONS.en, ...GALLERY_TRANSLATIONS.en };
+  return { submit, correct, incorrect, restart, done, next, play, language, thanks: THANKS.en, ...FILES_TRANSLATIONS.en, ...A11Y_TRANSLATIONS.en, ...RESULTS_TRANSLATIONS.en, ...CERTIFICATE_TRANSLATIONS.en, ...GALLERY_TRANSLATIONS.en, ...SOLUTION_TRANSLATIONS.en };
 }
 
 // Keyed by language code (the part of a locale before the "_"); Chinese is also keyed by "zh_TW" for
@@ -242,7 +286,7 @@ const ALIASES: Record<string, string> = { no: "nb", nn: "nb", zh_HK: "zh_TW", zh
 /** The fixed texts for a locale ("fr_FR"): its own, else its language's, else English - and German
  * for `null`, a module without languages. */
 export function playerStringsFor(locale: string | null): Strings {
-  if (locale === null) return { ...TRANSLATIONS.de, ...FILES_TRANSLATIONS.de, ...A11Y_TRANSLATIONS.de, ...RESULTS_TRANSLATIONS.de, ...CERTIFICATE_TRANSLATIONS.de, ...GALLERY_TRANSLATIONS.de, thanks: THANKS.de };
+  if (locale === null) return { ...TRANSLATIONS.de, ...FILES_TRANSLATIONS.de, ...A11Y_TRANSLATIONS.de, ...RESULTS_TRANSLATIONS.de, ...CERTIFICATE_TRANSLATIONS.de, ...GALLERY_TRANSLATIONS.de, ...SOLUTION_TRANSLATIONS.de, thanks: THANKS.de };
   const base = locale.split("_")[0];
   const key = [locale, base].map((k) => ALIASES[k] ?? k).find((k) => k in TRANSLATIONS);
   return {
@@ -252,6 +296,7 @@ export function playerStringsFor(locale: string | null): Strings {
     ...(RESULTS_TRANSLATIONS[key ?? "en"] ?? RESULTS_TRANSLATIONS.en),
     ...(CERTIFICATE_TRANSLATIONS[key ?? "en"] ?? CERTIFICATE_TRANSLATIONS.en),
     ...(GALLERY_TRANSLATIONS[key ?? "en"] ?? GALLERY_TRANSLATIONS.en),
+    ...(SOLUTION_TRANSLATIONS[key ?? "en"] ?? SOLUTION_TRANSLATIONS.en),
     thanks: THANKS[key ?? "en"] ?? THANKS.en,
   };
 }

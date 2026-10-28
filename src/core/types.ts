@@ -511,6 +511,34 @@ export interface ClozeBlock extends BaseBlock {
 }
 
 /**
+ * A solution word ("Lösungswort"): a text field and a button "Abschicken" - nothing else. The learner writes the word, and it is right when it is
+ * `solution` (the letters count as they are, or not: `caseSensitive`; spaces around it and doubled ones inside it never do). `attempts` is how
+ * many tries there are (absent: as many as the learner likes; 1: one) - the field is locked once it was right or the last try was wrong. It has
+ * the events of a quiz in the page's graph (the first letter typed, submitted - plain, and with the outcome: "richtig" is the solution, "falsch"
+ * every other word), so that what follows can hang on them - the Aufbau of a block, the next slide - and it can change variables for them
+ * (`onCorrect`, once; `onIncorrect`, for every wrong try). It lives on pages only (it holds a state), and looks like the other interactive elements
+ * of the module's style (the corners and the typeface).
+ */
+export interface SolutionBlock extends BaseBlock {
+  kind: "solution";
+  /** The right word (plain text). Empty: nothing is right yet. */
+  solution: string;
+  /** Capital and small letters are different letters. Absent: they are not. */
+  caseSensitive?: boolean;
+  /** What stands in the empty field (plain text; translatable: BlockTranslation.text). Absent or empty: the player's own word for it ("Lösungswort"). */
+  placeholder?: string;
+  /** How many tries the learner has (a whole number, 1 or more). Absent: as many as they like. */
+  attempts?: number;
+  /** Other languages' wording (`placeholder`), by locale - see BlockTranslation. */
+  translations?: Record<string, BlockTranslation>;
+  /** A required task, as QuizBlock.required: the page cannot be left by Weiter before the word was right or the last try was used. Absent: not required. */
+  required?: boolean;
+  /** What happens when the word is right (once) / for every wrong try. */
+  onCorrect: VariableEffect[];
+  onIncorrect: VariableEffect[];
+}
+
+/**
  * A checker: a checkbox with a text beside it - a declaration of consent, say - and under it a button "Abschicken". What happens once it is
  * submitted depends on whether the box is ticked (`onChecked`, `onUnchecked`: changes to variables, like the effects of a quiz). It has the
  * events of a quiz in the page's graph (a first click on the box, submitted - plain, and with the outcome: "richtig" is ticked, "falsch" is
@@ -894,7 +922,7 @@ export interface LinkBlock extends BaseBlock {
  * - unlike Quiz - both are allowed in a Layout, letting an author bake e.g. one consistent
  * background shape or "Weiter" button into every slide of that layout. */
 export type StaticBlock = TextBlock | PlaceholderBlock | ListBlock | LanguageBlock | ProgressBlock | CodeBlock | TexBlock | ImageBlock | VideoBlock | AudioBlock | RevealerBlock | IframeBlock | ButtonBlock | LinkBlock | ShapeBlock | ArrowBlock | FilesBlock;
-export type Block = StaticBlock | QuizBlock | ClozeBlock | CheckerBlock | MatchingBlock | SortBlock | GalleryBlock | ScriptBlock;
+export type Block = StaticBlock | QuizBlock | ClozeBlock | CheckerBlock | SolutionBlock | MatchingBlock | SortBlock | GalleryBlock | ScriptBlock;
 
 /** A block as it's first made, before it has been put somewhere (and so given its `order`). */
 export type NewBlock = Block extends infer B ? (B extends Block ? Omit<B, "order"> : never) : never;

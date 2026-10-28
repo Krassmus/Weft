@@ -139,6 +139,7 @@ npm run weft -- play module.weft --page 4 --steps "tick 1 3 5; submit; weiter" -
 | `zuordnen <object> <target>` | in the first matching, assign an object (by its text) to a target |
 | `sortieren <object> …` | in the first sorting puzzle that is still open, bring the objects (by their texts) into this order |
 | `galerie weiter\|zurueck\|oeffnen\|schliessen` | in the first gallery go to the next / previous picture (also while one is open large), open the picture that is shown large (with its caption) or close the open one |
+| `loesung <Wort>` | write the word into the first solution word that can still be tried and press "Abschicken" (the message says whether it was right) |
 | `submit` | press "Abschicken" of the first quiz, gap text, matching or sorting puzzle that is still open |
 | `fill <text> …` | fill in the blanks of the first open gap text in order |
 | `key <name>` · `wait <ms>` · `shot` | press a key · wait · just a picture |

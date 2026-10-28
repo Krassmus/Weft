@@ -188,7 +188,7 @@ export function buildGraphModel(page: Page): GraphModel {
     if (block.entranceEffect.type === "off") continue;
     const entrance = blockEffectNodeId(block.id, "entrance");
     const own: string[] = [];
-    if (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort") own.push(quizFillNodeId(block.id));
+    if (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || block.kind === "solution" || block.kind === "matching" || block.kind === "sort") own.push(quizFillNodeId(block.id));
     else if (block.kind === "button") own.push(buttonClickNodeId(block.id));
     else if (isMediaBlock(block) && !incoming.has(videoStartNodeId(block.id))) own.push(videoStartNodeId(block.id));
     for (const id of own) {
@@ -223,7 +223,7 @@ export function buildGraphModel(page: Page): GraphModel {
     // Only the events the block itself makes (a quiz's, a video's) are drawn in its frame - not its Aufbau and Abbau.
     const inEventBlock =
       block &&
-      (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort" || isMediaBlock(block)) &&
+      (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || block.kind === "solution" || block.kind === "matching" || block.kind === "sort" || isMediaBlock(block)) &&
       node.eventType !== "block-entrance" &&
       node.eventType !== "block-exit";
     let color: EventColor = "blue";

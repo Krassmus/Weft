@@ -36,6 +36,7 @@ import { LinkView } from "./blocks/LinkView";
 import { CheckerView } from "./blocks/CheckerView";
 import { MatchingView } from "./blocks/MatchingView";
 import { GalleryView } from "./blocks/GalleryView";
+import { SolutionView } from "./blocks/SolutionView";
 import { SortView } from "./blocks/SortView";
 import { safeLinkUrl } from "../../core/document/linkUrl";
 import { ScriptHexagon } from "./blocks/ScriptHexagon";
@@ -383,6 +384,13 @@ function ThumbBlockBody({
     return (
       <div className="weft-thumb-block weft-thumb-block-link" style={style} {...(address ? { "data-pdf-link": address } : {})}>
         <LinkView block={block} lang={lang} defaultLang={defaultLang} />
+      </div>
+    );
+  }
+  if (block.kind === "solution") {
+    return (
+      <div className="weft-thumb-block" style={style}>
+        <SolutionView block={block} lang={lang} defaultLang={defaultLang} />
       </div>
     );
   }

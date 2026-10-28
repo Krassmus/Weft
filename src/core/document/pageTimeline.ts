@@ -1,7 +1,7 @@
 import { isSnapshot } from "../collab/mutationScope";
 import { formatTimeMMSS } from "../formatTime";
 import { orderedValues } from "./ordering";
-import type { ActionEffect, Block, BlockEffect, RevealerBlock, BlockGroup, CheckerBlock, ClozeBlock, MatchingBlock, SortBlock, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode } from "../types";
+import type { ActionEffect, Block, BlockEffect, RevealerBlock, BlockGroup, CheckerBlock, SolutionBlock, ClozeBlock, MatchingBlock, SortBlock, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode } from "../types";
 import { isMediaBlock } from "../types";
 import type { MediaBlock } from "../types";
 import { tr } from "../i18n/tr";
@@ -58,21 +58,23 @@ export function quizEndNodeId(quizId: string, outcome: "richtig" | "falsch"): st
  * node, not two different-looking nodes that happen to share one id and so always select together).
  */
 function buildQuizLane(
-  quiz: QuizBlock | ClozeBlock | CheckerBlock | MatchingBlock | SortBlock,
+  quiz: QuizBlock | ClozeBlock | CheckerBlock | SolutionBlock | MatchingBlock | SortBlock,
   final?: { endId: string; kind: TimelineEdgeKind; delayMs?: number },
   outcome?: "richtig" | "falsch",
 ): TimelineLane {
   const fillId = quizFillNodeId(quiz.id);
   const submitId = quizSubmitNodeId(quiz.id, outcome);
   const nodes: TimelineNode[] = [
-    { id: fillId, kind: "event", sourceBlockId: quiz.id, eventType: "quiz-fill-start", ...(quiz.kind === "checker" ? { label: tr("ui.checker_toggled") } : quiz.kind === "matching" ? { label: tr("ui.matching_first") } : quiz.kind === "sort" ? { label: tr("ui.sort_first") } : {}) },
+    { id: fillId, kind: "event", sourceBlockId: quiz.id, eventType: "quiz-fill-start", ...(quiz.kind === "checker" ? { label: tr("ui.checker_toggled") } : quiz.kind === "solution" ? { label: tr("ui.solution_first") } : quiz.kind === "matching" ? { label: tr("ui.matching_first") } : quiz.kind === "sort" ? { label: tr("ui.sort_first") } : {}) },
     {
       id: submitId,
       kind: "event",
       sourceBlockId: quiz.id,
       eventType: outcome ? QUIZ_OUTCOME_EVENT_TYPES[outcome] : "quiz-submit",
       // (A gap text and a checker have the events of a quiz, under their own names; a checker's "richtig" is a ticked box.)
-      ...(quiz.kind === "sort"
+      ...(quiz.kind === "solution"
+        ? { label: tr(outcome === "richtig" ? "ui.solution_submitted_correct" : outcome === "falsch" ? "ui.solution_submitted_incorrect" : "ui.solution_submitted") }
+        : quiz.kind === "sort"
         ? { label: tr(outcome === "richtig" ? "ui.sort_submitted_correct" : outcome === "falsch" ? "ui.sort_submitted_incorrect" : "ui.sort_submitted") }
         : quiz.kind === "matching"
         ? { label: tr(outcome === "richtig" ? "ui.matching_submitted_correct" : outcome === "falsch" ? "ui.matching_submitted_incorrect" : "ui.matching_submitted") }
@@ -203,6 +205,7 @@ const BLOCK_KIND_LABELS: Record<Block["kind"], string> = {
   get matching() { return tr("ui.matching"); },
   get sort() { return tr("ui.sort"); },
   get gallery() { return tr("ui.gallery"); },
+  get solution() { return tr("ui.solution"); },
   get cloze() { return tr("ui.gap_text"); },
   get shape() { return tr("ui.shape"); },
   get arrow() { return tr("ui.arrow"); },
@@ -666,7 +669,7 @@ export function setTriggerEdge(
 function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<string, TimelineNode> } {
   const blocks = orderedValues(page.blocks);
   // A gap text has the events of a quiz (the first answer, submitted, right / wrong): the same lanes.
-  const quizzes = blocks.filter((b): b is QuizBlock | ClozeBlock | CheckerBlock | MatchingBlock | SortBlock => b.kind === "quiz" || b.kind === "cloze" || b.kind === "checker" || b.kind === "matching" || b.kind === "sort");
+  const quizzes = blocks.filter((b): b is QuizBlock | ClozeBlock | CheckerBlock | SolutionBlock | MatchingBlock | SortBlock => b.kind === "quiz" || b.kind === "cloze" || b.kind === "checker" || b.kind === "solution" || b.kind === "matching" || b.kind === "sort");
   const videos = blocks.filter((b): b is MediaBlock => isMediaBlock(b));
 
   const startNode: TimelineNode = { id: "start", kind: "start" };
@@ -686,11 +689,15 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
       if (outcome === "falsch" && quiz.kind === "quiz" && quiz.open) continue;
       const submitId = quizSubmitNodeId(quiz.id, outcome);
       const trigger = Object.values(page.timeline.triggers).find((t) => t.from === submitId && page.timeline.ends[t.to]);
-      if (!trigger) continue;
+      // A solution word always shows both outcomes: what is to follow a right word (a block that appears, say) hangs on "richtig", and an event that is
+      // not in the graph cannot be picked as a trigger.
+      if (!trigger && quiz.kind !== "solution") continue;
       outcomeLanes++;
-      lanes.push(buildQuizLane(quiz, { endId: trigger.to, kind: trigger.weiter ? "advance" : "timed", delayMs: trigger.delayMs }, outcome));
+      lanes.push(buildQuizLane(quiz, trigger ? { endId: trigger.to, kind: trigger.weiter ? "advance" : "timed", delayMs: trigger.delayMs } : undefined, outcome));
     }
-    if (outcomeLanes === 0) lanes.push(buildQuizLane(quiz));
+    // (The plain "submitted" of a solution word is only there when something hangs on it.)
+    const plainSubmitId = quizSubmitNodeId(quiz.id);
+    if (outcomeLanes === 0 || (quiz.kind === "solution" && Object.values(page.timeline.triggers).some((t) => t.from === plainSubmitId))) lanes.push(buildQuizLane(quiz));
   }
   const videoLanes = videos.map((video) => ({ video, lane: buildVideoLane(video, page) }));
   for (const { lane } of videoLanes) lanes.push(lane);
@@ -946,7 +953,7 @@ function blockEventIds(page: Page): Set<string> {
       ids.add(revealerOpenNodeId(block.id));
       if (block.button) ids.add(revealerButtonNodeId(block.id));
     }
-    if (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort") {
+    if (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || block.kind === "solution" || block.kind === "matching" || block.kind === "sort") {
       ids.add(quizFillNodeId(block.id));
       ids.add(quizSubmitNodeId(block.id));
       ids.add(quizSubmitNodeId(block.id, "richtig"));
@@ -994,7 +1001,7 @@ export function syncPageTimelineEvents(page: Page): void {
   const events = blockEventIds(page);
 
   // 1.
-  const quizIds = new Set(orderedValues(page.blocks).filter((b) => b.kind === "quiz" || b.kind === "cloze" || b.kind === "checker" || b.kind === "matching" || b.kind === "sort").map((b) => b.id));
+  const quizIds = new Set(orderedValues(page.blocks).filter((b) => b.kind === "quiz" || b.kind === "cloze" || b.kind === "checker" || b.kind === "solution" || b.kind === "matching" || b.kind === "sort").map((b) => b.id));
   for (const endId of Object.keys(timeline.ends)) {
     const quizEnd = /^end:quiz:(.+):(richtig|falsch)$/.exec(endId);
     if (!quizEnd) continue;

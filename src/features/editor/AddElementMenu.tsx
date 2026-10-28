@@ -12,7 +12,7 @@ type Kind = Block["kind"];
 
 /** The elements that only show something, and the ones the learner does something with - the two columns of the menu. */
 const PRESENTATION_KINDS: Kind[] = ["text", "image", "list", "shape", "arrow", "video", "audio", "iframe", "tex", "code", "progress", "placeholder"];
-const INTERACTIVE_KINDS: Kind[] = ["button", "link", "revealer", "quiz", "checker", "matching", "sort", "gallery", "files", "cloze", "language", "script"];
+const INTERACTIVE_KINDS: Kind[] = ["button", "link", "revealer", "quiz", "checker", "solution", "matching", "sort", "gallery", "files", "cloze", "language", "script"];
 
 const MENU_WIDTH = 340;
 
@@ -34,7 +34,7 @@ export function AddElementMenu({ container }: { container: { kind: "page"; pageI
   // What a slide can hold: no placeholder (they are the layout's). What a layout can: nothing that needs an answer.
   const allowed = (kind: Kind) => {
     if (kind === "language") return languageCount > 1;
-    if (inLayout) return kind !== "quiz" && kind !== "cloze" && kind !== "checker" && kind !== "matching" && kind !== "sort" && kind !== "gallery" && kind !== "script";
+    if (inLayout) return kind !== "quiz" && kind !== "cloze" && kind !== "checker" && kind !== "solution" && kind !== "matching" && kind !== "sort" && kind !== "gallery" && kind !== "script";
     return kind !== "placeholder";
   };
   const presentation = PRESENTATION_KINDS.filter(allowed);

@@ -140,6 +140,23 @@ async function perform(session: ChromeSession, step: string): Promise<Outcome> {
       })()`);
       return result ? { problem: result } : { note: `zugeordnet: ${args[0]} → ${args[1]}` };
     }
+    case "loesung": {
+      // loesung <Wort>: writes the word into the first solution word that can still be tried and presses "Abschicken". The note says how it went.
+      const word = args.join(" ");
+      if (word === "") throw new CliError('Welches Wort? loesung "Sonne"');
+      const result = await session.eval<{ problem?: string; note?: string }>(`(async () => {
+        const block = [...document.querySelectorAll('.weft-block-solution')].find((b) => b.querySelector('.weft-solution-input:not(:disabled)'));
+        if (!block) return { problem: 'kein Lösungswort, das noch zu versuchen ist' };
+        const input = block.querySelector('.weft-solution-input');
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(word)});
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        block.querySelector('.weft-quiz-submit').click();
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        const feedback = block.querySelector('.weft-quiz-feedback');
+        return { note: 'Lösungswort „' + ${JSON.stringify(word)} + '“: ' + (feedback && !feedback.hidden ? feedback.textContent : 'nichts passiert') + (input.disabled ? ' (gesperrt)' : '') };
+      })()`);
+      return result.problem ? { problem: result.problem } : { note: result.note };
+    }
     case "galerie": {
       // galerie weiter | zurueck | oeffnen | schliessen: the arrows of the first gallery on the slide, a click on the picture that is shown (it opens
       // large, with its caption), a click on the open picture (it closes). The note says which picture is shown and, once open, its caption.
@@ -235,7 +252,7 @@ async function perform(session: ChromeSession, step: string): Promise<Outcome> {
       return result ? { problem: result } : { note: `eingetragen: ${args.join(", ")}` };
     }
     default:
-      throw new CliError(`Unbekannter Schritt „${step}". Möglich: weiter, zurueck, click <Text>, tick <n>…, zuordnen <Objekt> <Ziel>, sortieren <Objekt>…, galerie weiter|zurueck|oeffnen|schliessen, submit, fill <Text>…, key <Taste>, wait <ms>, shot.`);
+      throw new CliError(`Unbekannter Schritt „${step}". Möglich: weiter, zurueck, click <Text>, tick <n>…, zuordnen <Objekt> <Ziel>, sortieren <Objekt>…, galerie weiter|zurueck|oeffnen|schliessen, loesung <Wort>, submit, fill <Text>…, key <Taste>, wait <ms>, shot.`);
   }
 }
 

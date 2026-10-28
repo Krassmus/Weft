@@ -2514,74 +2514,25 @@
         textInstance.update(textProps());
       });
     } else if (block.kind === "list") {
-      // Same markup and spacing as the editor's ListBlockCanvas (BlockView.tsx) and the thumbnails.
-      var listBox = el("div", { class: "weft-list", role: "list", style: "gap:" + (block.spacing || 0) + "cqw;" }, []);
-      var listItemElements = {};
-      var listTexts = [];
-      block.items.forEach(function (item, index) {
-        var row = el("div", { class: "weft-list-item", role: "listitem" }, []);
-        var marker = el("span", { class: "weft-list-marker is-" + block.marker }, []);
-        // (The colour of a dot, a dash or a number; a picture has its own. Only what looks like a colour is written into the style.)
-        if (block.markerColor && block.marker !== "image" && /^#[0-9a-fA-F]{3,8}$/.test(block.markerColor)) marker.style.color = block.markerColor;
-        if (block.marker === "image") {
-          if (block.markerAssetId) {
-            var markerSize = block.markerSize || 1.2;
-            // Centred on the middle of the lower case letters (0.32em above the baseline).
-            marker.appendChild(
-              el(
-                "img",
-                {
-                  src: assetSrc(block.markerAssetId),
-                  alt: "",
-                  style: "height:" + markerSize + "em;vertical-align:" + (0.32 - markerSize / 2).toFixed(3) + "em;",
-                },
-                [],
-              ),
-            );
-          }
-        } else if (block.marker === "number") {
-          // (A dot and a dash are drawn by the stylesheet.)
-          marker.textContent = index + 1 + ".";
-        }
-        var itemText = el("span", { class: "weft-list-item-text" }, []);
-        itemText.innerHTML = listItemHtml(block, item);
-        applyVariablesToNode(itemText);
-        listTexts.push({ element: itemText, item: item });
-        row.appendChild(marker);
-        row.appendChild(itemText);
-        listBox.appendChild(row);
-        listItemElements[item.id] = row;
-      });
-      // The mark of every item is as large as the item's first character (known once the list is laid out in the page) - except the
-      // author's own pictures: those are all the same size, whatever the first character of their item looks like.
-      var fitListMarkers = function () {
-        if (!listBox.isConnected || block.marker === "image") return;
-        listTexts.forEach(function (entry) {
-          var base = parseFloat(getComputedStyle(entry.element).fontSize);
-          var walker = document.createTreeWalker(entry.element, NodeFilter.SHOW_TEXT);
-          var scale = 1;
-          for (var textNode = walker.nextNode(); textNode; textNode = walker.nextNode()) {
-            if (!(textNode.nodeValue || "").trim()) continue;
-            var size = textNode.parentElement ? parseFloat(getComputedStyle(textNode.parentElement).fontSize) : 0;
-            if (size && base) scale = Math.round((size / base) * 1000) / 1000;
-            break;
-          }
-          var markerElement = entry.element.parentNode.querySelector(".weft-list-marker");
-          if (markerElement) markerElement.style.fontSize = scale === 1 ? "" : scale + "em";
-        });
+      // The points and their marks are what renderList (blocks/list/render.js, inlined ahead of this file) draws; the player hides and shows the points
+      // one by one where the Aufbau is each point's (applyListItemEffects).
+      var listProps = function () {
+        return {
+          items: block.items.map(function (item) {
+            return { id: item.id, html: listItemHtml(block, item) };
+          }),
+          marker: block.marker,
+          markerColor: block.markerColor,
+          markerSrc: block.markerAssetId ? assetSrc(block.markerAssetId) : null,
+          markerSize: block.markerSize,
+          spacing: block.spacing,
+        };
       };
-      // (The page is put on the screen right after this; fonts may arrive a little later.)
-      setTimeout(fitListMarkers, 0);
-      setTimeout(fitListMarkers, 300);
+      var listInstance = renderList(wrap, listProps(), { mode: "play", applyVariables: applyVariablesToNode });
       languageRefreshers.push(function () {
-        listTexts.forEach(function (entry) {
-          entry.element.innerHTML = listItemHtml(block, entry.item);
-          applyVariablesToNode(entry.element);
-        });
-        fitListMarkers();
+        listInstance.update(listProps());
       });
-      wrap.appendChild(listBox);
-      wrap.weftListItems = listItemElements;
+      wrap.weftListItems = listInstance.rows;
     } else if (block.kind === "language") {
       languageSwitches.push(renderLanguage(wrap, languageProps(), { mode: "play", text: uiString, setLanguage: setLanguage }));
     } else if (block.kind === "code") {

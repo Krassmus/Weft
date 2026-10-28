@@ -221,7 +221,6 @@ export function isTranslated(block: Translatable, language: string | null, defau
   const translation = block.translations?.[language];
   if (block.kind === "cloze") return translation?.html !== undefined;
   if (block.kind === "quiz") return translation?.questionHtml !== undefined;
-  if (block.kind === "list") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
   if (block.kind === "matching") {
     const first = block.sources[0] ?? block.targets[0];
     return !first || translation?.items?.[first.id] !== undefined;
@@ -464,7 +463,7 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       (block as Translatable).translations = translations;
       continue;
     }
-    if (block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "list") continue;
+    if (block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "matching" && block.kind !== "sort") continue;
     const incoming = block.translations?.[newDefault];
     const outgoing: BlockTranslation = {};
     if (block.kind === "cloze") {
@@ -487,12 +486,6 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       outgoing.endLabel = block.endLabel ?? "";
       if (incoming?.startLabel !== undefined) block.startLabel = incoming.startLabel;
       if (incoming?.endLabel !== undefined) block.endLabel = incoming.endLabel;
-    } else if (block.kind === "list") {
-      outgoing.items = Object.fromEntries(block.items.map((item) => [item.id, item.html]));
-      for (const item of block.items) {
-        const translated = incoming?.items?.[item.id];
-        if (translated !== undefined) item.html = translated;
-      }
     } else {
       outgoing.questionHtml = block.questionHtml;
       outgoing.options = Object.fromEntries(block.options.map((o) => [o.id, o.html]));

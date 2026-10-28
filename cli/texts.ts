@@ -2,7 +2,7 @@ import { orderedValues } from "../src/core/document/ordering";
 import { pageLabels } from "../src/core/document/pageLabels";
 import { branchPageIds, sequenceOf } from "../src/core/document/sequence";
 import { buildLanguageCatalog } from "../src/core/i18n/languages";
-import { descriptorOf, exportedItemTexts, exportedTexts } from "../src/core/blocks/registry";
+import { descriptorOf, exportedItemTexts, exportedTexts, itemsAreHtml } from "../src/core/blocks/registry";
 import { plainTextOfHtml } from "../src/core/document/translations";
 import type { Block, WeftModule } from "../src/core/types";
 import { CliError } from "./load";
@@ -93,10 +93,6 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
         ...(block.endLabel?.trim() ? [{ key: `${id}#end`, source: plain(block.endLabel), role: "Wort am Ende der Linie" }] : []),
       ];
     }
-    case "list":
-      return block.items
-        .map((item, index) => ({ key: `${id}#item:${item.id}`, source: item.html, role: `Punkt ${index + 1}` }))
-        .filter((item) => hasWords(item.source));
     default:
       // A block that describes itself (see core/blocks): its translatable texts are plain texts.
       return exportedTexts(block)
@@ -107,7 +103,8 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
         .concat(
           exportedItemTexts(block)
             .filter(({ value }) => hasWords(value))
-            .map(({ itemId, role, value }) => ({ key: `${id}#item:${itemId}`, source: value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role })),
+            // (The points of a list are formatted: HTML already.)
+            .map(({ itemId, role, value, html }) => ({ key: `${id}#item:${itemId}`, source: html ? value : value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role })),
         );
   }
 }
@@ -155,8 +152,8 @@ function existingTranslation(block: Block, key: string, language: string): strin
   if (part.startsWith("option:")) return translation.options?.[part.slice(7)] ?? "";
   if (part.startsWith("item:")) {
     const own = translation.items?.[part.slice(5)] ?? "";
-    // (The cards of a matching and the objects of a sorting puzzle are plain texts.)
-    return (block.kind === "matching" || block.kind === "sort" || descriptorOf(block)) && own ? plainToHtml(own) : own;
+    // (The cards of a matching and the objects of a sorting puzzle are plain texts - so are the captions of a gallery's pictures, not the points of a list.)
+    return (block.kind === "matching" || block.kind === "sort" || (descriptorOf(block) && !itemsAreHtml(block))) && own ? plainToHtml(own) : own;
   }
   return "";
 }
@@ -392,7 +389,7 @@ export function importTexts(content: WeftModule, file: TextsFile): ImportReport 
       else if (part === "start") target.startLabel = htmlToPlain(translated);
       else if (part === "end") target.endLabel = htmlToPlain(translated);
       else if (part.startsWith("option:")) (target.options ??= {})[part.slice(7)] = translated;
-      else if (part.startsWith("item:")) (target.items ??= {})[part.slice(5)] = block.kind === "matching" || block.kind === "sort" || descriptorOf(block) ? htmlToPlain(translated) : translated;
+      else if (part.startsWith("item:")) (target.items ??= {})[part.slice(5)] = block.kind === "matching" || block.kind === "sort" || (descriptorOf(block) && !itemsAreHtml(block)) ? htmlToPlain(translated) : translated;
       report.applied++;
     }
   }

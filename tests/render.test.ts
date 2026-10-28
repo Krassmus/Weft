@@ -7,6 +7,7 @@ import { renderIframe } from "../src/core/blocks/iframe/render.js";
 import { renderLanguage } from "../src/core/blocks/language/render.js";
 import { renderProgress } from "../src/core/blocks/progress/render.js";
 import { linkHref, renderLink } from "../src/core/blocks/link/render.js";
+import { renderList } from "../src/core/blocks/list/render.js";
 import { renderSolution } from "../src/core/blocks/solution/render.js";
 import { renderText, textBoxStyle } from "../src/core/blocks/text/render.js";
 
@@ -74,7 +75,7 @@ const ICONS = {
 };
 
 /** Every render.js there is must be run here: this is the list of what is run (a new one fails the test below until it is added). */
-const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text"];
+const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text", "list"];
 
 describe("the render functions", () => {
   it("are all tested here", () => {
@@ -91,7 +92,7 @@ describe("the render functions", () => {
     const inlined = source.replace(/^export /gm, "");
     expect(inlined).not.toMatch(/\bexport\b\s+(function|var|const|let|default)/);
     // The way the page has it: a script of its own that leaves the function there for the player after it.
-    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText" }[kind];
+    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText", list: "renderList" }[kind];
     expect(new Function(`${inlined}; return typeof ${name};`)()).toBe("function");
   });
 });
@@ -670,5 +671,84 @@ describe("the box of a text", () => {
     expect(textBoxStyle(undefined)).toBe("");
     const css = textBoxStyle({ fillOpacity: 0, borderOpacity: 0, borderWidth: 0, radius: 0, padding: 0 } as never);
     expect(css).toBe("box-sizing:border-box;border-radius:0cqw;padding:0cqw;");
+  });
+});
+
+// ---- the list ---------------------------------------------------------------------------------------------------------------------------
+
+describe.each(MODES)("a list drawn for %s", (mode) => {
+  const props = {
+    items: [
+      { id: "a", html: "<p>Eins</p>" },
+      { id: "b", html: "<p>Zwei <b>fett</b></p>" },
+      { id: "c", html: "<p>Drei</p>" },
+    ],
+    marker: "dot",
+    markerColor: "#ff0000",
+    markerSrc: null as string | null,
+    markerSize: undefined as number | undefined,
+    spacing: 1.5,
+  };
+  const context = () => ({ mode, applyVariables: vi.fn() });
+  const markers = (root: Element) => [...root.querySelectorAll(".weft-list-marker")];
+
+  it("is drawn with its points, each with its mark, the space between them, and can be drawn again and go away", () => {
+    const root = element();
+    const ctx = context();
+    const instance = renderList(root, props as never, ctx);
+    const list = find(root, ".weft-list") as HTMLElement;
+    expect(list.getAttribute("role")).toBe("list");
+    expect(list.getAttribute("style")).toContain("gap:1.5cqw");
+    expect([...root.querySelectorAll(".weft-list-item-text")].map((node) => node.innerHTML)).toEqual(["<p>Eins</p>", "<p>Zwei <b>fett</b></p>", "<p>Drei</p>"]);
+    expect(markers(root).map((marker) => marker.className)).toEqual(["weft-list-marker is-dot", "weft-list-marker is-dot", "weft-list-marker is-dot"]);
+    expect(ctx.applyVariables).toHaveBeenCalledTimes(3);
+    expect(Object.keys(instance.rows)).toEqual(["a", "b", "c"]);
+    expect(instance.rows.b.getAttribute("role")).toBe("listitem");
+    instance.update({ ...props, items: props.items.map((item) => ({ ...item, html: `<p>${item.id}!</p>` })) } as never);
+    expect([...root.querySelectorAll(".weft-list-item-text")].map((node) => node.textContent)).toEqual(["a!", "b!", "c!"]);
+    expect(ctx.applyVariables).toHaveBeenCalledTimes(6);
+    instance.destroy();
+    expect(root.childNodes.length).toBe(0);
+  });
+
+  it("is drawn in a place that has no variables", () => {
+    const root = element();
+    renderList(root, props as never, { mode });
+    expect(root.textContent).toBe("EinsZwei fettDrei");
+  });
+
+  it("has the colour of a dot, a dash and a number only where it looks like a colour", () => {
+    const colour = (marker: string, markerColor: string | null) => {
+      const root = element();
+      renderList(root, { ...props, marker, markerColor } as never, context());
+      return (markers(root)[0] as HTMLElement).getAttribute("style");
+    };
+    expect(colour("dot", "#ff0000")).toContain("color");
+    expect(colour("dash", "#f00")).toContain("color");
+    expect(colour("number", "red; background: url(x)")).toBeNull();
+    expect(colour("dot", null)).toBeNull();
+    expect(colour("image", "#ff0000")).toBeNull();
+  });
+
+  it("numbers its points, and draws the author's picture at the size they chose", () => {
+    const numbered = element();
+    renderList(numbered, { ...props, marker: "number" } as never, context());
+    expect(markers(numbered).map((marker) => marker.textContent)).toEqual(["1.", "2.", "3."]);
+    const pictured = element();
+    renderList(pictured, { ...props, marker: "image", markerSrc: "data:image/png;base64,AAAA", markerSize: 2 } as never, context());
+    const picture = find(pictured, ".weft-list-marker.is-image img") as HTMLElement;
+    expect(picture.getAttribute("src")).toBe("data:image/png;base64,AAAA");
+    expect(picture.getAttribute("style")).toBe("height:2em;vertical-align:-0.680em;");
+    // (Without a file there is no picture - nor a dot.)
+    const empty = element();
+    renderList(empty, { ...props, marker: "image", markerSrc: null } as never, context());
+    expect(empty.querySelectorAll("img").length).toBe(0);
+  });
+
+  it("is drawn with no space where it has none set, and as an empty list where it has no points", () => {
+    const root = element();
+    renderList(root, { ...props, spacing: undefined, items: [] } as never, context());
+    expect((find(root, ".weft-list") as HTMLElement).getAttribute("style")).toContain("gap:0cqw");
+    expect(root.querySelectorAll(".weft-list-item").length).toBe(0);
   });
 });

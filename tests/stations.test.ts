@@ -52,6 +52,10 @@ function sampleOf(name: string, spec: FieldSpec, ids: { asset: string; variable:
       return spec.sample ?? `Beispiel ${name}`;
     case "html":
       return `<p>Beispiel ${name}</p>`;
+    case "number":
+      return Math.max(spec.min ?? 0, 2) + 0.5;
+    case "choice":
+      return spec.options[spec.options.length - 1];
     case "bool":
       return true;
     case "int":
@@ -63,7 +67,10 @@ function sampleOf(name: string, spec: FieldSpec, ids: { asset: string; variable:
     case "list": {
       const item = (n: number) => {
         const made = spec.newItem(ids.asset);
-        for (const [itemName, itemSpec] of Object.entries(spec.item)) if (itemSpec.type === "text") made[itemName] = `Beispiel ${name} ${n}`;
+        for (const [itemName, itemSpec] of Object.entries(spec.item)) {
+          if (itemSpec.type === "text") made[itemName] = `Beispiel ${name} ${n}`;
+          if (itemSpec.type === "html") made[itemName] = `<p>Beispiel ${name} ${n}</p>`;
+        }
         return made;
       };
       return [item(1), item(2)];
@@ -254,10 +261,12 @@ function wordings(block: Block) {
       patch: (language: string, text: string) => fieldWordingPatch(block, name, language, DE, text),
     }));
   const items = listFieldsOf(block).flatMap(([listName, spec]: [string, ListField]) => {
-    const textName = Object.entries(spec.item).find(([, itemSpec]) => itemSpec.type === "text" && itemSpec.translatable)?.[0];
-    if (!textName) return [];
+    const textEntry = Object.entries(spec.item).find(([, itemSpec]) => (itemSpec.type === "text" || itemSpec.type === "html") && itemSpec.translatable);
+    if (!textEntry) return [];
+    const textName = textEntry[0];
     return (own[listName] as ({ id: string } & Fields)[]).map((item) => ({
       what: `${listName}[${item.id}]`,
+      html: textEntry[1].type === "html",
       own: item[textName] as string,
       read: (language: string) => itemWording(block, listName, item.id, language, DE),
       patch: (language: string, text: string) => itemWordingPatch(block, listName, item.id, language, DE, text),
@@ -363,6 +372,7 @@ describe("what is known about each kind", () => {
     progress: { pageOnly: false, task: false, translatable: [], lists: [] },
     language: { pageOnly: false, task: false, translatable: [], lists: [] },
     text: { pageOnly: false, task: false, translatable: ["html"], lists: [] },
+    list: { pageOnly: false, task: false, translatable: [], lists: ["items"] },
   };
 
   it("has an entry for every kind that describes itself - and for no other", () => {
@@ -409,7 +419,7 @@ describe("what `weft validate` says about a block that is wrong", () => {
 describe("a field of every type", () => {
   // The field types the stations are told about (blocks/types.ts): a type that is new has to be in a descriptor that is tested above, or it is
   // not tested at all.
-  const TYPES = ["text", "html", "bool", "int", "effects", "asset", "list"];
+  const TYPES = ["text", "html", "choice", "number", "bool", "int", "effects", "asset", "list"];
 
   it("is in at least one descriptor, so that every station has been run with it", () => {
     const seen = new Set<string>();

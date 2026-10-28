@@ -1,11 +1,12 @@
 import type { Block } from "../types";
-import type { BlockDescriptor, FieldSpec, ListField, TaskSpec, TextField } from "./types";
+import type { BlockDescriptor, FieldSpec, HtmlField, ListField, TaskSpec, TextField } from "./types";
 import { buttonBlock } from "./button/descriptor";
 import { checkerBlock } from "./checker/descriptor";
 import { galleryBlock } from "./gallery/descriptor";
 import { iframeBlock } from "./iframe/descriptor";
 import { languageBlock } from "./language/descriptor";
 import { linkBlock } from "./link/descriptor";
+import { listBlock } from "./list/descriptor";
 import { progressBlock } from "./progress/descriptor";
 import { solutionBlock } from "./solution/descriptor";
 import { textBlock } from "./text/descriptor";
@@ -29,6 +30,7 @@ registerBlock(languageBlock);
 registerBlock(checkerBlock);
 registerBlock(buttonBlock);
 registerBlock(textBlock);
+registerBlock(listBlock);
 
 /** The descriptor of a kind, if it has one. */
 export function descriptorOf<B extends Block>(block: B): BlockDescriptor<B> | undefined;
@@ -73,7 +75,18 @@ export function listFieldsOf(block: Block): [string, ListField][] {
 
 /** The name of the field of an item of a list that holds its words (the one translatable text), if it has one. */
 export function itemTextName(list: ListField): string | undefined {
-  return Object.entries(list.item).find((entry): entry is [string, TextField] => entry[1].type === "text" && !!entry[1].translatable)?.[0];
+  return Object.entries(list.item).find((entry): entry is [string, TextField | HtmlField] => (entry[1].type === "text" || entry[1].type === "html") && !!entry[1].translatable)?.[0];
+}
+
+/** Whether the words of the items of any list of the block are HTML (formatted), not plain texts. */
+export function itemsAreHtml(block: Block): boolean {
+  return listFieldsOf(block).some(([, spec]) => itemTextIsHtml(spec));
+}
+
+/** Whether the words of an item of the list are HTML (formatted), not a plain text. */
+export function itemTextIsHtml(list: ListField): boolean {
+  const name = itemTextName(list);
+  return !!name && list.item[name].type === "html";
 }
 
 type Items = { id: string }[];
@@ -83,7 +96,9 @@ export function assetIdsOfFields(block: Block): string[] {
   const record = block as unknown as Record<string, unknown>;
   const ids: unknown[] = [];
   for (const [name, spec] of fieldsOf(block)) {
-    if (spec.type === "asset") ids.push(record[name]);
+    if (spec.type === "asset") {
+      if (!spec.usedWhen || record[spec.usedWhen.field] === spec.usedWhen.is) ids.push(record[name]);
+    }
     else if (spec.type === "list") {
       for (const item of (record[name] as Record<string, unknown>[] | undefined) ?? []) {
         for (const [itemName, itemSpec] of Object.entries(spec.item)) if (itemSpec.type === "asset") ids.push(item[itemName]);
@@ -130,7 +145,8 @@ function wordingsWith(block: Block, flag: Flag): Wording[] {
       });
     } else if (spec.type === "list") {
       const textName = itemTextName(spec);
-      if (!textName || !(spec.item[textName] as TextField)[flag]) continue;
+      if (!textName || !(spec.item[textName] as TextField | HtmlField)[flag]) continue;
+      const html = itemTextIsHtml(spec);
       for (const item of (record[name] as (Items[number] & Record<string, unknown>)[] | undefined) ?? []) {
         wordings.push({
           own: (item[textName] as string | undefined) ?? "",
@@ -138,7 +154,7 @@ function wordingsWith(block: Block, flag: Flag): Wording[] {
             const words = (t.items as Record<string, string> | undefined)?.[item.id];
             return typeof words === "string" ? [words] : [];
           }),
-          html: false,
+          html,
         });
       }
     }
@@ -179,12 +195,12 @@ export function exportedTexts(block: Block): { name: string; key: string; part: 
 }
 
 /** The texts of the items of a block's lists that `weft text export` lists: one for every item that has a caption-like text, with the number of the item. */
-export function exportedItemTexts(block: Block): { list: string; itemId: string; role: string; value: string }[] {
+export function exportedItemTexts(block: Block): { list: string; itemId: string; role: string; value: string; html: boolean }[] {
   const record = block as unknown as Record<string, unknown>;
   return listFieldsOf(block).flatMap(([name, spec]) => {
     const textName = itemTextName(spec);
     if (!textName || !spec.cliRole) return [];
     const items = (record[name] as (Items[number] & Record<string, unknown>)[] | undefined) ?? [];
-    return items.map((item, index) => ({ list: name, itemId: item.id, role: spec.cliRole!(index + 1), value: (item[textName] as string | undefined) ?? "" }));
+    return items.map((item, index) => ({ list: name, itemId: item.id, role: spec.cliRole!(index + 1), value: (item[textName] as string | undefined) ?? "", html: itemTextIsHtml(spec) }));
   });
 }

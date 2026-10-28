@@ -534,13 +534,11 @@ export function validate(loaded: LoadedWeft): Finding[] {
     };
     // (A block that describes itself: any of its texts has words.)
     if (languages.length > 1 && descriptorOf(block) && [...exportedTexts(block), ...exportedItemTexts(block)].some((text) => ("html" in text && text.html ? plainTextOfHtml(text.value) : text.value).trim() !== "")) markUntranslated();
-    if (languages.length > 1 && (block.kind === "matching" || block.kind === "sort" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
+    if (languages.length > 1 && (block.kind === "matching" || block.kind === "sort" || block.kind === "quiz" || block.kind === "cloze")) {
       const hasWords =
         block.kind === "quiz"
           ? plainTextOfHtml(block.questionHtml).trim() !== ""
-          : block.kind === "list"
-            ? block.items.length > 0
-            : block.kind === "sort"
+          : block.kind === "sort"
               ? block.items.some((item) => item.text.trim() !== "")
             : block.kind === "matching"
               ? [...block.sources, ...block.targets].some((item) => item.text.trim() !== "")

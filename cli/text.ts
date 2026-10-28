@@ -33,11 +33,6 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
       return `Platzhalter „${block.label}"`;
     case "cloze":
       return words(block.html) || "(leer)";
-    case "list":
-      return `${block.items.length} Punkte: ${block.items
-        .slice(0, 3)
-        .map((item) => words(item.html, 30))
-        .join(" | ")}`;
     case "quiz": {
       const options = block.options.length;
       const correct = block.correctOptionIds.length;

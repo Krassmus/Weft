@@ -58,7 +58,7 @@ Guides: [docs/ai-authoring.en.md](docs/ai-authoring.en.md), [docs/operations.en.
   Animation); der Text ist das positionierte Element selbst (Kasten, Weichzeichner und Scrollen gehören ihm: ein Weichzeichner hinter einem Kind eines eingeblendeten Elements sähe die Folie nicht), scrollt nur im Player und kürzt sonst ab. Das gemeinsame Aussehen steht in `core/runtime/quizCard.css` und `blocks/*/render.css`,
   die Player und Editor beide laden. Bisher beschreiben sich das Lösungswort, der Checker, der Button, der Text, die Galerie, die eingebettete Seite, der Link, der
   Fortschrittsbalken und der Sprachumschalter so (`blocks/solution/`, `blocks/checker/`, `blocks/button/`, `blocks/text/`,
-  `blocks/gallery/`, `blocks/iframe/`, `blocks/link/`, `blocks/progress/`, `blocks/language/`; Feldtypen: Text - auch mit einer formatierten Variante (HTML) wie die Beschriftung des Buttons -, reines HTML (der Text-Block), Ja/Nein, Zahl,
+  `blocks/gallery/`, `blocks/iframe/`, `blocks/link/`, `blocks/progress/`, `blocks/language/`; Feldtypen: Text - auch mit einer formatierten Variante (HTML) wie die Beschriftung des Buttons -, reines HTML (der Text-Block), Ja/Nein, Zahl (ganz oder mit Nachkommastellen), Auswahl aus einigen Wörtern,
   Variablen-Effekte, Datei, Liste von Elementen mit Datei und Text); die anderen Arten sind noch von Hand an diesen Stellen eingetragen. Der Deskriptor
   ist so geschnitten (nur Daten und reine Funktionen auf dem JSON des Blocks), dass er das Manifest
   eines Plugin-Blocks werden kann.

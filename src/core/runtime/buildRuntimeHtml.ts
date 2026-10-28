@@ -23,6 +23,8 @@ import buttonRenderSource from "../blocks/button/render.js?raw";
 import buttonCss from "../blocks/button/render.css?raw";
 import textRenderSource from "../blocks/text/render.js?raw";
 import textCss from "../blocks/text/render.css?raw";
+import listRenderSource from "../blocks/list/render.js?raw";
+import listCss from "../blocks/list/render.css?raw";
 import playerRuntimeSource from "./player.runtime.js?raw";
 import quizCardCss from "./quizCard.css?raw";
 import playerRuntimeCss from "./player.runtime.css?raw";
@@ -110,6 +112,7 @@ export async function buildRuntimeHtml(
 <style>${checkerCss}</style>
 <style>${buttonCss}</style>
 <style>${textCss}</style>
+<style>${listCss}</style>
 <style>${playerRuntimeCss}</style>
 <style>${fontFaceCss}</style>
 ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` : ""}${hasTex ? `<style>${buildKatexCss()}</style>\n` : ""}</head>
@@ -141,6 +144,7 @@ ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` 
 <script>${checkerRenderSource.replace(/^export /gm, "")}</script>
 <script>${buttonRenderSource.replace(/^export /gm, "")}</script>
 <script>${textRenderSource.replace(/^export /gm, "")}</script>
+<script>${listRenderSource.replace(/^export /gm, "")}</script>
 <script>${playerRuntimeSource}</script>
 </body>
 </html>

@@ -695,23 +695,11 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
     case "checker":
     case "button":
     case "text":
+    case "list":
       // (A kind with a descriptor is made above - it has no case of its own.)
       throw new Error(`The kind "${kind}" has no descriptor.`);
     case "placeholder":
       return { ...base, kind, position, label: tr("ui.placeholder"), html: tr("ui.placeholder_text") };
-    case "list":
-      return {
-        ...base,
-        kind,
-        position: { x: 10, y: 35, width: 80, height: 40 },
-        items: [
-          { id: createId(), html: tr("ui.first_item") },
-          { id: createId(), html: tr("ui.second_item") },
-          { id: createId(), html: tr("ui.third_item") },
-        ],
-        marker: "dot",
-        spacing: 1.2,
-      };
     case "language":
     case "progress":
       // (A kind with a descriptor is made above - it has no case of its own.)

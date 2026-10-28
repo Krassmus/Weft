@@ -726,14 +726,12 @@ img.weft-thumb-block {
 /* As in the player (.weft-quiz-question, .weft-quiz-option-text): the text's own first/last paragraph has no margin - without it the
    question takes up much more room than in the player. */
 .weft-thumb-block-quiz-question > :first-child,
-.weft-thumb-block-quiz-option-text > :first-child,
-.weft-thumb-block-list-item-text > :first-child {
+.weft-thumb-block-quiz-option-text > :first-child {
   margin-top: 0;
 }
 
 .weft-thumb-block-quiz-question > :last-child,
-.weft-thumb-block-quiz-option-text > :last-child,
-.weft-thumb-block-list-item-text > :last-child {
+.weft-thumb-block-quiz-option-text > :last-child {
   margin-bottom: 0 !important;
 }
 
@@ -2165,11 +2163,9 @@ button.weft-timeline-node-icon:hover {
   color: var(--weft-text);
 }
 
-/* A list (ListBlock): its items, each with its mark in front. The marks and the spacing are the same in the player (.weft-list* in
-   player.runtime.css) and in the thumbnails (.weft-thumb-block-list*) - all three share the 1.7cqw base size of a block. */
-.weft-edit-block-list,
-.weft-list,
-.weft-thumb-block-list {
+/* A list (ListBlock) on the canvas: its items, each with its mark in front. The marks, the spacing and the base size are those of the player's and the
+   thumbnails' (core/blocks/list/render.css, which draws .weft-list*); this is the canvas's own markup, which has to look the same. */
+.weft-edit-block-list {
   display: flex;
   flex-direction: column;
   padding: 0.25em;
@@ -2177,78 +2173,26 @@ button.weft-timeline-node-icon:hover {
 }
 
 /* The marks hang on the baseline of the first line of their item (a flex row aligned by baseline), so they follow the text's own
-   size: the mark is as large as the first character of the item (its size is set in em by markerScaleFor in listCaret.ts / the
-   player). A dot and a dash are drawn (not typed characters, which sit low and thin), placed around the middle of the lower case
-   letters; the picture is centred there as well. */
-.weft-edit-block-list-item,
-.weft-list-item,
-.weft-thumb-block-list-item {
+   size: the mark is as large as the first character of the item (its size is set in em by markerScaleFor in listCaret.ts). */
+.weft-edit-block-list-item {
   display: flex;
   align-items: baseline;
   gap: 0.5em;
 }
 
-.weft-edit-block-list,
-.weft-list,
-.weft-thumb-block-list {
+.weft-edit-block-list {
   line-height: 1.35;
 }
 
-.weft-list-marker {
-  flex: none;
-  min-width: 1.1em;
-  text-align: center;
-}
-
-.weft-list-marker.is-dot::before {
-  content: "";
-  display: inline-block;
-  width: 0.42em;
-  height: 0.42em;
-  border-radius: 50%;
-  background: currentColor;
-  vertical-align: 0.11em;
-}
-
-.weft-list-marker.is-dash::before {
-  content: "";
-  display: inline-block;
-  width: 0.62em;
-  height: 0.13em;
-  border-radius: 0.07em;
-  background: currentColor;
-  vertical-align: 0.255em;
-}
-
-.weft-list-marker.is-number {
-  min-width: 1.6em;
-  text-align: right;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-/* A picture as the mark: its height (in em, a setting of the list) and its place on the baseline are inline. */
-.weft-list-marker.is-image {
-  min-width: 1.2em;
-}
-
-.weft-list-marker.is-image img,
+/* The empty place of a picture mark that has no file yet. */
 .weft-list-marker-empty {
   display: inline-block;
   width: auto;
   max-width: 6em;
   object-fit: contain;
-}
-
-.weft-list-marker-empty {
   aspect-ratio: 1;
   border: 1px dashed #a1a1aa;
   border-radius: 2px;
-}
-
-.weft-thumb-block-list-item-text {
-  flex: 1;
-  min-width: 0;
 }
 
 .weft-edit-block-list-item-text {

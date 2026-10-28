@@ -1,0 +1,79 @@
+/* A list (ListBlock) as renderList (blocks/list/render.js) draws it. Embedded into the exported page ahead of player.runtime.css and imported by the
+   editor, so that the thumbnails and the PDF draw what the player draws; the canvas (ListBlockCanvas) uses the marks of it too, and the same 1.7cqw base
+   size of a block (.weft-edit-block-list* in App.css have the rest of what the canvas needs). */
+.weft-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0.25em;
+  box-sizing: border-box;
+}
+
+.weft-list-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+}
+
+/* One line height for the whole list; the marks hang on the baseline of the item's first line and are as large as its first
+   character (see the same rules in App.css). */
+.weft-list {
+  line-height: 1.35;
+}
+
+.weft-list-marker {
+  flex: none;
+  min-width: 1.1em;
+  text-align: center;
+}
+
+.weft-list-marker.is-dot::before {
+  content: "";
+  display: inline-block;
+  width: 0.42em;
+  height: 0.42em;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: 0.11em;
+}
+
+.weft-list-marker.is-dash::before {
+  content: "";
+  display: inline-block;
+  width: 0.62em;
+  height: 0.13em;
+  border-radius: 0.07em;
+  background: currentColor;
+  vertical-align: 0.255em;
+}
+
+.weft-list-marker.is-number {
+  min-width: 1.6em;
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.weft-list-marker.is-image {
+  min-width: 1.2em;
+}
+
+.weft-list-marker.is-image img {
+  display: inline-block;
+  width: auto;
+  max-width: 6em;
+  object-fit: contain;
+}
+
+.weft-list-item-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.weft-list-item-text > :first-child {
+  margin-top: 0;
+}
+
+.weft-list-item-text > :last-child {
+  margin-bottom: 0 !important;
+}
+

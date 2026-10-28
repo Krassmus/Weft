@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Block, ButtonBlock, CheckerBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ProgressBlock, SolutionBlock, TextBlock } from "../../../core/types";
+import type { Block, ButtonBlock, CheckerBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ListBlock, ProgressBlock, SolutionBlock, TextBlock } from "../../../core/types";
 import { ButtonView } from "./ButtonView";
 import { CheckerCanvas } from "./CheckerCanvas";
 import { CheckerView } from "./CheckerView";
@@ -8,6 +8,7 @@ import { GalleryView } from "./GalleryView";
 import { IframeView } from "./IframeView";
 import { LanguageView } from "./LanguageView";
 import { LinkView } from "./LinkView";
+import { ListView } from "./ListView";
 import { ProgressView } from "./ProgressView";
 import { SolutionView } from "./SolutionView";
 import { TextView } from "./TextView";
@@ -93,6 +94,13 @@ const textView: BlockViewSpec<TextBlock> = {
   freelyMovable: false,
 };
 
+const listView: BlockViewSpec<ListBlock> = {
+  View: ({ block, lang, defaultLang, mode, progress }) => <ListView block={block} lang={lang} defaultLang={defaultLang} mode={mode} progress={progress} />,
+  // (Its points are written in place on the canvas, one after the other: Enter, Backspace and the arrow keys go from one to the next.)
+  ownCanvas: true,
+  freelyMovable: false,
+};
+
 const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   solution: solutionView as BlockViewSpec<never>,
   gallery: galleryView as BlockViewSpec<never>,
@@ -103,6 +111,7 @@ const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   checker: checkerView as BlockViewSpec<never>,
   button: buttonView as BlockViewSpec<never>,
   text: textView as BlockViewSpec<never>,
+  list: listView as BlockViewSpec<never>,
 };
 
 /** The editor's views of a kind, if it has them here. */

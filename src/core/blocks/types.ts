@@ -66,6 +66,21 @@ export interface BoolField {
   ui?: FieldUi;
 }
 
+/** A number that may have decimals (a distance, a size); absent when the author has not set it. */
+export interface NumberField {
+  type: "number";
+  min?: number;
+  max?: number;
+  ui?: FieldUi;
+}
+
+/** One of a few words (a kind of mark, a kind of effect): the value is one of `options`. */
+export interface ChoiceField {
+  type: "choice";
+  options: string[];
+  ui?: FieldUi;
+}
+
 /** A whole number; the field is absent when the author has not set it. */
 export interface IntField {
   type: "int";
@@ -87,16 +102,20 @@ export interface EffectsField {
 export interface AssetField {
   type: "asset";
   kind: "image";
+  /** The file is only used while another field of the block has this value (the picture of a list's marker, while its marker is "image"): else it
+   * does not stay in the module and is not exported. */
+  usedWhen?: { field: string; is: string };
 }
 
 /**
  * A list of things the author adds, orders and removes - each with an `id` and fields of its own (a text, a file). The words of its items are kept
- * in a translation by the id of the item (`translations[language].items[id]`); they are the one translatable text field of an item.
+ * in a translation by the id of the item (`translations[language].items[id]`); they are the one translatable text field of an item - a plain text,
+ * or `html` (a list's points: formatted, and kept as the formatted words in the translation too).
  */
 export interface ListField {
   type: "list";
   /** The fields of one item, by name. */
-  item: { [name: string]: TextField | AssetField };
+  item: { [name: string]: TextField | HtmlField | AssetField };
   /** The item that is made for a file that is added (`asset` is the id of the asset the file became). */
   newItem(asset: string): Record<string, unknown>;
   /** What the steps are called in the history (German): files added (one, several), the file of an item changed. */
@@ -120,7 +139,7 @@ export interface ListUi {
   remove: TranslationKey;
 }
 
-export type FieldSpec = TextField | HtmlField | BoolField | IntField | EffectsField | AssetField | ListField;
+export type FieldSpec = TextField | HtmlField | BoolField | NumberField | ChoiceField | IntField | EffectsField | AssetField | ListField;
 
 /**
  * A block with a task, as a quiz has: the events "first answer", "submitted", and "submitted - right / wrong" in the page's graph, which what is to

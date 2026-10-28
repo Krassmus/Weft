@@ -20,7 +20,6 @@ const definitions = (schema as unknown as { definitions: Record<string, Node> })
 /** What each kind of block is for - the one thing the schema cannot say. */
 const BLOCK_KINDS_BY_HAND: Record<string, { definition: string; what: string }> = {
   placeholder: { definition: "PlaceholderBlock", what: "Nur im Layout: Ort und Formatierung für einen Text, den die Folien selbst eingeben." },
-  list: { definition: "ListBlock", what: "Eine Liste (Punkte, Striche, Nummern oder Bilder davor); Punkte können einzeln erscheinen." },
   quiz: { definition: "QuizBlock", what: "Frage mit Antwortoptionen; richtig/falsch löst Variablen-Effekte und Ereignisse aus." },
   cloze: { definition: "ClozeBlock", what: "Lückentext: Antworten stehen als [[Antwort]] im Text." },
   sort: { definition: "SortBlock", what: "Sortierrätsel: Texte oder Bilder (items, in der RICHTIGEN Reihenfolge), die die Lernperson per Drag & Drop in die richtige Reihenfolge bringt; senkrecht oder waagerecht auf einer dünnen Linie, Wörter an ihren Enden (startLabel / endLabel), Punkte beim Abschicken (onSubmit) und für jeden Fehler (onEachError, die kleinste Zahl an Verschiebungen), Ereignisse wie bei einem Quiz." },

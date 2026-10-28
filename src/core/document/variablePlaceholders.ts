@@ -30,11 +30,6 @@ export function placeholderSources(block: Block): string[] {
           ...Object.values(t.options ?? {}),
         ]),
       ];
-    case "list":
-      return [
-        ...block.items.map((item) => item.html),
-        ...Object.values(block.translations ?? {}).flatMap((t) => Object.values(t.items ?? {})),
-      ];
     case "matching":
       // The words of the cards (plain texts, escaped first), in every language.
       return [

@@ -12,11 +12,9 @@ import { ArrowSvg } from "./blocks/ArrowSvg";
 import { FilesView } from "./blocks/FilesView";
 import { ShapeSvg } from "./blocks/ShapeSvg";
 import { ImageSvg } from "./blocks/ImageSvg";
-import { listItemHtml, quizOptionHtml, quizQuestionHtml, textHtml } from "../../core/document/translations";
+import { quizOptionHtml, quizQuestionHtml, textHtml } from "../../core/document/translations";
 import { withProgress } from "../../core/document/variablePlaceholders";
-import { ListMarkerView } from "./blocks/ListMarkerView";
 import { clozeBlanksAsBoxes } from "../../core/document/cloze";
-import { fitListMarkers } from "./blocks/listCaret";
 import { playerStringsFor } from "../../core/i18n/playerStrings";
 import { useEditingLanguage } from "./useEditingLanguage";
 import { CodeView } from "./blocks/CodeView";
@@ -191,24 +189,6 @@ function ThumbBlockBody({
           <span className="weft-thumb-block-quiz-submit-icon" dangerouslySetInnerHTML={{ __html: acceptSvg }} />
           {playerStringsFor(lang).submit}
         </div>
-      </div>
-    );
-  }
-  if (block.kind === "list") {
-    return (
-      <div
-        ref={(el) => {
-          if (el) fitListMarkers(el, ".weft-thumb-block-list-item", ".weft-thumb-block-list-item-text");
-        }}
-        className="weft-thumb-block weft-thumb-block-list"
-        style={{ ...style, gap: `${block.spacing}cqw` }}
-      >
-        {block.items.map((item, index) => (
-          <div key={item.id} className="weft-thumb-block-list-item">
-            <ListMarkerView block={block} index={index} />
-            <span className="weft-thumb-block-list-item-text" dangerouslySetInnerHTML={{ __html: shown(listItemHtml(block, item.id, lang, defaultLang)) }} />
-          </div>
-        ))}
       </div>
     );
   }

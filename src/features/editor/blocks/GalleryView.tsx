@@ -21,7 +21,7 @@ function Chevron({ d }: { d: string }) {
 
 /**
  * A gallery as it is drawn - the canvas and the thumbnails. The markup and the class names are those the player makes (renderGalleryBlock in
- * player.runtime.js): a track of slides in a viewport, an arrow to each side and a dot for every picture. `index` is the picture shown; the arrows
+ * player.runtime.js): a track of slides in a viewport (each shows its picture whole, in a frame of its shape), an arrow to each side and a dot for every picture. `index` is the picture shown; the arrows
  * and dots only do something where `onIndex` is given (the canvas of a selected block) - in a thumbnail they are a picture of what the learner sees.
  */
 export function GalleryView({ block, index = 0, onIndex }: { block: GalleryBlock; index?: number; onIndex?: (index: number) => void }) {
@@ -42,14 +42,28 @@ export function GalleryView({ block, index = 0, onIndex }: { block: GalleryBlock
   };
   const stop = onIndex ? (e: React.SyntheticEvent) => e.stopPropagation() : undefined;
   return (
-    <div className={"weft-gallery" + (block.fit === "contain" ? " is-contain" : "") + (onIndex ? " is-browsable" : "")}>
+    <div className={"weft-gallery" + (onIndex ? " is-browsable" : "")}>
       <div className="weft-gallery-viewport">
         <div className="weft-gallery-track" style={{ transform: `translateX(${-current * 100}%)` }}>
           {items.map((item) => {
             const src = item.assetId ? getObjectUrl(item.assetId) : undefined;
             return (
               <div key={item.id} className="weft-gallery-slide">
-                {src && <img className="weft-gallery-image" src={src} alt="" draggable={false} />}
+                {src && (
+                  <span className="weft-gallery-frame">
+                    <img
+                      className="weft-gallery-image"
+                      src={src}
+                      alt=""
+                      draggable={false}
+                      onLoad={(e) => {
+                        // (The frame takes the shape of the picture, which is shown whole - as in the player.)
+                        const image = e.currentTarget;
+                        if (image.naturalWidth && image.naturalHeight) image.parentElement?.style.setProperty("--ratio", String(image.naturalWidth / image.naturalHeight));
+                      }}
+                    />
+                  </span>
+                )}
               </div>
             );
           })}

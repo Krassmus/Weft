@@ -3481,13 +3481,6 @@ function GalleryEditor({ block, container, onUpdate }: { block: GalleryBlock; co
       <Collapsible title={tr("ui.gallery")}>
         <p className="weft-hint">{tr("ui.gallery_hint")}</p>
         <LanguageSelect block={block} />
-        <label className="weft-field">
-          <span>{tr("ui.gallery_fit")}</span>
-          <select value={block.fit === "contain" ? "contain" : "cover"} onChange={(e) => onUpdate({ fit: e.target.value === "contain" ? "contain" : undefined })}>
-            <option value="cover">{tr("ui.gallery_fit_cover")}</option>
-            <option value="contain">{tr("ui.gallery_fit_contain")}</option>
-          </select>
-        </label>
       </Collapsible>
       <Collapsible title={tr("ui.gallery_pictures")} defaultOpen>
         {block.items.length === 0 && <p className="weft-hint">{tr("ui.gallery_empty")}</p>}

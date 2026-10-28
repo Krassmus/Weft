@@ -2381,7 +2381,8 @@ summary:focus-visible,
 }
 
 /* A gallery: pictures in a carousel - a track of slides as wide as the viewport, moved sideways to show one - with an arrow to each side and, below,
-   a dot for every picture. The viewport takes the corners of the module's style (not a border: a cut corner would cut it off). */
+   a dot for every picture. A picture is shown whole: in a frame of its own shape (--ratio, set when it has loaded) that takes as much of the slide as
+   it can, centred; the frame has the corners of the module's style (not a border: a cut corner would cut it off). */
 .weft-gallery {
   position: relative;
   box-sizing: border-box;
@@ -2393,9 +2394,6 @@ summary:focus-visible,
   position: absolute;
   inset: 0;
   overflow: hidden;
-  border-radius: var(--slide-ui-image-radius);
-  clip-path: var(--slide-ui-image-clip);
-  background: var(--slide-surface-quiet);
   /* (A swipe sideways is the carousel's; one downwards still scrolls the page.) */
   touch-action: pan-y;
   user-select: none;
@@ -2409,7 +2407,11 @@ summary:focus-visible,
   transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* The slide is the room of the picture (a size container, so that the frame can take its share of it). */
 .weft-gallery-slide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 100%;
   box-sizing: border-box;
   width: 100%;
@@ -2419,6 +2421,7 @@ summary:focus-visible,
   padding: 0;
   border: 0;
   background: transparent;
+  container-type: size;
   cursor: zoom-in;
 }
 
@@ -2427,17 +2430,35 @@ summary:focus-visible,
   outline-offset: -3px;
 }
 
+/* A click opens the picture, not the room around it (a swipe that starts there still counts: the viewport has it). */
+.weft-gallery-slide {
+  pointer-events: none;
+}
+
+.weft-gallery-frame {
+  pointer-events: auto;
+  cursor: zoom-in;
+}
+
+.weft-gallery-frame {
+  display: block;
+  flex: none;
+  overflow: hidden;
+  box-sizing: border-box;
+  width: min(100cqw, calc(100cqh * var(--ratio, 1.5)));
+  aspect-ratio: var(--ratio, 1.5);
+  border-radius: var(--slide-ui-image-radius);
+  clip-path: var(--slide-ui-image-clip);
+  background: var(--slide-surface-quiet);
+}
+
 .weft-gallery-image {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   pointer-events: none;
   -webkit-user-drag: none;
-}
-
-.weft-gallery.is-contain .weft-gallery-image {
-  object-fit: contain;
 }
 
 .weft-gallery-arrow,

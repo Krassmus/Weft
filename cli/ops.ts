@@ -774,20 +774,17 @@ const HANDLERS: Record<string, Handler> = {
     if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
     return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "solution", set, as: op.as });
   },
-  // A gallery: add_gallery {page, items, fit?, x, y, width, height, effect?, name?, as}. Pictures in a carousel (arrows, swipe, arrow keys); a click
-  // on one opens it large with its caption. `items` is a list of {file | asset, caption?} in the order they are shown; `fit` is "cover" (the pictures
-  // are cut to fill the carousel, the default) or "contain" (shown whole). A gallery lives on slides only.
+  // A gallery: add_gallery {page, items, x, y, width, height, effect?, name?, as}. Pictures in a carousel (arrows, swipe, arrow keys); a click
+  // on one opens it large with its caption. `items` is a list of {file | asset, caption?} in the order they are shown; every picture is shown whole. A gallery lives on slides only.
   add_gallery(ctx, op) {
     const container = op.layout !== undefined ? { layout: op.layout } : { page: op.page };
     const num = (value: unknown, fallback: number) => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
     if (!Array.isArray(op.items) || op.items.length === 0) fail('"items" fehlt: die Bilder in der Reihenfolge, in der sie gezeigt werden ({"file": "bild.png", "caption": "Bildunterschrift"}).');
-    if (op.fit !== undefined && op.fit !== "cover" && op.fit !== "contain") fail('"fit" ist "cover" (zugeschnitten, die Voreinstellung) oder "contain" (ganz gezeigt).');
     const items = (op.items as Record<string, unknown>[]).map((spec) => {
       if (spec.file === undefined && spec.asset === undefined) fail('Jedes Bild der Galerie braucht "file" (eine Datei) oder "asset".');
       return { id: createId(), assetId: assetFor(ctx, spec, "image").id, caption: typeof spec.caption === "string" ? spec.caption : "" };
     });
     const set: Record<string, unknown> = { position: { x: num(op.x, 20), y: num(op.y, 15), width: num(op.width, 60), height: num(op.height, 70) }, items };
-    if (op.fit === "contain") set.fit = "contain";
     if (op.name !== undefined) set.name = op.name;
     if (op.effect !== undefined) set.entranceEffect = typeof op.effect === "string" ? { type: op.effect, durationMs: 450 } : op.effect;
     return HANDLERS.add_block(ctx, { op: "add_block", ...container, kind: "gallery", set, as: op.as });

@@ -91,7 +91,7 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
       return `richtige Reihenfolge: ${items}${ends}${block.orientation === "horizontal" ? " [waagerecht]" : ""}${block.required ? " [Pflicht]" : ""}`;
     }
     case "gallery":
-      return `${block.items.length} Bilder: ${block.items.map((item) => `[${words(item.caption, 20) || "ohne Bildunterschrift"}]`).join(", ")}${block.fit === "contain" ? " [ganz gezeigt]" : ""}`;
+      return `${block.items.length} Bilder: ${block.items.map((item) => `[${words(item.caption, 20) || "ohne Bildunterschrift"}]`).join(", ")}`;
     case "solution":
       return `Lösung: „${words(block.solution ?? "", 40) || "(fehlt)"}"${block.caseSensitive ? " [Groß-/Kleinschreibung zählt]" : ""}${block.attempts ? ` [${block.attempts} Versuch${block.attempts === 1 ? "" : "e"}]` : ""}${block.required ? " [Pflicht]" : ""}`;
     case "checker":

@@ -3859,7 +3859,7 @@
   }
 
   // ---- gallery ----
-  // Pictures in a carousel: one at a time, an arrow to each side (or a swipe, or the arrow keys when it has the focus); a click on the picture
+  // Pictures in a carousel: one at a time, each shown whole, an arrow to each side (or a swipe, or the arrow keys when it has the focus); a click on the picture
   // opens it large, with its caption, in the window of the matching's pictures. No events, nothing to answer. A picture that has none chosen
   // yet is left out.
   function galleryCaption(block, item) {
@@ -3873,7 +3873,7 @@
       return item.assetId;
     });
     if (items.length === 0) return wrap;
-    var box = el("div", { class: "weft-gallery" + (block.fit === "contain" ? " is-contain" : ""), role: "group", "aria-roledescription": "carousel" }, []);
+    var box = el("div", { class: "weft-gallery", role: "group", "aria-roledescription": "carousel" }, []);
     var viewport = el("div", { class: "weft-gallery-viewport" }, []);
     var track = el("div", { class: "weft-gallery-track" }, []);
     viewport.appendChild(track);
@@ -3905,7 +3905,17 @@
     };
     items.forEach(function (item, i) {
       var slide = el("button", { type: "button", class: "weft-gallery-slide", "data-weft-picture": item.id }, []);
-      slide.appendChild(el("img", { class: "weft-gallery-image", src: assetSrc(item.assetId), alt: "", draggable: "false" }, []));
+      // The picture is shown whole, in a frame of its own shape (the corners of the module's style are the frame's): the frame takes the share of the
+      // slide that the picture's ratio - known once it has loaded - allows.
+      var frame = el("span", { class: "weft-gallery-frame" }, []);
+      var image = el("img", { class: "weft-gallery-image", src: assetSrc(item.assetId), alt: "", draggable: "false" }, []);
+      frame.appendChild(image);
+      slide.appendChild(frame);
+      var measured = function () {
+        if (image.naturalWidth && image.naturalHeight) frame.style.setProperty("--ratio", String(image.naturalWidth / image.naturalHeight));
+      };
+      if (image.complete) measured();
+      else image.addEventListener("load", measured);
       slide.addEventListener("click", function () {
         open(i);
       });

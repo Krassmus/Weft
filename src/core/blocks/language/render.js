@@ -5,7 +5,9 @@
 //   renderLanguage(root, props, ctx) draws into `root` (an empty element that has the block's size) and returns { update(props), destroy() }.
 //
 //   mode "play"   a drop-down of the module's languages, each by its own name: picking one is `ctx.setLanguage`.
-//        "edit"   the same, showing the language the editor shows - a picture of it: nothing in it can be used.
+//        "edit"   a picture of one - a box with the name of the language the editor shows and an arrow - not a real one: a native drop-down does not
+//                 scale with the slide (it keeps a least size of its own and cuts off its words in a small one) and is slow to draw while the slide is
+//                 zoomed, and nothing in it could be used here anyway.
 //        "thumbnail", "print"   a grey box with a globe: a drop-down means nothing there.
 //
 //   props   { languages, labels, current }: the module's languages (locales like "de_DE"), how each is called (its name and flag) and the one that
@@ -14,18 +16,48 @@
 //
 // The look is in blocks/language/render.css.
 
+var LANGUAGE_GLOBE = "🌐";
+
 export function renderLanguage(root, props, ctx) {
   var data = props;
 
   if (ctx.mode === "thumbnail" || ctx.mode === "print") {
     var box = document.createElement("div");
     box.className = "weft-language-placeholder";
-    box.textContent = "🌐";
+    box.textContent = LANGUAGE_GLOBE;
     root.appendChild(box);
     return {
       update: function () {},
       destroy: function () {
         if (box.parentNode) box.parentNode.removeChild(box);
+      },
+    };
+  }
+
+  if (ctx.mode === "edit") {
+    var picture = document.createElement("div");
+    picture.className = "weft-language-select is-picture";
+    var name = document.createElement("span");
+    name.className = "weft-language-select-name";
+    var arrow = document.createElement("span");
+    arrow.className = "weft-language-select-arrow";
+    arrow.setAttribute("aria-hidden", "true");
+    arrow.textContent = "▾";
+    picture.appendChild(name);
+    picture.appendChild(arrow);
+    // (A module that has no languages any more still has the block: a globe says what it was for.)
+    var fillName = function () {
+      name.textContent = data.labels[data.current] || (data.languages.length === 0 ? LANGUAGE_GLOBE : data.current);
+    };
+    fillName();
+    root.appendChild(picture);
+    return {
+      update: function (next) {
+        data = next;
+        fillName();
+      },
+      destroy: function () {
+        if (picture.parentNode) picture.parentNode.removeChild(picture);
       },
     };
   }
@@ -39,20 +71,10 @@ export function renderLanguage(root, props, ctx) {
     option.textContent = data.labels[locale] || locale;
     select.appendChild(option);
   });
-  // (A module that has no languages any more still has the block: a globe says what it was for.)
-  if (data.languages.length === 0) {
-    var none = document.createElement("option");
-    none.textContent = "🌐";
-    select.appendChild(none);
-  }
   select.value = data.current;
-  if (ctx.mode === "play") {
-    select.addEventListener("change", function () {
-      ctx.setLanguage(select.value);
-    });
-  } else {
-    select.tabIndex = -1;
-  }
+  select.addEventListener("change", function () {
+    ctx.setLanguage(select.value);
+  });
   root.appendChild(select);
 
   return {

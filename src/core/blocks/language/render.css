@@ -15,6 +15,25 @@
   cursor: pointer;
 }
 
+/* The editor's picture of one (see renderLanguage): the name of the language and an arrow in the box of a drop-down, in the module's own sizes. */
+.weft-language-select.is-picture {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5em;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.weft-language-select-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* The flag is taller than the line of the letters: with a tighter line the box that clips the words (for the ellipsis) cuts off the foot of it. */
+  line-height: 1.5;
+}
+
 /* Where it cannot be used (a thumbnail, the PDF): a grey box with a globe. */
 .weft-language-placeholder {
   box-sizing: border-box;

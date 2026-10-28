@@ -53,8 +53,8 @@ Guides: [docs/ai-authoring.en.md](docs/ai-authoring.en.md), [docs/operations.en.
   (Canvas: ein Bild, nichts darin ist bedienbar), `thumbnail`, `print` (PDF). Das Lösungswort ist außerhalb von `play`
   das leere Feld; die eingebettete Seite ist live im Player und im Canvas, ein grauer Kasten mit Icon in der Miniatur
   und eine Karte mit Adresse und QR-Code im PDF; der Link ist nur im Player ein Link, sonst ein Bild davon (im PDF
-  mit der Adresse als Link); der Sprachumschalter ist ein echtes Auswahlfeld im Player und im Canvas und ein grauer
-  Kasten in Miniatur und PDF; der Fortschrittsbalken bekommt seinen Wert vom Ort (im Player von der Variable, mit
+  mit der Adresse als Link); der Sprachumschalter ist ein echtes Auswahlfeld im Player, ein Bild davon im Canvas (ein
+  natives Auswahlfeld skaliert nicht mit der Folie und ist beim Zoomen langsam) und ein grauer Kasten in Miniatur und PDF; der Fortschrittsbalken bekommt seinen Wert vom Ort (im Player von der Variable, mit
   Animation). Das gemeinsame Aussehen steht in `core/runtime/quizCard.css` und `blocks/*/render.css`,
   die Player und Editor beide laden. Bisher beschreiben sich das Lösungswort, die Galerie, die eingebettete Seite, der Link, der Fortschrittsbalken und der
   Sprachumschalter so (`blocks/solution/`, `blocks/gallery/`, `blocks/iframe/`, `blocks/link/`, `blocks/progress/`,

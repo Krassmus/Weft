@@ -362,11 +362,12 @@ describe.each(MODES)("a language switch drawn for %s", (mode) => {
   const props = { languages: ["de_DE", "en_GB", "fr_FR"], labels: { de_DE: "Deutsch", en_GB: "English", fr_FR: "Français" }, current: "en_GB" };
   const context = () => ({ mode, text, setLanguage: vi.fn() });
 
-  if (mode === "play" || mode === "edit") {
+  if (mode === "play") {
     it("is a drop-down of the languages, each by its own name, showing the one in use", () => {
       const root = element();
       renderLanguage(root, props, context());
       const select = find(root, ".weft-language-select") as HTMLSelectElement;
+      expect(select.tagName).toBe("SELECT");
       expect([...select.querySelectorAll("option")].map((option) => option.textContent)).toEqual(["Deutsch", "English", "Français"]);
       expect(select.value).toBe("en_GB");
       expect(select.getAttribute("aria-label")).toBe("Sprache");
@@ -384,21 +385,42 @@ describe.each(MODES)("a language switch drawn for %s", (mode) => {
       expect(root.childNodes.length).toBe(0);
     });
 
-    it("has a globe where the module has no languages any more", () => {
-      const root = element();
-      renderLanguage(root, { languages: [], labels: {}, current: "" }, context());
-      expect(find(root, "option")?.textContent).toBe("\uD83C\uDF10");
-    });
-
-    it(mode === "play" ? "picks a language: what is picked is the place's to do" : "is only a picture: nothing can be picked", () => {
+    it("picks a language: what is picked is the place's to do", () => {
       const root = element();
       const ctx = context();
       renderLanguage(root, props, ctx);
       const select = find(root, ".weft-language-select") as HTMLSelectElement;
       select.value = "fr_FR";
       fire(select, "change");
-      if (mode === "play") expect(ctx.setLanguage).toHaveBeenCalledWith("fr_FR");
-      else expect(ctx.setLanguage).not.toHaveBeenCalled();
+      expect(ctx.setLanguage).toHaveBeenCalledWith("fr_FR");
+    });
+
+    it("has no options where the module has no languages", () => {
+      const root = element();
+      renderLanguage(root, { languages: [], labels: {}, current: "" }, context());
+      expect(find(root, "option")).toBeNull();
+    });
+  } else if (mode === "edit") {
+    it("is a picture of a drop-down - no native one, which does not scale with the slide - with the name of the language shown and an arrow", () => {
+      const root = element();
+      const ctx = context();
+      const instance = renderLanguage(root, props, ctx);
+      expect(find(root, "select")).toBeNull();
+      expect(find(root, "option")).toBeNull();
+      expect(find(root, ".weft-language-select.is-picture")).not.toBeNull();
+      expect(find(root, ".weft-language-select-name")?.textContent).toBe("English");
+      expect(find(root, ".weft-language-select-arrow")?.getAttribute("aria-hidden")).toBe("true");
+      instance.update({ ...props, current: "fr_FR" });
+      expect(find(root, ".weft-language-select-name")?.textContent).toBe("Français");
+      instance.destroy();
+      expect(root.childNodes.length).toBe(0);
+      expect(ctx.setLanguage).not.toHaveBeenCalled();
+    });
+
+    it("has a globe where the module has no languages any more", () => {
+      const root = element();
+      renderLanguage(root, { languages: [], labels: {}, current: "" }, context());
+      expect(find(root, ".weft-language-select-name")?.textContent).toBe("\uD83C\uDF10");
     });
   } else {
     it("is a grey box with a globe: a drop-down means nothing here", () => {

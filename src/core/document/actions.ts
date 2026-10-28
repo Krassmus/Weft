@@ -44,6 +44,7 @@ import { defaultInitialValue, isBooleanVariable } from "./variables";
 import { defaultActionEffect, defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
 import {
   blockEffectNodeId,
+  conditionNodeId,
   canTriggerFrom,
   createDefaultPageTimeline,
   appendToWeiterChain,
@@ -962,6 +963,22 @@ export function setEventTrigger(
     const page = m.pages[pageId];
     if (!page) return;
     chainOnWeiter(page, targetNodeId, from, delayMs, kind);
+    syncPageTimelineEvents(page);
+  });
+}
+
+/**
+ * "Ausgelöst durch: Variable" for the Aufbau/Abbau `targetNodeId`: it happens when `formula` (the language of the calculated variables) turns from
+ * false to true, and once when the page is entered if it is true then. The formula is stored under the condition's own event (see
+ * PageTimeline.conditions) and a trigger leads from that event to the target; changing the formula later is this same call.
+ */
+export function setConditionTrigger(pageId: string, targetNodeId: string, formula: string) {
+  edit("Auslöser bearbeiten", (m) => {
+    const page = m.pages[pageId];
+    if (!page) return;
+    const id = conditionNodeId(targetNodeId);
+    page.timeline.conditions = { ...(page.timeline.conditions ?? {}), [id]: formula };
+    chainOnWeiter(page, targetNodeId, id, 0, "timed");
     syncPageTimelineEvents(page);
   });
 }
@@ -1944,7 +1961,9 @@ function remapTimeline(timeline: Page["timeline"], idMap: Map<UUID, UUID>): Page
   }
   const ends: Page["timeline"]["ends"] = {};
   for (const [id, end] of Object.entries(timeline.ends)) ends[remap(id)] = plain(end);
-  return { triggers, ends };
+  // (The conditions of "Ausgelöst durch: Variable" carry the id of the event they trigger.)
+  const conditions = Object.entries(timeline.conditions ?? {}).map(([id, formula]) => [remap(id), formula] as const);
+  return { triggers, ends, ...(conditions.length > 0 ? { conditions: Object.fromEntries(conditions) } : {}) };
 }
 
 export function pastePageAfter(afterPageId: string, sourcePage: Page): string | null {

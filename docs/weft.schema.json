@@ -2094,6 +2094,13 @@
       "additionalProperties": false,
       "description": "What a page's event graph stores (see docs/event-graph.md): only what does not follow from its blocks. The events themselves\n- an element's Aufbau/Abbau, a video's start and stop points, what a quiz does - are derived (getPageLanes in document/pageTimeline.ts) and have stable ids made of the block's id; what is chosen by the author is here:\n\n- `triggers`: every line of the graph, by trigger id. Keyed so that two people changing different triggers of the same page never   overwrite each other (a list that is replaced whole would). A trigger whose event or source no longer exists is pruned by   syncPageTimelineEvents.\n- `ends`: the \"Nächste Folie\" events, by id: \"end\" is the page's own and always there; a quiz that goes on to the next page   after its feedback has `end:quiz:<blockId>:<richtig|falsch>`. Each has the transition of its own.\n\nThere are no implicit triggers: an Aufbau that waits for Weiter at the end of the chain has a trigger of its own, put there when the effect was chosen (see syncPageTimelineEvents), and so has \"Nächste Folie\". Deliberately NOT stored: the rows of the graph the editor draws (TimelineLane) - they follow entirely from the blocks and these triggers, so they are computed.",
       "properties": {
+        "conditions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "The conditions that trigger an event (\"Ausgelöst durch: Variable\" of an Aufbau/Abbau), by the id of the condition's own event (`condition:<id of the triggered event>`, see conditionNodeId): the formula, in the language of the \"Berechnet\" variables (see core/document/expressions.ts). The condition event happens when the formula turns from false to true - and once when the page is entered, if it is true then; the trigger it sends (stored in `triggers` like any other, from the condition event to the target) makes the target happen. An entry goes when no trigger leads from it any more (see syncPageTimelineEvents). Absent: none.",
+          "type": "object"
+        },
         "ends": {
           "additionalProperties": {
             "$ref": "#/definitions/PageEnd"

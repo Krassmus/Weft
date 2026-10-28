@@ -1,3 +1,4 @@
+import type { Expr } from "../document/expressions";
 import type { Transition } from "../types";
 
 /**
@@ -46,6 +47,9 @@ export type GraphEventKind =
   | "group-exit"
   /** A logic block's script runs (`script-run:<blockId>`) - by an incoming trigger; the event has happened once the script is done. */
   | "script-run"
+  /** The formula of a condition (`condition:<id of the event it triggers>`, see PageTimeline.conditions) has become true: made to happen by the
+   * player when it turns from false to true, and once at the start of the page if it is true then. */
+  | "condition"
   /** The page is left, going on to the next one with `transition`. When several of these are reached, the first one wins. */
   | "end";
 
@@ -54,6 +58,8 @@ export interface GraphEvent {
   kind: GraphEventKind;
   /** Only for "end": how the page is left. */
   transition?: Transition;
+  /** Only for "condition": the syntax tree of the formula (null: it does not parse - the condition then never becomes true). */
+  expr?: Expr | null;
   /** The title the author gave the event (see PageTimeline.titles) - what a script's trigger("...") finds it by. */
   title?: string;
 }

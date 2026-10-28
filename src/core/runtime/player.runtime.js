@@ -81,6 +81,7 @@
       })[0];
       refreshVariableDisplays();
       syncLms();
+      checkConditions();
     }
   }
 
@@ -1814,6 +1815,8 @@
   // calling happened() itself - an element that fades in has appeared when the animation is over.
   var graphGeneration = 0; // a new page shows a new graph: what is still on its way for the old one is dropped
   var graphEvents = {}; // by id
+  // The conditions of the page ("Ausgelöst durch: Variable"): { id, expr (the syntax tree of the formula), was (whether it held when it was last looked at) }.
+  var conditions = [];
   var outgoingTriggers = {}; // event id -> [trigger]
   var performers = {}; // event id -> function that runs the event's action
   // Required tasks (QuizBlock.required / ClozeBlock.required): the ones on the page being shown that have not been submitted yet, by block
@@ -1862,8 +1865,11 @@
     waitingForWeiter = {};
     triggersDelivered = [];
     var graph = page.graph || { events: [], triggers: [] };
+    conditions = [];
     graph.events.forEach(function (event) {
       graphEvents[event.id] = event;
+      // "Ausgelöst durch: Variable": its formula is looked at whenever a variable changes (see checkConditions).
+      if (event.kind === "condition") conditions.push({ id: event.id, expr: event.expr || null, was: false });
       // "Nächste Folie": the page is left, with this event's own transition. Whichever of them is reached first wins - the
       // page is gone, and what is still on its way for it is dropped (see graphGeneration).
       if (event.kind === "end") {
@@ -1886,6 +1892,26 @@
     if (triggersDelivered.length >= MAX_DELIVERIES_PER_SECOND) return true;
     triggersDelivered.push(now);
     return false;
+  }
+
+  // The formulas of the page's conditions are looked at: one that holds now and did not before has happened (and its trigger goes out) - at
+  // the start of the page, and after every change of a variable. One that does not hold (or does not parse) is false; and when it turns true
+  // again it happens again (the Aufbau/Abbau it triggers does nothing twice, see applyBlockEffects).
+  function checkConditions() {
+    if (renderAll) return;
+    conditions.forEach(function (condition) {
+      var holds = false;
+      if (condition.expr) {
+        try {
+          holds = truthy(evalExpression(condition.expr));
+        } catch (error) {
+          holds = false;
+        }
+      }
+      var turned = holds && !condition.was;
+      condition.was = holds;
+      if (turned) happened(condition.id);
+    });
   }
 
   // The event has happened: its outgoing triggers go out.
@@ -5194,6 +5220,8 @@
     // the page happens here, still before this stage is even returned to be appended to the DOM; what it triggers arrives
     // right after (see deliver), when the blocks are on the page.
     happened("start");
+    // (A condition that is true when the page is entered happens at once.)
+    checkConditions();
     // (Whether Weiter is held back is known now: the required tasks of the page are registered and the first builds wait.)
     updateAdvanceButtons();
     return stage;

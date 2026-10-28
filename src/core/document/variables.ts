@@ -60,6 +60,18 @@ export function ensureBuiltinVariables(variables: VariableDef[]): void {
 }
 
 /**
+ * What is wrong with a condition's formula (an "Ausgelöst durch: Variable", see PageTimeline.conditions): a syntax error, or a name that is not
+ * a variable - null when it is fine. (An empty formula is "not entered yet".)
+ */
+export function formulaProblem(formula: string, variables: VariableDef[], virtualNames: readonly string[]): string | null {
+  const parsed = parseExpression(formula);
+  if (!parsed.ok) return parsed.error;
+  const known = new Set(variables.map((v) => v.name));
+  const unknown = [...referencedNames(parsed.expr)].find((name) => !known.has(name) && !virtualNames.includes(name));
+  return unknown ? tr("ui.variable_does_not_exist", { name: unknown }) : null;
+}
+
+/**
  * What is wrong with each computed variable's formula, by variable id (variables without a problem
  * aren't in the map): a syntax error, a name that isn't a variable, a formula that refers to its
  * own variable, or a circle of computed variables that read each other. `virtualNames` are the

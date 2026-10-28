@@ -211,7 +211,7 @@ export function buildGraphModel(page: Page): GraphModel {
   for (const node of nodes) {
     // The start of the page, what the learner does, and a video the learner can always start.
     if (afterAppearing.has(node.id)) continue;
-    if (node.kind === "start" || isUserEvent(node) || node.eventType === "video-start-manual" || node.eventType === "video-start-auto" || node.eventType === "revealer-open") mark(node.id);
+    if (node.kind === "start" || isUserEvent(node) || node.eventType === "video-start-manual" || node.eventType === "video-start-auto" || node.eventType === "revealer-open" || node.eventType === "variable-condition") mark(node.id);
   }
   while (queue.length > 0) {
     const id = queue.shift()!;
@@ -238,7 +238,8 @@ export function buildGraphModel(page: Page): GraphModel {
     ) {
       color = "yellow";
     }
-    else if (node.eventType === "script-run") color = "green";
+    // (A condition of a variable can come true from the start, and by itself: it needs no way in.)
+    else if (node.eventType === "script-run" || node.eventType === "variable-condition") color = "green";
     else if (isUserEvent(node) || node.eventType === "video-resume") color = "violet";
     // A video start nothing triggers is the learner pressing play.
     else if (node.eventType?.startsWith("video-start") && !incoming.has(node.id)) color = "violet";

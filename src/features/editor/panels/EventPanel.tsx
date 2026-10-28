@@ -1,4 +1,4 @@
-import { addTrigger, setEventTitle, setGroupEffect, updateBlock, updateTrigger } from "../../../core/document/actions";
+import { addTrigger, setConditionTrigger, setEventTitle, setGroupEffect, updateBlock, updateTrigger } from "../../../core/document/actions";
 import {
   actionEffectAdvanceSource,
   canTriggerActionEffectFrom,
@@ -10,6 +10,8 @@ import {
   isTriggerableNode,
 } from "../../../core/document/pageTimeline";
 import { useDocumentStore } from "../../../core/document/store";
+import { formulaProblem } from "../../../core/document/variables";
+import { virtualVariableNamesFor } from "../../../core/document/virtualVariables";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
 import { useTranslation } from "../../../core/i18n/useTranslation";
 import type { Page, TimelineEventType, TimelineNode } from "../../../core/types";
@@ -18,6 +20,7 @@ import { buildGraphModel } from "../eventGraph/model";
 import { listPageTriggerEvents, nodeLabel } from "../Timeline";
 import { BlockEffectEditor } from "./BlockPanel";
 import { ActionEffectCard } from "./ActionEffectsEditor";
+import { FormulaInput } from "./VariablesTab";
 import { OutgoingTriggersSection, TriggerCard, resumableBlock } from "./TriggerSections";
 import { TransitionPanel } from "./TransitionPanel";
 import { tr } from "../../../core/i18n/tr";
@@ -225,10 +228,36 @@ function EffectSection({ page, node }: { page: Page; node: TimelineNode }) {
   );
 }
 
+/** The condition of a variable ("Ausgelöst durch: Variable", see PageTimeline.conditions) as an event of its own: what makes it happen is its formula. */
+function ConditionSection({ page, node }: { page: Page; node: TimelineNode }) {
+  const variables = useDocumentStore((s) => s.doc.content.variables);
+  const languages = useDocumentStore((s) => s.doc.content.languages);
+  const formula = page.timeline.conditions?.[node.id] ?? "";
+  const problem = formula.trim() === "" ? null : formulaProblem(formula, variables, virtualVariableNamesFor(languages));
+  return (
+    <div className="weft-event-section">
+      <span className="weft-hint-label">{tr("ui.is_triggered_by")}</span>
+      <div className="weft-field">
+        <span>{tr("ui.condition_formula")}</span>
+        <FormulaInput
+          value={formula}
+          placeholder={tr("ui.condition_placeholder")}
+          invalid={problem !== null}
+          // (The formula is stored for the event it triggers first - the id of the condition holds it: conditionNodeId.)
+          onCommit={(next) => setConditionTrigger(page.id, node.id.slice("condition:".length), next)}
+        />
+        {problem && <p className="weft-variable-problem">⚠ {problem}</p>}
+        <p className="weft-hint">{tr("ui.condition_hint")}</p>
+      </div>
+    </div>
+  );
+}
+
 /** "Wird ausgelöst durch": every trigger that leads to this event (any one is enough to make it happen). Not for "start", and
  * for events only the learner or playback can cause just a description. */
 function IncomingTriggersSection({ page, node }: { page: Page; node: TimelineNode }) {
   if (node.kind === "start") return null;
+  if (node.eventType === "variable-condition") return <ConditionSection page={page} node={node} />;
 
   if (node.kind === "event" && node.eventType && !isTriggerableNode(node)) {
     return (

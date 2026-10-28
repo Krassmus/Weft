@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { safeLinkUrl } from "../src/core/document/linkUrl";
 import * as actions from "../src/core/document/actions";
+import { parseExpression } from "../src/core/document/expressions";
 import { DEFAULT_TEXT_BOX } from "../src/core/document/textBox";
 import { buildTextHtml, estimateHeightPercent } from "./markup";
 import type { TextSpec } from "./markup";
@@ -888,8 +889,19 @@ const HANDLERS: Record<string, Handler> = {
     return { page, trigger: triggers[triggers.length - 1] };
   },
   // What triggers an event, replacing what did (the way "Ausgelöst durch" does in the editor): from = null for "nothing" ("Gar nicht").
+  // `condition` (instead of `from`): a formula over the variables, as in "Berechnet" ("punkte >= 10 und stufe = 2") - "Ausgelöst durch: Variable". The
+  // event (an Aufbau/Abbau) happens when the formula turns from false to true, and once when the page is entered if it is true then.
   set_trigger(ctx, op) {
     const page = pageId(ctx, op.page);
+    if (op.condition !== undefined) {
+      if (typeof op.condition !== "string" || op.condition.trim() === "") fail('"condition" ist eine Formel über die Variablen, zum Beispiel "punkte >= 10".');
+      const parsed = parseExpression(op.condition);
+      if (!parsed.ok) fail(`Die Bedingung „${op.condition}" geht nicht: ${parsed.error}`);
+      const to = eventId(ctx, op.to, "to");
+      if (!/^block-(entrance|exit):/.test(to) && !/^group-(entrance|exit):/.test(to)) fail('Eine Bedingung löst den Aufbau oder den Abbau eines Elements aus: "to" ist "entrance:<Block>" oder "exit:<Block>".');
+      actions.setConditionTrigger(page, to, op.condition);
+      return { page, to, condition: op.condition };
+    }
     const from = op.from === null || op.from === undefined ? null : eventId(ctx, op.from, "from");
     const to = eventId(ctx, op.to, "to");
     actions.setEventTrigger(page, to, from, typeof op.delayMs === "number" ? op.delayMs : 0, op.weiter === true ? "advance" : "timed");

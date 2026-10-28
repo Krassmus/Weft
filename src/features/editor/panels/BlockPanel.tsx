@@ -11,11 +11,12 @@ import { useImageBoxAspect } from "../blocks/ImageSvg";
 import { CODE_THEMES } from "../../../core/code/codeThemes";
 import { AUTO_LANGUAGE, CODE_LANGUAGES } from "../../../core/code/highlight";
 import { createId } from "../../../core/id";
-import { addCustomFont, addScriptLibrary, addTrigger, removeScriptLibrary, removeTrigger, setDisappearsOnResumeOf, setEventTrigger, setQuizAdvance, setStopPointShows, updateTrigger } from "../../../core/document/actions";
+import { addCustomFont, addScriptLibrary, addTrigger, removeScriptLibrary, removeTrigger, setConditionTrigger, setDisappearsOnResumeOf, setEventTrigger, setQuizAdvance, setStopPointShows, updateTrigger } from "../../../core/document/actions";
 import type { VideoUploadResult } from "../../../core/document/actions";
 import {
   blockEffectNodeId,
   buttonClickNodeId,
+  conditionNodeId,
   disappearsOnResume,
   endNodeIds,
   findNode,
@@ -471,6 +472,7 @@ export function BlockEffectEditor({
               allowNoTrigger={false}
               noTriggerLabel=""
               onChange={onTriggerChange}
+              condition={{ formula: page.timeline.conditions?.[conditionNodeId(targetNodeId)] ?? null, onChange: (formula) => setConditionTrigger(page.id, targetNodeId, formula) }}
             />
           )}
         </>

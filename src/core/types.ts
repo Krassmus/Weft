@@ -1039,7 +1039,9 @@ export type TimelineEventType =
   | "list-item-entrance"
   | "script-run"
   | "revealer-open"
-  | "revealer-button";
+  | "revealer-button"
+  /** A formula over variables that turned true (see PageTimeline.conditions). */
+  | "variable-condition";
 
 export interface TimelineNode {
   id: string;
@@ -1134,6 +1136,14 @@ export interface PageTimeline {
   ends: Record<string, PageEnd>;
   /** A title the author gave an event instead of its standard one, by event id. Absent: the standard titles. */
   titles?: Record<string, string>;
+  /**
+   * The conditions that trigger an event ("Ausgelöst durch: Variable" of an Aufbau/Abbau), by the id of the condition's own event
+   * (`condition:<id of the triggered event>`, see conditionNodeId): the formula, in the language of the "Berechnet" variables (see
+   * core/document/expressions.ts). The condition event happens when the formula turns from false to true - and once when the page is
+   * entered, if it is true then; the trigger it sends (stored in `triggers` like any other, from the condition event to the target) makes
+   * the target happen. An entry goes when no trigger leads from it any more (see syncPageTimelineEvents). Absent: none.
+   */
+  conditions?: Record<string, string>;
 }
 
 /** Several of a page's own blocks, bundled so they move (and resize, together,

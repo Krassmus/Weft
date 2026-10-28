@@ -132,7 +132,7 @@ const FORMULA_COMMIT_DELAY_MS = 500;
 
 /** A formula text field: edited locally, committed shortly after typing pauses and when it loses
  * focus, and kept in step with the document (undo, ...) whenever it isn't being typed in. */
-function FormulaInput({
+export function FormulaInput({
   value,
   placeholder,
   invalid,

@@ -1,3 +1,4 @@
+import { parseExpression } from "../document/expressions";
 import { orderedValues } from "../document/ordering";
 import {
   blockActionNodeId,
@@ -87,6 +88,12 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
   }
 
   for (const endId of endNodeIds(page)) events.push({ id: endId, kind: "end", transition: page.timeline.ends[endId].transition });
+
+  // The conditions ("Ausgelöst durch: Variable"): an event each, which the player makes happen when the formula turns true.
+  for (const [id, formula] of Object.entries(page.timeline.conditions ?? {})) {
+    const parsed = parseExpression(formula);
+    events.push({ id, kind: "condition", expr: parsed.ok ? parsed.expr : null });
+  }
 
   // The titles the author gave the events (a script finds an event to trigger by its title).
   for (const event of events) {

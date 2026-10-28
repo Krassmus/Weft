@@ -63,6 +63,13 @@ Ein Trigger hat:
 wenn seine Quelle passiert ist. Dadurch ergeben sich Aufbau-Ketten („Text A, dann Weiter, dann Bild B, dann Weiter, dann nächste Folie“)
 ohne eine eigene Warteschlange: Druck 1 löst A aus, erst dann wartet der Trigger zu B.
 
+**Quelle „Variable“ (Bedingung):** Der Aufbau/Abbau eines Elements kann auch von einer **Formel** über die Variablen ausgelöst werden (die Sprache der
+berechneten Variablen, z. B. `punkte >= 10 und stufe = 2`). Die Formel ist ein eigenes Event (`condition:<Ziel-Event>`, Typ „Variable“), das passiert,
+wenn sie von falsch zu wahr wechselt – und einmal beim Betreten der Folie, wenn sie dann schon wahr ist. Es hat einen ganz normalen Trigger zum Ziel
+(Verzögerung 0, ohne Weiter); in der Seitenleiste des Events lässt sich die Formel ändern und mit „Weiteres Ziel hinzufügen“ ein weiteres Ziel anhängen.
+Fällt die Formel wieder auf falsch und wird erneut wahr, passiert das Event wieder (ein Aufbau eines Elements, das schon da ist, tut nichts). Die Formel
+wird nach **jeder Änderung einer Variable** neu bewertet; ein Element, dessen Aufbau nur an einer nie wahr werdenden Formel hängt, erscheint nie.
+
 Ein „Weiter“ ohne wartenden Trigger macht nichts. „Nächste Folie“ ist nie implizit: Wenn kein Trigger auf „Nächste Folie“ zeigt, kann
 die Folie nur auf anderen Wegen verlassen werden (zum Beispiel ein Button, der direkt zu „Nächste Folie“ führt).
 
@@ -234,7 +241,8 @@ Gespeichert wird **nur das, was nicht aus den Blöcken folgt**:
 
 - die Liste der **Trigger** `{ id, von, nach, Verzögerung, Weiter }`,
 - die **„Nächste Folie“-Events** (jedes mit Übergang und optionalem Titel),
-- **Titel-Überschreibungen** einzelner Events.
+- **Titel-Überschreibungen** einzelner Events,
+- die **Bedingungen** `conditions` (Event-ID `condition:<Ziel-Event>` → Formel) der Quelle „Variable“; sie gehen, sobald kein Trigger mehr von ihnen ausgeht.
 
 Die Events, die Blöcke liefern (Aufbau, Abbau, Video, Quiz ...), sind abgeleitet; ihre IDs sind stabil (aus der Block-ID gebildet).
 **Implizite Trigger gibt es nicht mehr**: Alles, was heute im Quiz-Panel („Weiter zur nächsten Folie“) oder in der Warteschlangenlogik

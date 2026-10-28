@@ -1,6 +1,9 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import gearIconSvg from "../../../mockups/icons/admin.svg?raw";
+
+const conditionIconSvg =
+  '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h12M4 12h6M4 17h8"/><path d="M14 15l2.5 2.5L21 12"/></svg>';
 import playIconSvg from "../../../mockups/icons/play.svg?raw";
 import arrowRightIconSvg from "../../../mockups/icons/arr_1right.svg?raw";
 import acceptIconSvg from "../../../mockups/icons/accept.svg?raw";
@@ -54,6 +57,7 @@ const EVENT_LABELS: Record<TimelineEventType, string> = {
   get "quiz-submit"() { return tr("ui.quiz_submitted"); },
   get "quiz-submit-correct"() { return tr("ui.quiz_submitted"); },
   get "quiz-submit-incorrect"() { return tr("ui.quiz_submitted"); },
+  get "variable-condition"() { return tr("ui.condition_event_label"); },
   get "video-start-auto"() { return tr("ui.start_of_the_video"); },
   get "video-start-manual"() { return tr("ui.start_of_the_video"); },
   get "video-stop-point"() { return tr("ui.time_mark_2"); },
@@ -87,6 +91,8 @@ const EVENT_ICONS: Record<TimelineEventType, string> = {
   "quiz-submit": acceptIconSvg,
   "quiz-submit-correct": acceptIconSvg,
   "quiz-submit-incorrect": declineIconSvg,
+  // A condition of a variable that came true: lines and a tick.
+  "variable-condition": conditionIconSvg,
   "video-start-auto": video2IconSvg,
   "video-start-manual": playIconSvg,
   // Same icon VideoStopPointDialog's own mini-timeline markers use (see panels/BlockPanel.tsx) -
@@ -136,7 +142,8 @@ export function nodeLabel(node: TimelineNode): string {
  * document/pageTimeline.ts for how that's resolved regardless of block order). */
 export function listPageTriggerEvents(page: Page): { id: string; label: string }[] {
   return listAllNodes(page)
-    .filter((node) => node.kind !== "end")
+    // (The condition of an event - "Ausgelöst durch: Variable" - is part of that event's own trigger, not a source to pick for another.)
+    .filter((node) => node.kind !== "end" && node.eventType !== "variable-condition")
     .map((node) => ({ id: node.id, label: eventTitle(page, node) }));
 }
 

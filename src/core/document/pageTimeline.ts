@@ -356,6 +356,25 @@ export function buttonClickNodeId(blockId: string): string {
   return `button-click:${blockId}`;
 }
 
+/** The event of the condition ("Ausgelöst durch: Variable") that triggers the event `targetId` - see PageTimeline.conditions. */
+export function conditionNodeId(targetId: string): string {
+  return `condition:${targetId}`;
+}
+
+export function isConditionNodeId(id: string): boolean {
+  return id.startsWith("condition:");
+}
+
+/** The words an event of a condition shows in the graph: the formula, shortened. */
+function conditionLabel(formula: string): string {
+  const text = formula.replace(/\s+/g, " ").trim();
+  return tr("ui.condition_event", { n0: text.length > 28 ? `${text.slice(0, 27)}…` : text });
+}
+
+function makeConditionNode(id: string, formula: string): TimelineNode {
+  return { id, kind: "event", eventType: "variable-condition", label: conditionLabel(formula) };
+}
+
 /** A group's own Aufbau/Abbau event (see BlockGroup.entranceEffect). Kept in sync by hand with player.runtime.js - the player never
  * needs it (it has no action of its own), only the graph does. */
 export function groupEffectNodeId(groupId: string, phase: "entrance" | "exit"): string {
@@ -720,6 +739,10 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
     lanes.push({ nodes, edges: nodes.slice(1).map((node, index) => ({ from: nodes[index].id, to: node.id, kind: "unknown" as const })) });
   }
 
+  // The condition of an "Ausgelöst durch: Variable" is an event of its own (it happens when the formula turns true): a node to start from,
+  // like a button's click - what it triggers is drawn from its trigger.
+  for (const [id, formula] of Object.entries(page.timeline.conditions ?? {})) lanes.push({ nodes: [makeConditionNode(id, formula)], edges: [] });
+
   const nodesById = new Map<string, TimelineNode>();
   for (const lane of lanes) for (const node of lane.nodes) nodesById.set(node.id, node);
 
@@ -964,6 +987,7 @@ function blockEventIds(page: Page): Set<string> {
     if (group.entranceEffect && group.entranceEffect.type !== "off") ids.add(groupEffectNodeId(group.id, "entrance"));
     if (group.exitEffect && group.exitEffect.type !== "off") ids.add(groupEffectNodeId(group.id, "exit"));
   }
+  for (const id of Object.keys(page.timeline.conditions ?? {})) ids.add(id);
   return ids;
 }
 
@@ -1032,6 +1056,14 @@ export function syncPageTimelineEvents(page: Page): void {
   // 4. Titles of events that are gone.
   if (timeline.titles) {
     for (const id of Object.keys(timeline.titles)) if (!events.has(id)) delete timeline.titles[id];
+  }
+
+  // 5. A condition that nothing is triggered by any more (its target is gone, or has another trigger now) goes.
+  if (timeline.conditions) {
+    for (const id of Object.keys(timeline.conditions)) {
+      if (!Object.values(timeline.triggers).some((t) => t.from === id)) delete timeline.conditions[id];
+    }
+    if (Object.keys(timeline.conditions).length === 0) delete timeline.conditions;
   }
 }
 

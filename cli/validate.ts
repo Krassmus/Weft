@@ -9,6 +9,7 @@ import { isTranslated, plainTextOfHtml } from "../src/core/document/translations
 import { safeLinkUrl } from "../src/core/document/linkUrl";
 import { placeholderSources } from "../src/core/document/variablePlaceholders";
 import { virtualVariablesFor } from "../src/core/document/virtualVariables";
+import { formulaProblem } from "../src/core/document/variables";
 import { actionEffectProblem, listAllNodes } from "../src/core/document/pageTimeline";
 import { CURATED_FONTS } from "../src/core/fonts/curatedFonts";
 import { CURRENT_FORMAT_VERSION } from "../src/core/types";
@@ -646,6 +647,11 @@ export function validate(loaded: LoadedWeft): Finding[] {
           page: ref,
           hint: "Gewollt? Sonst mit set_trigger festlegen, was es auslöst (das ersetzt die anderen); mit remove_trigger einen entfernen.",
         });
+      }
+      // The conditions of "Ausgelöst durch: Variable": the formula has to parse and to read variables that exist.
+      for (const [id, formula] of Object.entries(page.timeline.conditions ?? {})) {
+        const problem = formula.trim() === "" ? "Die Bedingung ist noch leer." : formulaProblem(formula, content.variables, virtualVariablesFor(content.languages ?? []).map((v) => v.name));
+        if (problem) add("warning", "condition-invalid", `Die Bedingung „${formula}" (${id}) geht nicht: ${problem} So wird der Aufbau/Abbau nie ausgelöst.`, { page: ref, hint: 'Mit set_trigger {"to": "entrance:<Block>", "condition": "<Formel>"} neu setzen.' });
       }
       const model = buildGraphModel(page);
       for (const node of model.nodes.flatMap((n) => [n, ...n.companions])) {

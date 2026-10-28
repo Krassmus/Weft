@@ -14,7 +14,7 @@ import { createEmptyDocument } from "../src/core/document/createEmptyDocument";
 import { quizFillNodeId, quizSubmitNodeId } from "../src/core/document/pageTimeline";
 import { fieldHtml, fieldHtmlPatch, fieldWording, fieldWordingPatch, isTranslated, itemWording, itemWordingPatch, rotateDefaultLanguage } from "../src/core/document/translations";
 import { usedAssetIds } from "../src/core/document/usedAssets";
-import { placeholderSources } from "../src/core/document/variablePlaceholders";
+import { placeholderSources, withProgress } from "../src/core/document/variablePlaceholders";
 import { buildEventGraph } from "../src/core/eventGraph/buildEventGraph";
 import { translations } from "../src/core/i18n/translations";
 import { CURRENT_FORMAT_VERSION } from "../src/core/io/unpack";
@@ -228,6 +228,11 @@ describe.each(KINDS)("%s with every field filled", (kind) => {
     const sources = placeholderSources(block);
     const withValues = variableWordings(block);
     for (const wording of withValues.filter((wording) => hasWords(wording.own))) expect(sources, wording.own).toContain(wording.html ? wording.own : escapeText(wording.own));
+    // (Every text the descriptor says has values put in, or is shown, is among them - the two lists above would agree on nothing as well.)
+    const own = block as unknown as Record<string, unknown>;
+    const flagged = (flag: "variables" | "shown") => fieldsOf(block).filter(([, spec]) => (spec.type === "text" || spec.type === "html") && spec[flag]).map(([name]) => own[name]).filter(hasWords);
+    for (const words of flagged("variables")) expect(withValues.map((wording) => wording.own), `${words}`).toContain(words);
+    for (const words of flagged("shown")) expect(shownWordings(block).map((wording) => wording.own), `${words}`).toContain(words);
     // (What the player puts nothing in for is not looked at.)
     expect(sources.length).toBe(withValues.reduce((count, wording) => count + (wording.own ? 1 : 0) + wording.translated.length, 0));
     // (Every text that has placeholders is a text that is shown.)
@@ -494,5 +499,61 @@ describe("the label of a button, which is formatted text", () => {
     const made = fieldsOfLabel();
     expect(placeholderSources(made.block)).toContain(html);
     expect(clipboardEntryPlainText({ kind: "block", block: made.block } as never)).toBe("Los geht's & weiter");
+  });
+});
+
+describe("the words of a text, which are only HTML (a field of the type html)", () => {
+  const html = "<p>Los <b>geht's</b> &amp; weiter</p>";
+  const made = () => {
+    const m = moduleWith("text", true);
+    Object.assign(m.content.pages[m.pageId].blocks[m.blockId], fieldHtmlPatch(m.block, "html", DE, DE, html));
+    return { ...m, get now() { return m.content.pages[m.pageId].blocks[m.blockId] as Block; } };
+  };
+
+  it("keeps the formatting in the field itself - no plain words beside it - and reads it back as it is, not escaped", () => {
+    const m = made();
+    expect((m.now as unknown as { html: string; text?: string }).html).toBe(html);
+    expect("text" in m.now).toBe(false);
+    expect(fieldHtml(m.now, "html", DE, DE)).toBe(html);
+    expect(fieldWording(m.now, "html", DE, DE)).toBe(html);
+  });
+
+  it("has its own formatting in another language, which is `html` in the translation and nothing else", () => {
+    const m = made();
+    Object.assign(m.content.pages[m.pageId].blocks[m.blockId], fieldHtmlPatch(m.now, "html", EN, DE, "<p><i>Go</i></p>"));
+    expect((m.now as unknown as { translations: Record<string, unknown> }).translations[EN]).toEqual({ html: "<p><i>Go</i></p>" });
+    expect(fieldHtml(m.now, "html", EN, DE)).toBe("<p><i>Go</i></p>");
+    expect(fieldWording(m.now, "html", EN, DE)).toBe("<p><i>Go</i></p>");
+    expect(fieldHtml(m.now, "html", DE, DE)).toBe(html);
+    expect(isTranslated(m.now as never, EN, DE)).toBe(true);
+    // The patch of plain wording goes to the same place.
+    Object.assign(m.content.pages[m.pageId].blocks[m.blockId], fieldWordingPatch(m.now, "html", EN, DE, "<p>Plain</p>"));
+    expect(fieldHtml(m.now, "html", EN, DE)).toBe("<p>Plain</p>");
+  });
+
+  it("has its {{variables}} found - in every language - and checked", () => {
+    const m = made();
+    Object.assign(m.content.pages[m.pageId].blocks[m.blockId], { html: "<p>{{punkte}} und {{gibtesnicht}}</p>" }, fieldHtmlPatch(m.now, "html", EN, DE, "<p>{{ punkte }} in English</p>"));
+    expect(placeholderSources(m.now)).toEqual(["<p>{{punkte}} und {{gibtesnicht}}</p>", "<p>{{ punkte }} in English</p>"]);
+    const findings = validate({ path: "test.weft", json: { formatVersion: CURRENT_FORMAT_VERSION, content: m.content }, content: m.content, files: new Set(), archive: false });
+    expect(findings.filter((finding) => finding.code === "placeholder-variable").map((finding) => finding.message)).toEqual(expect.arrayContaining([expect.stringContaining("gibtesnicht")]));
+  });
+
+  it("swaps with the new default language and back", () => {
+    const m = made();
+    Object.assign(m.content.pages[m.pageId].blocks[m.blockId], fieldHtmlPatch(m.now, "html", EN, DE, "<p><i>Go</i></p>"));
+    rotateDefaultLanguage(m.content, DE, EN);
+    expect((m.now as unknown as { html: string }).html).toBe("<p><i>Go</i></p>");
+    rotateDefaultLanguage(m.content, EN, DE);
+    expect((m.now as unknown as { html: string }).html).toBe(html);
+    expect(fieldHtml(m.now, "html", EN, DE)).toBe("<p><i>Go</i></p>");
+  });
+});
+
+describe("the {{progress}} in the words of a picture of a page", () => {
+  it("is the value the page has, however it is spaced - and stays where the value is not known", () => {
+    expect(withProgress("<p>{{progress}} und {{ progress }} und {{punkte}}</p>", 40)).toBe("<p>40 und 40 und {{punkte}}</p>");
+    expect(withProgress("<p>{{progress}}</p>", null)).toBe("<p>{{progress}}</p>");
+    expect(withProgress("<p>{{progress}}</p>", undefined)).toBe("<p>{{progress}}</p>");
   });
 });

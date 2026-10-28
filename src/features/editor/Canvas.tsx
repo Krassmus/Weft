@@ -1108,6 +1108,11 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
         style={{ "--zoom": zoom, "--ar": aspectRatioNumeric(doc.content.aspectRatio) } as CSSProperties}
         onPointerDownCapture={(e) => {
           pressStartedInBlockRef.current = !!(e.target as HTMLElement).closest(".weft-edit-block");
+          // A press on the slide takes the focus off a field outside it (a text field of the side panel, a select): the canvas keeps the browser from
+          // moving the focus itself (preventDefault on the pointer), and with the focus left in the field Delete, Backspace and the copy keys would act
+          // on it - not on the block that was just selected.
+          const active = document.activeElement;
+          if (active instanceof HTMLElement && active !== document.body && !stageWrapRef.current?.contains(active)) active.blur();
         }}
         onClick={() => {
           if (pressStartedInBlockRef.current) return;

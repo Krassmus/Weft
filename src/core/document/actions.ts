@@ -1745,6 +1745,24 @@ export async function addImageBlockToPage(pageId: string, file: File, position: 
   return blockId;
 }
 
+/** Drops several pictures onto a page in one step as a gallery (GalleryBlock) - one block, in the order of the files, centred on `position` (whose size
+ * it takes: a gallery is as large as the room it is given). Returns the id of the block. See addImageBlockToPage for the one picture. */
+export function addGalleryBlockToPage(pageId: string, files: File[], position: BlockPosition): string {
+  const block = defaultBlockFor("gallery") as NewBlock & { kind: "gallery" };
+  block.position = position;
+  const assets = files.map((file) => ({ id: createId(), fileName: file.name, mimeType: file.type || "application/octet-stream" }));
+  files.forEach((file, i) => useAssetStore.getState().setAsset(assets[i].id, file));
+  block.items = assets.map((asset) => ({ id: createId(), assetId: asset.id, caption: "" }));
+  edit("Galerie hinzufügen", (m) => {
+    const page = m.pages[pageId];
+    if (!page) return;
+    m.assets.push(...assets);
+    insertOrdered(page.blocks, block.id, block);
+    syncPageTimelineEvents(page);
+  });
+  return block.id;
+}
+
 export async function addImageBlockToLayout(layoutId: string, file: File, position: BlockPosition) {
   const assetId = createId();
   const blockId = createId();

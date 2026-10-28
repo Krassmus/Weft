@@ -18,6 +18,7 @@ import { LogicBlockPanel } from "./panels/LogicBlockPanel";
 import { MultiBlockPanel } from "./panels/MultiBlockPanel";
 import { PagePanel } from "./panels/PagePanel";
 import { tr } from "../../core/i18n/tr";
+import { useGalleryDrop } from "./blocks/useGalleryDrop";
 
 function EmptyState() {
   return (
@@ -30,9 +31,15 @@ function EmptyState() {
 export function Inspector() {
   const doc = useDocumentStore((s) => s.doc);
   const selection = useDocumentStore((s) => s.selection);
+  // While a gallery is selected, pictures dropped anywhere on the panel are added to it.
+  const galleryId =
+    selection?.type === "block" && selection.container.kind === "page" && doc.content.pages[selection.container.pageId]?.blocks[selection.blockId]?.kind === "gallery"
+      ? selection.blockId
+      : null;
+  const drop = useGalleryDrop(galleryId && selection?.type === "block" ? selection.container : null, galleryId);
 
   return (
-    <aside className="weft-inspector" aria-labelledby="weft-inspector-heading">
+    <aside className={"weft-inspector" + (drop.over ? " is-drop-target" : "")} aria-labelledby="weft-inspector-heading" {...drop.handlers}>
       <h2 className="weft-inspector-header" id="weft-inspector-heading">
         {tr("ui.properties")}
       </h2>

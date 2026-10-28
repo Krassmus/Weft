@@ -7,6 +7,7 @@ import playIconSvg from "../../../mockups/icons/play.svg?raw";
 import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
 import {
   addImageBlockToLayout,
+  addGalleryBlockToPage,
   addImageBlockToPage,
   addAudioBlockToLayout,
   addAudioBlockToPage,
@@ -30,6 +31,7 @@ import {
   updateEndTransition,
 } from "../../core/document/actions";
 import type { VideoUploadResult } from "../../core/document/actions";
+import { addGalleryImages } from "../../core/document/filesActions";
 import { useDocumentStore } from "../../core/document/store";
 import { findNode } from "../../core/document/pageTimeline";
 import { DEFAULT_IRIS_CENTER } from "../../core/document/transitions";
@@ -102,6 +104,15 @@ function dropPosition(clientX: number, clientY: number, stageRect: DOMRect, casc
     width: DROP_MEDIA_WIDTH,
     height: DROP_MEDIA_HEIGHT,
   };
+}
+
+/** Where a gallery made of dropped pictures goes: centred on the drop, as large as a new gallery is (60 by 70 percent, less where the slide has no room). */
+function galleryDropPosition(clientX: number, clientY: number, stageRect: DOMRect): BlockPosition {
+  const width = 60;
+  const height = 70;
+  const centerX = ((clientX - stageRect.left) / stageRect.width) * 100;
+  const centerY = ((clientY - stageRect.top) / stageRect.height) * 100;
+  return { x: clampAxis(centerX - width / 2, width), y: clampAxis(centerY - height / 2, height), width, height };
 }
 
 function isEditableTarget(el: Element | null): boolean {
@@ -762,6 +773,8 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
   // The elements the mouse is over in the sidebar's list (see listHover.ts) are marked like hovered ones.
   const listHoverIds = useListHover((s) => s.ids);
   const [dragOver, setDragOver] = useState(false);
+  // The gallery that picture files are being dragged over (it takes them as pictures of its own, see handleMediaDrop).
+  const [dragOverGalleryId, setDragOverGalleryId] = useState<string | null>(null);
   // Not state - updating it must never itself trigger a render, only ever be read by the next
   // one (see resolveEditTarget's own fallbackPageId parameter).
   const lastPageIdRef = useRef<string | null>(null);
@@ -857,7 +870,22 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
     if (!e.dataTransfer.types.includes("Files")) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
-    setDragOver(true);
+    // Over a gallery the files would become pictures of it: the gallery is outlined, not the whole slide.
+    const galleryId = galleryUnder(e.target);
+    setDragOverGalleryId(galleryId);
+    setDragOver(galleryId === null);
+  }
+
+  function endFileDrag() {
+    setDragOver(false);
+    setDragOverGalleryId(null);
+  }
+
+  /** The id of the gallery of the page on the canvas that `element` (what is under the pointer) is a part of - null for anything else. */
+  function galleryUnder(element: EventTarget | null): string | null {
+    if (target?.kind !== "page" || !(element instanceof HTMLElement)) return null;
+    const id = element.closest<HTMLElement>("[data-block-id]")?.dataset.blockId;
+    return id && target.page.blocks[id]?.kind === "gallery" ? id : null;
   }
 
   async function handleMediaDrop(
@@ -866,9 +894,11 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
     addImage: (file: File, position: BlockPosition) => Promise<string>,
     addVideo: (file: File, position: BlockPosition) => Promise<{ blockId: string } & VideoUploadResult>,
     addAudio: (file: File, position: BlockPosition) => Promise<string>,
+    addGallery?: (files: File[], position: BlockPosition) => string,
   ) {
     e.preventDefault();
-    setDragOver(false);
+    const galleryId = galleryUnder(e.target);
+    endFileDrag();
     const rect = e.currentTarget.getBoundingClientRect();
     const mediaFiles = Array.from(e.dataTransfer.files).filter(
       (f) => f.type.startsWith("image/") || f.type.startsWith("video/") || f.type.startsWith("audio/"),
@@ -878,7 +908,20 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
     // order keeps undo order sane too.
     let lastBlockId: string | null = null;
     const videoReports: VideoUploadReport[] = [];
+    // Pictures dropped on a gallery become its last pictures (one step); several pictures dropped on the slide are one gallery, not a pile of picture
+    // blocks (one picture is a picture block). The pictures are taken out of the files here, the videos and sounds go on one by one below.
+    const images = mediaFiles.filter((f) => f.type.startsWith("image/"));
+    let imagesDone = false;
+    if (images.length > 0 && galleryId && container.kind === "page") {
+      await addGalleryImages(container, galleryId, images);
+      lastBlockId = galleryId;
+      imagesDone = true;
+    } else if (images.length > 1 && addGallery) {
+      lastBlockId = addGallery(images, galleryDropPosition(e.clientX, e.clientY, rect));
+      imagesDone = true;
+    }
     for (const [index, file] of mediaFiles.entries()) {
+      if (imagesDone && file.type.startsWith("image/")) continue;
       const position = dropPosition(e.clientX, e.clientY, rect, index);
       if (file.type.startsWith("video/")) {
         const result = await addVideo(file, position);
@@ -1164,7 +1207,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                 if (!pressStartedInBlockRef.current) select({ type: "layout", layoutId: target.layout.id });
               }}
               onDragOver={handleDragOver}
-              onDragLeave={() => setDragOver(false)}
+              onDragLeave={endFileDrag}
               onDrop={(e) =>
                 handleMediaDrop(
                   e,
@@ -1224,7 +1267,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                 if (!pressStartedInBlockRef.current) select({ type: "page", pageId: target.page.id });
               }}
               onDragOver={handleDragOver}
-              onDragLeave={() => setDragOver(false)}
+              onDragLeave={endFileDrag}
               onDrop={(e) =>
                 handleMediaDrop(
                   e,
@@ -1232,6 +1275,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                   (file, position) => addImageBlockToPage(target.page.id, file, position),
                   (file, position) => addVideoBlockToPage(target.page.id, file, position),
                   (file, position) => addAudioBlockToPage(target.page.id, file, position),
+                  (files, position) => addGalleryBlockToPage(target.page.id, files, position),
                 )
               }
             >
@@ -1310,6 +1354,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
                     selected={isSoloSelected}
                     groupSelected={groupSelected}
                     marqueeHover={marqueeHoverIds?.includes(block.id) ?? false}
+                    dropTarget={block.id === dragOverGalleryId}
                     eventHover={eventBlockId === block.id || listHoverIds.includes(block.id)}
                     isPartOfCurrentSelection={isPartOfCurrentSelection}
                     livePositionOverride={groupLiveOverrides?.find((p) => p.id === block.id)?.position ?? null}

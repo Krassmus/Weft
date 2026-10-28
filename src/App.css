@@ -7472,3 +7472,16 @@ h2.weft-inspector-header {
   color: var(--slide-muted);
   white-space: pre-wrap;
 }
+
+/* Picture files dragged over a place that adds them to a gallery: the side panel while a gallery is selected, and the gallery on the slide. */
+.weft-inspector.is-drop-target {
+  outline: 2px dashed var(--weft-accent);
+  outline-offset: -2px;
+  background: var(--weft-accent-soft);
+}
+
+.weft-edit-block.is-drop-target {
+  outline: 2px dashed var(--weft-accent);
+  outline-offset: 2px;
+  background: var(--weft-accent-soft);
+}

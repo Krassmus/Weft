@@ -188,6 +188,8 @@ interface BlockViewProps {
   /** The block belongs to the event selected in the graph: it gets the dashed outline of a hover - until the mouse is over a block
    * of the editor, which then is the only one that has it (see .is-event-hover in App.css). */
   eventHover?: boolean;
+  /** Picture files are being dragged over this block, which would take them (a gallery): it is outlined. */
+  dropTarget?: boolean;
   /** Shift+Click - adds/removes this block (or, if it belongs to one, its whole group) to/from
    * the in-progress multi-selection, instead of replacing the selection the way a plain onSelect
    * click does. Absent for the read-only layout preview underneath a page, same as onSelect. */
@@ -229,6 +231,7 @@ export function BlockView({
   groupSelected,
   marqueeHover,
   eventHover,
+  dropTarget,
   onShiftSelect,
   onDoubleClick,
   extraMenuItems,
@@ -571,6 +574,7 @@ export function BlockView({
           (selected ? " is-selected" : "") +
           (groupSelected ? " is-group-selected" : "") +
           (marqueeHover ? " is-marquee-hover" : "") +
+          (dropTarget ? " is-drop-target" : "") +
           (eventHover ? " is-event-hover" : "") +
           (locked ? " is-locked" : "") +
           (nearEdge ? " is-near-edge" : "")

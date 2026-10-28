@@ -50,6 +50,8 @@ function sampleOf(name: string, spec: FieldSpec, ids: { asset: string; variable:
   switch (spec.type) {
     case "text":
       return spec.sample ?? `Beispiel ${name}`;
+    case "html":
+      return `<p>Beispiel ${name}</p>`;
     case "bool":
       return true;
     case "int":
@@ -237,9 +239,11 @@ describe.each(KINDS)("%s with every field filled", (kind) => {
 function wordings(block: Block) {
   const own = block as unknown as Record<string, unknown>;
   const texts = fieldsOf(block)
-    .filter(([, spec]) => spec.type === "text" && spec.translatable)
-    .map(([name]) => ({
+    .filter(([, spec]) => (spec.type === "text" || spec.type === "html") && spec.translatable)
+    .map(([name, spec]) => ({
       what: name,
+      // (A formatted text is HTML already; a plain one is escaped when it is exported.)
+      html: spec.type === "html",
       own: own[name] as string,
       read: (language: string) => fieldWording(block, name, language, DE),
       patch: (language: string, text: string) => fieldWordingPatch(block, name, language, DE, text),
@@ -330,7 +334,7 @@ describe.each(KINDS)("the texts of %s in `weft text export` and `weft text impor
     const imported = content.pages[pageId].blocks[blockId] as Block;
     for (const wording of wordings(imported)) {
       if (!hasWords(wording.own)) continue;
-      expect(wording.read(EN), wording.what).toBe(`EN ${escapeText(wording.own)}`);
+      expect(wording.read(EN), wording.what).toBe(`EN ${"html" in wording && wording.html ? wording.own : escapeText(wording.own)}`);
       expect(wording.read(DE), wording.what).toBe(wording.own);
     }
     expect(isTranslated(imported as never, EN, DE)).toBe(true);
@@ -353,6 +357,7 @@ describe("what is known about each kind", () => {
     button: { pageOnly: false, task: false, translatable: ["text"], lists: [] },
     progress: { pageOnly: false, task: false, translatable: [], lists: [] },
     language: { pageOnly: false, task: false, translatable: [], lists: [] },
+    text: { pageOnly: false, task: false, translatable: ["html"], lists: [] },
   };
 
   it("has an entry for every kind that describes itself - and for no other", () => {
@@ -365,7 +370,7 @@ describe("what is known about each kind", () => {
     expect(descriptor.placement.pageOnly).toBe(known.pageOnly);
     expect(!!descriptor.task).toBe(known.task);
     const fields = Object.entries(descriptor.fields as Record<string, FieldSpec>);
-    expect(fields.filter(([, spec]) => spec.type === "text" && spec.translatable).map(([name]) => name).sort()).toEqual([...known.translatable].sort());
+    expect(fields.filter(([, spec]) => (spec.type === "text" || spec.type === "html") && spec.translatable).map(([name]) => name).sort()).toEqual([...known.translatable].sort());
     expect(fields.filter(([, spec]) => spec.type === "list").map(([name]) => name).sort()).toEqual([...known.lists].sort());
   });
 });
@@ -399,7 +404,7 @@ describe("what `weft validate` says about a block that is wrong", () => {
 describe("a field of every type", () => {
   // The field types the stations are told about (blocks/types.ts): a type that is new has to be in a descriptor that is tested above, or it is
   // not tested at all.
-  const TYPES = ["text", "bool", "int", "effects", "asset", "list"];
+  const TYPES = ["text", "html", "bool", "int", "effects", "asset", "list"];
 
   it("is in at least one descriptor, so that every station has been run with it", () => {
     const seen = new Set<string>();

@@ -1,6 +1,5 @@
 import { useLayoutEffect, useRef } from "react";
 import { pageProgress } from "../../core/document/pageProgress";
-import { textBoxCss } from "../../core/document/textBox";
 import { backdropBlurCss, hasBackdropBlur, shapeCornerCss } from "../../core/document/backdropBlur";
 import { revealerIconSvg } from "../../core/runtime/revealerGeometry.js";
 import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
@@ -14,6 +13,7 @@ import { FilesView } from "./blocks/FilesView";
 import { ShapeSvg } from "./blocks/ShapeSvg";
 import { ImageSvg } from "./blocks/ImageSvg";
 import { listItemHtml, quizOptionHtml, quizQuestionHtml, textHtml } from "../../core/document/translations";
+import { withProgress } from "../../core/document/variablePlaceholders";
 import { ListMarkerView } from "./blocks/ListMarkerView";
 import { clozeBlanksAsBoxes } from "../../core/document/cloze";
 import { fitListMarkers } from "./blocks/listCaret";
@@ -172,8 +172,7 @@ function ThumbBlockBody({
   };
 
   // A {{progress}} in a text is its value on this page (the name is matched the way the player matches it).
-  const shown = (html: string) =>
-    progress === null ? html : html.replace(/\{\{([^{}<>]*)\}\}/g, (all, name: string) => (name.trim() === "progress" ? String(progress) : all));
+  const shown = (html: string) => withProgress(html, progress);
 
   if (block.kind === "placeholder") {
     return placeholderSlots ? (
@@ -183,15 +182,6 @@ function ThumbBlockBody({
         dangerouslySetInnerHTML={{ __html: block.html }}
       />
     ) : null;
-  }
-  if (block.kind === "text") {
-    return (
-      <div
-        className="weft-thumb-block weft-thumb-block-text"
-        style={{ ...style, ...textBoxCss(block.box) }}
-        dangerouslySetInnerHTML={{ __html: shown(textHtml(block, lang, defaultLang)) }}
-      />
-    );
   }
   if (block.kind === "cloze") {
     return (

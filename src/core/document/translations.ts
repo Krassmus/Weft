@@ -150,6 +150,8 @@ export function fieldHtml(block: Block, name: string, language: string | null, d
   const own = block as unknown as Record<string, string | undefined>;
   const translation = translationOf((block as Translatable).translations, language, defaultLanguage);
   if (translation?.html !== undefined) return translation.html;
+  // (A text that is only HTML has no plain words to fall back to.)
+  if (isHtmlField(block, name)) return own[name] ?? "";
   const plain = translation?.[key] as string | undefined;
   if (plain !== undefined) return escapeHtml(plain);
   return (formatted ? own[formatted] : undefined) ?? escapeHtml(own[name] ?? "");
@@ -158,9 +160,14 @@ export function fieldHtml(block: Block, name: string, language: string | null, d
 /** The patch that stores formatted words as the wording in `language` (their plain words with them): into the block for the default language. */
 export function fieldHtmlPatch(block: Block, name: string, language: string | null, defaultLanguage: string | null, html: string): Partial<Block> {
   const key = wordingKey(block, name);
+  if (isHtmlField(block, name)) return wordingPatch(block as Translatable, language, defaultLanguage, { [name]: html } as Partial<Translatable>, (t) => ({ ...t, html })) as Partial<Block>;
   const formatted = formattedOf(block, name) ?? "html";
   const text = plainTextOfHtml(html);
   return wordingPatch(block as Translatable, language, defaultLanguage, { [formatted]: html, [name]: text } as Partial<Translatable>, (t) => ({ ...t, html, [key]: text })) as Partial<Block>;
+}
+
+function isHtmlField(block: Block, name: string): boolean {
+  return (descriptorOf(block)?.fields[name as never] as FieldSpec | undefined)?.type === "html";
 }
 
 function formattedOf(block: Block, name: string): string | undefined {
@@ -171,13 +178,15 @@ function formattedOf(block: Block, name: string): string | undefined {
 /** The key in a BlockTranslation where the wording of a field is kept. */
 function wordingKey(block: Block, name: string): keyof BlockTranslation {
   const spec = descriptorOf(block)?.fields[name as never] as FieldSpec | undefined;
+  // (A formatted text that is only HTML is kept as `html` in a translation.)
+  if (spec?.type === "html") return "html";
   return (spec?.type === "text" && spec.translationKey) || (name as keyof BlockTranslation);
 }
 
 /** The translatable text fields of a block that describes itself: their names and the keys of their wording in a translation. */
 function translatableFields(block: Block): { name: string; key: keyof BlockTranslation; formatted?: string }[] {
   return fieldsOf(block)
-    .filter(([, spec]) => spec.type === "text" && spec.translatable)
+    .filter(([, spec]) => (spec.type === "text" || spec.type === "html") && spec.translatable)
     .map(([name, spec]) => ({ name, key: wordingKey(block, name), formatted: spec.type === "text" ? spec.formatted : undefined }));
 }
 
@@ -210,7 +219,7 @@ export function plainTextOfHtml(html: string): string {
 export function isTranslated(block: Translatable, language: string | null, defaultLanguage: string | null): boolean {
   if (isOwnWording(language, defaultLanguage) || !language) return true;
   const translation = block.translations?.[language];
-  if (block.kind === "text" || block.kind === "cloze") return translation?.html !== undefined;
+  if (block.kind === "cloze") return translation?.html !== undefined;
   if (block.kind === "quiz") return translation?.questionHtml !== undefined;
   if (block.kind === "list") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
   if (block.kind === "matching") {
@@ -455,10 +464,10 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       (block as Translatable).translations = translations;
       continue;
     }
-    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "list") continue;
+    if (block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "list") continue;
     const incoming = block.translations?.[newDefault];
     const outgoing: BlockTranslation = {};
-    if (block.kind === "text" || block.kind === "cloze") {
+    if (block.kind === "cloze") {
       outgoing.html = block.html;
       if (incoming?.html !== undefined) block.html = incoming.html;
     } else if (block.kind === "matching") {

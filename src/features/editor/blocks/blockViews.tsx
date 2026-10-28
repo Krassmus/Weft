@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Block, ButtonBlock, CheckerBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ProgressBlock, SolutionBlock } from "../../../core/types";
+import type { Block, ButtonBlock, CheckerBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ProgressBlock, SolutionBlock, TextBlock } from "../../../core/types";
 import { ButtonView } from "./ButtonView";
 import { CheckerCanvas } from "./CheckerCanvas";
 import { CheckerView } from "./CheckerView";
@@ -10,6 +10,7 @@ import { LanguageView } from "./LanguageView";
 import { LinkView } from "./LinkView";
 import { ProgressView } from "./ProgressView";
 import { SolutionView } from "./SolutionView";
+import { TextView } from "./TextView";
 
 /** What a view is given. */
 export interface BlockViewProps<B extends Block = Block> {
@@ -85,6 +86,13 @@ const buttonView: BlockViewSpec<ButtonBlock> = {
   freelyMovable: false,
 };
 
+const textView: BlockViewSpec<TextBlock> = {
+  View: ({ block, lang, defaultLang, mode, progress }) => <TextView block={block} lang={lang} defaultLang={defaultLang} mode={mode} progress={progress} />,
+  // (Its words are written in place on the canvas, with the editor's rich text; a text is moved by its frame while that goes on.)
+  ownCanvas: true,
+  freelyMovable: false,
+};
+
 const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   solution: solutionView as BlockViewSpec<never>,
   gallery: galleryView as BlockViewSpec<never>,
@@ -94,6 +102,7 @@ const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   language: languageView as BlockViewSpec<never>,
   checker: checkerView as BlockViewSpec<never>,
   button: buttonView as BlockViewSpec<never>,
+  text: textView as BlockViewSpec<never>,
 };
 
 /** The editor's views of a kind, if it has them here. */

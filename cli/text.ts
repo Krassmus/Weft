@@ -29,8 +29,6 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
   const summary = descriptorOf(block)?.summary;
   if (summary) return summary(block as never, { labels });
   switch (block.kind) {
-    case "text":
-      return words(block.html) || "(leer)";
     case "placeholder":
       return `Platzhalter „${block.label}"`;
     case "cloze":

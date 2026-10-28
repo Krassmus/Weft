@@ -205,24 +205,6 @@ body {
   font-size: 1.7cqw;
 }
 
-.weft-block-text {
-  padding: 0.25em;
-}
-
-/* Only a text block that was set to "Scrollbar" scrolls, and only vertically. */
-.weft-block-text.is-scrollable {
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.weft-block-text > :first-child {
-  margin-top: 0;
-}
-
-.weft-block-text > :last-child {
-  margin-bottom: 0 !important;
-}
-
 /* A gap text (ClozeBlock): the text with its blanks as input fields, the button and the feedback of a quiz under it. Kept in step with
    .weft-edit-block-cloze* in App.css. */
 .weft-cloze {
@@ -1351,11 +1333,6 @@ summary:focus-visible,
   border-style: dashed;
   border-color: var(--slide-line-strong);
   background: transparent;
-}
-
-/* An empty text takes no clicks (see fillText in player.runtime.js). */
-.weft-block-text.is-empty {
-  pointer-events: none;
 }
 
 .weft-block-matching {

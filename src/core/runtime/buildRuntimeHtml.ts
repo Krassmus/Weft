@@ -21,6 +21,8 @@ import checkerRenderSource from "../blocks/checker/render.js?raw";
 import checkerCss from "../blocks/checker/render.css?raw";
 import buttonRenderSource from "../blocks/button/render.js?raw";
 import buttonCss from "../blocks/button/render.css?raw";
+import textRenderSource from "../blocks/text/render.js?raw";
+import textCss from "../blocks/text/render.css?raw";
 import playerRuntimeSource from "./player.runtime.js?raw";
 import quizCardCss from "./quizCard.css?raw";
 import playerRuntimeCss from "./player.runtime.css?raw";
@@ -107,6 +109,7 @@ export async function buildRuntimeHtml(
 <style>${languageCss}</style>
 <style>${checkerCss}</style>
 <style>${buttonCss}</style>
+<style>${textCss}</style>
 <style>${playerRuntimeCss}</style>
 <style>${fontFaceCss}</style>
 ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` : ""}${hasTex ? `<style>${buildKatexCss()}</style>\n` : ""}</head>
@@ -137,6 +140,7 @@ ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` 
 <script>${languageRenderSource.replace(/^export /gm, "")}</script>
 <script>${checkerRenderSource.replace(/^export /gm, "")}</script>
 <script>${buttonRenderSource.replace(/^export /gm, "")}</script>
+<script>${textRenderSource.replace(/^export /gm, "")}</script>
 <script>${playerRuntimeSource}</script>
 </body>
 </html>

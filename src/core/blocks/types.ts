@@ -48,6 +48,19 @@ export interface TextField {
   ui?: FieldUi;
 }
 
+/**
+ * A formatted text: HTML, kept in the field itself (a text block's `html`) - there is no plain copy beside it (a button's label has one: see
+ * TextField.formatted). The translations keep it as `html`, which is why the field's name is "html".
+ */
+export interface HtmlField {
+  type: "html";
+  translatable?: boolean;
+  shown?: boolean;
+  variables?: boolean;
+  cli?: { part: string; role: string };
+  ui?: FieldUi;
+}
+
 export interface BoolField {
   type: "bool";
   ui?: FieldUi;
@@ -107,7 +120,7 @@ export interface ListUi {
   remove: TranslationKey;
 }
 
-export type FieldSpec = TextField | BoolField | IntField | EffectsField | AssetField | ListField;
+export type FieldSpec = TextField | HtmlField | BoolField | IntField | EffectsField | AssetField | ListField;
 
 /**
  * A block with a task, as a quiz has: the events "first answer", "submitted", and "submitted - right / wrong" in the page's graph, which what is to

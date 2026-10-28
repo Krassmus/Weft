@@ -19,7 +19,6 @@ export function placeholderSources(block: Block): string[] {
     // Every language's wording, not just the default's - a placeholder is just as wrong in French.
     case "placeholder":
       return [block.html];
-    case "text":
     case "cloze":
       return [block.html, ...Object.values(block.translations ?? {}).flatMap((t) => (t.html !== undefined ? [t.html] : []))];
     case "quiz":
@@ -91,4 +90,10 @@ export function findPlaceholderProblems(html: string, variableNames: ReadonlySet
 
 export function findBlockPlaceholderProblems(block: Block, variableNames: ReadonlySet<string>): string[] {
   return [...new Set(placeholderSources(block).flatMap((html) => findPlaceholderProblems(html, variableNames)))];
+}
+
+/** The html of a picture of a page (a thumbnail, the PDF), with a {{progress}} in it as the value `progress` has on that page (the name is matched the way
+ * the player matches it); without a value (null) the placeholder stays. */
+export function withProgress(html: string, progress: number | null | undefined): string {
+  return progress == null ? html : html.replace(/\{\{([^{}<>]*)\}\}/g, (all, name: string) => (name.trim() === "progress" ? String(progress) : all));
 }

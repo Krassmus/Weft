@@ -19,7 +19,6 @@ const definitions = (schema as unknown as { definitions: Record<string, Node> })
 
 /** What each kind of block is for - the one thing the schema cannot say. */
 const BLOCK_KINDS_BY_HAND: Record<string, { definition: string; what: string }> = {
-  text: { definition: "TextBlock", what: "Ein Text (formatiertes HTML in `html`; Übersetzungen in `translations`)." },
   placeholder: { definition: "PlaceholderBlock", what: "Nur im Layout: Ort und Formatierung für einen Text, den die Folien selbst eingeben." },
   list: { definition: "ListBlock", what: "Eine Liste (Punkte, Striche, Nummern oder Bilder davor); Punkte können einzeln erscheinen." },
   quiz: { definition: "QuizBlock", what: "Frage mit Antwortoptionen; richtig/falsch löst Variablen-Effekte und Ereignisse aus." },

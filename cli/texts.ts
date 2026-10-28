@@ -59,8 +59,6 @@ function hasWords(html: string | undefined): boolean {
 function textsOfBlock(block: Block): { key: string; source: string; role: string }[] {
   const id = block.id;
   switch (block.kind) {
-    case "text":
-      return hasWords(block.html) ? [{ key: `${id}#html`, source: block.html, role: "Text" }] : [];
     case "cloze":
       return hasWords(block.html) ? [{ key: `${id}#html`, source: block.html, role: "Lückentext" }] : [];
     case "quiz": {
@@ -380,7 +378,8 @@ export function importTexts(content: WeftModule, file: TextsFile): ImportReport 
       if (described?.html) {
         // A formatted text keeps its formatting; its plain words go with it.
         target.html = translated;
-        (target as Record<string, string>)[described.key] = plainTextOfHtml(translated);
+        // (A text that is only HTML has no plain words beside it: its key is `html`.)
+        if (described.key !== "html") (target as Record<string, string>)[described.key] = plainTextOfHtml(translated);
       } else if (described) (target as Record<string, string>)[described.key] = htmlToPlain(translated);
       else if (part === "html") target.html = translated;
       else if (part === "label") {

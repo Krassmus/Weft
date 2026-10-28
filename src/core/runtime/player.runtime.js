@@ -308,19 +308,6 @@
     return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
-  // The background and border of a text block (core/document/textBox.ts: keep them in step).
-  function textBoxStyle(box) {
-    if (!box) return "";
-    var mix = function (color, opacity) {
-      return "color-mix(in srgb," + color + " " + Math.round(Math.max(0, Math.min(1, opacity)) * 100) + "%,transparent)";
-    };
-    var css = "box-sizing:border-box;";
-    if (box.fill) css += "background:" + mix(box.fill, box.fillOpacity) + ";";
-    if (box.borderColor && box.borderWidth > 0) css += "border:" + box.borderWidth + "cqw solid " + mix(box.borderColor, box.borderOpacity) + ";";
-    css += "border-radius:" + box.radius + "cqw;padding:" + box.padding + "cqw;";
-    return box.blur ? css + backdropBlurStyle() : css;
-  }
-
   // Blur what is behind a block (core/document/backdropBlur.ts: keep them in step).
   function backdropBlurStyle() {
     return "-webkit-backdrop-filter:blur(2cqw);backdrop-filter:blur(2cqw);";
@@ -2518,18 +2505,14 @@
   function renderStaticBlock(block, page) {
     var wrap = el("div", { class: "weft-block weft-block-" + block.kind, "data-weft-block": block.id, style: positionStyle(block.position) });
     if (block.kind === "text") {
-      if (block.scrollable) wrap.classList.add("is-scrollable");
-      if (block.box) wrap.style.cssText += textBoxStyle(block.box);
-      var fillText = function () {
-        wrap.innerHTML = blockHtml(block);
-        applyVariablesToNode(wrap);
-        // A text without words (the empty text a page makes for a placeholder of its layout when its field is clicked, say) is a rectangle nobody sees:
-        // it does not take the clicks of what lies under it (the arrow of a gallery, a button).
-        var empty = !block.box && (wrap.textContent || "").trim() === "" && !wrap.querySelector("img, a, svg, video, audio, iframe, canvas, input");
-        wrap.classList.toggle("is-empty", empty);
+      // The words, the scrolling and the box are what renderText (blocks/text/render.js, inlined ahead of this file) draws.
+      var textProps = function () {
+        return { html: blockHtml(block), scrollable: !!block.scrollable, box: block.box };
       };
-      fillText();
-      languageRefreshers.push(fillText);
+      var textInstance = renderText(wrap, textProps(), { mode: "play", applyVariables: applyVariablesToNode });
+      languageRefreshers.push(function () {
+        textInstance.update(textProps());
+      });
     } else if (block.kind === "list") {
       // Same markup and spacing as the editor's ListBlockCanvas (BlockView.tsx) and the thumbnails.
       var listBox = el("div", { class: "weft-list", role: "list", style: "gap:" + (block.spacing || 0) + "cqw;" }, []);

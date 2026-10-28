@@ -641,8 +641,6 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
   const described = descriptorOf(kind);
   if (described) return { ...base, ...described.defaults(), kind, position: { ...described.placement.box } } as NewBlock;
   switch (kind) {
-    case "text":
-      return { ...base, kind, position, html: tr("ui.new_text") };
     case "cloze":
       return {
         ...base,
@@ -696,6 +694,7 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
     case "link":
     case "checker":
     case "button":
+    case "text":
       // (A kind with a descriptor is made above - it has no case of its own.)
       throw new Error(`The kind "${kind}" has no descriptor.`);
     case "placeholder":

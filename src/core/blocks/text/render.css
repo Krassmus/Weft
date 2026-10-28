@@ -1,0 +1,25 @@
+/* A text (TextBlock) as renderText (blocks/text/render.js) draws it. Embedded into the exported page ahead of player.runtime.css and imported by the
+   editor, so that the thumbnails and the PDF draw what the player draws. The text is the positioned element itself (see renderText). */
+.weft-block-text {
+  box-sizing: border-box;
+  padding: 0.25em;
+}
+
+/* Only a text block that was set to "Scrollbar" scrolls, and only vertically. */
+.weft-block-text.is-scrollable {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.weft-block-text > :first-child {
+  margin-top: 0;
+}
+
+.weft-block-text > :last-child {
+  margin-bottom: 0 !important;
+}
+
+/* An empty text takes no clicks (see renderText). */
+.weft-block-text.is-empty {
+  pointer-events: none;
+}

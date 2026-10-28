@@ -8,6 +8,7 @@ import { languageBlock } from "./language/descriptor";
 import { linkBlock } from "./link/descriptor";
 import { progressBlock } from "./progress/descriptor";
 import { solutionBlock } from "./solution/descriptor";
+import { textBlock } from "./text/descriptor";
 
 /**
  * Every kind of block that describes itself (see BlockDescriptor), by its kind. The stations that treat all blocks alike ask here; a kind that is
@@ -27,6 +28,7 @@ registerBlock(progressBlock);
 registerBlock(languageBlock);
 registerBlock(checkerBlock);
 registerBlock(buttonBlock);
+registerBlock(textBlock);
 
 /** The descriptor of a kind, if it has one. */
 export function descriptorOf<B extends Block>(block: B): BlockDescriptor<B> | undefined;
@@ -120,6 +122,12 @@ function wordingsWith(block: Block, flag: Flag): Wording[] {
       } else {
         wordings.push({ own: (record[name] as string | undefined) ?? "", translated: translations.flatMap((t) => (typeof t[key] === "string" ? [t[key] as string] : [])), html: false });
       }
+    } else if (spec.type === "html" && spec[flag]) {
+      wordings.push({
+        own: (record[name] as string | undefined) ?? "",
+        translated: translations.flatMap((t) => (typeof t.html === "string" ? [t.html] : [])),
+        html: true,
+      });
     } else if (spec.type === "list") {
       const textName = itemTextName(spec);
       if (!textName || !(spec.item[textName] as TextField)[flag]) continue;
@@ -158,6 +166,11 @@ export function variableWordings(block: Block): Wording[] {
 export function exportedTexts(block: Block): { name: string; key: string; part: string; role: string; value: string; html: boolean; formatted?: string }[] {
   const record = block as unknown as Record<string, unknown>;
   return fieldsOf(block).flatMap(([name, spec]) => {
+    // (A formatted text that is only HTML: its translation is `html` too.)
+    if (spec.type === "html") {
+      if (!spec.translatable || !spec.cli) return [];
+      return [{ name, key: "html", part: spec.cli.part, role: spec.cli.role, value: (record[name] as string | undefined) ?? "", html: true, formatted: undefined }];
+    }
     if (spec.type !== "text" || !spec.translatable || !spec.cli) return [];
     const plain = (record[name] as string | undefined) ?? "";
     const value = spec.formatted ? ((record[spec.formatted] as string | undefined) ?? escapeText(plain)) : plain;

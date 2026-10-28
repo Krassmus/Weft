@@ -8,6 +8,7 @@ import { renderLanguage } from "../src/core/blocks/language/render.js";
 import { renderProgress } from "../src/core/blocks/progress/render.js";
 import { linkHref, renderLink } from "../src/core/blocks/link/render.js";
 import { renderSolution } from "../src/core/blocks/solution/render.js";
+import { renderText, textBoxStyle } from "../src/core/blocks/text/render.js";
 
 /**
  * What a block looks like (core/blocks/<kind>/render.js): one function for the player, the canvas, the thumbnails and the PDF, told where it draws
@@ -73,7 +74,7 @@ const ICONS = {
 };
 
 /** Every render.js there is must be run here: this is the list of what is run (a new one fails the test below until it is added). */
-const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button"];
+const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text"];
 
 describe("the render functions", () => {
   it("are all tested here", () => {
@@ -90,7 +91,7 @@ describe("the render functions", () => {
     const inlined = source.replace(/^export /gm, "");
     expect(inlined).not.toMatch(/\bexport\b\s+(function|var|const|let|default)/);
     // The way the page has it: a script of its own that leaves the function there for the player after it.
-    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton" }[kind];
+    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText" }[kind];
     expect(new Function(`${inlined}; return typeof ${name};`)()).toBe("function");
   });
 });
@@ -596,5 +597,78 @@ describe.each(MODES)("a button drawn for %s", (mode) => {
     expect(instance.button.tagName).toBe(mode === "play" ? "BUTTON" : "DIV");
     expect(instance.button.getAttribute("type")).toBe(mode === "play" ? "button" : null);
     expect(instance.button.className).toBe(mode === "play" ? "weft-block-button-el" : "weft-block-button-el is-picture");
+  });
+});
+
+// ---- the text ---------------------------------------------------------------------------------------------------------------------------
+
+describe.each(MODES)("a text drawn for %s", (mode) => {
+  const props = { html: "<p>Hallo <b>Welt</b></p>", scrollable: true, box: undefined as undefined | Record<string, unknown> };
+  const BOX = { fill: "#ffffff", fillOpacity: 0.5, borderColor: "#000000", borderOpacity: 1, borderWidth: 0.2, radius: 1, padding: 2, blur: true };
+  const context = () => ({ mode, applyVariables: vi.fn() });
+
+  it("makes the element it is given the text (its words, no box), can be drawn again, and gives it back", () => {
+    const root = element();
+    root.setAttribute("style", "left:10%;");
+    const ctx = context();
+    const instance = renderText(root, props as never, ctx);
+    expect(root.className).toContain("weft-block-text");
+    expect(root.innerHTML).toBe("<p>Hallo <b>Welt</b></p>");
+    expect(root.getAttribute("style")).toContain("left:10%");
+    expect(ctx.applyVariables).toHaveBeenCalledTimes(1);
+    instance.update({ ...props, html: "<p>Hi</p>" } as never);
+    expect(root.innerHTML).toBe("<p>Hi</p>");
+    expect(ctx.applyVariables).toHaveBeenCalledTimes(2);
+    instance.destroy();
+    expect(root.childNodes.length).toBe(0);
+    expect(root.className).toBe("");
+    expect(root.getAttribute("style")).toContain("left:10%");
+  });
+
+  it("is drawn in a place that has no variables", () => {
+    const root = element();
+    renderText(root, props as never, { mode });
+    expect(root.textContent).toBe("Hallo Welt");
+  });
+
+  it(mode === "play" ? "scrolls where the author wanted it" : "does not scroll: it is only a picture", () => {
+    const scrolling = element();
+    renderText(scrolling, props as never, context());
+    expect(scrolling.classList.contains("is-scrollable")).toBe(mode === "play");
+    const fixed = element();
+    renderText(fixed, { ...props, scrollable: false } as never, context());
+    expect(fixed.classList.contains("is-scrollable")).toBe(false);
+  });
+
+  it("has its box on the element itself, with the blur of what is behind it", () => {
+    const root = element();
+    root.setAttribute("style", "left:10%;");
+    renderText(root, { ...props, box: BOX } as never, context());
+    const style = root.getAttribute("style") ?? "";
+    expect(style).toContain("left:10%");
+    expect(style).toContain("color-mix(in srgb,#ffffff 50%,transparent)");
+    expect(style).toContain("border-radius:1cqw");
+    expect(style).toContain("backdrop-filter:blur(2cqw)");
+    expect(style.endsWith(textBoxStyle(BOX as never))).toBe(true);
+  });
+
+  it(mode === "play" ? "takes no clicks where it has no words (and no box)" : "is a picture, which takes no clicks anyway", () => {
+    const empty = element();
+    renderText(empty, { ...props, html: "<p><br></p>" } as never, context());
+    expect(empty.classList.contains("is-empty")).toBe(mode === "play");
+    const boxed = element();
+    renderText(boxed, { ...props, html: "", box: BOX } as never, context());
+    expect(boxed.classList.contains("is-empty")).toBe(false);
+    const pictured = element();
+    renderText(pictured, { ...props, html: '<img src="x.png">' } as never, context());
+    expect(pictured.classList.contains("is-empty")).toBe(false);
+  });
+});
+
+describe("the box of a text", () => {
+  it("is nothing without one, and only what is set", () => {
+    expect(textBoxStyle(undefined)).toBe("");
+    const css = textBoxStyle({ fillOpacity: 0, borderOpacity: 0, borderWidth: 0, radius: 0, padding: 0 } as never);
+    expect(css).toBe("box-sizing:border-box;border-radius:0cqw;padding:0cqw;");
   });
 });

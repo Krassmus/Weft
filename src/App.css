@@ -7289,7 +7289,7 @@ h2.weft-inspector-header {
   padding: 0;
   border: 0;
   background: transparent;
-  cursor: zoom-in;
+  cursor: inherit;
 }
 
 .weft-gallery-slide:focus-visible {
@@ -7333,7 +7333,7 @@ h2.weft-inspector-header {
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.5);
   color: #fff;
-  cursor: pointer;
+  cursor: inherit;
   transition:
     background 0.15s ease,
     opacity 0.15s ease;
@@ -7366,7 +7366,6 @@ h2.weft-inspector-header {
 
 .weft-gallery-arrow:disabled {
   opacity: 0.25;
-  cursor: default;
 }
 
 .weft-gallery-dots {
@@ -7396,11 +7395,18 @@ h2.weft-inspector-header {
   border: 0;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.55);
-  cursor: pointer;
+  cursor: inherit;
 }
 
 .weft-gallery-dot.is-current {
   background: #fff;
+}
+
+/* On the canvas the block is moved by a press anywhere on it (the pointer is the block's: "move", as with a picture) - only the arrows and the dots of a
+   selected block, which browse the pictures, show the pointer of a button. (The slide of the player has the magnifier: it opens the picture.) */
+.weft-gallery.is-browsable .weft-gallery-arrow:not(:disabled),
+.weft-gallery.is-browsable .weft-gallery-dot {
+  cursor: pointer;
 }
 
 @media (prefers-reduced-motion: reduce) {

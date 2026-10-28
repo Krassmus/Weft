@@ -42,7 +42,7 @@ export function GalleryView({ block, index = 0, onIndex }: { block: GalleryBlock
   };
   const stop = onIndex ? (e: React.SyntheticEvent) => e.stopPropagation() : undefined;
   return (
-    <div className={"weft-gallery" + (block.fit === "contain" ? " is-contain" : "")}>
+    <div className={"weft-gallery" + (block.fit === "contain" ? " is-contain" : "") + (onIndex ? " is-browsable" : "")}>
       <div className="weft-gallery-viewport">
         <div className="weft-gallery-track" style={{ transform: `translateX(${-current * 100}%)` }}>
           {items.map((item) => {

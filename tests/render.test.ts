@@ -752,3 +752,82 @@ describe.each(MODES)("a list drawn for %s", (mode) => {
     expect(root.querySelectorAll(".weft-list-item").length).toBe(0);
   });
 });
+
+describe("the marks of a list's points", () => {
+  // (There is no layout here: the size of a letter is told by the element it stands in - a heading is twice the size of a paragraph.)
+  const sizes = { current: { H1: 22, P: 11, SPAN: 11, DIV: 11 } as Record<string, number> };
+  const stubbed = () => {
+    vi.stubGlobal("getComputedStyle", (node: Element) => ({ fontSize: `${sizes.current[node.tagName] ?? 11}px` }));
+    if (!("NodeFilter" in globalThis)) vi.stubGlobal("NodeFilter", { SHOW_TEXT: 4 });
+  };
+  const props = (marker: string, firstHtml: string) => ({
+    items: [
+      { id: "a", html: firstHtml },
+      { id: "b", html: "<p>Zwei</p>" },
+    ],
+    marker,
+    markerSrc: marker === "image" ? "data:image/png;base64,AAAA" : null,
+    spacing: 1,
+  });
+  const sizeOfMarks = (root: Element) => [...root.querySelectorAll(".weft-list-marker")].map((marker) => (marker as HTMLElement).style.fontSize);
+  const attached = () => {
+    const root = element();
+    document.body.appendChild(root);
+    return root;
+  };
+
+  it("is as large as the first character of its point - at once where the list is on the page", () => {
+    stubbed();
+    const root = attached();
+    renderList(root, props("dot", "<h1>Gross</h1>") as never, { mode: "play" });
+    expect(sizeOfMarks(root)).toEqual(["2em", ""]);
+    root.remove();
+    vi.unstubAllGlobals();
+  });
+
+  it("is made again when the words change", () => {
+    stubbed();
+    const root = attached();
+    const instance = renderList(root, props("number", "<h1>Gross</h1>") as never, { mode: "play" });
+    instance.update(props("number", "<p>Klein</p>") as never);
+    expect(sizeOfMarks(root)).toEqual(["", ""]);
+    instance.update(props("number", "<h1>Gross</h1>") as never);
+    expect(sizeOfMarks(root)).toEqual(["2em", ""]);
+    root.remove();
+    vi.unstubAllGlobals();
+  });
+
+  it("is the same size for every picture, whatever the first character looks like", () => {
+    stubbed();
+    const root = attached();
+    renderList(root, props("image", "<h1>Gross</h1>") as never, { mode: "play" });
+    expect(sizeOfMarks(root)).toEqual(["", ""]);
+    root.remove();
+    vi.unstubAllGlobals();
+  });
+
+  it("is fitted again once the fonts have come (the page is put on the screen right after the list is drawn) - and no more once it is gone", () => {
+    vi.useFakeTimers();
+    stubbed();
+    const root = attached();
+    // (Drawn while the heading still has the size of a paragraph: the font is not there yet.)
+    sizes.current = { H1: 11, P: 11, SPAN: 11, DIV: 11 };
+    const instance = renderList(root, props("dot", "<h1>Gross</h1>") as never, { mode: "play" });
+    expect(sizeOfMarks(root)).toEqual(["", ""]);
+    sizes.current = { H1: 22, P: 11, SPAN: 11, DIV: 11 };
+    vi.advanceTimersByTime(400);
+    expect(sizeOfMarks(root)).toEqual(["2em", ""]);
+    // A list that has gone is not looked at again.
+    const gone = renderList(attached(), props("dot", "<h1>Gross</h1>") as never, { mode: "play" });
+    const calls = vi.fn(() => ({ fontSize: "11px" }));
+    vi.stubGlobal("getComputedStyle", calls);
+    gone.destroy();
+    vi.advanceTimersByTime(400);
+    expect(calls).not.toHaveBeenCalled();
+    instance.destroy();
+    root.remove();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    sizes.current = { H1: 22, P: 11, SPAN: 11, DIV: 11 };
+  });
+});

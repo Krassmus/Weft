@@ -567,3 +567,49 @@ describe("the {{progress}} in the words of a picture of a page", () => {
     expect(withProgress("<p>{{progress}}</p>", undefined)).toBe("<p>{{progress}}</p>");
   });
 });
+
+describe("the points of a list (formatted words of the items, a picture that is only sometimes used)", () => {
+  const made = () => moduleWith("list", true);
+
+  it("has its picture kept only while its marker is a picture", () => {
+    const m = made();
+    const block = m.content.pages[m.pageId].blocks[m.blockId] as unknown as { marker: string; markerAssetId: string };
+    expect(block.marker).toBe("image");
+    expect(new Set(usedAssetIds(m.content)).has(block.markerAssetId)).toBe(true);
+    block.marker = "dot";
+    expect(new Set(usedAssetIds(m.content)).has(block.markerAssetId)).toBe(false);
+  });
+
+  it("has the {{variables}} of its points found - in every language - and checked", () => {
+    const m = made();
+    const block = m.content.pages[m.pageId].blocks[m.blockId] as unknown as { items: { id: string; html: string }[]; translations?: Record<string, unknown> };
+    block.items[0].html = "<p>{{punkte}} und {{gibtesnicht}}</p>";
+    block.translations = { [EN]: { items: { [block.items[0].id]: "<p>{{ punkte }} in English</p>" } } };
+    expect(placeholderSources(m.block)).toEqual(expect.arrayContaining(["<p>{{punkte}} und {{gibtesnicht}}</p>", "<p>{{ punkte }} in English</p>"]));
+    const findings = validate({ path: "test.weft", json: { formatVersion: CURRENT_FORMAT_VERSION, content: m.content }, content: m.content, files: new Set(), archive: false });
+    expect(findings.filter((finding) => finding.code === "placeholder-variable").map((finding) => finding.message)).toEqual(expect.arrayContaining([expect.stringContaining("gibtesnicht")]));
+  });
+
+  it("is imported as formatted words, and found translated when the same texts come again", () => {
+    const m = made();
+    const file = exportTexts(m.content, { file: "test.weft", to: [EN] });
+    const mine = file.items.filter((item) => item.key.startsWith(`${m.block.id}#item:`));
+    expect(mine.length).toBe(2);
+    for (const item of mine) item.translations[EN] = `<p><i>EN</i> ${item.source.replace(/<\/?p>/g, "")}</p>`;
+    const first = importTexts(m.content, file);
+    expect(first.applied).toBe(mine.length);
+    // (The same words again change nothing - the translation that is there is the one that came, formatting and all.)
+    const again = importTexts(m.content, file);
+    expect(again.unchanged).toBe(mine.length);
+    expect(again.applied).toBe(0);
+    const stored = (m.content.pages[m.pageId].blocks[m.blockId] as unknown as { translations: Record<string, { items: Record<string, string> }> }).translations[EN].items;
+    expect(Object.values(stored)).toEqual(mine.map((item) => item.translations[EN]));
+  });
+
+  it("is exported with the formatting of its points, not escaped", () => {
+    const m = made();
+    const own = (m.content.pages[m.pageId].blocks[m.blockId] as unknown as { items: { id: string; html: string }[] }).items;
+    const file = exportTexts(m.content, { file: "test.weft", to: [EN] });
+    for (const item of own) expect(file.items.find((entry) => entry.key === `${m.block.id}#item:${item.id}`)?.source).toBe(item.html);
+  });
+});

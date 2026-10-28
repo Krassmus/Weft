@@ -158,6 +158,8 @@ export interface BlockTranslation {
   alt?: string;
   /** QuizBlock: the explanation shown after submitting (plain text). */
   explanation?: string;
+  /** SolutionBlock: the right word in this language (plain text; `text` is the words in its empty field). */
+  solution?: string;
   /** SortBlock: the words at the two ends of the line (plain text). */
   startLabel?: string;
   endLabel?: string;
@@ -521,7 +523,8 @@ export interface ClozeBlock extends BaseBlock {
  */
 export interface SolutionBlock extends BaseBlock {
   kind: "solution";
-  /** The right word (plain text). Empty: nothing is right yet. */
+  /** The right word (plain text) - in the default language; the other languages have their own (BlockTranslation.solution), so that a learner who works
+   * through the module in English writes "dog", not "Hund". Empty: nothing is right yet. */
   solution: string;
   /** Capital and small letters are different letters. Absent: they are not. */
   caseSensitive?: boolean;
@@ -529,7 +532,7 @@ export interface SolutionBlock extends BaseBlock {
   placeholder?: string;
   /** How many tries the learner has (a whole number, 1 or more). Absent: as many as they like. */
   attempts?: number;
-  /** Other languages' wording (`placeholder`), by locale - see BlockTranslation. */
+  /** Other languages' wording (`solution`, `placeholder`), by locale - see BlockTranslation. */
   translations?: Record<string, BlockTranslation>;
   /** A required task, as QuizBlock.required: the page cannot be left by Weiter before the word was right or the last try was used. Absent: not required. */
   required?: boolean;

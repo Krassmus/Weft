@@ -113,7 +113,7 @@ import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from ".
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { solutionPlaceholderPatch, solutionPlaceholderText, galleryCaption, galleryCaptionPatch, matchingItemText, matchingItemTextPatch, sortItemText, sortItemTextPatch, sortLabel, sortLabelPatch, linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
+import { solutionPlaceholderPatch, solutionPlaceholderText, solutionWord, solutionWordPatch, galleryCaption, galleryCaptionPatch, matchingItemText, matchingItemTextPatch, sortItemText, sortItemTextPatch, sortLabel, sortLabelPatch, linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
 import type { RevealerWording } from "../../../core/document/translations";
 import { revealerIconSvg } from "../../../core/runtime/revealerGeometry";
 import { clozeBlanks } from "../../../core/document/cloze";
@@ -3713,7 +3713,7 @@ function SolutionEditor({ block, page, onUpdate }: { block: SolutionBlock; page?
         <LanguageSelect block={block} />
         <label className="weft-field">
           <span>{tr("ui.solution_word")}</span>
-          <input value={block.solution} autoComplete="off" spellCheck={false} onChange={(e) => onUpdate({ solution: e.target.value })} />
+          <input value={solutionWord(block, lang, defaultLang)} autoComplete="off" spellCheck={false} onChange={(e) => onUpdate(solutionWordPatch(block, lang, defaultLang, e.target.value))} />
         </label>
         <label className="weft-field weft-field-inline">
           <input type="checkbox" checked={block.caseSensitive === true} onChange={(e) => onUpdate({ caseSensitive: e.target.checked ? true : undefined })} />

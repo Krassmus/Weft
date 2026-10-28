@@ -99,8 +99,13 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
         .map((item, index) => ({ item, role: `Bild ${index + 1} (Bildunterschrift)` }))
         .filter(({ item }) => hasWords(item.caption))
         .map(({ item, role }) => ({ key: `${id}#item:${item.id}`, source: item.caption.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role }));
-    case "solution":
-      return hasWords(block.placeholder ?? "") ? [{ key: `${id}#label`, source: (block.placeholder as string).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role: "Text im leeren Feld" }] : [];
+    case "solution": {
+      const plain = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      return [
+        ...(hasWords(block.solution ?? "") ? [{ key: `${id}#solution`, source: plain(block.solution), role: "Lösungswort (das richtige Wort)" }] : []),
+        ...(hasWords(block.placeholder ?? "") ? [{ key: `${id}#label`, source: plain(block.placeholder as string), role: "Text im leeren Feld" }] : []),
+      ];
+    }
     case "link":
     case "checker":
       return hasWords(block.text) ? [{ key: `${id}#label`, source: block.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role: "Text" }] : [];
@@ -146,7 +151,7 @@ function existingTranslation(block: Block, key: string, language: string): strin
   if (part === "html" || part === "label") return translation.html ?? (part === "label" ? (translation.text ?? "") : "");
   if (part === "question") return translation.questionHtml ?? "";
   if (part === "explanation") return translation.explanation ? plainToHtml(translation.explanation) : "";
-  if (part === "title" || part === "body" || part === "alt") return translation[part] ? plainToHtml(translation[part] as string) : "";
+  if (part === "title" || part === "body" || part === "alt" || part === "solution") return translation[part] ? plainToHtml(translation[part] as string) : "";
   if (part === "button") return translation.text ? plainToHtml(translation.text) : "";
   if (part === "start" || part === "end") return translation[part === "start" ? "startLabel" : "endLabel"] ? plainToHtml(translation[part === "start" ? "startLabel" : "endLabel"] as string) : "";
   if (part.startsWith("option:")) return translation.options?.[part.slice(7)] ?? "";
@@ -377,7 +382,7 @@ export function importTexts(content: WeftModule, file: TextsFile): ImportReport 
         target.text = plainTextOfHtml(translated);
       } else if (part === "question") target.questionHtml = translated;
       else if (part === "explanation") target.explanation = htmlToPlain(translated);
-      else if (part === "title" || part === "body" || part === "alt") target[part] = htmlToPlain(translated);
+      else if (part === "title" || part === "body" || part === "alt" || part === "solution") target[part] = htmlToPlain(translated);
       else if (part === "button") target.text = htmlToPlain(translated);
       else if (part === "start") target.startLabel = htmlToPlain(translated);
       else if (part === "end") target.endLabel = htmlToPlain(translated);

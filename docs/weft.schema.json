@@ -443,6 +443,10 @@
           "description": "QuizBlock.",
           "type": "string"
         },
+        "solution": {
+          "description": "SolutionBlock: the right word in this language (plain text; `text` is the words in its empty field).",
+          "type": "string"
+        },
         "startLabel": {
           "description": "SortBlock: the words at the two ends of the line (plain text).",
           "type": "string"
@@ -3055,14 +3059,14 @@
           "type": "boolean"
         },
         "solution": {
-          "description": "The right word (plain text). Empty: nothing is right yet.",
+          "description": "The right word (plain text) - in the default language; the other languages have their own (BlockTranslation.solution), so that a learner who works through the module in English writes \"dog\", not \"Hund\". Empty: nothing is right yet.",
           "type": "string"
         },
         "translations": {
           "additionalProperties": {
             "$ref": "#/definitions/BlockTranslation"
           },
-          "description": "Other languages' wording (`placeholder`), by locale - see BlockTranslation.",
+          "description": "Other languages' wording (`solution`, `placeholder`), by locale - see BlockTranslation.",
           "type": "object"
         }
       },

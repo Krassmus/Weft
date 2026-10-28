@@ -119,6 +119,15 @@ export function checkerTextPatch(block: CheckerBlock, language: string | null, d
   return wordingPatch(block, language, defaultLanguage, { text }, (t) => ({ ...t, text })) as Partial<CheckerBlock>;
 }
 
+/** The right word of a solution word in `language`: its translation if there is one, else the block's own (the default language's). */
+export function solutionWord(block: SolutionBlock, language: string | null, defaultLanguage: string | null): string {
+  return translationOf(block.translations, language, defaultLanguage)?.solution ?? block.solution;
+}
+
+export function solutionWordPatch(block: SolutionBlock, language: string | null, defaultLanguage: string | null, word: string) {
+  return wordingPatch(block, language, defaultLanguage, { solution: word }, (t) => ({ ...t, solution: word })) as Partial<SolutionBlock>;
+}
+
 /** What stands in the empty field of a solution word in `language`: its translation if there is one, else the block's own (the default language's). */
 export function solutionPlaceholderText(block: SolutionBlock, language: string | null, defaultLanguage: string | null): string {
   return translationOf(block.translations, language, defaultLanguage)?.text ?? block.placeholder ?? "";
@@ -186,7 +195,10 @@ export function isTranslated(block: Translatable, language: string | null, defau
     const first = block.sources[0] ?? block.targets[0];
     return !first || translation?.items?.[first.id] !== undefined;
   }
-  if (block.kind === "solution") return (block.placeholder ?? "").trim() === "" || translation?.text !== undefined;
+  if (block.kind === "solution") {
+    // (Both the right word and the words in the field have to be there in the language.)
+    return (block.solution.trim() === "" || translation?.solution !== undefined) && ((block.placeholder ?? "").trim() === "" || translation?.text !== undefined);
+  }
   if (block.kind === "sort") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
   if (block.kind === "gallery") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
   return translation?.text !== undefined || translation?.html !== undefined;
@@ -389,7 +401,9 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       if (incoming?.html !== undefined) block.html = incoming.html;
     } else if (block.kind === "solution") {
       outgoing.text = block.placeholder ?? "";
+      outgoing.solution = block.solution;
       if (incoming?.text !== undefined) block.placeholder = incoming.text;
+      if (incoming?.solution !== undefined) block.solution = incoming.solution;
     } else if (block.kind === "link" || block.kind === "checker") {
       outgoing.text = block.text;
       if (incoming?.text !== undefined) block.text = incoming.text;

@@ -576,7 +576,7 @@ export function validate(loaded: LoadedWeft): Finding[] {
           : block.kind === "list"
             ? block.items.length > 0
             : block.kind === "solution"
-              ? (block.placeholder ?? "").trim() !== ""
+              ? (block.placeholder ?? "").trim() !== "" || (block.solution ?? "").trim() !== ""
             : block.kind === "gallery"
               ? block.items.some((item) => item.caption.trim() !== "")
             : block.kind === "sort"

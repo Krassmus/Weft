@@ -3536,8 +3536,14 @@
     return caseSensitive ? t : t.toLowerCase();
   }
 
+  // The right word is the one of the language the learner works in (the first language's is the block's own; one that has none takes it).
+  function solutionWord(block) {
+    var t = currentTranslation(block);
+    return (t && t.solution !== undefined ? t.solution : block.solution) || "";
+  }
+
   function solutionIsRight(block, typed) {
-    var solution = solutionNormal(block.solution || "", block.caseSensitive === true);
+    var solution = solutionNormal(solutionWord(block), block.caseSensitive === true);
     return solution !== "" && solutionNormal(typed, block.caseSensitive === true) === solution;
   }
 

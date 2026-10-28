@@ -63,11 +63,11 @@ Ein Trigger hat:
 wenn seine Quelle passiert ist. Dadurch ergeben sich Aufbau-Ketten („Text A, dann Weiter, dann Bild B, dann Weiter, dann nächste Folie“)
 ohne eine eigene Warteschlange: Druck 1 löst A aus, erst dann wartet der Trigger zu B.
 
-**Quelle „Variable“ (Bedingung):** Der Aufbau/Abbau eines Elements kann auch von einer **Formel** über die Variablen ausgelöst werden (die Sprache der
+**Quelle „Variable“ (Bedingung):** Der Aufbau, der Abbau und jeder Aktionseffekt eines Elements können auch von einer **Formel** über die Variablen ausgelöst werden (die Sprache der
 berechneten Variablen, z. B. `punkte >= 10 und stufe = 2`). Die Formel ist ein eigenes Event (`condition:<Ziel-Event>`, Typ „Variable“), das passiert,
 wenn sie von falsch zu wahr wechselt – und einmal beim Betreten der Folie, wenn sie dann schon wahr ist. Es hat einen ganz normalen Trigger zum Ziel
 (Verzögerung 0, ohne Weiter); in der Seitenleiste des Events lässt sich die Formel ändern und mit „Weiteres Ziel hinzufügen“ ein weiteres Ziel anhängen.
-Fällt die Formel wieder auf falsch und wird erneut wahr, passiert das Event wieder (ein Aufbau eines Elements, das schon da ist, tut nichts). Die Formel
+Fällt die Formel wieder auf falsch und wird erneut wahr, passiert das Event wieder (ein Aufbau eines Elements, das schon da ist, tut nichts; ein Aktionseffekt läuft erneut). Ein Aktionseffekt an einer Bedingung kann vor dem Aufbau seines Elements passieren, wenn die Formel dann schon wahr ist: der Graph zeigt das wie bei jedem anderen Auslöser als Problem. Die Formel
 wird nach **jeder Änderung einer Variable** neu bewertet; ein Element, dessen Aufbau nur an einer nie wahr werdenden Formel hängt, erscheint nie.
 
 Ein „Weiter“ ohne wartenden Trigger macht nichts. „Nächste Folie“ ist nie implizit: Wenn kein Trigger auf „Nächste Folie“ zeigt, kann

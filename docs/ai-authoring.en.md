@@ -75,7 +75,7 @@ Want it differently? Then say what triggers with `set_trigger` (this **replaces*
 ```
 
 - `"weiter": true`: only at the next input after `from`. Without: after `delayMs` (default 0), that is at the same time.
-- **A formula instead of an event** (`"condition"`, "Triggered by: Variable" in the editor): `{"op": "set_trigger", "page": "$one", "to": "entrance:$well_done", "condition": "points >= 10 and level = 2"}` - the Aufbau/Abbau happens when the formula (the language of the calculated variables) turns from false to true, and once when the slide is entered if it is true then.
+- **A formula instead of an event** (`"condition"`, "Triggered by: Variable" in the editor): `{"op": "set_trigger", "page": "$one", "to": "entrance:$well_done", "condition": "points >= 10 and level = 2"}` - the Aufbau, Abbau or action effect (`to`: `entrance:`, `exit:` or `action:<block>:<action id>`) happens when the formula (the language of the calculated variables) turns from false to true, and once when the slide is entered if it is true then.
 - Events: `start`, `end` (next slide), `entrance:<block>`, `exit:<block>`, `click:<button>`, `quiz-fill:<quiz>`, `quiz-submit:<quiz>`, `quiz-correct:<quiz>`, `quiz-incorrect:<quiz>`, `video-start:<video>`.
 - When a card and a text should appear together: the text with `box` is one block. Otherwise hang shape and text on each other with `set_trigger` without `weiter`.
 - `weft validate` reports `event-multiple-triggers` when an event is triggered by several (a warning when a Weiter is among them), and `weft inspect --page` marks these triggers.

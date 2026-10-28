@@ -1,9 +1,10 @@
-import { addActionEffect, removeActionEffect, setEventTrigger, updateActionEffect } from "../../../core/document/actions";
+import { addActionEffect, removeActionEffect, setConditionTrigger, setEventTrigger, updateActionEffect } from "../../../core/document/actions";
 import {
   actionEffectAdvanceSource,
   actionEffectProblem,
   blockActionNodeId,
   canTriggerActionEffectFrom,
+  conditionNodeId,
   getActionEffectTrigger,
 } from "../../../core/document/pageTimeline";
 import { defaultActionEffect } from "../../../core/document/blockEffects";
@@ -214,6 +215,7 @@ export function ActionEffectCard({
         canUse={(candidateId) => canTriggerActionEffectFrom(page, block, effect.id, candidateId)}
         advanceFrom={actionEffectAdvanceSource(page, block, effect.id)}
         onChange={(from, delayMs, kind) => setEventTrigger(page.id, nodeId, from, delayMs, kind)}
+        condition={{ formula: page.timeline.conditions?.[conditionNodeId(nodeId)] ?? null, onChange: (formula) => setConditionTrigger(page.id, nodeId, formula) }}
       />
       )}
     </div>

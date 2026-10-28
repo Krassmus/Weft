@@ -10,6 +10,7 @@ import type { TextSpec } from "./markup";
 import { applyPlaceholderStyle, plainParagraphs } from "../src/core/document/placeholders";
 import { pageLabels } from "../src/core/document/pageLabels";
 import {
+  blockActionNodeId,
   blockEffectNodeId,
   buttonClickNodeId,
   groupEffectNodeId,
@@ -200,6 +201,10 @@ function eventId(ctx: Context, raw: unknown, what: string): string {
     case "video-resume": {
       const [block, point] = rest.split(":");
       return videoResumeNodeId(findBlock(ctx, block).block.id, point);
+    }
+    case "action": {
+      const [block, effect] = rest.split(":");
+      return blockActionNodeId(findBlock(ctx, block).block.id, effect);
     }
     case "list-item": {
       const [block, item] = rest.split(":");
@@ -898,7 +903,7 @@ const HANDLERS: Record<string, Handler> = {
       const parsed = parseExpression(op.condition);
       if (!parsed.ok) fail(`Die Bedingung „${op.condition}" geht nicht: ${parsed.error}`);
       const to = eventId(ctx, op.to, "to");
-      if (!/^block-(entrance|exit):/.test(to) && !/^group-(entrance|exit):/.test(to)) fail('Eine Bedingung löst den Aufbau oder den Abbau eines Elements aus: "to" ist "entrance:<Block>" oder "exit:<Block>".');
+      if (!/^block-(entrance|exit|action):/.test(to) && !/^group-(entrance|exit):/.test(to)) fail('Eine Bedingung löst den Aufbau, den Abbau oder einen Aktionseffekt eines Elements aus: "to" ist "entrance:<Block>", "exit:<Block>" oder "action:<Block>:<Aktions-ID>".');
       actions.setConditionTrigger(page, to, op.condition);
       return { page, to, condition: op.condition };
     }

@@ -68,7 +68,7 @@ Anders gewünscht? Dann mit `set_trigger` festlegen, was auslöst (das **ersetzt
 {"op": "set_trigger", "page": "$eins", "to": "end", "from": "entrance:$hinweis", "weiter": true}
 ```
 
-- **Eine Formel statt eines Ereignisses** (`"condition"`, „Ausgelöst durch: Variable“ im Editor): `{"op": "set_trigger", "page": "$eins", "to": "entrance:$gut", "condition": "punkte >= 10 und stufe = 2"}` - der Aufbau/Abbau passiert, wenn die Formel (die Sprache der berechneten Variablen) von falsch zu wahr wechselt, und einmal beim Betreten der Folie, wenn sie dann schon wahr ist.
+- **Eine Formel statt eines Ereignisses** (`"condition"`, „Ausgelöst durch: Variable“ im Editor): `{"op": "set_trigger", "page": "$eins", "to": "entrance:$gut", "condition": "punkte >= 10 und stufe = 2"}` - der Aufbau, Abbau oder Aktionseffekt (`to`: `entrance:`, `exit:` oder `action:<Block>:<Aktions-ID>`) passiert, wenn die Formel (die Sprache der berechneten Variablen) von falsch zu wahr wechselt, und einmal beim Betreten der Folie, wenn sie dann schon wahr ist.
 - `"weiter": true`: erst bei der nächsten Eingabe nach `from`. Ohne: nach `delayMs` (Standard 0), also gleichzeitig.
 - Ereignisse: `start`, `end` (Nächste Folie), `entrance:<Block>`, `exit:<Block>`, `click:<Button>`, `quiz-fill:<Quiz>`, `quiz-submit:<Quiz>`, `quiz-correct:<Quiz>`, `quiz-incorrect:<Quiz>`, `video-start:<Video>`.
 - Wenn eine Karte und ein Text zusammen erscheinen sollen: der Text mit `box` ist ein Block. Sonst Form und Text mit `set_trigger` ohne `weiter` aneinander hängen.

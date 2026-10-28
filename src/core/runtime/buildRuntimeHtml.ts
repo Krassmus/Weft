@@ -8,7 +8,9 @@ import accentContrastSource from "./accentContrast.js?raw";
 import linkIconsSource from "./linkIcons.js?raw";
 import imageGeometrySource from "./imageGeometry.js?raw";
 import filesCryptoSource from "./filesCrypto.js?raw";
+import solutionRenderSource from "../blocks/solution/render.js?raw";
 import playerRuntimeSource from "./player.runtime.js?raw";
+import quizCardCss from "./quizCard.css?raw";
 import playerRuntimeCss from "./player.runtime.css?raw";
 import stageThemeCss from "./stageTheme.css?raw";
 import { toRuntimeModule } from "./runtimeModule";
@@ -86,6 +88,7 @@ export async function buildRuntimeHtml(
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(module.title)}</title>
 <style>${stageThemeCss}</style>
+<style>${quizCardCss}</style>
 <style>${playerRuntimeCss}</style>
 <style>${fontFaceCss}</style>
 ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` : ""}${hasTex ? `<style>${buildKatexCss()}</style>\n` : ""}</head>
@@ -109,6 +112,7 @@ ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` 
 <script>${linkIconsSource.replace(/^export /gm, "")}</script>
 <script>${imageGeometrySource.replace(/^export /gm, "")}</script>
 <script>${filesCryptoSource.replace(/^export /gm, "")}</script>
+<script>${solutionRenderSource.replace(/^export /gm, "")}</script>
 <script>${playerRuntimeSource}</script>
 </body>
 </html>

@@ -3192,8 +3192,8 @@ function QuizOptionRow({
   const patchOption = (patch: Partial<QuizOption>) =>
     onUpdate({ options: block.options.map((o) => (o.id === option.id ? { ...o, ...patch } : o)) });
   return (
-    <div className="weft-quiz-option">
-      <div className="weft-quiz-option-row">
+    <div className="weft-quiz-panel-option">
+      <div className="weft-quiz-panel-option-row">
         {!openQuestion && (
           <input
             type="checkbox"
@@ -3207,10 +3207,10 @@ function QuizOptionRow({
             }}
           />
         )}
-        <span className="weft-quiz-option-row-label">{label}</span>
+        <span className="weft-quiz-panel-option-row-label">{label}</span>
         <button
           type="button"
-          className={"weft-ghost-button weft-quiz-option-effects-toggle" + (count > 0 ? " has-effects" : "")}
+          className={"weft-ghost-button weft-quiz-panel-option-effects-toggle" + (count > 0 ? " has-effects" : "")}
           title={tr("ui.points_effects_of_this_answer")}
           aria-expanded={open}
           onClick={() => setOpen(!open)}
@@ -3231,7 +3231,7 @@ function QuizOptionRow({
         </button>
       </div>
       {open && (
-        <div className="weft-quiz-option-effects">
+        <div className="weft-quiz-panel-option-effects">
           <p className="weft-hint">
             {openQuestion
               ? tr("ui.depending_on_whether_the_answer_was")

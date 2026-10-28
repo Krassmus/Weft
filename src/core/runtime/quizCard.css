@@ -1,0 +1,289 @@
+/* The card of an interactive element of the module's style - the answer of a quiz, a checker's box, a solution word's field - and its button and
+   feedback: the stylesheet of the blocks that look like a quiz (renderQuizBlock, renderSolutionBlock ... in player.runtime.js; the shared drawing of
+   core/blocks). It is embedded into the exported page ahead of player.runtime.css and imported by the editor, so that the canvas, the thumbnails and
+   the PDF draw what the player draws; the colours, corners and typeface come from stageTheme.css. What happens on hover or focus, by style, is in
+   player.runtime.css. */
+
+/* Every size/spacing value below is kept in sync by hand, em-for-em, with BlockView.tsx's static
+   editor-canvas preview (.weft-edit-block-quiz* in App.css) and SlideThumbnail.tsx's own version
+   (.weft-thumb-block-quiz* in App.css) - all three share the same 1.7cqw block base font-size, so
+   matching the numbers here is what makes the same quiz content take up the same proportion of
+   the block's box in the editor, the thumbnail, and this, the real player/preview. */
+.weft-quiz {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  height: 100%;
+  overflow: auto;
+}
+
+.weft-quiz-question {
+  /* No font-weight here on purpose, even though this one isn't itself editable - the editor
+     canvas's version can't safely be bold (see its own comment in App.css: ambient bold there
+     would break the sidebar's Bold button), so this stays plain too, for the same WYSIWYG-parity
+     reason as every other number in this block: a question only ever looks bold here because the
+     user actually bolded it, matching exactly what they saw while editing it. */
+  font-size: 1.25em;
+}
+
+.weft-quiz-question > :first-child {
+  margin-top: 0;
+}
+
+.weft-quiz-question > :last-child {
+  margin-bottom: 0 !important;
+}
+
+.weft-quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+}
+
+/* The whole card is the <label> (see renderQuizBlock in player.runtime.js), so it's clickable
+   anywhere, not just on the small checkbox - :has() picks up the highlight straight from the
+   checkbox's own checked/disabled state, with no separate "selected" class to keep in sync. */
+.weft-quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  --slide-option-line: var(--slide-line);
+  --slide-ui-line-width: 0.06em;
+  font-family: var(--slide-ui-font);
+  font-size: calc(1em * var(--slide-ui-scale));
+  letter-spacing: var(--slide-ui-spacing);
+  padding: 0.4em var(--slide-ui-option-pad-x);
+  border: 0.06em solid var(--slide-option-line);
+  border-radius: var(--slide-ui-radius);
+  /* The style of the interactive elements (stageTheme.css): its shape, and the lines along the cut corners; the colour is under them. */
+  clip-path: var(--slide-ui-clip);
+  background-origin: border-box;
+  background-color: transparent;
+  transition: background-color 0.15s, border-color 0.15s;
+  cursor: pointer;
+}
+
+.weft-quiz-option:has(input:checked) {
+  --slide-option-line: var(--slide-accent-line);
+  background-color: var(--slide-accent-soft);
+}
+
+.weft-quiz-option:has(input:disabled) {
+  cursor: default;
+}
+
+/* A real, focusable/keyboard-operable checkbox - it's kept, just made invisible and sized/
+   positioned exactly over the icon pair below (see .weft-quiz-option-checkbox), so it still
+   works exactly like a native checkbox without ever showing the OS's own checkbox chrome. */
+.weft-quiz-option-checkbox {
+  position: relative;
+  flex: 0 0 auto;
+  width: 1em;
+  height: 1em;
+}
+
+.weft-quiz-option-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.weft-quiz-option-checkbox-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: var(--slide-line-strong);
+}
+
+.weft-quiz-option-checkbox-icon-checked {
+  display: none;
+  color: var(--slide-accent-ink);
+}
+
+.weft-quiz-option:has(input:checked) .weft-quiz-option-checkbox-icon-unchecked {
+  display: none;
+}
+
+.weft-quiz-option:has(input:checked) .weft-quiz-option-checkbox-icon-checked {
+  display: block;
+}
+
+.weft-quiz-option-checkbox-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-quiz-option-checkbox-icon svg,
+.weft-quiz-option-checkbox-icon svg [fill] {
+  fill: currentColor;
+}
+
+.weft-quiz-option-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.weft-quiz-option-text > :first-child {
+  margin-top: 0;
+}
+
+.weft-quiz-option-text > :last-child {
+  margin-bottom: 0 !important;
+}
+
+.weft-quiz-submit {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.4em var(--slide-ui-pad-x);
+  border: none;
+  border-radius: var(--slide-ui-radius);
+  clip-path: var(--slide-ui-clip);
+  background: var(--slide-accent-color);
+  color: var(--slide-accent-text);
+  font: inherit;
+  font-family: var(--slide-ui-font);
+  font-size: calc(1em * var(--slide-ui-scale));
+  font-weight: var(--slide-ui-weight);
+  letter-spacing: var(--slide-ui-spacing);
+  transition: background-color 0.15s, box-shadow 0.15s, transform 0.15s, filter 0.15s;
+  cursor: pointer;
+}
+
+/* Without this, the button's own `display: flex` above beats the browser's default `[hidden] {
+   display: none }` rule - author styles always win over user-agent ones regardless of selector
+   specificity, so setting `hidden` (see the submit handler in player.runtime.js) would otherwise
+   silently do nothing and leave the button visible right on top of the feedback replacing it. */
+.weft-quiz-submit[hidden] {
+  display: none;
+}
+
+.weft-quiz-submit-icon {
+  width: 0.85em;
+  height: 0.85em;
+  color: var(--slide-accent-text);
+}
+
+.weft-quiz-submit-icon svg,
+.weft-quiz-feedback-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-quiz-submit-icon svg,
+.weft-quiz-submit-icon svg [fill],
+.weft-quiz-feedback-icon svg,
+.weft-quiz-feedback-icon svg [fill] {
+  fill: currentColor;
+}
+
+.weft-quiz-feedback {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.4em 0.6em;
+  border-radius: 0.35em;
+  border: 0.06em solid transparent;
+}
+
+/* Same reasoning as .weft-quiz-submit[hidden] above - without this, this box's own `display:
+   flex` would beat the browser's default `[hidden] { display: none }`, showing an empty
+   (colorless, textless, but space-taking) box before the quiz is ever submitted. */
+.weft-quiz-feedback[hidden] {
+  display: none;
+}
+
+.weft-quiz-feedback-icon {
+  flex: 0 0 auto;
+  width: 1.4em;
+  height: 1.4em;
+}
+
+/* What is told about the answer after submitting (QuizBlock.explanation): plain text, its lines kept. */
+.weft-quiz-explanation {
+  padding: 0.2em 0.1em 0;
+  white-space: pre-line;
+  color: var(--slide-fg);
+  opacity: 0.9;
+}
+
+.weft-quiz-explanation[hidden] {
+  display: none;
+}
+
+.weft-quiz-feedback.is-correct {
+  background: var(--slide-ok-soft);
+  border-color: var(--slide-ok-line);
+  color: var(--slide-ok);
+}
+
+.weft-quiz-feedback.is-thanks {
+  background: var(--slide-accent-soft);
+  border-color: var(--slide-accent-line);
+  color: var(--slide-accent-ink-text);
+}
+
+.weft-quiz-feedback.is-incorrect {
+  background: var(--slide-bad-soft);
+  border-color: var(--slide-bad-line);
+  color: var(--slide-bad);
+}
+
+/* A solution word: the field is an answer of a quiz (the same card, the same corners and lines of the module's style) with a field in it. */
+.weft-solution-field {
+  cursor: text;
+}
+
+.weft-solution-field:not(.is-correct):not(.is-incorrect):focus-within {
+  --slide-option-line: var(--slide-accent-ink);
+}
+
+.weft-solution-input {
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+.weft-solution-input::placeholder {
+  color: var(--slide-muted);
+  opacity: 1;
+}
+
+.weft-solution-input:disabled {
+  cursor: default;
+  -webkit-text-fill-color: currentColor;
+  opacity: 1;
+}
+
+.weft-solution-field.is-correct {
+  --slide-option-line: var(--slide-ok);
+  background-color: var(--slide-ok-soft);
+  color: var(--slide-ok-text);
+}
+
+.weft-solution-field.is-incorrect {
+  --slide-option-line: var(--slide-bad);
+  background-color: var(--slide-bad-soft);
+  color: var(--slide-bad-text);
+}
+
+/* How many tries are left: a line of its own under the words of the feedback. */
+.weft-solution-tries {
+  display: block;
+  font-size: 0.8em;
+  font-weight: 400;
+}

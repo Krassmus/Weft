@@ -11,6 +11,7 @@ import "./core/accessibility/accessibilityStore";
 import "./features/editor/coverSnapshot";
 import "./fonts.css";
 import "./core/runtime/stageTheme.css";
+import "./core/runtime/quizCard.css";
 import "./App.css";
 
 /** The settings window (see src-tauri/src/lib.rs's "weft-settings" menu handler) loads this

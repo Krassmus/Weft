@@ -3187,7 +3187,7 @@ button.weft-timeline-node-icon:hover {
 .weft-variable-row,
 .weft-effect-row,
 .weft-condition-row,
-.weft-quiz-option-row {
+.weft-quiz-panel-option-row {
   display: flex;
   gap: 5px;
   align-items: center;
@@ -3211,7 +3211,7 @@ button.weft-timeline-node-icon:hover {
 /* A read-only preview of the option's text (stripped of any formatting) - the option itself is
    edited on the canvas now, like a text block's own content (see BlockPanel.tsx's QuizEditor),
    this just lets the sidebar's list of options still be told apart. */
-.weft-quiz-option-row-label {
+.weft-quiz-panel-option-row-label {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -3221,29 +3221,29 @@ button.weft-timeline-node-icon:hover {
   color: var(--weft-text-muted);
 }
 
-.weft-quiz-option {
+.weft-quiz-panel-option {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.weft-quiz-option-effects .weft-field-label {
+.weft-quiz-panel-option-effects .weft-field-label {
   font-size: 11px;
   font-weight: 600;
   color: var(--weft-text-muted);
 }
 
-.weft-quiz-option-effects-toggle {
+.weft-quiz-panel-option-effects-toggle {
   flex: none;
   padding: 2px 8px;
   font-size: 11px;
 }
 
-.weft-quiz-option-effects-toggle.has-effects {
+.weft-quiz-panel-option-effects-toggle.has-effects {
   color: var(--weft-accent, inherit);
 }
 
-.weft-quiz-option-effects {
+.weft-quiz-panel-option-effects {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -7460,17 +7460,17 @@ h2.weft-inspector-header {
   object-fit: cover;
 }
 
-/* A solution word (SolutionBlock, blocks/SolutionView.tsx): a quiz's one answer with the words of the empty field in it, and its button - the sizes and the
-   look of both are the .weft-thumb-block-quiz-* ones above. */
-.weft-solution-view {
-  font-size: 1.7cqw;
+/* A block that is drawn by the function the player draws it with (blocks/RenderHost.tsx, core/blocks/<kind>/render.js): the editor shows a picture of
+   it - the canvas, the thumbnails, the PDF - so the pointer goes to the block (to be selected and dragged), not into it. Its size is that of the block's
+   box, and its type size the block base of the player (.weft-block: 1.7cqw), em for em; what it looks like is core/runtime/quizCard.css and the others
+   the player has. */
+.weft-render-host {
   width: 100%;
   height: 100%;
-}
-
-.weft-solution-view-hint {
-  color: var(--slide-muted);
-  white-space: pre-wrap;
+  overflow: hidden;
+  font-size: 16px;
+  font-size: 1.7cqw;
+  pointer-events: none;
 }
 
 /* Picture files dragged over a place that adds them to a gallery: the side panel while a gallery is selected, and the gallery on the slide. */

@@ -10,6 +10,8 @@ export interface BlockViewProps<B extends Block = Block> {
   lang: string | null;
   defaultLang: string | null;
   selected: boolean;
+  /** Where it is drawn: the editor's canvas, a thumbnail, the PDF. */
+  mode: "edit" | "thumbnail" | "print";
   onUpdate?: (patch: Partial<Block>) => void;
 }
 
@@ -27,7 +29,7 @@ export interface BlockViewSpec<B extends Block = Block> {
 }
 
 const solutionView: BlockViewSpec<SolutionBlock> = {
-  View: ({ block, lang, defaultLang }) => <SolutionView block={block} lang={lang} defaultLang={defaultLang} />,
+  View: ({ block, lang, defaultLang, mode }) => <SolutionView block={block} lang={lang} defaultLang={defaultLang} mode={mode} />,
   freelyMovable: true,
 };
 

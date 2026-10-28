@@ -391,7 +391,7 @@ function ThumbBlockBody({
   if (view) {
     return (
       <div className="weft-thumb-block" style={style}>
-        <view.View block={block} lang={lang} defaultLang={defaultLang} selected={false} />
+        <view.View block={block} lang={lang} defaultLang={defaultLang} selected={false} mode={exportPxPerCqw ? "print" : "thumbnail"} />
       </div>
     );
   }

@@ -784,7 +784,7 @@ function BlockContent({
   const view = viewOf(block.kind);
   if (view) {
     const Canvas = view.Canvas ?? view.View;
-    return <Canvas block={block} lang={lang} defaultLang={defaultLang} selected={selected} onUpdate={onUpdate} />;
+    return <Canvas block={block} lang={lang} defaultLang={defaultLang} selected={selected} mode="edit" onUpdate={onUpdate} />;
   }
 
   switch (block.kind) {

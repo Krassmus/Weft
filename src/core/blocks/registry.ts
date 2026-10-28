@@ -1,5 +1,6 @@
 import type { Block } from "../types";
 import type { BlockDescriptor, FieldSpec, ListField, TaskSpec, TextField } from "./types";
+import { checkerBlock } from "./checker/descriptor";
 import { galleryBlock } from "./gallery/descriptor";
 import { iframeBlock } from "./iframe/descriptor";
 import { languageBlock } from "./language/descriptor";
@@ -23,6 +24,7 @@ registerBlock(iframeBlock);
 registerBlock(linkBlock);
 registerBlock(progressBlock);
 registerBlock(languageBlock);
+registerBlock(checkerBlock);
 
 /** The descriptor of a kind, if it has one. */
 export function descriptorOf<B extends Block>(block: B): BlockDescriptor<B> | undefined;
@@ -42,8 +44,8 @@ export function fieldsOf(block: Block): [string, FieldSpec][] {
 }
 
 // The kinds that have not been moved to a descriptor yet and have the events of a quiz / cannot be in a layout.
-const TASK_KINDS_BY_HAND = new Set(["quiz", "cloze", "checker", "matching", "sort"]);
-const PAGE_ONLY_KINDS_BY_HAND = new Set(["quiz", "cloze", "checker", "matching", "sort", "script"]);
+const TASK_KINDS_BY_HAND = new Set(["quiz", "cloze", "matching", "sort"]);
+const PAGE_ONLY_KINDS_BY_HAND = new Set(["quiz", "cloze", "matching", "sort", "script"]);
 
 /** Whether the block has the events of a quiz in the page's graph: the first answer, submitted, and submitted right / wrong. */
 export function isTaskBlock(block: { kind: string }): boolean {

@@ -16,6 +16,7 @@ import "./core/blocks/iframe/render.css";
 import "./core/blocks/link/render.css";
 import "./core/blocks/progress/render.css";
 import "./core/blocks/language/render.css";
+import "./core/blocks/checker/render.css";
 import "./App.css";
 
 /** The settings window (see src-tauri/src/lib.rs's "weft-settings" menu handler) loads this

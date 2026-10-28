@@ -1149,6 +1149,11 @@ img.weft-thumb-block {
   pointer-events: none;
 }
 
+/* The words of a checker being written in place: the block is drawn by hand then, and a field takes the pointer. */
+.weft-render-host.is-writing {
+  pointer-events: auto;
+}
+
 /* Reuses .weft-timeline-node-icon for the same circle-with-icon look as the page timeline's own
    event markers (see Timeline.tsx) - just absolutely positioned along the track above instead of
    laid out in a flex row. .is-selected (also shared with Timeline.tsx) marks whichever one the
@@ -6353,36 +6358,6 @@ h2.weft-inspector-header {
   justify-content: space-between;
   gap: 8px;
   padding: 2px 0;
-}
-
-/* A checker (CheckerBlock, blocks/CheckerView.tsx): a quiz's one answer and its button, on the canvas as in the thumbnails - the sizes and the
-   look of both are the .weft-thumb-block-quiz-* ones above. The text keeps its line breaks. */
-.weft-checker-view {
-  font-size: 1.7cqw;
-  width: 100%;
-  height: 100%;
-}
-
-.weft-checker-view-text {
-  white-space: pre-wrap;
-}
-
-/* The words written in place on the canvas (a double click): a field that looks like them. */
-.weft-checker-edit {
-  box-sizing: border-box;
-  display: block;
-  margin: 0;
-  padding: 0;
-  font: inherit;
-  letter-spacing: inherit;
-  color: inherit;
-  line-height: inherit;
-  white-space: pre-wrap;
-  resize: none;
-  overflow: hidden;
-  background: transparent;
-  border: 0;
-  outline: none;
 }
 
 /* A matching (MatchingBlock, blocks/MatchingView.tsx; the player has the same in player.runtime.css): an area with the cards of both lists at their

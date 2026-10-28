@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
-import type { Block, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ProgressBlock, SolutionBlock } from "../../../core/types";
+import type { Block, CheckerBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ProgressBlock, SolutionBlock } from "../../../core/types";
+import { CheckerCanvas } from "./CheckerCanvas";
+import { CheckerView } from "./CheckerView";
 import { GalleryCanvas } from "./GalleryCanvas";
 import { GalleryView } from "./GalleryView";
 import { IframeView } from "./IframeView";
@@ -67,6 +69,12 @@ const languageView: BlockViewSpec<LanguageBlock> = {
   freelyMovable: true,
 };
 
+const checkerView: BlockViewSpec<CheckerBlock> = {
+  View: ({ block, lang, defaultLang, mode }) => <CheckerView block={block} lang={lang} defaultLang={defaultLang} mode={mode} />,
+  Canvas: ({ block, selected, onUpdate }) => <CheckerCanvas block={block} selected={selected} onUpdate={onUpdate} />,
+  freelyMovable: true,
+};
+
 const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   solution: solutionView as BlockViewSpec<never>,
   gallery: galleryView as BlockViewSpec<never>,
@@ -74,6 +82,7 @@ const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   link: linkView as BlockViewSpec<never>,
   progress: progressView as BlockViewSpec<never>,
   language: languageView as BlockViewSpec<never>,
+  checker: checkerView as BlockViewSpec<never>,
 };
 
 /** The editor's views of a kind, if it has them here. */

@@ -1,0 +1,25 @@
+/* A checker (CheckerBlock) as renderChecker (blocks/checker/render.js) draws it, on top of the card of a quiz's answer (core/runtime/quizCard.css).
+   Embedded into the exported page ahead of player.runtime.css and imported by the editor. */
+
+/* The words keep their line breaks (a line break is typed with Shift+Enter on the canvas). */
+.weft-checker-text {
+  white-space: pre-wrap;
+}
+
+/* The words being written in place on the canvas (a double click, CheckerCanvas): a field that looks like them. */
+.weft-checker-edit {
+  box-sizing: border-box;
+  display: block;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  border: 0;
+  outline: none;
+}

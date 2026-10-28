@@ -103,7 +103,8 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
       // (Described above.)
       return "";
     case "checker":
-      return `„${words(block.text, 40) || "(ohne Text)"}"${block.required ? " [Pflicht]" : ""}`;
+      // (Described above.)
+      return "";
     case "link":
       // (Described above.)
       return "";

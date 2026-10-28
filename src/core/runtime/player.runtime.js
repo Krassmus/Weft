@@ -3367,88 +3367,36 @@
     return (t && t.text !== undefined ? t.text : block.text) || "";
   }
 
+  // What a checker says, as renderChecker (blocks/checker/render.js, inlined ahead of this file) draws it.
+  function checkerProps(block) {
+    return { id: block.id, text: checkerLabel(block) };
+  }
+
   function renderCheckerBlock(block) {
     var wrap = el("div", { class: "weft-block weft-block-checker", "data-weft-block": block.id, style: positionStyle(block.position) });
     if (block.required) requiredPending[block.id] = true;
-    var form = el("form", { class: "weft-quiz weft-checker" }, []);
-    form.addEventListener("submit", function (event) {
-      event.preventDefault();
+    var instance = renderChecker(wrap, checkerProps(block), {
+      mode: "play",
+      text: uiString,
+      icons: { submit: QUIZ_SUBMIT_ICON_SVG, thanks: QUIZ_CORRECT_ICON_SVG, unchecked: QUIZ_CHECKBOX_UNCHECKED_SVG, checked: QUIZ_CHECKBOX_CHECKED_SVG },
+      applyVariables: applyVariablesToNode,
+      // The first click on the box is the quiz's "first answer" (see quizFillEventId).
+      fill: function () {
+        happened(quizFillEventId(block.id));
+      },
+      submit: function (result) {
+        var mark = scoreMark(block);
+        ((result.ticked ? block.onChecked : block.onUnchecked) || []).forEach(applyEffect);
+        scoreRecord(block, mark, result.ticked ? "ticked" : "unticked");
+        requiredDone(block.id);
+        happened(quizSubmitEventId(block.id));
+        happened(quizSubmitEventId(block.id, result.ticked ? "richtig" : "falsch"));
+      },
+      announce: announce,
     });
-
-    var optionsWrap = el("div", { class: "weft-quiz-options", role: "group" }, []);
-    var optionLabel = el("label", { class: "weft-quiz-option" }, []);
-    var checkboxWrap = el("span", { class: "weft-quiz-option-checkbox" }, []);
-    var input = el("input", { type: "checkbox", name: "check-" + block.id, class: "weft-quiz-option-input" }, []);
-    var uncheckedIcon = el("span", { class: "weft-quiz-option-checkbox-icon weft-quiz-option-checkbox-icon-unchecked", "aria-hidden": "true" }, []);
-    uncheckedIcon.innerHTML = QUIZ_CHECKBOX_UNCHECKED_SVG;
-    var checkedIcon = el("span", { class: "weft-quiz-option-checkbox-icon weft-quiz-option-checkbox-icon-checked", "aria-hidden": "true" }, []);
-    checkedIcon.innerHTML = QUIZ_CHECKBOX_CHECKED_SVG;
-    checkboxWrap.appendChild(input);
-    checkboxWrap.appendChild(uncheckedIcon);
-    checkboxWrap.appendChild(checkedIcon);
-    var text = el("span", { class: "weft-quiz-option-text weft-checker-text" }, []);
-    var fillText = function () {
-      text.textContent = checkerLabel(block);
-      applyVariablesToNode(text);
-    };
-    fillText();
-    languageRefreshers.push(fillText);
-    optionLabel.appendChild(checkboxWrap);
-    optionLabel.appendChild(text);
-    optionsWrap.appendChild(optionLabel);
-    form.appendChild(optionsWrap);
-
-    var submit = el("button", { type: "button", class: "weft-quiz-submit" }, []);
-    var submitIcon = el("span", { class: "weft-quiz-submit-icon", "aria-hidden": "true" }, []);
-    submitIcon.innerHTML = QUIZ_SUBMIT_ICON_SVG;
-    submit.appendChild(submitIcon);
-    var submitLabel = document.createTextNode(uiString("submit"));
-    submit.appendChild(submitLabel);
-    form.appendChild(submit);
-
-    var submitted = false;
-    var feedback = el("div", { class: "weft-quiz-feedback is-thanks", hidden: "" }, []);
-    var feedbackIcon = el("span", { class: "weft-quiz-feedback-icon", "aria-hidden": "true" }, []);
-    feedbackIcon.innerHTML = QUIZ_CORRECT_ICON_SVG;
-    var feedbackTitle = el("strong", { class: "weft-quiz-feedback-title" }, []);
-    feedback.appendChild(feedbackIcon);
-    feedback.appendChild(feedbackTitle);
-    form.appendChild(feedback);
-    var showFeedbackTitle = function () {
-      feedbackTitle.textContent = uiString("thanks");
-    };
     languageRefreshers.push(function () {
-      submitLabel.nodeValue = uiString("submit");
-      if (submitted) showFeedbackTitle();
+      instance.update(checkerProps(block));
     });
-
-    // The first click on the box is the quiz's "first answer" (see quizFillEventId).
-    var hasFiredFill = false;
-    input.addEventListener("change", function () {
-      if (hasFiredFill) return;
-      hasFiredFill = true;
-      happened(quizFillEventId(block.id));
-    });
-
-    submit.addEventListener("click", function () {
-      if (submitted) return;
-      var ticked = input.checked;
-      submitted = true;
-      var mark = scoreMark(block);
-      (ticked ? block.onChecked : block.onUnchecked || []).forEach(applyEffect);
-      scoreRecord(block, mark, ticked ? "ticked" : "unticked");
-      requiredDone(block.id);
-      happened(quizSubmitEventId(block.id));
-      happened(quizSubmitEventId(block.id, ticked ? "richtig" : "falsch"));
-      // Replaces the button, and locks the box: what was submitted cannot be changed by ticking it again.
-      submit.hidden = true;
-      input.disabled = true;
-      showFeedbackTitle();
-      feedback.hidden = false;
-      announce(feedbackTitle.textContent);
-    });
-
-    wrap.appendChild(form);
     return wrap;
   }
 

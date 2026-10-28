@@ -95,8 +95,6 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
         ...(block.endLabel?.trim() ? [{ key: `${id}#end`, source: plain(block.endLabel), role: "Wort am Ende der Linie" }] : []),
       ];
     }
-    case "checker":
-      return hasWords(block.text) ? [{ key: `${id}#label`, source: block.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role: "Text" }] : [];
     case "list":
       return block.items
         .map((item, index) => ({ key: `${id}#item:${item.id}`, source: item.html, role: `Punkt ${index + 1}` }))
@@ -380,7 +378,7 @@ export function importTexts(content: WeftModule, file: TextsFile): ImportReport 
       if (described) (target as Record<string, string>)[described.key] = htmlToPlain(translated);
       else if (part === "html") target.html = translated;
       else if (part === "label") {
-        if (block.kind !== "checker") target.html = translated;
+        target.html = translated;
         target.text = plainTextOfHtml(translated);
       } else if (part === "question") target.questionHtml = translated;
       else if (part === "explanation") target.explanation = htmlToPlain(translated);

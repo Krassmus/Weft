@@ -54,7 +54,6 @@ const KIND_DEFINITIONS: Record<string, string> = {
   video: "VideoBlock",
   audio: "AudioBlock",
   button: "ButtonBlock",
-  checker: "CheckerBlock",
   matching: "MatchingBlock",
   sort: "SortBlock",
   quiz: "QuizBlock",
@@ -188,8 +187,6 @@ function effectsOf(block: Block): { effects: VariableEffect[]; what: string }[] 
     for (const [name, spec] of fieldsOf(block)) {
       if (spec.type === "effects") groups.push({ effects: ((block as unknown as Record<string, VariableEffect[] | undefined>)[name]) ?? [], what: spec.cliWhat });
     }
-  } else if (block.kind === "checker") {
-    groups.push({ effects: block.onChecked ?? [], what: "beim Abschicken mit Haken" }, { effects: block.onUnchecked ?? [], what: "beim Abschicken ohne Haken" });
   } else if (block.kind === "button") {
     groups.push({ effects: block.onClick ?? [], what: "beim Klick" });
   }
@@ -253,14 +250,6 @@ export function eventLabel(page: Page, node: TimelineNode, content: WeftModule, 
       "quiz-submit": cliNames.submit,
       "quiz-submit-correct": cliNames.correct,
       "quiz-submit-incorrect": cliNames.incorrect,
-    });
-  }
-  if (block?.kind === "checker") {
-    Object.assign(names, {
-      "quiz-fill-start": "Checker: Haken gesetzt oder entfernt",
-      "quiz-submit": "Checker abgeschickt",
-      "quiz-submit-correct": "Checker mit Haken abgeschickt",
-      "quiz-submit-incorrect": "Checker ohne Haken abgeschickt",
     });
   }
   return `${names[node.eventType ?? ""] ?? node.eventType ?? node.id}${what}`;
@@ -557,7 +546,7 @@ export function validate(loaded: LoadedWeft): Finding[] {
     };
     // (A block that describes itself: any of its texts has words.)
     if (languages.length > 1 && descriptorOf(block) && [...exportedTexts(block), ...exportedItemTexts(block)].some(({ value }) => value.trim() !== "")) markUntranslated();
-    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
+    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "matching" || block.kind === "sort" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
       const hasWords =
         block.kind === "quiz"
           ? plainTextOfHtml(block.questionHtml).trim() !== ""
@@ -567,7 +556,7 @@ export function validate(loaded: LoadedWeft): Finding[] {
               ? block.items.some((item) => item.text.trim() !== "")
             : block.kind === "matching"
               ? [...block.sources, ...block.targets].some((item) => item.text.trim() !== "")
-              : block.kind === "button" || block.kind === "checker"
+              : block.kind === "button"
               ? block.text.trim() !== ""
               : plainTextOfHtml(block.html).trim() !== "";
       // A text that stands for a placeholder of the layout is the page's own, and has its words in each language like any other.

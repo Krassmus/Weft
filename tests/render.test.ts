@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { parseHTML } from "linkedom";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { renderChecker } from "../src/core/blocks/checker/render.js";
 import { renderIframe } from "../src/core/blocks/iframe/render.js";
 import { renderLanguage } from "../src/core/blocks/language/render.js";
 import { renderProgress } from "../src/core/blocks/progress/render.js";
@@ -53,14 +54,24 @@ const WORDS: Record<string, string> = {
   solutionWord: "Lösungswort",
   solutionAttemptsLeft: "Noch {n}",
   embedded: "Eingebettete Seite",
+  thanks: "Danke!",
   noAddress: "(keine Adresse)",
 };
 const text = (key: string) => WORDS[key] ?? "";
 const textWith = (key: string, values: Record<string, string | number>) => text(key).replace(/\{(\w+)\}/g, (all, name: string) => String(values[name] ?? all));
-const ICONS = { submit: "<svg id='submit'></svg>", correct: "<svg id='ok'></svg>", incorrect: "<svg id='no'></svg>", globe: "<svg id='globe'></svg>", qr: "<svg id='qr'></svg>" };
+const ICONS = {
+  submit: "<svg id='submit'></svg>",
+  correct: "<svg id='ok'></svg>",
+  incorrect: "<svg id='no'></svg>",
+  globe: "<svg id='globe'></svg>",
+  qr: "<svg id='qr'></svg>",
+  thanks: "<svg id='thanks'></svg>",
+  unchecked: "<svg id='unchecked'></svg>",
+  checked: "<svg id='checked'></svg>",
+};
 
 /** Every render.js there is must be run here: this is the list of what is run (a new one fails the test below until it is added). */
-const RENDERERS = ["solution", "iframe", "link", "progress", "language"];
+const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker"];
 
 describe("the render functions", () => {
   it("are all tested here", () => {
@@ -77,7 +88,7 @@ describe("the render functions", () => {
     const inlined = source.replace(/^export /gm, "");
     expect(inlined).not.toMatch(/\bexport\b\s+(function|var|const|let|default)/);
     // The way the page has it: a script of its own that leaves the function there for the player after it.
-    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage" }[kind];
+    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker" }[kind];
     expect(new Function(`${inlined}; return typeof ${name};`)()).toBe("function");
   });
 });
@@ -431,6 +442,96 @@ describe.each(MODES)("a language switch drawn for %s", (mode) => {
       instance.update({ ...props, current: "de_DE" });
       instance.destroy();
       expect(root.childNodes.length).toBe(0);
+    });
+  }
+});
+
+// ---- the checker ------------------------------------------------------------------------------------------------------------------------
+
+describe.each(MODES)("a checker drawn for %s", (mode) => {
+  const props = { id: "c1", text: "Ich bin einverstanden.\nWirklich." };
+  const context = () => ({ mode, text, icons: ICONS, applyVariables: vi.fn(), fill: vi.fn(), submit: vi.fn(), announce: vi.fn() });
+
+  it("is drawn with its words (their line breaks are kept), can be drawn again with other words, and goes away", () => {
+    const root = element();
+    const ctx = context();
+    const instance = renderChecker(root, props, ctx);
+    expect(find(root, ".weft-checker-text")?.textContent).toBe("Ich bin einverstanden.\nWirklich.");
+    expect(find(root, ".weft-quiz-option-checkbox-icon-unchecked")?.innerHTML).toContain("unchecked");
+    expect(find(root, ".weft-quiz-submit")?.textContent).toBe("Abschicken");
+    // (The values of variables are put in where they exist: in the player.)
+    expect(ctx.applyVariables).toHaveBeenCalledTimes(1);
+    instance.update({ ...props, text: "Anderes" });
+    expect(find(root, ".weft-checker-text")?.textContent).toBe("Anderes");
+    expect(ctx.applyVariables).toHaveBeenCalledTimes(2);
+    instance.destroy();
+    expect(root.childNodes.length).toBe(0);
+  });
+
+  it("is drawn in a place that has no variables", () => {
+    const root = element();
+    renderChecker(root, props, { mode, text, icons: ICONS, fill: vi.fn(), submit: vi.fn(), announce: vi.fn() });
+    expect(find(root, ".weft-checker-text")?.textContent).toBe("Ich bin einverstanden.\nWirklich.");
+  });
+
+  if (mode === "play") {
+    it("is ticked and submitted: what follows is the place's to do, the box is locked and the thanks stand in the place of the button", () => {
+      const root = element();
+      const ctx = context();
+      renderChecker(root, props, ctx);
+      const input = find(root, ".weft-quiz-option-input") as HTMLInputElement;
+      const button = find(root, ".weft-quiz-submit") as HTMLButtonElement;
+      const feedback = find(root, ".weft-quiz-feedback") as HTMLElement;
+      expect(feedback.hidden).toBe(true);
+      input.checked = true;
+      fire(input, "change");
+      fire(input, "change");
+      expect(ctx.fill).toHaveBeenCalledTimes(1);
+      fire(button, "click");
+      expect(ctx.submit).toHaveBeenCalledWith({ ticked: true });
+      expect(ctx.announce).toHaveBeenCalledWith("Danke!");
+      expect(feedback.hidden).toBe(false);
+      expect(button.hidden).toBe(true);
+      expect(input.disabled).toBe(true);
+      // (Once is enough.)
+      fire(button, "click");
+      expect(ctx.submit).toHaveBeenCalledTimes(1);
+    });
+
+    it("can be submitted without the tick - that is the other outcome", () => {
+      const root = element();
+      const ctx = context();
+      renderChecker(root, props, ctx);
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      expect(ctx.submit).toHaveBeenCalledWith({ ticked: false });
+    });
+
+    it("is thanked in the language that is shown, after it was changed", () => {
+      const root = element();
+      const instance = renderChecker(root, props, context());
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      WORDS.thanks = "Thanks!";
+      WORDS.submit = "Submit";
+      instance.update(props);
+      expect(find(root, ".weft-quiz-feedback-title")?.textContent).toBe("Thanks!");
+      expect(find(root, ".weft-quiz-submit")?.textContent).toBe("Submit");
+      WORDS.thanks = "Danke!";
+      WORDS.submit = "Abschicken";
+    });
+  } else {
+    it("is only a picture: nothing can be ticked or submitted", () => {
+      const root = element();
+      const ctx = context();
+      renderChecker(root, props, ctx);
+      const input = find(root, ".weft-quiz-option-input") as HTMLInputElement;
+      const button = find(root, ".weft-quiz-submit") as HTMLButtonElement;
+      expect(input.tabIndex).toBe(-1);
+      expect(button.tabIndex).toBe(-1);
+      fire(input, "change");
+      fire(button, "click");
+      expect(ctx.fill).not.toHaveBeenCalled();
+      expect(ctx.submit).not.toHaveBeenCalled();
+      expect((find(root, ".weft-quiz-feedback") as HTMLElement).hidden).toBe(true);
     });
   }
 });

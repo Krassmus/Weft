@@ -329,6 +329,34 @@ describe.each(KINDS)("the texts of %s in `weft text export` and `weft text impor
   });
 });
 
+describe("what is known about each kind", () => {
+  // The stations follow the descriptor; whether the descriptor says the right thing is for somebody to know. This is what is known - a new kind has to
+  // be added here, and a changed answer is a change somebody means.
+  const KNOWN: Record<string, { pageOnly: boolean; task: boolean; translatable: string[]; lists: string[] }> = {
+    solution: { pageOnly: true, task: true, translatable: ["solution", "placeholder"], lists: [] },
+    checker: { pageOnly: true, task: true, translatable: ["text"], lists: [] },
+    gallery: { pageOnly: true, task: false, translatable: [], lists: ["items"] },
+    iframe: { pageOnly: false, task: false, translatable: [], lists: [] },
+    link: { pageOnly: false, task: false, translatable: ["text"], lists: [] },
+    progress: { pageOnly: false, task: false, translatable: [], lists: [] },
+    language: { pageOnly: false, task: false, translatable: [], lists: [] },
+  };
+
+  it("has an entry for every kind that describes itself - and for no other", () => {
+    expect(Object.keys(KNOWN).sort()).toEqual([...KINDS].sort());
+  });
+
+  it.each(KINDS)("%s: where it can be, whether it has the events of a quiz, which of its texts have words in each language", (kind) => {
+    const descriptor = descriptorOf(kind) as BlockDescriptor;
+    const known = KNOWN[kind];
+    expect(descriptor.placement.pageOnly).toBe(known.pageOnly);
+    expect(!!descriptor.task).toBe(known.task);
+    const fields = Object.entries(descriptor.fields as Record<string, FieldSpec>);
+    expect(fields.filter(([, spec]) => spec.type === "text" && spec.translatable).map(([name]) => name).sort()).toEqual([...known.translatable].sort());
+    expect(fields.filter(([, spec]) => spec.type === "list").map(([name]) => name).sort()).toEqual([...known.lists].sort());
+  });
+});
+
 describe("what `weft validate` says about a block that is wrong", () => {
   // (What is wrong is the author's to know: each descriptor that has a check is shown a block that fails it.)
   const cases: [string, (block: Fields) => void, string, "error" | "warning" | "info"][] = [

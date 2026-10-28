@@ -29,7 +29,6 @@ import video2IconSvg from "../../../mockups/icons/video2.svg?raw";
 import checkboxCheckedSvg from "../../../mockups/icons/checkbox-checked.svg?raw";
 import checkboxUncheckedSvg from "../../../mockups/icons/checkbox-unchecked.svg?raw";
 import acceptSvg from "../../../mockups/icons/accept.svg?raw";
-import { CheckerView } from "./blocks/CheckerView";
 import { MatchingView } from "./blocks/MatchingView";
 import { viewOf } from "./blocks/blockViews";
 import { SortView } from "./blocks/SortView";
@@ -353,13 +352,6 @@ function ThumbBlockBody({
     return (
       <div className="weft-thumb-block" style={style}>
         <SortView block={block} lang={lang} defaultLang={defaultLang} />
-      </div>
-    );
-  }
-  if (block.kind === "checker") {
-    return (
-      <div className="weft-thumb-block" style={style}>
-        <CheckerView block={block} lang={lang} defaultLang={defaultLang} />
       </div>
     );
   }

@@ -46,19 +46,19 @@ Guides: [docs/ai-authoring.en.md](docs/ai-authoring.en.md), [docs/operations.en.
   die alle Blöcke gleich behandeln (Menü, Standardwerte, Übersetzungen, Event-Graph, Textexport,
   `weft validate` / `inspect` / `schema`, das Panel in der Seitenleiste), fragen die Registry
   (`registry.ts`) statt eines eigenen `switch (block.kind)`. Der React-Teil (Icon, Ansicht) steht im
-  Editor in `features/editor/blocks/blockViews.tsx`. Fünf davon (alle außer der Galerie) werden sogar von **einer** Funktion gezeichnet
+  Editor in `features/editor/blocks/blockViews.tsx`. Sechs davon (alle außer der Galerie) werden sogar von **einer** Funktion gezeichnet
   (`blocks/<Art>/render.js`, reines JavaScript ohne Imports): der
   Player bettet sie unverändert ein, der Editor ruft sie für Canvas, Miniaturen und PDF auf (`RenderHost.tsx`). Ein
   *Modus* sagt, wo gezeichnet wird, und der Block entscheidet selbst, was er dort zeigt: `play` (bedienbar), `edit`
-  (Canvas: ein Bild, nichts darin ist bedienbar), `thumbnail`, `print` (PDF). Das Lösungswort ist außerhalb von `play`
-  das leere Feld; die eingebettete Seite ist live im Player und im Canvas, ein grauer Kasten mit Icon in der Miniatur
+  (Canvas: ein Bild, nichts darin ist bedienbar), `thumbnail`, `print` (PDF). Das Lösungswort und der Checker sind außerhalb von `play`
+  das leere Feld (beim Checker schreibt man die Worte auf dem Canvas an Ort und Stelle: das ist die eigene Ansicht des Editors); die eingebettete Seite ist live im Player und im Canvas, ein grauer Kasten mit Icon in der Miniatur
   und eine Karte mit Adresse und QR-Code im PDF; der Link ist nur im Player ein Link, sonst ein Bild davon (im PDF
   mit der Adresse als Link); der Sprachumschalter ist ein echtes Auswahlfeld im Player, ein Bild davon im Canvas (ein
   natives Auswahlfeld skaliert nicht mit der Folie und ist beim Zoomen langsam) und ein grauer Kasten in Miniatur und PDF; der Fortschrittsbalken bekommt seinen Wert vom Ort (im Player von der Variable, mit
   Animation). Das gemeinsame Aussehen steht in `core/runtime/quizCard.css` und `blocks/*/render.css`,
-  die Player und Editor beide laden. Bisher beschreiben sich das Lösungswort, die Galerie, die eingebettete Seite, der Link, der Fortschrittsbalken und der
-  Sprachumschalter so (`blocks/solution/`, `blocks/gallery/`, `blocks/iframe/`, `blocks/link/`, `blocks/progress/`,
-  `blocks/language/`; Feldtypen: Text, Ja/Nein, Zahl, Variablen-Effekte, Datei, Liste von
+  die Player und Editor beide laden. Bisher beschreiben sich das Lösungswort, der Checker, die Galerie, die eingebettete Seite, der Link, der
+  Fortschrittsbalken und der Sprachumschalter so (`blocks/solution/`, `blocks/checker/`, `blocks/gallery/`,
+  `blocks/iframe/`, `blocks/link/`, `blocks/progress/`, `blocks/language/`; Feldtypen: Text, Ja/Nein, Zahl, Variablen-Effekte, Datei, Liste von
   Elementen mit Datei und Text); die anderen Arten sind noch von Hand an diesen Stellen eingetragen. Der Deskriptor
   ist so geschnitten (nur Daten und reine Funktionen auf dem JSON des Blocks), dass er das Manifest
   eines Plugin-Blocks werden kann.

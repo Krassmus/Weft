@@ -57,9 +57,6 @@ export function placeholderSources(block: Block): string[] {
         ...[block.startLabel, block.endLabel].filter((t): t is string => !!t).map(escapeText),
         ...Object.values(block.translations ?? {}).flatMap((t) => [...Object.values(t.items ?? {}), t.startLabel, t.endLabel].filter((x): x is string => !!x).map(escapeText)),
       ];
-    case "checker":
-      // (A plain text, escaped first, like a button's plain label.)
-      return [escapeText(block.text), ...Object.values(block.translations ?? {}).flatMap((t) => (t.text !== undefined ? [escapeText(t.text)] : []))];
     default:
       // (A block that describes itself says which of its texts are seen: plain texts, escaped first.)
       return variableWordings(block).flatMap(({ own, translated }) => [...(own ? [escapeText(own)] : []), ...translated.map(escapeText)]);

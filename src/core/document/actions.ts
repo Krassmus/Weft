@@ -694,17 +694,9 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
     case "gallery":
     case "iframe":
     case "link":
+    case "checker":
       // (A kind with a descriptor is made above - it has no case of its own.)
       throw new Error(`The kind "${kind}" has no descriptor.`);
-    case "checker":
-      return {
-        ...base,
-        kind,
-        position: { x: 10, y: 38, width: 80, height: 24 },
-        text: tr("ui.checker_sample_text"),
-        onChecked: [],
-        onUnchecked: [],
-      };
     case "placeholder":
       return { ...base, kind, position, label: tr("ui.placeholder"), html: tr("ui.placeholder_text") };
     case "list":

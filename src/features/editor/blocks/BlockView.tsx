@@ -53,7 +53,6 @@ import { useImageEdit } from "./imageEditStore";
 import { usePendingEdit } from "./pendingEditStore";
 import { ImageSvg } from "./ImageSvg";
 import { MaskHandles } from "./MaskHandles";
-import { CheckerCanvas } from "./CheckerCanvas";
 import { MatchingCanvas } from "./MatchingCanvas";
 import { viewOf } from "./blockViews";
 import { SortCanvas } from "./SortCanvas";
@@ -294,7 +293,7 @@ export function BlockView({
     block.kind === "cloze" ||
     block.kind === "quiz" ||
     block.kind === "list";
-  const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "checker" || !!viewOf(block.kind)?.freelyMovable || block.kind === "matching" || block.kind === "sort" || block.kind === "script" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "audio" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files" || block.kind === "revealer" || block.kind === "progress";
+  const isFreelyMovableBlock = (isTextLike && !editing) || !!viewOf(block.kind)?.freelyMovable || block.kind === "matching" || block.kind === "sort" || block.kind === "script" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "audio" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files" || block.kind === "revealer" || block.kind === "progress";
   // Only an image, video or revealer (an icon) has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
   // given, so unlike image/video it keeps the full edge+corner handle set below instead of being
@@ -898,7 +897,8 @@ function BlockContent({
       // (Drawn by its view above.)
       return null;
     case "checker":
-      return <CheckerCanvas block={block} selected={selected} onUpdate={onUpdate} />;
+      // (Drawn by its view above.)
+      return null;
     case "solution":
       // (Drawn by its view above.)
       return null;

@@ -129,15 +129,6 @@ export function sortLabelPatch(block: SortBlock, which: "start" | "end", languag
   return { translations: { ...block.translations, [language]: { ...(block.translations?.[language] ?? {}), [key]: text } } };
 }
 
-/** The text beside the box of a checker in `language`: its translation if there is one, else the block's own (the default language's). */
-export function checkerText(block: CheckerBlock, language: string | null, defaultLanguage: string | null): string {
-  return translationOf(block.translations, language, defaultLanguage)?.text ?? block.text;
-}
-
-export function checkerTextPatch(block: CheckerBlock, language: string | null, defaultLanguage: string | null, text: string) {
-  return wordingPatch(block, language, defaultLanguage, { text }, (t) => ({ ...t, text })) as Partial<CheckerBlock>;
-}
-
 /**
  * The wording of a translatable text field of a block that describes itself (see blocks/registry.ts) in `language`: its translation if there is
  * one, else the block's own (the default language's).
@@ -445,15 +436,12 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       (block as Translatable).translations = translations;
       continue;
     }
-    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "checker" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "list") continue;
+    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "list") continue;
     const incoming = block.translations?.[newDefault];
     const outgoing: BlockTranslation = {};
     if (block.kind === "text" || block.kind === "cloze") {
       outgoing.html = block.html;
       if (incoming?.html !== undefined) block.html = incoming.html;
-    } else if (block.kind === "checker") {
-      outgoing.text = block.text;
-      if (incoming?.text !== undefined) block.text = incoming.text;
     } else if (block.kind === "button") {
       outgoing.text = block.text;
       if (block.html !== undefined) outgoing.html = block.html;

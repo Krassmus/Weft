@@ -99,15 +99,12 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
       return block.items
         .map((item, index) => ({ key: `${id}#item:${item.id}`, source: item.html, role: `Punkt ${index + 1}` }))
         .filter((item) => hasWords(item.source));
-    case "button": {
-      const source = block.html ?? block.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      return hasWords(source) ? [{ key: `${id}#label`, source, role: "Beschriftung" }] : [];
-    }
     default:
       // A block that describes itself (see core/blocks): its translatable texts are plain texts.
       return exportedTexts(block)
         .filter(({ value }) => hasWords(value))
-        .map(({ part, role, value }) => ({ key: `${id}#${part}`, source: value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role }))
+        // (A formatted text is HTML already; a plain one is escaped first.)
+        .map(({ part, role, value, html }) => ({ key: `${id}#${part}`, source: html ? value : value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role }))
         // (And the words of the items of its lists - a picture's caption: plain texts, escaped first, with the id of the item in the key.)
         .concat(
           exportedItemTexts(block)
@@ -145,7 +142,12 @@ function existingTranslation(block: Block, key: string, language: string): strin
   const part = key.slice(key.indexOf("#") + 1);
   // (A block that describes itself: the texts it exports are plain, escaped.)
   const field = exportedTexts(block).find((text) => text.part === part);
-  if (field) return ((translation as Record<string, string | undefined>)[field.key] ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  if (field) {
+    const t = translation as Record<string, string | undefined>;
+    // (A formatted text: its translation's formatting, else its plain words escaped.)
+    if (field.html && t.html !== undefined) return t.html;
+    return (t[field.key] ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
   if (part === "html" || part === "label") return translation.html ?? (part === "label" ? (translation.text ?? "") : "");
   if (part === "question") return translation.questionHtml ?? "";
   if (part === "explanation") return translation.explanation ? plainToHtml(translation.explanation) : "";
@@ -375,7 +377,11 @@ export function importTexts(content: WeftModule, file: TextsFile): ImportReport 
       const translations = (block.translations ??= {});
       const target = (translations[language] ??= {});
       const described = exportedTexts(block).find((text) => text.part === part);
-      if (described) (target as Record<string, string>)[described.key] = htmlToPlain(translated);
+      if (described?.html) {
+        // A formatted text keeps its formatting; its plain words go with it.
+        target.html = translated;
+        (target as Record<string, string>)[described.key] = plainTextOfHtml(translated);
+      } else if (described) (target as Record<string, string>)[described.key] = htmlToPlain(translated);
       else if (part === "html") target.html = translated;
       else if (part === "label") {
         target.html = translated;

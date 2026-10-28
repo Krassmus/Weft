@@ -36,14 +36,6 @@ export function placeholderSources(block: Block): string[] {
         ...block.items.map((item) => item.html),
         ...Object.values(block.translations ?? {}).flatMap((t) => Object.values(t.items ?? {})),
       ];
-    case "button":
-      // The formatted label, where there is one; else the plain one, escaped first.
-      return [
-        block.html ?? escapeText(block.text),
-        ...Object.values(block.translations ?? {}).flatMap((t) =>
-          t.html !== undefined ? [t.html] : t.text !== undefined ? [escapeText(t.text)] : [],
-        ),
-      ];
     case "matching":
       // The words of the cards (plain texts, escaped first), in every language.
       return [
@@ -59,7 +51,7 @@ export function placeholderSources(block: Block): string[] {
       ];
     default:
       // (A block that describes itself says which of its texts are seen: plain texts, escaped first.)
-      return variableWordings(block).flatMap(({ own, translated }) => [...(own ? [escapeText(own)] : []), ...translated.map(escapeText)]);
+      return variableWordings(block).flatMap(({ own, translated, html }) => [...(own ? [html ? own : escapeText(own)] : []), ...translated.map((words) => (html ? words : escapeText(words)))]);
   }
 }
 

@@ -19,6 +19,8 @@ import languageRenderSource from "../blocks/language/render.js?raw";
 import languageCss from "../blocks/language/render.css?raw";
 import checkerRenderSource from "../blocks/checker/render.js?raw";
 import checkerCss from "../blocks/checker/render.css?raw";
+import buttonRenderSource from "../blocks/button/render.js?raw";
+import buttonCss from "../blocks/button/render.css?raw";
 import playerRuntimeSource from "./player.runtime.js?raw";
 import quizCardCss from "./quizCard.css?raw";
 import playerRuntimeCss from "./player.runtime.css?raw";
@@ -104,6 +106,7 @@ export async function buildRuntimeHtml(
 <style>${progressCss}</style>
 <style>${languageCss}</style>
 <style>${checkerCss}</style>
+<style>${buttonCss}</style>
 <style>${playerRuntimeCss}</style>
 <style>${fontFaceCss}</style>
 ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` : ""}${hasTex ? `<style>${buildKatexCss()}</style>\n` : ""}</head>
@@ -133,6 +136,7 @@ ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` 
 <script>${progressRenderSource.replace(/^export /gm, "")}</script>
 <script>${languageRenderSource.replace(/^export /gm, "")}</script>
 <script>${checkerRenderSource.replace(/^export /gm, "")}</script>
+<script>${buttonRenderSource.replace(/^export /gm, "")}</script>
 <script>${playerRuntimeSource}</script>
 </body>
 </html>

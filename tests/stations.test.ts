@@ -1,5 +1,6 @@
 import Ajv from "ajv";
-import { describe, expect, it } from "vitest";
+import { parseHTML } from "linkedom";
+import { beforeAll, describe, expect, it } from "vitest";
 import schema from "../docs/weft.schema.json";
 import { runOperations } from "../cli/ops";
 import { setCurrentModule } from "../cli/storeStub";
@@ -11,7 +12,7 @@ import { pasteBlockInto } from "../src/core/document/actions";
 import { clipboardEntryPlainText } from "../src/core/document/clipboard";
 import { createEmptyDocument } from "../src/core/document/createEmptyDocument";
 import { quizFillNodeId, quizSubmitNodeId } from "../src/core/document/pageTimeline";
-import { fieldWording, fieldWordingPatch, isTranslated, itemWording, itemWordingPatch, rotateDefaultLanguage } from "../src/core/document/translations";
+import { fieldHtml, fieldHtmlPatch, fieldWording, fieldWordingPatch, isTranslated, itemWording, itemWordingPatch, rotateDefaultLanguage } from "../src/core/document/translations";
 import { usedAssetIds } from "../src/core/document/usedAssets";
 import { placeholderSources } from "../src/core/document/variablePlaceholders";
 import { buildEventGraph } from "../src/core/eventGraph/buildEventGraph";
@@ -27,6 +28,16 @@ import type { Block, WeftModule } from "../src/core/types";
  *
  * What a block looks like (its render.js) is in render.test.ts.
  */
+
+// (The clipboard reads formatted texts with a DOM, as the editor has one.)
+beforeAll(() => {
+  class TestDOMParser {
+    parseFromString(html: string) {
+      return parseHTML(`<!doctype html><html><body>${html}</body></html>`).document;
+    }
+  }
+  Object.assign(globalThis, { DOMParser: TestDOMParser });
+});
 
 const DE = "de_DE";
 const EN = "en_GB";
@@ -210,10 +221,11 @@ describe.each(KINDS)("%s with every field filled", (kind) => {
   it("is found by the clipboard where it shows words, and by the variable placeholders where the player puts values in", () => {
     const { block } = moduleWith(kind, true);
     const text = clipboardEntryPlainText({ kind: "block", block } as never);
-    for (const wording of shownWordings(block).filter((wording) => hasWords(wording.own))) expect(text, wording.own).toContain(wording.own);
+    // (A formatted text is in the clipboard as its words: "Beispiel text" is what its HTML says.)
+    for (const wording of shownWordings(block).filter((wording) => hasWords(wording.own))) expect(text, wording.own).toContain(wording.html ? wording.own.replace(/<[^>]*>/g, "") : wording.own);
     const sources = placeholderSources(block);
     const withValues = variableWordings(block);
-    for (const wording of withValues.filter((wording) => hasWords(wording.own))) expect(sources, wording.own).toContain(escapeText(wording.own));
+    for (const wording of withValues.filter((wording) => hasWords(wording.own))) expect(sources, wording.own).toContain(wording.html ? wording.own : escapeText(wording.own));
     // (What the player puts nothing in for is not looked at.)
     expect(sources.length).toBe(withValues.reduce((count, wording) => count + (wording.own ? 1 : 0) + wording.translated.length, 0));
     // (Every text that has placeholders is a text that is shown.)
@@ -338,6 +350,7 @@ describe("what is known about each kind", () => {
     gallery: { pageOnly: true, task: false, translatable: [], lists: ["items"] },
     iframe: { pageOnly: false, task: false, translatable: [], lists: [] },
     link: { pageOnly: false, task: false, translatable: ["text"], lists: [] },
+    button: { pageOnly: false, task: false, translatable: ["text"], lists: [] },
     progress: { pageOnly: false, task: false, translatable: [], lists: [] },
     language: { pageOnly: false, task: false, translatable: [], lists: [] },
   };
@@ -369,6 +382,9 @@ describe("what `weft validate` says about a block that is wrong", () => {
     ["link", (block) => (block.url = "https://"), "link-no-target", "warning"],
     ["link", (block) => (block.url = "javascript:alert(1)"), "link-url-invalid", "error"],
     ["progress", (block) => (block.variable = "gibt-es-nicht"), "progress-variable-unknown", "warning"],
+    ["button", (block) => ((block.action = "goto"), (block.targetPageId = undefined)), "button-target-empty", "warning"],
+    ["button", (block) => ((block.action = "goto"), (block.targetPageId = "gibt-es-nicht")), "button-target-missing", "error"],
+    ["button", (block) => ((block.text = ""), delete block.html), "button-no-text", "info"],
   ];
   it.each(cases)("%s: %#", (kind, spoil, code, level) => {
     const { block, content, descriptor } = moduleWith(kind, true);
@@ -403,3 +419,75 @@ describe("a field of every type", () => {
 
 /** Keeps the type of `WeftModule` in use for the helper above. */
 export type { WeftModule };
+
+describe("the label of a button, which is formatted text", () => {
+  const html = "<p>Los <b>geht's</b> &amp; weiter</p>";
+  const fieldsOfLabel = () => {
+    const { block, content, pageId, blockId } = moduleWith("button", true);
+    // (The label was formatted: its plain words are what the formatting says, without it.)
+    Object.assign(content.pages[pageId].blocks[blockId], fieldHtmlPatch(block, "text", DE, DE, html));
+    return { content, pageId, blockId, get block() { return content.pages[pageId].blocks[blockId] as Block; } };
+  };
+
+  it("keeps the formatting in `html` and the words without it in `text`, in the block itself for the default language", () => {
+    const made = fieldsOfLabel();
+    const own = made.block as unknown as { html: string; text: string };
+    expect(own.html).toBe(html);
+    expect(own.text).toBe("Los geht's & weiter");
+    expect(fieldHtml(made.block, "text", DE, DE)).toBe(html);
+    expect(fieldWording(made.block, "text", DE, DE)).toBe("Los geht's & weiter");
+  });
+
+  it("is a label that was never formatted when it has only plain words (escaped)", () => {
+    const { block } = moduleWith("button", true);
+    expect(fieldHtml(block, "text", DE, DE)).toBe("Beispiel text");
+    (block as unknown as { text: string }).text = "a < b";
+    expect(fieldHtml(block, "text", DE, DE)).toBe("a &lt; b");
+  });
+
+  it("has its own formatting in another language - and the plain words of a translation when it has none", () => {
+    const made = fieldsOfLabel();
+    Object.assign(made.content.pages[made.pageId].blocks[made.blockId], fieldHtmlPatch(made.block, "text", EN, DE, "<p><i>Go</i></p>"));
+    expect(fieldHtml(made.block, "text", EN, DE)).toBe("<p><i>Go</i></p>");
+    expect(fieldWording(made.block, "text", EN, DE)).toBe("Go");
+    expect(fieldHtml(made.block, "text", DE, DE)).toBe(html);
+    // Only plain words in the translation (as an import of plain texts makes them): escaped.
+    const plain = moduleWith("button", true);
+    Object.assign(plain.content.pages[plain.pageId].blocks[plain.blockId], fieldWordingPatch(plain.block, "text", EN, DE, "a < b"));
+    expect(fieldHtml(plain.block, "text", EN, DE)).toBe("a &lt; b");
+  });
+
+  it("swaps with the new default language and back with its formatting", () => {
+    const made = fieldsOfLabel();
+    Object.assign(made.content.pages[made.pageId].blocks[made.blockId], fieldHtmlPatch(made.block, "text", EN, DE, "<p><i>Go</i></p>"));
+    rotateDefaultLanguage(made.content, DE, EN);
+    const rotated = made.block as unknown as { html?: string; text: string };
+    expect(rotated.html).toBe("<p><i>Go</i></p>");
+    expect(rotated.text).toBe("Go");
+    rotateDefaultLanguage(made.content, EN, DE);
+    const back = made.block as unknown as { html?: string; text: string };
+    expect(back.html).toBe(html);
+    expect(back.text).toBe("Los geht's & weiter");
+    // (And the other language has its words again, formatted.)
+    expect(fieldHtml(made.block, "text", EN, DE)).toBe("<p><i>Go</i></p>");
+  });
+
+  it("is exported as its HTML, and what comes back with formatting is written with it", () => {
+    const made = fieldsOfLabel();
+    const file = exportTexts(made.content, { file: "test.weft", to: [EN] });
+    const item = file.items.find((entry) => entry.key === `${made.blockId}#label`);
+    expect(item?.source).toBe(html);
+    expect(item?.context).toContain("Beschriftung");
+    item!.translations[EN] = "<p>Let's <b>go</b></p>";
+    expect(importTexts(made.content, file).problems).toEqual([]);
+    expect(fieldHtml(made.block, "text", EN, DE)).toBe("<p>Let's <b>go</b></p>");
+    expect(fieldWording(made.block, "text", EN, DE)).toBe("Let's go");
+    expect(isTranslated(made.block as never, EN, DE)).toBe(true);
+  });
+
+  it("is looked at for placeholders as HTML, and in the clipboard as its words", () => {
+    const made = fieldsOfLabel();
+    expect(placeholderSources(made.block)).toContain(html);
+    expect(clipboardEntryPlainText({ kind: "block", block: made.block } as never)).toBe("Los geht's & weiter");
+  });
+});

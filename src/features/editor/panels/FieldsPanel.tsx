@@ -101,6 +101,7 @@ export function FieldsPanel({ block, container, page, onUpdate }: { block: Block
       }
       case "effects": {
         const outcome = spec.firesOn;
+        if (!outcome) return null;
         return (
           <div key={name}>
             <EffectListEditor effects={(record[name] as VariableEffect[] | undefined) ?? []} variables={variables} onChange={(effects) => onUpdate({ [name]: effects } as Partial<Block>)} />

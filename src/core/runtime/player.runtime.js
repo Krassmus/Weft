@@ -308,23 +308,6 @@
     return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
-  // The look of a button (core/document/buttonAppearance.ts): only what the author set is written, the stylesheet has the rest.
-  function buttonLookStyle(block) {
-    var look = block.appearance;
-    if (!look) return "";
-    var css = "";
-    // (No background of its own: the stylesheet's, which is the module's accent colour - see stageTheme.css.)
-    if (look.background !== undefined) css += "background:" + (look.background || "transparent") + ";";
-    var width = look.borderWidth !== undefined ? look.borderWidth : 0;
-    if (look.borderWidth !== undefined || look.borderColor !== undefined) {
-      css += width > 0 ? "border:" + width + "cqw solid " + (look.borderColor || "var(--slide-button-bg)") + ";" : "border:none;";
-      // (For the futuristic style, which draws the border again along its cut corners, see stageTheme.css.)
-      if (width > 0) css += "--slide-cut-line:" + (look.borderColor || "var(--slide-button-bg)") + ";--slide-cut-line-width:" + width + "cqw;";
-    }
-    if (look.radius !== undefined) css += "border-radius:" + look.radius + "cqw;";
-    return css;
-  }
-
   // The background and border of a text block (core/document/textBox.ts: keep them in step).
   function textBoxStyle(box) {
     if (!box) return "";
@@ -3135,19 +3118,21 @@
     return wrap;
   }
 
+  // What a button says, in the language the learner works in: its label as HTML ("" with no words: the player's own "Weiter") and its look.
+  function buttonProps(block) {
+    var t = currentTranslation(block);
+    var words = t && t.text !== undefined ? t.text : block.text;
+    return { html: String(words || "").trim() ? buttonLabelHtml(block) : "", look: buttonLookStyle(block.appearance) };
+  }
+
   function renderButtonBlock(block) {
     var wrap = el("div", { class: "weft-block weft-block-button", "data-weft-block": block.id, style: positionStyle(block.position) });
-    var button = el("button", { type: "button", class: "weft-block-button-el", style: buttonLookStyle(block) }, []);
-    var fillButton = function () {
-      // A label with no words in it is the player's own "Weiter".
-      var ownText = currentTranslation(block);
-      var words = ownText && ownText.text !== undefined ? ownText.text : block.text;
-      if (!String(words || "").trim()) button.textContent = uiString("next");
-      else button.innerHTML = buttonLabelHtml(block);
-      applyVariablesToNode(button);
-    };
-    fillButton();
-    languageRefreshers.push(fillButton);
+    // The label and the look are what renderButton (blocks/button/render.js, inlined ahead of this file) draws; what a click does is below.
+    var instance = renderButton(wrap, buttonProps(block), { mode: "play", text: uiString, applyVariables: applyVariablesToNode });
+    var button = instance.button;
+    languageRefreshers.push(function () {
+      instance.update(buttonProps(block));
+    });
     // The click is an event of the page's graph (see core/eventGraph): whatever the author connected to it happens - by default
     // "Nächste Folie". Besides that:
     var clickEventId = "button-click:" + block.id;

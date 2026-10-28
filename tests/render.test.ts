@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { parseHTML } from "linkedom";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { buttonLookStyle, renderButton } from "../src/core/blocks/button/render.js";
 import { renderChecker } from "../src/core/blocks/checker/render.js";
 import { renderIframe } from "../src/core/blocks/iframe/render.js";
 import { renderLanguage } from "../src/core/blocks/language/render.js";
@@ -55,6 +56,7 @@ const WORDS: Record<string, string> = {
   solutionAttemptsLeft: "Noch {n}",
   embedded: "Eingebettete Seite",
   thanks: "Danke!",
+  next: "Weiter",
   noAddress: "(keine Adresse)",
 };
 const text = (key: string) => WORDS[key] ?? "";
@@ -71,7 +73,7 @@ const ICONS = {
 };
 
 /** Every render.js there is must be run here: this is the list of what is run (a new one fails the test below until it is added). */
-const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker"];
+const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button"];
 
 describe("the render functions", () => {
   it("are all tested here", () => {
@@ -88,7 +90,7 @@ describe("the render functions", () => {
     const inlined = source.replace(/^export /gm, "");
     expect(inlined).not.toMatch(/\bexport\b\s+(function|var|const|let|default)/);
     // The way the page has it: a script of its own that leaves the function there for the player after it.
-    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker" }[kind];
+    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton" }[kind];
     expect(new Function(`${inlined}; return typeof ${name};`)()).toBe("function");
   });
 });
@@ -534,4 +536,65 @@ describe.each(MODES)("a checker drawn for %s", (mode) => {
       expect((find(root, ".weft-quiz-feedback") as HTMLElement).hidden).toBe(true);
     });
   }
+});
+
+// ---- the button -------------------------------------------------------------------------------------------------------------------------
+
+describe("the look of a button", () => {
+  it("is written as CSS only for what the author set - the stylesheet has the rest", () => {
+    expect(buttonLookStyle(undefined)).toBe("");
+    expect(buttonLookStyle({})).toBe("");
+    expect(buttonLookStyle({ background: "#ff0000" })).toBe("background:#ff0000;");
+    expect(buttonLookStyle({ background: null as unknown as string })).toBe("background:transparent;");
+    expect(buttonLookStyle({ radius: 1.5 })).toBe("border-radius:1.5cqw;");
+    expect(buttonLookStyle({ borderWidth: 0 })).toBe("border:none;");
+    expect(buttonLookStyle({ borderWidth: 0.4, borderColor: "#00f" })).toBe("border:0.4cqw solid #00f;--slide-cut-line:#00f;--slide-cut-line-width:0.4cqw;");
+    // (A border width without a colour has the button's own colour; a colour alone has no width: none.)
+    expect(buttonLookStyle({ borderWidth: 0.2 })).toContain("solid var(--slide-button-bg)");
+    expect(buttonLookStyle({ borderColor: "#00f" })).toBe("border:none;");
+  });
+});
+
+describe.each(MODES)("a button drawn for %s", (mode) => {
+  const props = { html: "<p>Los <b>geht's</b></p>", look: "background:#ff0000;" };
+  const context = () => ({ mode, text, applyVariables: vi.fn() });
+
+  it("is drawn with its formatted label and its look, can be drawn again, and goes away", () => {
+    const root = element();
+    const ctx = context();
+    const instance = renderButton(root, props, ctx);
+    expect(instance.button.className).toContain("weft-block-button-el");
+    expect(instance.button.innerHTML).toBe("<p>Los <b>geht's</b></p>");
+    expect(instance.button.getAttribute("style")).toContain("background");
+    expect(ctx.applyVariables).toHaveBeenCalledTimes(1);
+    instance.update({ ...props, html: "<p>Go</p>", look: "" });
+    expect(instance.button.innerHTML).toBe("<p>Go</p>");
+    expect(ctx.applyVariables).toHaveBeenCalledTimes(2);
+    instance.destroy();
+    expect(root.childNodes.length).toBe(0);
+  });
+
+  it("says the player's own word where the label has no words", () => {
+    const root = element();
+    const instance = renderButton(root, { html: "", look: "" }, context());
+    expect(instance.button.textContent).toBe("Weiter");
+    WORDS.next = "Next";
+    instance.update({ html: "", look: "" });
+    expect(instance.button.textContent).toBe("Next");
+    WORDS.next = "Weiter";
+  });
+
+  it("is drawn in a place that has no variables", () => {
+    const root = element();
+    const instance = renderButton(root, props, { mode, text });
+    expect(instance.button.textContent).toBe("Los geht's");
+  });
+
+  it(mode === "play" ? "is a real button, which the player adds its listeners to" : "is only a picture, drawn as a div: nothing to focus or press (and html2canvas draws its words)", () => {
+    const root = element();
+    const instance = renderButton(root, props, context());
+    expect(instance.button.tagName).toBe(mode === "play" ? "BUTTON" : "DIV");
+    expect(instance.button.getAttribute("type")).toBe(mode === "play" ? "button" : null);
+    expect(instance.button.className).toBe(mode === "play" ? "weft-block-button-el" : "weft-block-button-el is-picture");
+  });
 });

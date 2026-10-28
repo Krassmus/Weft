@@ -1,5 +1,6 @@
 import type { Block } from "../types";
 import type { BlockDescriptor, FieldSpec, ListField, TaskSpec, TextField } from "./types";
+import { buttonBlock } from "./button/descriptor";
 import { checkerBlock } from "./checker/descriptor";
 import { galleryBlock } from "./gallery/descriptor";
 import { iframeBlock } from "./iframe/descriptor";
@@ -25,6 +26,7 @@ registerBlock(linkBlock);
 registerBlock(progressBlock);
 registerBlock(languageBlock);
 registerBlock(checkerBlock);
+registerBlock(buttonBlock);
 
 /** The descriptor of a kind, if it has one. */
 export function descriptorOf<B extends Block>(block: B): BlockDescriptor<B> | undefined;
@@ -91,14 +93,33 @@ export function assetIdsOfFields(block: Block): string[] {
 
 type Flag = "shown" | "variables";
 
-function wordingsWith(block: Block, flag: Flag): { own: string; translated: string[] }[] {
+const escapeText = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/** One text of a block in every language: as the block has it and as each translation has it. `html`: they are HTML (a formatted text: where there is no
+ * formatting its plain words, escaped) - else plain texts. */
+export interface Wording {
+  own: string;
+  translated: string[];
+  html: boolean;
+}
+
+function wordingsWith(block: Block, flag: Flag): Wording[] {
   const record = block as unknown as Record<string, unknown>;
   const translations = Object.values((record.translations as Record<string, Record<string, unknown>> | undefined) ?? {});
-  const wordings: { own: string; translated: string[] }[] = [];
+  const wordings: Wording[] = [];
   for (const [name, spec] of fieldsOf(block)) {
     if (spec.type === "text" && spec[flag]) {
       const key = spec.translationKey || name;
-      wordings.push({ own: (record[name] as string | undefined) ?? "", translated: translations.flatMap((t) => (typeof t[key] === "string" ? [t[key] as string] : [])) });
+      if (spec.formatted) {
+        // (The formatted words where there are some, else the plain ones, escaped - in each language.)
+        wordings.push({
+          own: (record[spec.formatted] as string | undefined) ?? escapeText((record[name] as string | undefined) ?? ""),
+          translated: translations.flatMap((t) => (typeof t.html === "string" ? [t.html] : typeof t[key] === "string" ? [escapeText(t[key] as string)] : [])),
+          html: true,
+        });
+      } else {
+        wordings.push({ own: (record[name] as string | undefined) ?? "", translated: translations.flatMap((t) => (typeof t[key] === "string" ? [t[key] as string] : [])), html: false });
+      }
     } else if (spec.type === "list") {
       const textName = itemTextName(spec);
       if (!textName || !(spec.item[textName] as TextField)[flag]) continue;
@@ -109,6 +130,7 @@ function wordingsWith(block: Block, flag: Flag): { own: string; translated: stri
             const words = (t.items as Record<string, string> | undefined)?.[item.id];
             return typeof words === "string" ? [words] : [];
           }),
+          html: false,
         });
       }
     }
@@ -120,23 +142,27 @@ function wordingsWith(block: Block, flag: Flag): { own: string; translated: stri
  * The texts of a block that the learner sees (the fields marked `shown`, and those of the items of its lists), each as the block's own wording and
  * every other language's - for a block without a descriptor none.
  */
-export function shownWordings(block: Block): { own: string; translated: string[] }[] {
+export function shownWordings(block: Block): Wording[] {
   return wordingsWith(block, "shown");
 }
 
 /** The texts of a block in which the player puts in the values of variables for placeholders (the fields marked `variables`): as `shownWordings`. */
-export function variableWordings(block: Block): { own: string; translated: string[] }[] {
+export function variableWordings(block: Block): Wording[] {
   return wordingsWith(block, "variables");
 }
 
-/** The texts of a block that `weft text export` lists: its translatable text fields that say what they are (`cli`), in the order of the descriptor. */
-export function exportedTexts(block: Block): { name: string; key: string; part: string; role: string; value: string }[] {
+/**
+ * The texts of a block that `weft text export` lists: its translatable text fields that say what they are (`cli`), in the order of the descriptor. `html`:
+ * the value is HTML (a formatted text, or its plain words escaped), else a plain text.
+ */
+export function exportedTexts(block: Block): { name: string; key: string; part: string; role: string; value: string; html: boolean; formatted?: string }[] {
   const record = block as unknown as Record<string, unknown>;
-  return fieldsOf(block).flatMap(([name, spec]) =>
-    spec.type === "text" && spec.translatable && spec.cli
-      ? [{ name, key: spec.translationKey ?? name, part: spec.cli.part, role: spec.cli.role, value: (record[name] as string | undefined) ?? "" }]
-      : [],
-  );
+  return fieldsOf(block).flatMap(([name, spec]) => {
+    if (spec.type !== "text" || !spec.translatable || !spec.cli) return [];
+    const plain = (record[name] as string | undefined) ?? "";
+    const value = spec.formatted ? ((record[spec.formatted] as string | undefined) ?? escapeText(plain)) : plain;
+    return [{ name, key: spec.translationKey ?? name, part: spec.cli.part, role: spec.cli.role, value, html: !!spec.formatted, formatted: spec.formatted }];
+  });
 }
 
 /** The texts of the items of a block's lists that `weft text export` lists: one for every item that has a caption-like text, with the number of the item. */

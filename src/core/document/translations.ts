@@ -55,10 +55,6 @@ export function listItemHtml(block: ListBlock, itemId: string, language: string 
   return translationOf(block.translations, language, defaultLanguage)?.items?.[itemId] ?? own;
 }
 
-export function buttonText(block: ButtonBlock, language: string | null, defaultLanguage: string | null): string {
-  return translationOf(block.translations, language, defaultLanguage)?.text ?? block.text;
-}
-
 /** The words of a card of a matching in `language`: its translation if there is one, else the card's own (the default language's). */
 export function matchingItemText(block: MatchingBlock, item: MatchItem, language: string | null, defaultLanguage: string | null): string {
   return translationOf(block.translations, language, defaultLanguage)?.items?.[item.id] ?? item.text;
@@ -144,6 +140,34 @@ export function fieldWordingPatch(block: Block, name: string, language: string |
   return wordingPatch(block as Translatable, language, defaultLanguage, { [name]: text } as Partial<Translatable>, (t) => ({ ...t, [key]: text })) as Partial<Block>;
 }
 
+/**
+ * The formatted words (HTML) of a text field that has a formatted variant (a button's label; see TextField.formatted) in `language`: its translation's
+ * formatting, else its translation's plain words escaped, else the block's own formatting - a text that was never formatted is its plain words.
+ */
+export function fieldHtml(block: Block, name: string, language: string | null, defaultLanguage: string | null): string {
+  const key = wordingKey(block, name);
+  const formatted = formattedOf(block, name);
+  const own = block as unknown as Record<string, string | undefined>;
+  const translation = translationOf((block as Translatable).translations, language, defaultLanguage);
+  if (translation?.html !== undefined) return translation.html;
+  const plain = translation?.[key] as string | undefined;
+  if (plain !== undefined) return escapeHtml(plain);
+  return (formatted ? own[formatted] : undefined) ?? escapeHtml(own[name] ?? "");
+}
+
+/** The patch that stores formatted words as the wording in `language` (their plain words with them): into the block for the default language. */
+export function fieldHtmlPatch(block: Block, name: string, language: string | null, defaultLanguage: string | null, html: string): Partial<Block> {
+  const key = wordingKey(block, name);
+  const formatted = formattedOf(block, name) ?? "html";
+  const text = plainTextOfHtml(html);
+  return wordingPatch(block as Translatable, language, defaultLanguage, { [formatted]: html, [name]: text } as Partial<Translatable>, (t) => ({ ...t, html, [key]: text })) as Partial<Block>;
+}
+
+function formattedOf(block: Block, name: string): string | undefined {
+  const spec = descriptorOf(block)?.fields[name as never] as FieldSpec | undefined;
+  return spec?.type === "text" ? spec.formatted : undefined;
+}
+
 /** The key in a BlockTranslation where the wording of a field is kept. */
 function wordingKey(block: Block, name: string): keyof BlockTranslation {
   const spec = descriptorOf(block)?.fields[name as never] as FieldSpec | undefined;
@@ -151,10 +175,10 @@ function wordingKey(block: Block, name: string): keyof BlockTranslation {
 }
 
 /** The translatable text fields of a block that describes itself: their names and the keys of their wording in a translation. */
-function translatableFields(block: Block): { name: string; key: keyof BlockTranslation }[] {
+function translatableFields(block: Block): { name: string; key: keyof BlockTranslation; formatted?: string }[] {
   return fieldsOf(block)
     .filter(([, spec]) => spec.type === "text" && spec.translatable)
-    .map(([name]) => ({ name, key: wordingKey(block, name) }));
+    .map(([name, spec]) => ({ name, key: wordingKey(block, name), formatted: spec.type === "text" ? spec.formatted : undefined }));
 }
 
 /** The presenter notes of a page in `language` (see Page.notes): the translation if there is one, else the default language's. */
@@ -181,19 +205,6 @@ export function plainTextOfHtml(html: string): string {
     .trim();
 }
 
-/** A button's label with its formatting - a label that was never formatted is its plain text. */
-export function buttonHtml(block: ButtonBlock, language: string | null, defaultLanguage: string | null): string {
-  const translation = translationOf(block.translations, language, defaultLanguage);
-  if (translation?.html !== undefined) return translation.html;
-  if (translation?.text !== undefined) return escapeHtml(translation.text);
-  return block.html ?? escapeHtml(block.text);
-}
-
-export function buttonHtmlPatch(block: ButtonBlock, language: string | null, defaultLanguage: string | null, html: string) {
-  const text = plainTextOfHtml(html);
-  return wordingPatch(block, language, defaultLanguage, { html, text }, (t) => ({ ...t, html, text })) as Partial<ButtonBlock>;
-}
-
 /** Whether the block's main text has its own wording in `language` - always true for the default
  * language (it IS the block's own wording). Drives the "not translated yet" hint. */
 export function isTranslated(block: Translatable, language: string | null, defaultLanguage: string | null): boolean {
@@ -209,7 +220,9 @@ export function isTranslated(block: Translatable, language: string | null, defau
   if (descriptorOf(block)) {
     // (Every text of the block that has words has to be there in the language.)
     const own = block as unknown as Record<string, string | undefined>;
-    const textsThere = translatableFields(block).every(({ name, key }) => (own[name] ?? "").trim() === "" || translation?.[key] !== undefined);
+    const textsThere = translatableFields(block).every(
+      ({ name, key, formatted }) => (own[name] ?? "").trim() === "" || translation?.[key] !== undefined || (!!formatted && translation?.html !== undefined),
+    );
     // (And the first item of every list: the others are translated with it, as with a list or a matching.)
     const itemsThere = listFieldsOf(block).every(([name]) => {
       const first = listItems(block, name)[0];
@@ -336,10 +349,6 @@ export function listMergePatch(
   return { items, translations: { ...block.translations, [language]: { ...existing, items: translated } } };
 }
 
-export function buttonTextPatch(block: ButtonBlock, language: string | null, defaultLanguage: string | null, text: string) {
-  return wordingPatch(block, language, defaultLanguage, { text }, (t) => ({ ...t, text })) as Partial<ButtonBlock>;
-}
-
 /** The words of a revealer in `language`: what it has in that language, else the block's own wording (the default language's). */
 export interface RevealerWording {
   title: string;
@@ -416,10 +425,20 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       const own = block as unknown as Record<string, string | undefined>;
       const incomingWords = (block as Translatable).translations?.[newDefault];
       const outgoingWords: BlockTranslation = {};
-      for (const { name, key } of translatableFields(block)) {
+      for (const { name, key, formatted } of translatableFields(block)) {
         outgoingWords[key as "text"] = own[name] ?? "";
         const translated = incomingWords?.[key as "text"];
-        if (translated !== undefined) own[name] = translated;
+        if (formatted) {
+          // (Formatted words: the formatting goes along where there is some - else the words it had are plain ones.)
+          if (own[formatted] !== undefined) outgoingWords.html = own[formatted];
+          if (incomingWords?.html !== undefined) {
+            own[formatted] = incomingWords.html;
+            own[name] = translated ?? plainTextOfHtml(incomingWords.html);
+          } else if (translated !== undefined) {
+            own[name] = translated;
+            delete own[formatted];
+          }
+        } else if (translated !== undefined) own[name] = translated;
       }
       for (const [listName, spec] of listFieldsOf(block)) {
         const textName = itemTextName(spec);
@@ -436,22 +455,12 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       (block as Translatable).translations = translations;
       continue;
     }
-    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "list") continue;
+    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "list") continue;
     const incoming = block.translations?.[newDefault];
     const outgoing: BlockTranslation = {};
     if (block.kind === "text" || block.kind === "cloze") {
       outgoing.html = block.html;
       if (incoming?.html !== undefined) block.html = incoming.html;
-    } else if (block.kind === "button") {
-      outgoing.text = block.text;
-      if (block.html !== undefined) outgoing.html = block.html;
-      if (incoming?.html !== undefined) {
-        block.html = incoming.html;
-        block.text = incoming.text ?? plainTextOfHtml(incoming.html);
-      } else if (incoming?.text !== undefined) {
-        block.text = incoming.text;
-        delete block.html;
-      }
     } else if (block.kind === "matching") {
       const cards = [...block.sources, ...block.targets];
       outgoing.items = Object.fromEntries(cards.map((item) => [item.id, item.text]));

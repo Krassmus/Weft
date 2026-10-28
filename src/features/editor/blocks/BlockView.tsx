@@ -15,9 +15,9 @@ import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
 import { aspectRatioNumeric } from "../../../core/aspectRatio";
 import { buttonAppearanceCss } from "../../../core/document/buttonAppearance";
 import {
-  buttonHtml,
-  buttonHtmlPatch,
-  buttonText,
+  fieldHtml,
+  fieldHtmlPatch,
+  fieldWording,
   listItemHtml,
   listItemPatch,
   listMergePatch,
@@ -776,7 +776,7 @@ function BlockContent({
 
   // A block that describes itself (see core/blocks) is drawn by its view - see blockViews.tsx.
   const view = viewOf(block.kind);
-  if (view) {
+  if (view && !view.ownCanvas) {
     const Canvas = view.Canvas ?? view.View;
     return <Canvas block={block} lang={lang} defaultLang={defaultLang} selected={selected} mode="edit" onUpdate={onUpdate} />;
   }
@@ -875,20 +875,20 @@ function BlockContent({
       // The label is edited right here - only its words: its typeface and size are the module's style of interactive elements, so the keys
       // for bold, italic and underline do nothing here. A label with no words in it stands for the player's own "Weiter" - shown as long as
       // the button is not being edited.
-      const hasWords = buttonText(block, lang, defaultLang).trim() !== "";
+      const hasWords = fieldWording(block, "text", lang, defaultLang).trim() !== "";
       return (
         <div className="weft-edit-block-button" style={buttonAppearanceCss(block)}>
           {!hasWords && !selected && <span className="weft-edit-block-button-default">{playerStringsFor(lang).next}</span>}
           <EditableRichText
             className={"weft-edit-block-button-text" + (!hasWords && !selected ? " is-hidden" : "")}
-            html={buttonHtml(block, lang, defaultLang)}
+            html={fieldHtml(block, "text", lang, defaultLang)}
             editable={selected && editing}
             wholeMode={selected && !editing}
             frameSelect={frameSelect}
             onKeyDown={(event) => {
               if ((event.metaKey || event.ctrlKey) && ["b", "i", "u"].includes(event.key.toLowerCase())) event.preventDefault();
             }}
-            onCommit={(html) => onUpdate?.(buttonHtmlPatch(block, lang, defaultLang, html))}
+            onCommit={(html) => onUpdate?.(fieldHtmlPatch(block, "text", lang, defaultLang, html) as Partial<Block>)}
           />
         </div>
       );

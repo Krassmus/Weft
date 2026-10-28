@@ -38,6 +38,9 @@ export interface TextField {
   shown?: boolean;
   /** The player puts the value of a variable in for a placeholder in it ("{{punkte}}"): it is found when a variable is looked for, and checked. */
   variables?: boolean;
+  /** The words also exist with their formatting (HTML), kept in this other field of the block (a button's `html`; `text` is the plain words, always
+   * what the formatted ones say without the formatting). Absent: only plain text. The translations keep both: `html` and the field's own key. */
+  formatted?: string;
   /** A value that is valid for the field, where not every text is (an address): what the tests fill it with. */
   sample?: string;
   /** `weft text export`: the key of the text is `<block>#<part>`, `role` says what it is for (German, like the tool). */
@@ -60,8 +63,8 @@ export interface IntField {
 /** A list of changes to variables that happens at one of the block's events. */
 export interface EffectsField {
   type: "effects";
-  /** The outcome of the task it happens at. */
-  firesOn: "richtig" | "falsch";
+  /** The outcome of the task it happens at (a block that is no task: absent). */
+  firesOn?: "richtig" | "falsch";
   /** What `weft validate` says it is for, in "… Effekt ohne Variable" (German). */
   cliWhat: string;
   ui?: FieldUi;
@@ -162,7 +165,7 @@ export interface BlockDescriptor<B extends Block = Block> {
   /** What the panel in the sidebar shows, in what order. Absent: the block's panel is its own (panels/BlockPanel.tsx). */
   panel?: PanelSpec;
   /** What `weft inspect` says about the block, in one line (German). */
-  summary?(block: B): string;
+  summary?(block: B, context: { labels: Record<string, string> }): string;
   /** What is wrong with the block (`weft validate`; German). */
-  validate?(block: B, module: { assets: { id: string }[]; variables: { name: string; type: string }[] }): BlockProblem[];
+  validate?(block: B, module: { assets: { id: string }[]; variables: { name: string; type: string }[]; pages: Record<string, unknown> }): BlockProblem[];
 }

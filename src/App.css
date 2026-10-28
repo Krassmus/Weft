@@ -597,26 +597,6 @@ body.weft-dragging .weft-block-list button {
   font-size: 2.5cqw;
 }
 
-.weft-thumb-block-button {
-  box-sizing: border-box;
-  background: var(--slide-button-bg);
-  color: var(--slide-button-fg);
-  border-radius: var(--slide-ui-radius);
-  clip-path: var(--slide-ui-clip);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--slide-ui-font);
-  font-weight: var(--slide-ui-weight);
-  letter-spacing: var(--slide-ui-spacing);
-  font-size: 5px;
-  font-size: calc(2cqw * var(--slide-ui-scale));
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 0 2px;
-}
-
 img.weft-thumb-block {
   object-fit: contain;
 }
@@ -2361,10 +2341,6 @@ button.weft-timeline-node-icon:hover {
 
 .weft-edit-block-button-text.is-hidden {
   display: none;
-}
-
-.weft-thumb-block-button-text p {
-  margin: 0;
 }
 
 .weft-edit-block-quiz {

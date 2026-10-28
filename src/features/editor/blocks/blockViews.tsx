@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import type { Block, CheckerBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ProgressBlock, SolutionBlock } from "../../../core/types";
+import type { Block, ButtonBlock, CheckerBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ProgressBlock, SolutionBlock } from "../../../core/types";
+import { ButtonView } from "./ButtonView";
 import { CheckerCanvas } from "./CheckerCanvas";
 import { CheckerView } from "./CheckerView";
 import { GalleryCanvas } from "./GalleryCanvas";
@@ -36,6 +37,8 @@ export interface BlockViewSpec<B extends Block = Block> {
   Canvas?(props: BlockViewProps<B>): ReactNode;
   /** Dragged from anywhere on it (not only by its frame). */
   freelyMovable: boolean;
+  /** The canvas draws the block by itself (BlockView): this is only what the thumbnails and the PDF draw. */
+  ownCanvas?: boolean;
 }
 
 const solutionView: BlockViewSpec<SolutionBlock> = {
@@ -75,6 +78,13 @@ const checkerView: BlockViewSpec<CheckerBlock> = {
   freelyMovable: true,
 };
 
+const buttonView: BlockViewSpec<ButtonBlock> = {
+  View: ({ block, lang, defaultLang, mode }) => <ButtonView block={block} lang={lang} defaultLang={defaultLang} mode={mode} />,
+  // (Its label is written in place on the canvas, with the editor's rich text.)
+  ownCanvas: true,
+  freelyMovable: false,
+};
+
 const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   solution: solutionView as BlockViewSpec<never>,
   gallery: galleryView as BlockViewSpec<never>,
@@ -83,6 +93,7 @@ const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   progress: progressView as BlockViewSpec<never>,
   language: languageView as BlockViewSpec<never>,
   checker: checkerView as BlockViewSpec<never>,
+  button: buttonView as BlockViewSpec<never>,
 };
 
 /** The editor's views of a kind, if it has them here. */

@@ -27,7 +27,7 @@ export function blockSummary(block: Block, content: WeftModule, labels: Record<s
 function blockContent(block: Block, content: WeftModule, labels: Record<string, string>): string {
   // A block that describes itself (see core/blocks) says what it is itself.
   const summary = descriptorOf(block)?.summary;
-  if (summary) return summary(block as never);
+  if (summary) return summary(block as never, { labels });
   switch (block.kind) {
     case "text":
       return words(block.html) || "(leer)";
@@ -45,18 +45,9 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
       const correct = block.correctOptionIds.length;
       return `${words(block.questionHtml, 80) || "(ohne Frage)"} [${options} Optionen${block.open ? ", offen" : `, ${correct} richtig`}]`;
     }
-    case "button": {
-      const label = words(block.html ?? block.text, 40) || "(ohne Text)";
-      const action =
-        block.action === "advance"
-          ? "Weiter"
-          : block.action === "prev"
-            ? "Vorherige Folie"
-            : block.action === "goto"
-              ? `springt zu Folie ${(block.targetPageId && labels[block.targetPageId]) ?? "(gelöscht)"}`
-              : "löst ein Ereignis aus";
-      return `„${label}" → ${action}`;
-    }
+    case "button":
+      // (Described above.)
+      return "";
     case "progress":
       // (Described above.)
       return "";

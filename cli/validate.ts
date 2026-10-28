@@ -53,7 +53,6 @@ const KIND_DEFINITIONS: Record<string, string> = {
   image: "ImageBlock",
   video: "VideoBlock",
   audio: "AudioBlock",
-  button: "ButtonBlock",
   matching: "MatchingBlock",
   sort: "SortBlock",
   quiz: "QuizBlock",
@@ -187,8 +186,6 @@ function effectsOf(block: Block): { effects: VariableEffect[]; what: string }[] 
     for (const [name, spec] of fieldsOf(block)) {
       if (spec.type === "effects") groups.push({ effects: ((block as unknown as Record<string, VariableEffect[] | undefined>)[name]) ?? [], what: spec.cliWhat });
     }
-  } else if (block.kind === "button") {
-    groups.push({ effects: block.onClick ?? [], what: "beim Klick" });
   }
   return groups;
 }
@@ -439,15 +436,6 @@ export function validate(loaded: LoadedWeft): Finding[] {
       }
     }
 
-    // Button.
-    if (block.kind === "button") {
-      if (block.action === "goto") {
-        if (!block.targetPageId) add("warning", "button-target-empty", "Button springt zu einer Folie, hat aber kein Ziel.", { ...here, hint: "targetPageId setzen." });
-        else if (!content.pages[block.targetPageId]) add("error", "button-target-missing", "Button springt zu einer Folie, die es nicht mehr gibt.", { ...here, hint: "Ein vorhandenes Ziel (targetPageId) wählen." });
-      }
-      if (!plainTextOfHtml(block.html ?? block.text).trim()) add("info", "button-no-text", "Button ohne Text (der Player zeigt „Weiter“).", here);
-    }
-
     // Matching.
     if (block.kind === "matching") {
       const sources = block.sources ?? [];
@@ -545,8 +533,8 @@ export function validate(loaded: LoadedWeft): Finding[] {
       }
     };
     // (A block that describes itself: any of its texts has words.)
-    if (languages.length > 1 && descriptorOf(block) && [...exportedTexts(block), ...exportedItemTexts(block)].some(({ value }) => value.trim() !== "")) markUntranslated();
-    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "matching" || block.kind === "sort" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
+    if (languages.length > 1 && descriptorOf(block) && [...exportedTexts(block), ...exportedItemTexts(block)].some((text) => ("html" in text && text.html ? plainTextOfHtml(text.value) : text.value).trim() !== "")) markUntranslated();
+    if (languages.length > 1 && (block.kind === "text" || block.kind === "matching" || block.kind === "sort" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
       const hasWords =
         block.kind === "quiz"
           ? plainTextOfHtml(block.questionHtml).trim() !== ""
@@ -556,8 +544,6 @@ export function validate(loaded: LoadedWeft): Finding[] {
               ? block.items.some((item) => item.text.trim() !== "")
             : block.kind === "matching"
               ? [...block.sources, ...block.targets].some((item) => item.text.trim() !== "")
-              : block.kind === "button"
-              ? block.text.trim() !== ""
               : plainTextOfHtml(block.html).trim() !== "";
       // A text that stands for a placeholder of the layout is the page's own, and has its words in each language like any other.
       if (hasWords) markUntranslated();

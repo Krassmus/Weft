@@ -1,0 +1,46 @@
+/* A button (ButtonBlock) as renderButton (blocks/button/render.js) draws it. Embedded into the exported page ahead of player.runtime.css (which has what the
+   pointer does to it, by style) and imported by the editor, so that the thumbnails and the PDF draw what the player draws. */
+
+/* The label is formatted text (paragraphs, colours, ...): the paragraphs sit tight and centred in the button. */
+.weft-block-button-el p {
+  margin: 0;
+}
+
+.weft-block-button-el {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 0 12px;
+  text-align: center;
+  /* The quiz's submit button (.weft-quiz-submit), without the tick: same colours, letters, corners, no border. */
+  border: none;
+  border-radius: var(--slide-ui-radius);
+  clip-path: var(--slide-ui-clip);
+  background: var(--slide-button-bg);
+  color: var(--slide-button-fg);
+  font-family: var(--slide-ui-font);
+  font-size: 16px;
+  font-size: calc(1.7cqw * var(--slide-ui-scale));
+  font-weight: var(--slide-ui-weight);
+  letter-spacing: var(--slide-ui-spacing);
+  transition: background-color 0.15s, box-shadow 0.15s, transform 0.15s, filter 0.15s;
+  cursor: pointer;
+}
+
+.weft-block-button-el:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* The picture of a button (a <div>, see renderButton): the words are centred in it as a real button centres them. */
+.weft-block-button-el.is-picture {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: normal;
+  cursor: default;
+}
+
+.weft-block-button-el.is-picture > p {
+  margin: 0;
+}

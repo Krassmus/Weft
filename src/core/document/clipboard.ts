@@ -81,8 +81,6 @@ function blockLines(block: Block): string[] {
     case "placeholder":
     case "cloze":
       return plainLinesOfHtml(block.html);
-    case "button":
-      return plainLinesOfHtml(block.html ?? block.text);
     case "matching":
       return [...block.sources, ...block.targets].map((item) => item.text).filter((text) => text.trim() !== "");
     case "sort":
@@ -99,7 +97,9 @@ function blockLines(block: Block): string[] {
       return [block.tex];
     default:
       // (A block that describes itself says which of its texts are seen.)
-      return shownWordings(block).map(({ own }) => own).filter((text) => text.trim() !== "");
+      return shownWordings(block)
+        .flatMap(({ own, html }) => (html ? plainLinesOfHtml(own) : [own]))
+        .filter((text) => text.trim() !== "");
   }
 }
 

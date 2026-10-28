@@ -2,6 +2,7 @@ import { orderedValues } from "../src/core/document/ordering";
 import { pageLabels } from "../src/core/document/pageLabels";
 import { branchPageIds, sequenceOf } from "../src/core/document/sequence";
 import { buildLanguageCatalog } from "../src/core/i18n/languages";
+import { descriptorOf, exportedTexts } from "../src/core/blocks/registry";
 import { plainTextOfHtml } from "../src/core/document/translations";
 import type { Block, WeftModule } from "../src/core/types";
 import { CliError } from "./load";
@@ -99,13 +100,6 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
         .map((item, index) => ({ item, role: `Bild ${index + 1} (Bildunterschrift)` }))
         .filter(({ item }) => hasWords(item.caption))
         .map(({ item, role }) => ({ key: `${id}#item:${item.id}`, source: item.caption.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role }));
-    case "solution": {
-      const plain = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      return [
-        ...(hasWords(block.solution ?? "") ? [{ key: `${id}#solution`, source: plain(block.solution), role: "Lösungswort (das richtige Wort)" }] : []),
-        ...(hasWords(block.placeholder ?? "") ? [{ key: `${id}#label`, source: plain(block.placeholder as string), role: "Text im leeren Feld" }] : []),
-      ];
-    }
     case "link":
     case "checker":
       return hasWords(block.text) ? [{ key: `${id}#label`, source: block.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role: "Text" }] : [];
@@ -118,7 +112,10 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
       return hasWords(source) ? [{ key: `${id}#label`, source, role: "Beschriftung" }] : [];
     }
     default:
-      return [];
+      // A block that describes itself (see core/blocks): its translatable texts are plain texts.
+      return exportedTexts(block)
+        .filter(({ value }) => hasWords(value))
+        .map(({ part, role, value }) => ({ key: `${id}#${part}`, source: value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role }));
   }
 }
 
@@ -141,17 +138,20 @@ function htmlToPlain(html: string): string {
     .trim();
 }
 
-const KIND_NAMES: Record<string, string> = { matching: "Matching", sort: "Sortierrätsel", gallery: "Bildergalerie", solution: "Lösungswort", checker: "Checker", link: "Link", text: "Text", cloze: "Lückentext", quiz: "Quiz", list: "Liste", button: "Button", revealer: "Info-Symbol" };
+const KIND_NAMES: Record<string, string> = { matching: "Matching", sort: "Sortierrätsel", gallery: "Bildergalerie", checker: "Checker", link: "Link", text: "Text", cloze: "Lückentext", quiz: "Quiz", list: "Liste", button: "Button", revealer: "Info-Symbol" };
 
 /** The text a block has in `language`, if it has been translated (the block's own wording is not a translation). */
 function existingTranslation(block: Block, key: string, language: string): string {
   const translation = (block as { translations?: Record<string, { html?: string; questionHtml?: string; options?: Record<string, string>; items?: Record<string, string>; text?: string; explanation?: string; title?: string; body?: string; alt?: string; startLabel?: string; endLabel?: string }> }).translations?.[language];
   if (!translation) return "";
   const part = key.slice(key.indexOf("#") + 1);
+  // (A block that describes itself: the texts it exports are plain, escaped.)
+  const field = exportedTexts(block).find((text) => text.part === part);
+  if (field) return ((translation as Record<string, string | undefined>)[field.key] ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   if (part === "html" || part === "label") return translation.html ?? (part === "label" ? (translation.text ?? "") : "");
   if (part === "question") return translation.questionHtml ?? "";
   if (part === "explanation") return translation.explanation ? plainToHtml(translation.explanation) : "";
-  if (part === "title" || part === "body" || part === "alt" || part === "solution") return translation[part] ? plainToHtml(translation[part] as string) : "";
+  if (part === "title" || part === "body" || part === "alt") return translation[part] ? plainToHtml(translation[part] as string) : "";
   if (part === "button") return translation.text ? plainToHtml(translation.text) : "";
   if (part === "start" || part === "end") return translation[part === "start" ? "startLabel" : "endLabel"] ? plainToHtml(translation[part === "start" ? "startLabel" : "endLabel"] as string) : "";
   if (part.startsWith("option:")) return translation.options?.[part.slice(7)] ?? "";
@@ -173,7 +173,7 @@ export function collectTexts(content: WeftModule): { key: string; source: string
       for (const item of textsOfBlock(block)) {
         if (seen.has(item.key)) continue;
         seen.add(item.key);
-        result.push({ key: item.key, source: item.source, context: `${where} · ${KIND_NAMES[block.kind] ?? block.kind} · ${item.role}`, block });
+        result.push({ key: item.key, source: item.source, context: `${where} · ${descriptorOf(block)?.cliName ?? KIND_NAMES[block.kind] ?? block.kind} · ${item.role}`, block });
       }
     }
   };
@@ -376,13 +376,15 @@ export function importTexts(content: WeftModule, file: TextsFile): ImportReport 
       }
       const translations = (block.translations ??= {});
       const target = (translations[language] ??= {});
-      if (part === "html") target.html = translated;
+      const described = exportedTexts(block).find((text) => text.part === part);
+      if (described) (target as Record<string, string>)[described.key] = htmlToPlain(translated);
+      else if (part === "html") target.html = translated;
       else if (part === "label") {
-        if (block.kind !== "link" && block.kind !== "checker" && block.kind !== "solution") target.html = translated;
+        if (block.kind !== "link" && block.kind !== "checker") target.html = translated;
         target.text = plainTextOfHtml(translated);
       } else if (part === "question") target.questionHtml = translated;
       else if (part === "explanation") target.explanation = htmlToPlain(translated);
-      else if (part === "title" || part === "body" || part === "alt" || part === "solution") target[part] = htmlToPlain(translated);
+      else if (part === "title" || part === "body" || part === "alt") target[part] = htmlToPlain(translated);
       else if (part === "button") target.text = htmlToPlain(translated);
       else if (part === "start") target.startLabel = htmlToPlain(translated);
       else if (part === "end") target.endLabel = htmlToPlain(translated);

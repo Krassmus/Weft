@@ -1,4 +1,5 @@
 import schema from "../docs/weft.schema.json";
+import { describedKinds, descriptorOf } from "../src/core/blocks/registry";
 import { CliError } from "./load";
 
 type Node = {
@@ -17,7 +18,7 @@ type Node = {
 const definitions = (schema as unknown as { definitions: Record<string, Node> }).definitions;
 
 /** What each kind of block is for - the one thing the schema cannot say. */
-export const BLOCK_KINDS: Record<string, { definition: string; what: string }> = {
+const BLOCK_KINDS_BY_HAND: Record<string, { definition: string; what: string }> = {
   text: { definition: "TextBlock", what: "Ein Text (formatiertes HTML in `html`; Übersetzungen in `translations`)." },
   placeholder: { definition: "PlaceholderBlock", what: "Nur im Layout: Ort und Formatierung für einen Text, den die Folien selbst eingeben." },
   list: { definition: "ListBlock", what: "Eine Liste (Punkte, Striche, Nummern oder Bilder davor); Punkte können einzeln erscheinen." },
@@ -27,7 +28,6 @@ export const BLOCK_KINDS: Record<string, { definition: string; what: string }> =
   sort: { definition: "SortBlock", what: "Sortierrätsel: Texte oder Bilder (items, in der RICHTIGEN Reihenfolge), die die Lernperson per Drag & Drop in die richtige Reihenfolge bringt; senkrecht oder waagerecht auf einer dünnen Linie, Wörter an ihren Enden (startLabel / endLabel), Punkte beim Abschicken (onSubmit) und für jeden Fehler (onEachError, die kleinste Zahl an Verschiebungen), Ereignisse wie bei einem Quiz." },
   matching: { definition: "MatchingBlock", what: "Matching: zwei Listen von Karten (Texte oder Bilder), die Objekte der ersten werden per Drag & Drop auf die der zweiten gezogen; richtige Zuordnungen (pairs), Ablenker ohne Ziel, Punkte für richtige und Folgen für falsche (Variablen-Effekte), Ereignisse wie bei einem Quiz." },
   gallery: { definition: "GalleryBlock", what: "Bildergalerie: Bilder (items, jedes mit optionaler Bildunterschrift `caption`) in einem Karussell mit Pfeilen, Wischgeste und Pfeiltasten; ein Klick öffnet das Bild in voller Größe in einem Fenster, mit der Bildunterschrift darunter. Nur auf Folien." },
-  solution: { definition: "SolutionBlock", what: "Lösungswort: ein Feld für ein Wort und „Abschicken“, mehr nicht. Richtig ist das Wort `solution` (Groß-/Kleinschreibung zählt nur mit `caseSensitive`); `attempts` begrenzt die Versuche (fehlt: beliebig viele). Hat die Ereignisse eines Quiz („richtig“ ist die Lösung), an denen im Event-Graphen alles hängen kann, und Variablen-Effekte (onCorrect einmal, onIncorrect bei jedem falschen Versuch). Nur auf Folien." },
   checker: { definition: "CheckerBlock", what: "Ein Checker: Kästchen mit Text (zum Beispiel eine Einverständniserklärung) und „Abschicken“; was mit und ohne Haken passiert (Variablen-Effekte, Ereignisse wie bei einem Quiz), optional Pflichtangabe." },
   link: { definition: "LinkBlock", what: "Ein Link als eigenes Element: führt zu einer Adresse im Internet (neuer Tab), mit einem Globus; sieht aus wie ein Button des Modulstils. Dateien des Moduls gehören in den Dateien-Block." },
   image: { definition: "ImageBlock", what: "Ein Bild (Datei aus `assets`), optional mit Maske und Effekt." },
@@ -43,6 +43,12 @@ export const BLOCK_KINDS: Record<string, { definition: string; what: string }> =
   files: { definition: "FilesBlock", what: "Dateien zum Herunterladen, optional mit Passwort." },
   language: { definition: "LanguageBlock", what: "Sprachumschalter (nur sinnvoll in mehrsprachigen Modulen)." },
   script: { definition: "ScriptBlock", what: "Logikblock: JavaScript (`code`), das läuft, wenn sein Ereignis erreicht wird (nur auf Folien). Im Code: vars, debug(), trigger(), jump(), VanillaLM." },
+};
+
+/** The kinds of block and what they are: the ones that describe themselves (see core/blocks) say it in their descriptor. */
+export const BLOCK_KINDS: Record<string, { definition: string; what: string }> = {
+  ...BLOCK_KINDS_BY_HAND,
+  ...Object.fromEntries(describedKinds().map((kind) => [kind, { definition: descriptorOf(kind)!.schemaDefinition, what: descriptorOf(kind)!.description }])),
 };
 
 function typeOf(node: Node | boolean | undefined): string {

@@ -73,6 +73,7 @@ import { defaultShapeCornerRadii, defaultShapeFill, defaultShapeShadow, defaultS
 import type { BlockContainerRef } from "./store";
 import { useDocumentStore } from "./store";
 import { tr } from "../i18n/tr";
+import { descriptorOf, isPageOnlyKind, isTaskBlock } from "../blocks/registry";
 
 function edit(label: string, recipe: (draft: WeftModule) => void) {
   useDocumentStore.getState().edit(label, recipe);
@@ -637,6 +638,8 @@ export function moveLogicBlockStep(logicBlockId: string, by: -1 | 1): boolean {
 function defaultBlockFor(kind: Block["kind"]): NewBlock {
   const position = { x: 10, y: 40, width: 80, height: 20 };
   const base = { id: createId(), entranceEffect: defaultEntranceEffect(), exitEffect: defaultExitEffect() };
+  const described = descriptorOf(kind);
+  if (described) return { ...base, ...described.defaults(), kind, position: { ...described.placement.box } } as NewBlock;
   switch (kind) {
     case "text":
       return { ...base, kind, position, html: tr("ui.new_text") };
@@ -688,7 +691,8 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
       };
     }
     case "solution":
-      return { ...base, kind, position: { x: 25, y: 34, width: 50, height: 32 }, solution: "", onCorrect: [], onIncorrect: [] };
+      // (A kind with a descriptor is made above - it has no case of its own.)
+      throw new Error(`The kind "${kind}" has no descriptor.`);
     case "gallery":
       // No pictures yet: they are chosen in the panel (or by a drop of files on the block).
       return { ...base, kind, position: { x: 20, y: 15, width: 60, height: 70 }, items: [] };
@@ -890,7 +894,7 @@ export function updateBlock(pageId: string, blockId: string, patch: Partial<Bloc
     // page.timeline.triggers, not on the block itself - see setEventTrigger below.
     const touchesEffect = "entranceEffect" in patch || "exitEffect" in patch;
     const touchesList = block.kind === "list" && ("items" in patch || "itemEntrance" in patch);
-    if (page && (block.kind === "quiz" || block.kind === "cloze" || block.kind === "checker" || block.kind === "solution" || block.kind === "matching" || block.kind === "sort" || isMediaBlock(block) || touchesEffect || touchesList)) {
+    if (page && (isTaskBlock(block) || isMediaBlock(block) || touchesEffect || touchesList)) {
       syncPageTimelineEvents(page);
     }
     // A list whose items have an Aufbau of their own: a new item (or all of them, when the switch has just been turned on) takes its
@@ -2018,7 +2022,7 @@ export function pasteBlockInto(
   target: { kind: "page"; pageId: string } | { kind: "layout"; layoutId: string },
   sourceBlock: Block,
 ): string | null {
-  if (target.kind === "layout" && (sourceBlock.kind === "quiz" || sourceBlock.kind === "cloze" || sourceBlock.kind === "checker" || sourceBlock.kind === "solution" || sourceBlock.kind === "matching" || sourceBlock.kind === "sort" || sourceBlock.kind === "gallery" || sourceBlock.kind === "script")) return null;
+  if (target.kind === "layout" && isPageOnlyKind(sourceBlock.kind)) return null;
   // A placeholder only exists in a layout.
   if (target.kind === "page" && sourceBlock.kind === "placeholder") return null;
   const newBlock = cloneBlockWithNewId(sourceBlock);

@@ -1,4 +1,5 @@
 import type { Block } from "../types";
+import { shownWordings } from "../blocks/registry";
 
 import { tr } from "../i18n/tr";
 // Must match VARIABLE_PLACEHOLDER in player.runtime.js: a placeholder is recognised only when it
@@ -56,9 +57,6 @@ export function placeholderSources(block: Block): string[] {
         ...[block.startLabel, block.endLabel].filter((t): t is string => !!t).map(escapeText),
         ...Object.values(block.translations ?? {}).flatMap((t) => [...Object.values(t.items ?? {}), t.startLabel, t.endLabel].filter((x): x is string => !!x).map(escapeText)),
       ];
-    case "solution":
-      // (The words in the empty field: a plain text, escaped first.)
-      return [...(block.placeholder ? [escapeText(block.placeholder)] : []), ...Object.values(block.translations ?? {}).flatMap((t) => (t.text !== undefined ? [escapeText(t.text)] : []))];
     case "gallery":
       // The captions (plain texts, escaped first), in every language.
       return [
@@ -69,7 +67,8 @@ export function placeholderSources(block: Block): string[] {
       // (A plain text, escaped first, like a button's plain label.)
       return [escapeText(block.text), ...Object.values(block.translations ?? {}).flatMap((t) => (t.text !== undefined ? [escapeText(t.text)] : []))];
     default:
-      return [];
+      // (A block that describes itself says which of its texts are seen: plain texts, escaped first.)
+      return shownWordings(block).flatMap(({ own, translated }) => [...(own ? [escapeText(own)] : []), ...translated.map(escapeText)]);
   }
 }
 

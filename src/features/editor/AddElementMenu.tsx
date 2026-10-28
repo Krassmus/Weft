@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { addBlockToLayout, addBlockToPage } from "../../core/document/actions";
 import { useDocumentStore } from "../../core/document/store";
+import { isPageOnlyKind } from "../../core/blocks/registry";
 import { tr } from "../../core/i18n/tr";
 import { BLOCK_KIND_KEYS } from "../../core/i18n/translations";
 import { useTranslation } from "../../core/i18n/useTranslation";
@@ -34,7 +35,7 @@ export function AddElementMenu({ container }: { container: { kind: "page"; pageI
   // What a slide can hold: no placeholder (they are the layout's). What a layout can: nothing that needs an answer.
   const allowed = (kind: Kind) => {
     if (kind === "language") return languageCount > 1;
-    if (inLayout) return kind !== "quiz" && kind !== "cloze" && kind !== "checker" && kind !== "solution" && kind !== "matching" && kind !== "sort" && kind !== "gallery" && kind !== "script";
+    if (inLayout) return !isPageOnlyKind(kind);
     return kind !== "placeholder";
   };
   const presentation = PRESENTATION_KINDS.filter(allowed);

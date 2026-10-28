@@ -34,10 +34,8 @@ import {
 import type { ResolvedTrigger } from "../../../core/document/pageTimeline";
 import { DIRECTION_LABELS } from "../../../core/document/transitions";
 import { useAssetStore } from "../../../core/assets/assetStore";
-import { playerStringsFor } from "../../../core/i18n/playerStrings";
 import { formatTimeMMSS } from "../../../core/formatTime";
 import { useDocumentStore } from "../../../core/document/store";
-import { isBooleanVariable, isSettableVariable } from "../../../core/document/variables";
 import { CURATED_FONT_FAMILIES } from "../../../core/fonts/curatedFonts";
 import { DEFAULT_FONT_FAMILY } from "../../../core/fonts/fontFaceCss";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
@@ -60,7 +58,6 @@ import type {
   ButtonAppearance,
   ButtonBlock,
   CheckerBlock,
-  SolutionBlock,
   ClozeBlock,
   MatchItem,
   MatchingBlock,
@@ -101,6 +98,9 @@ import type {
   VideoStopPoint,
 } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
+import { EffectListEditor } from "./EffectListEditor";
+import { FieldsPanel } from "./FieldsPanel";
+import { descriptorOf } from "../../../core/blocks/registry";
 import { applyFontSize, applyFormat, removeTextColor, useFormatSnapshot } from "../blocks/richText";
 import type { TriState } from "../blocks/richText";
 import { listPageTriggerEvents, listTriggerableNodes, nodeLabel } from "../Timeline";
@@ -114,7 +114,7 @@ import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from ".
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { solutionPlaceholderPatch, solutionPlaceholderText, solutionWord, solutionWordPatch, galleryCaption, galleryCaptionPatch, matchingItemText, matchingItemTextPatch, sortItemText, sortItemTextPatch, sortLabel, sortLabelPatch, linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
+import { galleryCaption, galleryCaptionPatch, matchingItemText, matchingItemTextPatch, sortItemText, sortItemTextPatch, sortLabel, sortLabelPatch, linkText, linkTextPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
 import type { RevealerWording } from "../../../core/document/translations";
 import { revealerIconSvg } from "../../../core/runtime/revealerGeometry";
 import { clozeBlanks } from "../../../core/document/cloze";
@@ -249,7 +249,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, onSetAudio
       {block.kind === "link" && <LinkEditor block={block} onUpdate={onUpdate} />}
       {block.kind === "revealer" && <RevealerEditor block={block} page={page} onUpdate={onUpdate} onSetImage={onSetImage} />}
       {block.kind === "quiz" && <QuizEditor block={block} page={page} onUpdate={onUpdate} />}
-      {block.kind === "solution" && <SolutionEditor block={block} page={page} onUpdate={onUpdate} />}
+      {descriptorOf(block) && <FieldsPanel block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "checker" && <CheckerEditor block={block} page={page} onUpdate={onUpdate} />}
       {block.kind === "matching" && <MatchingEditor block={block} container={container} page={page} onUpdate={onUpdate} />}
       {block.kind === "gallery" && <GalleryEditor block={block} container={container} onUpdate={onUpdate} />}
@@ -3693,84 +3693,6 @@ function SortEditor({ block, container, page, onUpdate }: { block: SortBlock; co
   );
 }
 
-/** The settings of a solution word (SolutionBlock): the word, whether capital letters count, the words in the empty field, how many tries there are, whether it
- * is required, and what a right word and every wrong one does - changes to variables, and the way on to the next slide, as with a quiz. (What else is to
- * follow hangs on its events in the event graph.) */
-function SolutionEditor({ block, page, onUpdate }: { block: SolutionBlock; page?: Page; onUpdate: BlockPanelProps["onUpdate"] }) {
-  const goesOn = (outcome: "richtig" | "falsch") => !!page?.timeline.ends[quizEndNodeId(block.id, outcome)];
-  const variables = useDocumentStore((s) => s.doc.content.variables);
-  const { lang, defaultLang } = useEditingLanguage();
-  const limited = block.attempts !== undefined && block.attempts > 0;
-  return (
-    <>
-      <Collapsible title={tr("ui.solution")}>
-        <p className="weft-hint">{tr("ui.solution_hint")}</p>
-        <LanguageSelect block={block} />
-        <label className="weft-field">
-          <span>{tr("ui.solution_word")}</span>
-          <input value={solutionWord(block, lang, defaultLang)} autoComplete="off" spellCheck={false} onChange={(e) => onUpdate(solutionWordPatch(block, lang, defaultLang, e.target.value))} />
-        </label>
-        <label className="weft-field weft-field-inline">
-          <input type="checkbox" checked={block.caseSensitive === true} onChange={(e) => onUpdate({ caseSensitive: e.target.checked ? true : undefined })} />
-          <span>{tr("ui.solution_case")}</span>
-        </label>
-        <label className="weft-field">
-          <span>{tr("ui.solution_placeholder")}</span>
-          <input
-            value={solutionPlaceholderText(block, lang, defaultLang)}
-            placeholder={playerStringsFor(lang).solutionWord}
-            onChange={(e) => onUpdate(solutionPlaceholderPatch(block, lang, defaultLang, e.target.value))}
-          />
-        </label>
-        <label className="weft-field">
-          <span>{tr("ui.solution_attempts")}</span>
-          <select value={limited ? "limited" : "unlimited"} onChange={(e) => onUpdate({ attempts: e.target.value === "limited" ? 1 : undefined })}>
-            <option value="unlimited">{tr("ui.solution_attempts_unlimited")}</option>
-            <option value="limited">{tr("ui.solution_attempts_limited")}</option>
-          </select>
-        </label>
-        {limited && (
-          <label className="weft-field">
-            <span>{tr("ui.solution_attempts_count")}</span>
-            <input
-              type="number"
-              min={1}
-              step={1}
-              value={block.attempts}
-              onChange={(e) => {
-                const n = Math.floor(Number(e.target.value));
-                if (Number.isFinite(n) && n >= 1) onUpdate({ attempts: n });
-              }}
-            />
-          </label>
-        )}
-        {limited && <p className="weft-hint">{tr("ui.solution_attempts_hint")}</p>}
-        <label className="weft-field weft-field-inline">
-          <input type="checkbox" checked={block.required === true} onChange={(e) => onUpdate({ required: e.target.checked ? true : undefined })} />
-          <span>{tr("ui.required_task")}</span>
-        </label>
-        {block.required && <p className="weft-hint">{tr("ui.required_task_hint")}</p>}
-      </Collapsible>
-      <Collapsible title={tr("ui.solution_when_correct")} defaultOpen={false}>
-        <EffectListEditor effects={block.onCorrect} variables={variables} onChange={(onCorrect) => onUpdate({ onCorrect })} />
-        <label className="weft-field weft-field-inline">
-          <input type="checkbox" checked={goesOn("richtig")} disabled={!page} onChange={(e) => page && setQuizAdvance(page.id, block.id, "richtig", e.target.checked)} />
-          <span>{tr("ui.continue_to_the_next_slide")}</span>
-        </label>
-        {goesOn("richtig") && <p className="weft-hint">{tr("ui.happens_1_5_seconds_after_correct")}</p>}
-      </Collapsible>
-      <Collapsible title={tr("ui.solution_when_wrong")} defaultOpen={false}>
-        <EffectListEditor effects={block.onIncorrect} variables={variables} onChange={(onIncorrect) => onUpdate({ onIncorrect })} />
-        <label className="weft-field weft-field-inline">
-          <input type="checkbox" checked={goesOn("falsch")} disabled={!page} onChange={(e) => page && setQuizAdvance(page.id, block.id, "falsch", e.target.checked)} />
-          <span>{tr("ui.continue_to_the_next_slide")}</span>
-        </label>
-        {goesOn("falsch") && <p className="weft-hint">{tr("ui.happens_1_5_seconds_after_the")}</p>}
-      </Collapsible>
-    </>
-  );
-}
-
 /** The settings of a checker (CheckerBlock): the words beside the box, whether it is required, and
  * what submitting with and without the tick does - changes to variables, and the way on to the next slide, as with a quiz. */
 function CheckerEditor({ block, page, onUpdate }: { block: CheckerBlock; page?: Page; onUpdate: BlockPanelProps["onUpdate"] }) {
@@ -3894,135 +3816,6 @@ function QuizEditor({ block, page, onUpdate }: { block: QuizBlock; page?: Page; 
             </p>
           )}
         </Collapsible>
-      )}
-    </>
-  );
-}
-
-/** What a fresh effect on `variable` starts as - an addition for a number, set-to-yes for a Ja/Nein,
- * set-to-empty for text. */
-function defaultEffectFor(variable: VariableDef): VariableEffect {
-  if (isBooleanVariable(variable)) return { variableId: variable.id, op: "set", value: true };
-  if (variable.type === "string") return { variableId: variable.id, op: "set", value: "" };
-  return { variableId: variable.id, op: "add", value: 1 };
-}
-
-/** The value of an effect. A number is typed as text and only taken over once it is one: while "-" or "1." is on its way to
- * being "-1" or "1.5" it stays as typed (minus points have to be typeable). */
-function EffectValueInput({ effect, numeric, onChange }: { effect: VariableEffect; numeric: boolean; onChange: (value: string | number) => void }) {
-  const [typed, setTyped] = useState<string | null>(null);
-  return (
-    <input
-      value={typed ?? String(effect.value)}
-      inputMode={numeric ? "decimal" : undefined}
-      onChange={(e) => {
-        const raw = e.target.value;
-        if (!numeric) return onChange(raw);
-        setTyped(raw);
-        const parsed = Number(raw.replace(",", "."));
-        if (raw.trim() !== "" && Number.isFinite(parsed)) onChange(parsed);
-        else if (raw.trim() === "") onChange(0);
-      }}
-      onBlur={() => setTyped(null)}
-    />
-  );
-}
-
-function EffectListEditor({
-  effects,
-  variables: allVariables,
-  onChange,
-}: {
-  effects: VariableEffect[];
-  variables: VariableDef[];
-  onChange: (effects: VariableEffect[]) => void;
-}) {
-  // A computed variable has no value to change, so it's never a target.
-  const variables = allVariables.filter(isSettableVariable);
-  return (
-    <>
-      {effects.map((effect, index) => {
-        const target = allVariables.find((v) => v.id === effect.variableId);
-        const isBoolean = !!target && isBooleanVariable(target);
-        return (
-          <div key={index} className="weft-effect-row">
-            <select
-              value={effect.variableId}
-              onChange={(e) => {
-                const next = [...effects];
-                const chosen = variables.find((v) => v.id === e.target.value);
-                // Switching between kinds of variable (number/text/Ja-Nein) restarts the effect, since
-                // an "add 1" or a text value means nothing on the other kind.
-                next[index] =
-                  chosen && chosen.type !== target?.type ? defaultEffectFor(chosen) : { ...effect, variableId: e.target.value };
-                onChange(next);
-              }}
-            >
-              {/* Keeps showing a target that was computed after the effect was made, rather than a blank. */}
-              {target && !isSettableVariable(target) && <option value={target.id}>{target.name} {tr("ui.calculated")}</option>}
-              {variables.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={effect.op}
-              disabled={isBoolean}
-              onChange={(e) => {
-                const op = e.target.value as VariableEffect["op"];
-                const next = [...effects];
-                next[index] =
-                  op === "add"
-                    ? { variableId: effect.variableId, op, value: 1 }
-                    : op === "append"
-                      ? { variableId: effect.variableId, op, value: "" }
-                      : { variableId: effect.variableId, op, value: target?.type === "number" ? 0 : "" };
-                onChange(next);
-              }}
-            >
-              <option value="set">{tr("ui.set_to")}</option>
-              {!isBoolean && <option value="add">addieren</option>}
-              {!isBoolean && <option value="append">{tr("ui.append")}</option>}
-            </select>
-            {isBoolean ? (
-              <select
-                value={effect.value === true ? "yes" : "no"}
-                onChange={(e) => {
-                  const next = [...effects];
-                  next[index] = { variableId: effect.variableId, op: "set", value: e.target.value === "yes" };
-                  onChange(next);
-                }}
-              >
-                <option value="yes">{tr("ui.yes")}</option>
-                <option value="no">{tr("ui.no")}</option>
-              </select>
-            ) : (
-              <EffectValueInput
-                effect={effect}
-                // A number variable is set/added to with a number, never with text that merely looks like one.
-                numeric={effect.op === "add" || (effect.op === "set" && target?.type === "number")}
-                onChange={(value) => {
-                  const next = [...effects];
-                  next[index] = { ...effect, value } as VariableEffect;
-                  onChange(next);
-                }}
-              />
-            )}
-            <button type="button" className="weft-icon-button" onClick={() => onChange(effects.filter((_, i) => i !== index))}>
-              ×
-            </button>
-          </div>
-        );
-      })}
-      {variables.length > 0 && (
-        <button
-          type="button"
-          className="weft-ghost-button weft-full-width"
-          onClick={() => onChange([...effects, defaultEffectFor(variables[0])])}
-        >
-          {tr("ui.effect_2")}
-        </button>
       )}
     </>
   );

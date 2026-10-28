@@ -1,4 +1,5 @@
 import type { Block, Page, WeftModule } from "../src/core/types";
+import { descriptorOf } from "../src/core/blocks/registry";
 import { orderedValues } from "../src/core/document/ordering";
 import { plainTextOfHtml } from "../src/core/document/translations";
 
@@ -24,6 +25,9 @@ export function blockSummary(block: Block, content: WeftModule, labels: Record<s
 }
 
 function blockContent(block: Block, content: WeftModule, labels: Record<string, string>): string {
+  // A block that describes itself (see core/blocks) says what it is itself.
+  const summary = descriptorOf(block)?.summary;
+  if (summary) return summary(block as never);
   switch (block.kind) {
     case "text":
       return words(block.html) || "(leer)";
@@ -93,7 +97,8 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
     case "gallery":
       return `${block.items.length} Bilder: ${block.items.map((item) => `[${words(item.caption, 20) || "ohne Bildunterschrift"}]`).join(", ")}`;
     case "solution":
-      return `Lösung: „${words(block.solution ?? "", 40) || "(fehlt)"}"${block.caseSensitive ? " [Groß-/Kleinschreibung zählt]" : ""}${block.attempts ? ` [${block.attempts} Versuch${block.attempts === 1 ? "" : "e"}]` : ""}${block.required ? " [Pflicht]" : ""}`;
+      // (Described above.)
+      return "";
     case "checker":
       return `„${words(block.text, 40) || "(ohne Text)"}"${block.required ? " [Pflicht]" : ""}`;
     case "link":

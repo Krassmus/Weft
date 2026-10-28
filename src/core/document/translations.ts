@@ -1,4 +1,6 @@
-import type { BlockTranslation, ButtonBlock, CheckerBlock, SolutionBlock, ClozeBlock, LinkBlock, GalleryBlock, GalleryItem, MatchItem, MatchingBlock, ListBlock, QuizBlock, RevealerBlock, SortBlock, SortItem, TextBlock, WeftModule } from "../types";
+import { descriptorOf, fieldsOf } from "../blocks/registry";
+import type { FieldSpec } from "../blocks/types";
+import type { Block, BlockTranslation, ButtonBlock, CheckerBlock, SolutionBlock, ClozeBlock, LinkBlock, GalleryBlock, GalleryItem, MatchItem, MatchingBlock, ListBlock, QuizBlock, RevealerBlock, SortBlock, SortItem, TextBlock, WeftModule } from "../types";
 
 /**
  * Per-language wording of the blocks that carry text (text, quiz, button). The block's own fields
@@ -119,22 +121,32 @@ export function checkerTextPatch(block: CheckerBlock, language: string | null, d
   return wordingPatch(block, language, defaultLanguage, { text }, (t) => ({ ...t, text })) as Partial<CheckerBlock>;
 }
 
-/** The right word of a solution word in `language`: its translation if there is one, else the block's own (the default language's). */
-export function solutionWord(block: SolutionBlock, language: string | null, defaultLanguage: string | null): string {
-  return translationOf(block.translations, language, defaultLanguage)?.solution ?? block.solution;
+/**
+ * The wording of a translatable text field of a block that describes itself (see blocks/registry.ts) in `language`: its translation if there is
+ * one, else the block's own (the default language's).
+ */
+export function fieldWording(block: Block, name: string, language: string | null, defaultLanguage: string | null): string {
+  const key = wordingKey(block, name);
+  const own = (block as unknown as Record<string, string | undefined>)[name] ?? "";
+  return (translationOf((block as Translatable).translations, language, defaultLanguage)?.[key] as string | undefined) ?? own;
 }
 
-export function solutionWordPatch(block: SolutionBlock, language: string | null, defaultLanguage: string | null, word: string) {
-  return wordingPatch(block, language, defaultLanguage, { solution: word }, (t) => ({ ...t, solution: word })) as Partial<SolutionBlock>;
+export function fieldWordingPatch(block: Block, name: string, language: string | null, defaultLanguage: string | null, text: string): Partial<Block> {
+  const key = wordingKey(block, name);
+  return wordingPatch(block as Translatable, language, defaultLanguage, { [name]: text } as Partial<Translatable>, (t) => ({ ...t, [key]: text })) as Partial<Block>;
 }
 
-/** What stands in the empty field of a solution word in `language`: its translation if there is one, else the block's own (the default language's). */
-export function solutionPlaceholderText(block: SolutionBlock, language: string | null, defaultLanguage: string | null): string {
-  return translationOf(block.translations, language, defaultLanguage)?.text ?? block.placeholder ?? "";
+/** The key in a BlockTranslation where the wording of a field is kept. */
+function wordingKey(block: Block, name: string): keyof BlockTranslation {
+  const spec = descriptorOf(block)?.fields[name as never] as FieldSpec | undefined;
+  return (spec?.type === "text" && spec.translationKey) || (name as keyof BlockTranslation);
 }
 
-export function solutionPlaceholderPatch(block: SolutionBlock, language: string | null, defaultLanguage: string | null, text: string) {
-  return wordingPatch(block, language, defaultLanguage, { placeholder: text }, (t) => ({ ...t, text })) as Partial<SolutionBlock>;
+/** The translatable text fields of a block that describes itself: their names and the keys of their wording in a translation. */
+function translatableFields(block: Block): { name: string; key: keyof BlockTranslation }[] {
+  return fieldsOf(block)
+    .filter(([, spec]) => spec.type === "text" && spec.translatable)
+    .map(([name]) => ({ name, key: wordingKey(block, name) }));
 }
 
 /** The text of a link in `language`: its translation if there is one, else the block's own (the default language's). */
@@ -195,9 +207,9 @@ export function isTranslated(block: Translatable, language: string | null, defau
     const first = block.sources[0] ?? block.targets[0];
     return !first || translation?.items?.[first.id] !== undefined;
   }
-  if (block.kind === "solution") {
-    // (Both the right word and the words in the field have to be there in the language.)
-    return (block.solution.trim() === "" || translation?.solution !== undefined) && ((block.placeholder ?? "").trim() === "" || translation?.text !== undefined);
+  if (descriptorOf(block)) {
+    // (Every text of the block that has words has to be there in the language.)
+    return translatableFields(block).every(({ name, key }) => ((block as unknown as Record<string, string | undefined>)[name] ?? "").trim() === "" || translation?.[key] !== undefined);
   }
   if (block.kind === "sort") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
   if (block.kind === "gallery") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
@@ -393,17 +405,27 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       delete block.translations[newDefault];
       continue;
     }
-    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "link" && block.kind !== "checker" && block.kind !== "solution" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "gallery" && block.kind !== "list") continue;
+    if (descriptorOf(block)) {
+      // A block that describes itself: the translatable texts swap, field for field.
+      const own = block as unknown as Record<string, string | undefined>;
+      const incomingWords = (block as Translatable).translations?.[newDefault];
+      const outgoingWords: BlockTranslation = {};
+      for (const { name, key } of translatableFields(block)) {
+        outgoingWords[key as "text"] = own[name] ?? "";
+        const translated = incomingWords?.[key as "text"];
+        if (translated !== undefined) own[name] = translated;
+      }
+      const translations = { ...(block as Translatable).translations, [oldDefault]: outgoingWords };
+      delete translations[newDefault];
+      (block as Translatable).translations = translations;
+      continue;
+    }
+    if (block.kind !== "text" && block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "button" && block.kind !== "link" && block.kind !== "checker" && block.kind !== "matching" && block.kind !== "sort" && block.kind !== "gallery" && block.kind !== "list") continue;
     const incoming = block.translations?.[newDefault];
     const outgoing: BlockTranslation = {};
     if (block.kind === "text" || block.kind === "cloze") {
       outgoing.html = block.html;
       if (incoming?.html !== undefined) block.html = incoming.html;
-    } else if (block.kind === "solution") {
-      outgoing.text = block.placeholder ?? "";
-      outgoing.solution = block.solution;
-      if (incoming?.text !== undefined) block.placeholder = incoming.text;
-      if (incoming?.solution !== undefined) block.solution = incoming.solution;
     } else if (block.kind === "link" || block.kind === "checker") {
       outgoing.text = block.text;
       if (incoming?.text !== undefined) block.text = incoming.text;

@@ -1,4 +1,4 @@
-import { solutionPlaceholderText } from "../../../core/document/translations";
+import { fieldWording } from "../../../core/document/translations";
 import { playerStringsFor } from "../../../core/i18n/playerStrings";
 import type { SolutionBlock } from "../../../core/types";
 import acceptSvg from "../../../../mockups/icons/accept.svg?raw";
@@ -8,7 +8,7 @@ import acceptSvg from "../../../../mockups/icons/accept.svg?raw";
  * (App.css, .weft-thumb-block-quiz-*), which follow the style of the module's interactive elements. */
 export function SolutionView({ block, lang, defaultLang }: { block: SolutionBlock; lang: string | null; defaultLang: string | null }) {
   const strings = playerStringsFor(lang);
-  const placeholder = solutionPlaceholderText(block, lang, defaultLang).trim() || strings.solutionWord;
+  const placeholder = fieldWording(block, "placeholder", lang, defaultLang).trim() || strings.solutionWord;
   return (
     <div className="weft-thumb-block-quiz weft-solution-view">
       <div className="weft-thumb-block-quiz-options">

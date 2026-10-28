@@ -1,0 +1,126 @@
+import type { Block, BlockTranslation } from "../types";
+import type { TranslationKey } from "../i18n/translations";
+
+/**
+ * What a kind of block says about itself - the one place the stations that treat every block alike (the menu, the defaults, the translations,
+ * the event graph, the text export, the checks of `weft validate` ...) ask, instead of each having a `switch (block.kind)` of its own.
+ * A kind that has a descriptor (see registry.ts) is described here; the kinds that have none yet are still known to those stations by hand.
+ * The shape is meant to become the manifest of a plugin's block: everything in here is data or a pure function on the block's JSON, nothing
+ * of the editor's (React) or the player's (DOM) - those are the block's own views.
+ */
+
+/** How a field is shown in the panel that is made from the fields (panels/FieldsPanel.tsx). */
+export interface FieldUi {
+  label: TranslationKey;
+  /** Under the field: for a flag while it is on, for a number while it is set. */
+  hint?: TranslationKey;
+  /** A text: the words that stand in the field while it is empty - a word of the player (see playerStrings.ts). */
+  placeholderString?: string;
+  /** A text that is not prose (a word to be typed, a code): no spell checking. */
+  plain?: boolean;
+  /** A number the author need not set: the two choices of the select (without / with a number) and the label of the number. */
+  unsetLabel?: TranslationKey;
+  setLabel?: TranslationKey;
+  countLabel?: TranslationKey;
+  /** The outcome's effects: what is said under "Weiter zur nächsten Folie" while it is on. */
+  advanceHint?: TranslationKey;
+}
+
+/** A text of the block (plain text). */
+export interface TextField {
+  type: "text";
+  /** Has its own wording in each language of the module: the block's field is the default language's, the others' are kept in
+   * `translations[language][translationKey ?? name]`. */
+  translatable?: boolean;
+  /** The key in a BlockTranslation, where it is not the field's own name (a placeholder is kept as `text`: the field is older than the key). */
+  translationKey?: keyof BlockTranslation;
+  /** The learner sees it: it may hold placeholders for variables ("{{punkte}}"), is found when a variable is looked for, and is part of the block's plain
+   * text (the clipboard's). */
+  shown?: boolean;
+  /** `weft text export`: the key of the text is `<block>#<part>`, `role` says what it is for (German, like the tool). */
+  cli?: { part: string; role: string };
+  ui?: FieldUi;
+}
+
+export interface BoolField {
+  type: "bool";
+  ui?: FieldUi;
+}
+
+/** A whole number; the field is absent when the author has not set it. */
+export interface IntField {
+  type: "int";
+  min?: number;
+  ui?: FieldUi;
+}
+
+/** A list of changes to variables that happens at one of the block's events. */
+export interface EffectsField {
+  type: "effects";
+  /** The outcome of the task it happens at. */
+  firesOn: "richtig" | "falsch";
+  /** What `weft validate` says it is for, in "… Effekt ohne Variable" (German). */
+  cliWhat: string;
+  ui?: FieldUi;
+}
+
+export type FieldSpec = TextField | BoolField | IntField | EffectsField;
+
+/**
+ * A block with a task, as a quiz has: the events "first answer", "submitted", and "submitted - right / wrong" in the page's graph, which what is to
+ * follow hangs on (and a "Nächste Folie" after an outcome).
+ */
+export interface TaskSpec {
+  /** The words of the events in the graph (editor language). */
+  labels: { fill: TranslationKey; submit: TranslationKey; correct: TranslationKey; incorrect: TranslationKey };
+  /** The words of the events in `weft inspect` and `weft validate` (German). */
+  cliNames: { fill: string; submit: string; correct: string; incorrect: string };
+  /** Both outcomes are always in the graph: what is to follow hangs on them, and an event that is not there cannot be picked as a trigger. Absent:
+   * an outcome is there when something goes on from it. (The plain "submitted" is then only there when something hangs on it.) */
+  outcomesAlwaysShown?: boolean;
+}
+
+/** The panel of a block, made from its fields: sections in the order they are shown. */
+export interface PanelSpec {
+  sections: {
+    title: TranslationKey;
+    hint?: TranslationKey;
+    /** Folded open when the block is selected (default: yes). */
+    open?: boolean;
+    /** The select for the language the texts are edited in stands at the top. */
+    language?: boolean;
+    fields: string[];
+  }[];
+}
+
+/** A problem `weft validate` reports. */
+export interface BlockProblem {
+  level: "error" | "warning" | "info";
+  code: string;
+  message: string;
+}
+
+export interface BlockDescriptor<B extends Block = Block> {
+  kind: B["kind"];
+  /** The version of the shape of the block's data. Built-in blocks follow the file's format version; a plugin block carries its own (see `migrate`). */
+  version: number;
+  /** Where the block can stand and how big it is when it is added. `pageOnly`: not in a layout (it holds a state, or needs an answer). */
+  placement: { pageOnly: boolean; box: { x: number; y: number; width: number; height: number } };
+  /** What `weft inspect`, `weft validate` and `weft text export` call the kind (German). */
+  cliName: string;
+  /** The name of the block's definition in the file's JSON schema (docs/weft.schema.json), and what `weft schema` says it is (German). */
+  schemaDefinition: string;
+  description: string;
+  /** The data beyond what every block has, by the name of the field. */
+  fields: { [K in Exclude<keyof B, keyof Block | "kind" | "translations">]?: FieldSpec };
+  /** What a new block of this kind has beyond what every block has (its position is `placement.box`). */
+  defaults(): Omit<B, "id" | "order" | "position" | "entranceEffect" | "exitEffect" | "actionEffects">;
+  /** Present: the block has the events of a quiz. */
+  task?: TaskSpec;
+  /** What the panel in the sidebar shows, in what order. */
+  panel: PanelSpec;
+  /** What `weft inspect` says about the block, in one line (German). */
+  summary?(block: B): string;
+  /** What is wrong with the block (`weft validate`; German). */
+  validate?(block: B): BlockProblem[];
+}

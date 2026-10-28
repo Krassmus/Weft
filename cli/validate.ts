@@ -1,4 +1,5 @@
 import Ajv from "ajv";
+import { descriptorOf, exportedTexts, fieldsOf } from "../src/core/blocks/registry";
 import type { ErrorObject } from "ajv";
 import schema from "../docs/weft.schema.json";
 import { buildGraphModel } from "../src/features/editor/eventGraph/model";
@@ -58,7 +59,6 @@ const KIND_DEFINITIONS: Record<string, string> = {
   button: "ButtonBlock",
   link: "LinkBlock",
   checker: "CheckerBlock",
-  solution: "SolutionBlock",
   matching: "MatchingBlock",
   sort: "SortBlock",
   gallery: "GalleryBlock",
@@ -102,7 +102,7 @@ function schemaFindings(loaded: LoadedWeft, labels: Record<string, string>): Fin
   // Every block against the definition of its own kind.
   const validators = new Map<string, ReturnType<typeof ajv.compile>>();
   const validatorFor = (kind: string) => {
-    const name = KIND_DEFINITIONS[kind];
+    const name = descriptorOf(kind)?.schemaDefinition ?? KIND_DEFINITIONS[kind];
     if (!name) return null;
     let validator = validators.get(kind);
     if (!validator) {
@@ -189,8 +189,11 @@ function effectsOf(block: Block): { effects: VariableEffect[]; what: string }[] 
   } else if (block.kind === "sort") {
     groups.push({ effects: block.onSubmit ?? [], what: "beim Abschicken" }, { effects: block.onEachError ?? [], what: "bei jedem Fehler" });
     groups.push({ effects: block.onCorrect ?? [], what: "wenn die Reihenfolge stimmt" }, { effects: block.onIncorrect ?? [], what: "wenn die Reihenfolge nicht stimmt" });
-  } else if (block.kind === "solution") {
-    groups.push({ effects: block.onCorrect ?? [], what: "wenn das Wort richtig ist" }, { effects: block.onIncorrect ?? [], what: "bei jedem falschen Versuch" });
+  } else if (descriptorOf(block)) {
+    // (A block that describes itself - see core/blocks - says which of its fields are changes to variables, and when they happen.)
+    for (const [name, spec] of fieldsOf(block)) {
+      if (spec.type === "effects") groups.push({ effects: ((block as unknown as Record<string, VariableEffect[] | undefined>)[name]) ?? [], what: spec.cliWhat });
+    }
   } else if (block.kind === "checker") {
     groups.push({ effects: block.onChecked ?? [], what: "beim Abschicken mit Haken" }, { effects: block.onUnchecked ?? [], what: "beim Abschicken ohne Haken" });
   } else if (block.kind === "button") {
@@ -249,12 +252,13 @@ export function eventLabel(page: Page, node: TimelineNode, content: WeftModule, 
       "quiz-submit-incorrect": "Sortierrätsel abgeschickt (falsche Reihenfolge)",
     });
   }
-  if (block?.kind === "solution") {
+  const cliNames = block ? descriptorOf(block)?.task?.cliNames : undefined;
+  if (cliNames) {
     Object.assign(names, {
-      "quiz-fill-start": "Lösungswort: erster Buchstabe getippt",
-      "quiz-submit": "Lösungswort abgeschickt",
-      "quiz-submit-correct": "Lösungswort abgeschickt (richtig)",
-      "quiz-submit-incorrect": "Lösungswort abgeschickt (falsch)",
+      "quiz-fill-start": cliNames.fill,
+      "quiz-submit": cliNames.submit,
+      "quiz-submit-correct": cliNames.correct,
+      "quiz-submit-incorrect": cliNames.incorrect,
     });
   }
   if (block?.kind === "checker") {
@@ -497,11 +501,8 @@ export function validate(loaded: LoadedWeft): Finding[] {
       if (block.onEachError?.length === 0 && block.onSubmit?.length === 0 && block.onCorrect?.length === 0 && block.onIncorrect?.length === 0) add("info", "sort-no-effects", "Das Sortierrätsel vergibt keine Punkte (onSubmit / onEachError / onCorrect / onIncorrect sind leer).", here);
     }
 
-    // Solution word.
-    if (block.kind === "solution") {
-      if ((block.solution ?? "").trim() === "") add("warning", "solution-empty", "Das Lösungswort hat noch keine Lösung (solution): so ist jede Eingabe falsch.", here);
-      if (block.attempts !== undefined && (!Number.isInteger(block.attempts) || block.attempts < 1)) add("error", "solution-attempts", "Die Zahl der Versuche (attempts) ist eine ganze Zahl ab 1 - oder fehlt für beliebig viele.", here);
-    }
+    // What a block that describes itself (see core/blocks) says is wrong with it.
+    for (const problem of descriptorOf(block)?.validate?.(block as never) ?? []) add(problem.level, problem.code, problem.message, here);
 
     // Gallery.
     if (block.kind === "gallery") {
@@ -570,14 +571,25 @@ export function validate(loaded: LoadedWeft): Finding[] {
     }
 
     // Translations.
-    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort" || block.kind === "gallery" || block.kind === "solution" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
+    const markUntranslated = () => {
+      for (const language of languages) {
+        if (language === defaultLanguage) continue;
+        if (!isTranslated(block as never, language, defaultLanguage)) {
+          const key = `${where.page?.id ?? where.layout?.id}:${language}`;
+          const entry = untranslated.get(key) ?? { page: where.page, layout: where.layout, language, blockIds: [] };
+          entry.blockIds.push(block.id);
+          untranslated.set(key, entry);
+        }
+      }
+    };
+    // (A block that describes itself: any of its texts has words.)
+    if (languages.length > 1 && descriptorOf(block) && exportedTexts(block).some(({ value }) => value.trim() !== "")) markUntranslated();
+    if (languages.length > 1 && (block.kind === "text" || block.kind === "button" || block.kind === "link" || block.kind === "checker" || block.kind === "matching" || block.kind === "sort" || block.kind === "gallery" || block.kind === "quiz" || block.kind === "cloze" || block.kind === "list")) {
       const hasWords =
         block.kind === "quiz"
           ? plainTextOfHtml(block.questionHtml).trim() !== ""
           : block.kind === "list"
             ? block.items.length > 0
-            : block.kind === "solution"
-              ? (block.placeholder ?? "").trim() !== "" || (block.solution ?? "").trim() !== ""
             : block.kind === "gallery"
               ? block.items.some((item) => item.caption.trim() !== "")
             : block.kind === "sort"
@@ -588,17 +600,7 @@ export function validate(loaded: LoadedWeft): Finding[] {
               ? block.text.trim() !== ""
               : plainTextOfHtml(block.html).trim() !== "";
       // A text that stands for a placeholder of the layout is the page's own, and has its words in each language like any other.
-      if (hasWords) {
-        for (const language of languages) {
-          if (language === defaultLanguage) continue;
-          if (!isTranslated(block as never, language, defaultLanguage)) {
-            const key = `${where.page?.id ?? where.layout?.id}:${language}`;
-            const entry = untranslated.get(key) ?? { page: where.page, layout: where.layout, language, blockIds: [] };
-            entry.blockIds.push(block.id);
-            untranslated.set(key, entry);
-          }
-        }
-      }
+      if (hasWords) markUntranslated();
     }
   };
 

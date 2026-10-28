@@ -36,7 +36,7 @@ import { LinkView } from "./blocks/LinkView";
 import { CheckerView } from "./blocks/CheckerView";
 import { MatchingView } from "./blocks/MatchingView";
 import { GalleryView } from "./blocks/GalleryView";
-import { SolutionView } from "./blocks/SolutionView";
+import { viewOf } from "./blocks/blockViews";
 import { SortView } from "./blocks/SortView";
 import { safeLinkUrl } from "../../core/document/linkUrl";
 import { ScriptHexagon } from "./blocks/ScriptHexagon";
@@ -387,10 +387,12 @@ function ThumbBlockBody({
       </div>
     );
   }
-  if (block.kind === "solution") {
+  // A block that describes itself (see core/blocks) is drawn by its view - see blocks/blockViews.tsx.
+  const view = viewOf(block.kind);
+  if (view) {
     return (
       <div className="weft-thumb-block" style={style}>
-        <SolutionView block={block} lang={lang} defaultLang={defaultLang} />
+        <view.View block={block} lang={lang} defaultLang={defaultLang} />
       </div>
     );
   }

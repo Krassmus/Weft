@@ -1,4 +1,5 @@
 import type { Block, Page } from "../types";
+import { shownWordings } from "../blocks/registry";
 import { orderedValues } from "./ordering";
 
 export type ClipboardEntry = { kind: "page"; page: Page } | { kind: "block"; block: Block };
@@ -89,8 +90,6 @@ function blockLines(block: Block): string[] {
       return [...block.sources, ...block.targets].map((item) => item.text).filter((text) => text.trim() !== "");
     case "sort":
       return [block.startLabel ?? "", ...block.items.map((item) => item.text), block.endLabel ?? ""].filter((text) => text.trim() !== "");
-    case "solution":
-      return (block.placeholder ?? "").trim() === "" ? [] : [block.placeholder as string];
     case "gallery":
       return block.items.map((item) => item.caption).filter((text) => text.trim() !== "");
     case "list":
@@ -104,7 +103,8 @@ function blockLines(block: Block): string[] {
     case "tex":
       return [block.tex];
     default:
-      return [];
+      // (A block that describes itself says which of its texts are seen.)
+      return shownWordings(block).map(({ own }) => own).filter((text) => text.trim() !== "");
   }
 }
 

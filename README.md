@@ -40,6 +40,16 @@ Guides: [docs/ai-authoring.en.md](docs/ai-authoring.en.md), [docs/operations.en.
   `index.html` in einem `sandbox="allow-scripts"`-iframe (`PreviewFrame.tsx`) – WYSIWYG,
   weil Editor-Vorschau und exportiertes Modul denselben Code durchlaufen. Genau dieses
   `index.html` ist es auch, das später in ein LMS eingebettet wird.
+- **Block-Registry (`src/core/blocks/`).** Eine Art von Block beschreibt sich selbst in einem
+  *Deskriptor* (`BlockDescriptor`): Felder (mit Übersetzbarkeit, Texten für den Export), Platzierung und
+  Standardgröße, Ereignisse eines Quiz (`task`), Panel, Zusammenfassung und Prüfungen der CLI. Die Stellen,
+  die alle Blöcke gleich behandeln (Menü, Standardwerte, Übersetzungen, Event-Graph, Textexport,
+  `weft validate` / `inspect` / `schema`, das Panel in der Seitenleiste), fragen die Registry
+  (`registry.ts`) statt eines eigenen `switch (block.kind)`. Der React-Teil (Icon, Ansicht) steht im
+  Editor in `features/editor/blocks/blockViews.tsx`. Bisher beschreibt sich nur das Lösungswort so
+  (`blocks/solution/`); die anderen Arten sind noch von Hand an diesen Stellen eingetragen. Der Deskriptor
+  ist so geschnitten (nur Daten und reine Funktionen auf dem JSON des Blocks), dass er das Manifest
+  eines Plugin-Blocks werden kann.
 - **Undo/Redo über immer-Patches**, gespeichert *im Dokument selbst*
   (`content.undoHistory` + `content.undoIndex` in `weft.json`), getrennt vom eigentlichen
   Modulinhalt, damit die Undo-Buchführung nicht rekursiv ihre eigenen Änderungen

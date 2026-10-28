@@ -97,6 +97,9 @@ npm install
 npm run tauri dev
 ```
 
+`npm test` führt die Tests aus (`tests/`): Jede Blockart mit Deskriptor läuft durch alle Stellen, die Blöcke
+gleich behandeln, und jede gemeinsame Darstellung (`render.js`) in allen vier Modi.
+
 Für die Web-Vorschau ohne Tauri-Shell reicht `npm run dev` – Speichern/Öffnen fallen
 dann automatisch auf Browser-Download bzw. einen Datei-Input zurück
 (`src/core/io/fileIO.ts`).

@@ -14,7 +14,8 @@
     "schema": "ts-json-schema-generator --path src/core/types.ts --type WeftFileJson --tsconfig tsconfig.json --no-type-check --expose export --jsDoc extended -o docs/weft.schema.json",
     "weft": "npm run build:cli --silent && node cli/dist/weft.mjs",
     "build:cli": "vite build --config vite.cli.config.ts --logLevel error",
-    "bundle:cli": "node scripts/bundle-cli.mjs"
+    "bundle:cli": "node scripts/bundle-cli.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "@automerge/automerge": "^3.5.0",
@@ -53,6 +54,7 @@
     "ts-json-schema-generator": "^2.9.0",
     "typescript": "~6.0.3",
     "vite": "^8.0.16",
+    "vitest": "^5.0.5",
     "ws": "^8.22.0"
   }
 }

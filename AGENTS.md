@@ -34,6 +34,10 @@ a person has to hand the `.weft` file over. See `docs/mcp.md` ("Ausblick") for w
 
 - `README.md` explains the architecture and the data model (`src/core/types.ts` is the source of truth for the file format).
 - Check types with `npx tsc --noEmit -p .`; the CLI is built by `npm run build:cli` (it is not covered by `tsc`: run a command to try it).
+- `npm test` (Vitest, `tests/`) runs every kind of block that describes itself (`src/core/blocks/`) through every place that treats all blocks alike
+  (defaults, schema, event graph, translations, text export/import, placeholders, clipboard, files, `weft validate`), and every `render.js` in all
+  four modes. A new block with a descriptor needs no test of its own: it is tested as soon as it is registered. A new `render.js` has to be added to
+  `RENDERERS` in `tests/render.test.ts`, a new field type to `TYPES` in `tests/stations.test.ts`.
 - After a change to `src/core/types.ts` run `npm run schema` and commit `docs/weft.schema.json`.
 - The docs exist in German and English (`docs/ai-authoring.md` / `.en.md`, `docs/cli.md` / `.en.md`, `docs/operations.md` / `.en.md`); the CLI
   embeds them for `weft guide`, so change both languages together. Every operation of `weft edit` must be described in `docs/operations*.md`.

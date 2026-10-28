@@ -4,7 +4,6 @@ import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { flushSync } from "react-dom";
 import { createPortal } from "react-dom";
 import type { CSSProperties, MutableRefObject, PointerEvent as ReactPointerEvent } from "react";
-import QRCode from "qrcode";
 // A generic "this is a video" indicator for the (non-interactive, see below) editor canvas -
 // deliberately not play.svg, which would look clickable even though clicking does nothing here;
 // see player.runtime.js/.css for the real, playable preview/export instead.
@@ -42,7 +41,7 @@ import { useStagePageId } from "./stagePage";
 import { useDocumentStore } from "../../../core/document/store";
 import { createId } from "../../../core/id";
 import { confirmDestructive } from "../../../core/io/fileIO";
-import type { ArrowPoint, Block, BlockPosition, ClozeBlock, IframeBlock, ImageMask, ListBlock, ProgressBlock, QuizBlock, RevealerBlock } from "../../../core/types";
+import type { ArrowPoint, Block, BlockPosition, ClozeBlock, ImageMask, ListBlock, ProgressBlock, QuizBlock, RevealerBlock } from "../../../core/types";
 import { ListMarkerView } from "./ListMarkerView";
 import { caretAt, caretOnLine, caretX, fitListMarkers, focusItem, textLength } from "./listCaret";
 import { ContextMenu, isContextMenuKey, useContextMenu } from "../ContextMenu";
@@ -299,7 +298,7 @@ export function BlockView({
     block.kind === "cloze" ||
     block.kind === "quiz" ||
     block.kind === "list";
-  const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "language" || block.kind === "checker" || !!viewOf(block.kind)?.freelyMovable || block.kind === "matching" || block.kind === "sort" || block.kind === "link" || block.kind === "script" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "audio" || block.kind === "iframe" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files" || block.kind === "revealer" || block.kind === "progress";
+  const isFreelyMovableBlock = (isTextLike && !editing) || block.kind === "language" || block.kind === "checker" || !!viewOf(block.kind)?.freelyMovable || block.kind === "matching" || block.kind === "sort" || block.kind === "link" || block.kind === "script" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "audio" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files" || block.kind === "revealer" || block.kind === "progress";
   // Only an image, video or revealer (an icon) has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
   // given, so unlike image/video it keeps the full edge+corner handle set below instead of being
@@ -880,14 +879,8 @@ function BlockContent({
         <div className="weft-edit-block-placeholder">{tr("ui.no_audio_file_chosen")}</div>
       );
     case "iframe":
-      return block.qrCode ? (
-        <QrGatePreview block={block} />
-      ) : (
-        <div className="weft-edit-block-iframe-wrap">
-          <IframeFrame block={block} />
-          <div className="weft-edit-block-iframe-overlay" />
-        </div>
-      );
+      // (Drawn by its view above.)
+      return null;
     case "button": {
       // The label is edited right here - only its words: its typeface and size are the module's style of interactive elements, so the keys
       // for bold, italic and underline do nothing here. A label with no words in it stands for the player's own "Weiter" - shown as long as
@@ -1407,48 +1400,6 @@ function ListBlockCanvas({
  * factor still genuinely needs the wrap's own rendered pixel width, which isn't known until
  * layout, so that's measured via ResizeObserver instead of computed via calc().
  */
-// Kept in sync by hand with BlockPanel.tsx's DEFAULT_VIEWPORT_WIDTH and player.runtime.js's own
-// copy (a module saved before this field existed has no forcedViewportWidth at all, and unlike
-// most such fallbacks this one can't just mean "off" - a virtual viewport is always in effect
-// now, see IframeEditor's comment for why - so it needs an actual width to fall back to).
-const DEFAULT_VIEWPORT_WIDTH = 768;
-
-function IframeFrame({ block }: { block: IframeBlock }) {
-  const aspectRatio = useDocumentStore((s) => s.doc.content.aspectRatio);
-  const width = block.forcedViewportWidth ?? DEFAULT_VIEWPORT_WIDTH;
-  const stageHeightOverWidth = 1 / aspectRatioNumeric(aspectRatio);
-  const wrapHeightOverWidth = stageHeightOverWidth * (block.position.height / block.position.width);
-  const height = width * wrapHeightOverWidth;
-
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-  useLayoutEffect(() => {
-    const wrap = wrapRef.current;
-    if (!wrap) return;
-    const observer = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (rect) setScale(rect.width / width);
-    });
-    observer.observe(wrap);
-    return () => observer.disconnect();
-  }, [width]);
-
-  return (
-    <div className="weft-edit-block-iframe-viewport-wrap" ref={wrapRef}>
-      <iframe
-        src={block.url}
-        sandbox={block.sandbox.join(" ")}
-        title={tr("ui.embedded_content")}
-        style={{
-          width: `${width}px`,
-          height: `${height}px`,
-          transform: `scale(${scale})`,
-        }}
-      />
-    </div>
-  );
-}
-
 /**
  * Directly editable on the canvas (true WYSIWYG) - contentEditable while `editable`, so a click
  * that selects the block also drops a cursor into it, ready to type. Its own DOM is left alone by
@@ -1690,35 +1641,3 @@ function StillVideo({ src, loop, muted, previewTime }: { src: string | undefined
   );
 }
 
-function QrGatePreview({ block }: { block: IframeBlock }) {
-  const [svg, setSvg] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!block.url) {
-      setSvg(null);
-      return;
-    }
-    let cancelled = false;
-    QRCode.toString(block.url, { type: "svg", margin: 1 })
-      .then((result) => {
-        if (!cancelled) setSvg(result);
-      })
-      .catch(() => {
-        if (!cancelled) setSvg(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [block.url]);
-
-  return (
-    <div className="weft-edit-block-qr-gate">
-      {svg ? (
-        <div className="weft-edit-block-qr-code" dangerouslySetInnerHTML={{ __html: svg }} />
-      ) : (
-        <div className="weft-edit-block-qr-code is-empty" />
-      )}
-      <span className="weft-edit-block-qr-link">{block.url || tr("ui.no_address")}</span>
-    </div>
-  );
-}

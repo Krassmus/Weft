@@ -34,7 +34,6 @@ const BLOCK_KINDS_BY_HAND: Record<string, { definition: string; what: string }> 
   audio: { definition: "AudioBlock", what: "Eine Audiodatei (aus `assets`): nicht sichtbar oder mit Player; wie ein Video mit Zeitmarken, an denen es anhalten kann." },
   code: { definition: "CodeBlock", what: "Quelltext mit Syntaxfärbung." },
   tex: { definition: "TexBlock", what: "Eine Formel (TeX)." },
-  iframe: { definition: "IframeBlock", what: "Eine eingebettete Seite (oder ein QR-Code dafür)." },
   shape: { definition: "ShapeBlock", what: "Eine Form: Rechteck, Ellipse, Vieleck, Stern." },
   arrow: { definition: "ArrowBlock", what: "Ein Pfeil durch mehrere Punkte." },
   revealer: { definition: "RevealerBlock", what: "Ein Icon (Info, Warnung, Ausrufe- oder Fragezeichen), das beim Klick ein Fenster mit Überschrift, optional Text, Bild und Button öffnet; kann auch per Ereignis geöffnet werden." },

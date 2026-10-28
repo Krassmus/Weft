@@ -692,6 +692,7 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
     }
     case "solution":
     case "gallery":
+    case "iframe":
       // (A kind with a descriptor is made above - it has no case of its own.)
       throw new Error(`The kind "${kind}" has no descriptor.`);
     case "checker":
@@ -744,8 +745,6 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
       return { ...base, kind, position, assetId: null, autoplay: false, loop: false, muted: false, controls: true, stopPoints: [] };
     case "audio":
       return { ...base, kind, position: { x: 30, y: 40, width: 40, height: 12 }, assetId: null, autoplay: false, loop: false, appearance: "player", stopPoints: [] };
-    case "iframe":
-      return { ...base, kind, position, url: "https://www.youtube.com/embed/", sandbox: ["allow-scripts"], qrCode: false };
     case "button":
       return { ...base, kind, position: { x: 35, y: 82, width: 30, height: 10 }, text: tr("ui.next"), action: "advance" };
     case "link":

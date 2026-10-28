@@ -154,8 +154,8 @@ export interface BlockDescriptor<B extends Block = Block> {
   defaults(): Omit<B, "id" | "order" | "position" | "entranceEffect" | "exitEffect" | "actionEffects">;
   /** Present: the block has the events of a quiz. */
   task?: TaskSpec;
-  /** What the panel in the sidebar shows, in what order. */
-  panel: PanelSpec;
+  /** What the panel in the sidebar shows, in what order. Absent: the block's panel is its own (panels/BlockPanel.tsx). */
+  panel?: PanelSpec;
   /** What `weft inspect` says about the block, in one line (German). */
   summary?(block: B): string;
   /** What is wrong with the block (`weft validate`; German). */

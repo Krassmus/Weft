@@ -429,7 +429,8 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       continue;
     }
     if (descriptorOf(block)) {
-      // A block that describes itself: the translatable texts swap, field for field.
+      // A block that describes itself: the translatable texts swap, field for field - one without any has nothing to swap.
+      if (translatableFields(block).length === 0 && listFieldsOf(block).length === 0) continue;
       const own = block as unknown as Record<string, string | undefined>;
       const incomingWords = (block as Translatable).translations?.[newDefault];
       const outgoingWords: BlockTranslation = {};

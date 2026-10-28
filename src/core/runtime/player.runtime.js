@@ -2486,81 +2486,21 @@
     );
   }
 
-  // Kept in sync by hand with BlockPanel.tsx's DEFAULT_VIEWPORT_WIDTH and BlockView.tsx's own
-  // copy - a module saved before forcedViewportWidth existed has no value for it at all, and a
-  // virtual viewport is always in effect now (see IframeEditor's comment for why), so this needs
-  // an actual width to fall back to rather than just meaning "off".
-  var DEFAULT_VIEWPORT_WIDTH = 768;
-
-  // The embedded page is always given exactly this fixed CSS-pixel WIDTH (so it sees a constant
-  // "window" width no matter how large the module itself is displayed, e.g. to force its mobile
-  // layout) - height is DERIVED from the wrap's own aspect ratio times that width, so the virtual
-  // viewport always has exactly the block's own shape and the scaled result fills it edge to edge
-  // with no letterboxing.
-  //
-  // Both that derived height AND the scale factor that fits the fixed-width iframe into the wrap
-  // used to be computed live in CSS via container query units (100cqh / 100cqw for the height,
-  // 100cqw / <width> for the scale) - that worked in Chromium/WebKit but isn't portable: Firefox
-  // rejects a calc() that divides one length by another as an invalid value outright, for *both*
-  // of those, silently dropping the whole declaration - width, a plain literal, still applied, so
-  // the iframe rendered at exactly the right width but fell back to the browser's default ~150px
-  // height and a 1:1 (unscaled) transform. The height is derived in JS now instead (block.position
-  // and module.aspectRatio are already known data here, no container query needed for it at all);
-  // the scale factor still genuinely needs the wrap's own rendered pixel width, which isn't known
-  // until layout, so that's measured via ResizeObserver instead of computed via calc(). Matches
-  // BlockView.tsx's IframeFrame in the editor exactly.
-  // The name of an embedded page for a screen reader (the frame needs one): "Eingebettete Seite: example.org".
-  function iframeTitle(block, src) {
-    var host = "";
-    try {
-      host = new URL(src, window.location.href).hostname;
-    } catch (e) {
-      host = "";
-    }
-    return uiString("embedded") + (host ? ": " + host : "");
-  }
-
-  function iframeEl(block, src) {
-    var w = block.forcedViewportWidth || DEFAULT_VIEWPORT_WIDTH;
+  // What an embedded page says, as renderIframe (blocks/iframe/render.js, inlined ahead of this file) draws it. `heightOverWidth` is the block's shape
+  // on the slide, from which the height of the frame the page sees is derived (see renderIframe).
+  function iframeProps(block) {
     var ratio = parseAspectRatio();
-    var stageHeightOverWidth = ratio[1] / ratio[0];
-    var wrapHeightOverWidth = stageHeightOverWidth * (block.position.height / block.position.width);
-    var h = w * wrapHeightOverWidth;
-    var frame = el("iframe", {
-      src: src,
-      sandbox: (block.sandbox || []).join(" "),
-      allow: block.allow || "",
-      title: iframeTitle(block, src),
-      style: "width:" + w + "px;height:" + h + "px;border:0;",
-    }, []);
-    var wrap = el("div", { class: "weft-iframe-viewport-wrap" }, [frame]);
-    var observer = new ResizeObserver(function (entries) {
-      var rect = entries[0] && entries[0].contentRect;
-      if (rect) frame.style.transform = "scale(" + rect.width / w + ")";
-    });
-    observer.observe(wrap);
-    return wrap;
-  }
-
-  function fillWithIframe(wrap, block, src) {
-    wrap.innerHTML = "";
-    wrap.appendChild(iframeEl(block, src));
-  }
-
-  function renderIframeGate(wrap, block) {
-    var gate = el("div", { class: "weft-qr-gate" }, []);
-    var svg = qrCodeSvgs[block.id];
-    if (svg) {
-      var qrBox = el("div", { class: "weft-qr-code" }, []);
-      qrBox.innerHTML = svg;
-      gate.appendChild(qrBox);
-    }
-    var link = el("button", { type: "button", class: "weft-qr-link" }, [document.createTextNode(block.url)]);
-    link.addEventListener("click", function () {
-      fillWithIframe(wrap, block, block.presentationUrl || block.url);
-    });
-    gate.appendChild(link);
-    wrap.appendChild(gate);
+    return {
+      id: block.id,
+      url: block.url,
+      sandbox: block.sandbox || [],
+      allow: block.allow,
+      qrCode: !!block.qrCode,
+      presentationUrl: block.presentationUrl,
+      forcedViewportWidth: block.forcedViewportWidth,
+      heightOverWidth: (ratio[1] / ratio[0]) * (block.position.height / block.position.width),
+      qrSvg: qrCodeSvgs[block.id] || null,
+    };
   }
 
   // Scales the once-typeset formula to fit (contain, centered) its box - mirrors TexView.tsx. The
@@ -2822,11 +2762,10 @@
       if (playButton) videoWrap.appendChild(playButton);
       wrap.appendChild(videoWrap);
     } else if (block.kind === "iframe") {
-      if (block.qrCode) {
-        renderIframeGate(wrap, block);
-      } else {
-        wrap.appendChild(iframeEl(block, block.url));
-      }
+      var iframeInstance = renderIframe(wrap, iframeProps(block), { mode: "play", text: uiString });
+      languageRefreshers.push(function () {
+        iframeInstance.update(iframeProps(block));
+      });
     } else if (block.kind === "shape") {
       wrap.innerHTML = shapeSvgMarkup(block);
       if (block.blurBehind && (block.shapeKind === "rectangle" || block.shapeKind === "ellipse")) {

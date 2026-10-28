@@ -26,12 +26,9 @@ import { TexView } from "./blocks/TexView";
 // visually consistent between the two views, per the same reasoning: it's not clickable here
 // either.
 import video2IconSvg from "../../../mockups/icons/video2.svg?raw";
-import globeIconSvg from "../../../mockups/icons/globe.svg?raw";
-import qrIconSvg from "../../../mockups/icons/code-qr.svg?raw";
 import checkboxCheckedSvg from "../../../mockups/icons/checkbox-checked.svg?raw";
 import checkboxUncheckedSvg from "../../../mockups/icons/checkbox-unchecked.svg?raw";
 import acceptSvg from "../../../mockups/icons/accept.svg?raw";
-import { tr } from "../../core/i18n/tr";
 import { LinkView } from "./blocks/LinkView";
 import { CheckerView } from "./blocks/CheckerView";
 import { MatchingView } from "./blocks/MatchingView";
@@ -308,26 +305,6 @@ function ThumbBlockBody({
       <div className="weft-thumb-block weft-thumb-block-audio" style={style} />
     ) : null;
   }
-  if (block.kind === "iframe" && exportPxPerCqw && block.url) {
-    // In the PDF an embedded page can't be what it is on the screen (it is live, and from another origin: no picture of it can be
-    // taken): a card with its address as text and QR code - and the address is a link there (data-pdf-link, see exportPdf.tsx).
-    return (
-      <div className="weft-thumb-block weft-thumb-block-iframe-export" style={style} data-pdf-link={block.url}>
-        {qrSvg && <div className="weft-thumb-block-iframe-export-qr" dangerouslySetInnerHTML={{ __html: qrSvg }} />}
-        <div className="weft-thumb-block-iframe-export-text">
-          <span className="weft-thumb-block-iframe-export-label">{tr("ui.embedded_page")}</span>
-          <span className="weft-thumb-block-iframe-export-url">{block.url}</span>
-        </div>
-      </div>
-    );
-  }
-  if (block.kind === "iframe") {
-    return (
-      <div className="weft-thumb-block weft-thumb-block-placeholder" style={style}>
-        <span className="weft-thumb-icon" dangerouslySetInnerHTML={{ __html: block.qrCode ? qrIconSvg : globeIconSvg }} />
-      </div>
-    );
-  }
   if (block.kind === "shape") {
     if (exportPxPerCqw && block.shadow.enabled) {
       // For the PDF: the shadow is drawn into a larger picture around the shape (see ShapeSvg's exportPxPerCqw).
@@ -391,7 +368,7 @@ function ThumbBlockBody({
   if (view) {
     return (
       <div className="weft-thumb-block" style={style}>
-        <view.View block={block} lang={lang} defaultLang={defaultLang} selected={false} mode={exportPxPerCqw ? "print" : "thumbnail"} />
+        <view.View block={block} lang={lang} defaultLang={defaultLang} selected={false} mode={exportPxPerCqw ? "print" : "thumbnail"} qrSvg={qrSvg} />
       </div>
     );
   }

@@ -9,6 +9,8 @@ import linkIconsSource from "./linkIcons.js?raw";
 import imageGeometrySource from "./imageGeometry.js?raw";
 import filesCryptoSource from "./filesCrypto.js?raw";
 import solutionRenderSource from "../blocks/solution/render.js?raw";
+import iframeRenderSource from "../blocks/iframe/render.js?raw";
+import iframeCss from "../blocks/iframe/render.css?raw";
 import playerRuntimeSource from "./player.runtime.js?raw";
 import quizCardCss from "./quizCard.css?raw";
 import playerRuntimeCss from "./player.runtime.css?raw";
@@ -89,6 +91,7 @@ export async function buildRuntimeHtml(
 <title>${escapeHtml(module.title)}</title>
 <style>${stageThemeCss}</style>
 <style>${quizCardCss}</style>
+<style>${iframeCss}</style>
 <style>${playerRuntimeCss}</style>
 <style>${fontFaceCss}</style>
 ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` : ""}${hasTex ? `<style>${buildKatexCss()}</style>\n` : ""}</head>
@@ -113,6 +116,7 @@ ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` 
 <script>${imageGeometrySource.replace(/^export /gm, "")}</script>
 <script>${filesCryptoSource.replace(/^export /gm, "")}</script>
 <script>${solutionRenderSource.replace(/^export /gm, "")}</script>
+<script>${iframeRenderSource.replace(/^export /gm, "")}</script>
 <script>${playerRuntimeSource}</script>
 </body>
 </html>

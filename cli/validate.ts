@@ -55,7 +55,6 @@ const KIND_DEFINITIONS: Record<string, string> = {
   image: "ImageBlock",
   video: "VideoBlock",
   audio: "AudioBlock",
-  iframe: "IframeBlock",
   button: "ButtonBlock",
   link: "LinkBlock",
   checker: "CheckerBlock",

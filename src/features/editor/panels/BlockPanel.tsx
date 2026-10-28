@@ -98,6 +98,7 @@ import type {
 } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
 import { EffectListEditor } from "./EffectListEditor";
+import { DEFAULT_VIEWPORT_WIDTH } from "../../../core/blocks/iframe/render.js";
 import { FieldsPanel } from "./FieldsPanel";
 import { descriptorOf } from "../../../core/blocks/registry";
 import { applyFontSize, applyFormat, removeTextColor, useFormatSnapshot } from "../blocks/richText";
@@ -1799,7 +1800,6 @@ const PREVIEW_WIDTH = 168;
 /** How long a seek of that picture may take before a new one is started regardless (ms). */
 const SEEK_PATIENCE_MS = 1500;
 
-const DEFAULT_VIEWPORT_WIDTH = 768;
 
 const VIEWPORT_WIDTH_PRESETS: { label: string; width: number }[] = [
   { get label() { return tr("ui.mobile"); }, width: 375 },
@@ -1807,8 +1807,8 @@ const VIEWPORT_WIDTH_PRESETS: { label: string; width: number }[] = [
   { get label() { return tr("ui.desktop"); }, width: 1280 },
 ];
 
-// The embedded page always sees a fixed virtual viewport width (see IframeFrame in
-// BlockView.tsx) rather than whatever pixel size the block happens to render at - there's no
+// The embedded page always sees a fixed virtual viewport width (see renderIframe in
+// blocks/iframe/render.js) rather than whatever pixel size the block happens to render at - there's no
 // "off" state for this any more, since a predictable, chosen width is strictly better than a
 // size that silently drifts with how large the module itself is displayed.
 function IframeEditor({ block, onUpdate }: { block: IframeBlock; onUpdate: BlockPanelProps["onUpdate"] }) {

@@ -26,7 +26,7 @@ export function FieldsPanel({ block, container, page, onUpdate }: { block: Block
   const variables = useDocumentStore((s) => s.doc.content.variables);
   const { lang, defaultLang } = useEditingLanguage();
   const [error, setError] = useState("");
-  if (!descriptor) return null;
+  if (!descriptor?.panel) return null;
   const record = block as unknown as Record<string, unknown>;
   const goesOn = (outcome: "richtig" | "falsch") => !!page?.timeline.ends[quizEndNodeId(block.id, outcome)];
 

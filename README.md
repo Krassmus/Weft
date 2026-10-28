@@ -46,11 +46,15 @@ Guides: [docs/ai-authoring.en.md](docs/ai-authoring.en.md), [docs/operations.en.
   die alle Blöcke gleich behandeln (Menü, Standardwerte, Übersetzungen, Event-Graph, Textexport,
   `weft validate` / `inspect` / `schema`, das Panel in der Seitenleiste), fragen die Registry
   (`registry.ts`) statt eines eigenen `switch (block.kind)`. Der React-Teil (Icon, Ansicht) steht im
-  Editor in `features/editor/blocks/blockViews.tsx`. Das Lösungswort wird sogar von **einer** Funktion gezeichnet
-  (`blocks/solution/render.js`, reines JavaScript ohne Imports): der Player bettet sie unverändert ein, der Editor
-  ruft sie für Canvas, Miniaturen und PDF auf (`RenderHost.tsx`, Modus `edit` / `thumbnail` / `print`: dort ist es
-  nur ein Bild des leeren Feldes). Das gemeinsame Aussehen steht in `core/runtime/quizCard.css`, das Player und Editor beide laden. Bisher beschreiben sich das Lösungswort und die Galerie so
-  (`blocks/solution/`, `blocks/gallery/`; Feldtypen: Text, Ja/Nein, Zahl, Variablen-Effekte, Datei, Liste von
+  Editor in `features/editor/blocks/blockViews.tsx`. Das Lösungswort und die eingebettete Seite werden sogar von **einer**
+  Funktion gezeichnet (`blocks/solution/render.js`, `blocks/iframe/render.js`, reines JavaScript ohne Imports): der
+  Player bettet sie unverändert ein, der Editor ruft sie für Canvas, Miniaturen und PDF auf (`RenderHost.tsx`). Ein
+  *Modus* sagt, wo gezeichnet wird, und der Block entscheidet selbst, was er dort zeigt: `play` (bedienbar), `edit`
+  (Canvas: ein Bild, nichts darin ist bedienbar), `thumbnail`, `print` (PDF). Das Lösungswort ist außerhalb von `play`
+  das leere Feld; die eingebettete Seite ist live im Player und im Canvas, ein grauer Kasten mit Icon in der Miniatur
+  und eine Karte mit Adresse und QR-Code im PDF. Das gemeinsame Aussehen steht in `core/runtime/quizCard.css` und
+  `blocks/iframe/render.css`, die Player und Editor beide laden. Bisher beschreiben sich das Lösungswort, die Galerie und die eingebettete Seite so
+  (`blocks/solution/`, `blocks/gallery/`, `blocks/iframe/`; Feldtypen: Text, Ja/Nein, Zahl, Variablen-Effekte, Datei, Liste von
   Elementen mit Datei und Text); die anderen Arten sind noch von Hand an diesen Stellen eingetragen. Der Deskriptor
   ist so geschnitten (nur Daten und reine Funktionen auf dem JSON des Blocks), dass er das Manifest
   eines Plugin-Blocks werden kann.

@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import type { Block, GalleryBlock, SolutionBlock } from "../../../core/types";
+import type { Block, GalleryBlock, IframeBlock, SolutionBlock } from "../../../core/types";
 import { GalleryCanvas } from "./GalleryCanvas";
 import { GalleryView } from "./GalleryView";
+import { IframeView } from "./IframeView";
 import { SolutionView } from "./SolutionView";
 
 /** What a view is given. */
@@ -12,6 +13,8 @@ export interface BlockViewProps<B extends Block = Block> {
   selected: boolean;
   /** Where it is drawn: the editor's canvas, a thumbnail, the PDF. */
   mode: "edit" | "thumbnail" | "print";
+  /** A QR code made for the block (for the PDF). */
+  qrSvg?: string;
   onUpdate?: (patch: Partial<Block>) => void;
 }
 
@@ -39,9 +42,15 @@ const galleryView: BlockViewSpec<GalleryBlock> = {
   freelyMovable: true,
 };
 
+const iframeView: BlockViewSpec<IframeBlock> = {
+  View: ({ block, lang, mode, qrSvg }) => <IframeView block={block} lang={lang} mode={mode} qrSvg={qrSvg} />,
+  freelyMovable: true,
+};
+
 const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   solution: solutionView as BlockViewSpec<never>,
   gallery: galleryView as BlockViewSpec<never>,
+  iframe: iframeView as BlockViewSpec<never>,
 };
 
 /** The editor's views of a kind, if it has them here. */

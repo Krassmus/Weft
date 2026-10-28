@@ -1,6 +1,7 @@
 import type { Block } from "../types";
 import type { BlockDescriptor, FieldSpec, ListField, TaskSpec, TextField } from "./types";
 import { galleryBlock } from "./gallery/descriptor";
+import { iframeBlock } from "./iframe/descriptor";
 import { solutionBlock } from "./solution/descriptor";
 
 /**
@@ -15,6 +16,7 @@ export function registerBlock<B extends Block>(descriptor: BlockDescriptor<B>): 
 
 registerBlock(solutionBlock);
 registerBlock(galleryBlock);
+registerBlock(iframeBlock);
 
 /** The descriptor of a kind, if it has one. */
 export function descriptorOf<B extends Block>(block: B): BlockDescriptor<B> | undefined;

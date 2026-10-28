@@ -79,7 +79,8 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
     case "tex":
       return block.tex.slice(0, 60);
     case "iframe":
-      return block.url;
+      // (Described above.)
+      return "";
     case "shape":
       return block.shapeKind;
     case "arrow":

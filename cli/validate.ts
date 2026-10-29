@@ -1,5 +1,5 @@
 import Ajv from "ajv";
-import { descriptorOf, exportedItemTexts, exportedTexts, fieldsOf } from "../src/core/blocks/registry";
+import { assetIdsOfFields, descriptorOf, exportedItemTexts, exportedTexts, fieldsOf } from "../src/core/blocks/registry";
 import type { ErrorObject } from "ajv";
 import schema from "../docs/weft.schema.json";
 import { buildGraphModel } from "../src/features/editor/eventGraph/model";
@@ -409,20 +409,6 @@ export function validate(loaded: LoadedWeft): Finding[] {
     if ((block.kind === "image" || block.kind === "video" || block.kind === "audio") && !block.assetId) {
       add("warning", "media-empty", `${block.kind}-Block hat noch keine Datei.`, here);
     }
-    if (block.kind === "revealer") {
-      if (block.imageAssetId) {
-        const meta = content.assets.find((a) => a.id === block.imageAssetId);
-        if (!meta) add("error", "asset-missing", `revealer-Block verweist auf das Bild ${block.imageAssetId}, das nicht in der Liste der Dateien steht.`, here);
-        else if (loaded.archive && !loaded.files.has(`assets/${meta.id}_${meta.fileName}`)) {
-          add("error", "asset-file-missing", `Die Datei „${meta.fileName}" fehlt im Archiv.`, { ...here, hint: "Das Bild neu einfügen." });
-        } else if (!block.imageAlt.trim()) add("info", "image-no-alt", "Bild im Revealer ohne Alternativtext (imageAlt).", here);
-      }
-      if (!block.title.trim()) add("warning", "revealer-no-title", "Revealer ohne Überschrift.", here);
-      if (block.button?.action === "goto") {
-        if (!block.button.targetPageId) add("warning", "button-target-empty", "Der Button des Revealers springt zu einer Folie, hat aber kein Ziel.", { ...here, hint: "button.targetPageId setzen." });
-        else if (!content.pages[block.button.targetPageId]) add("error", "button-target-missing", "Der Button des Revealers springt zu einer Folie, die es nicht mehr gibt.", here);
-      }
-    }
     if (block.kind === "image" && block.assetId && !block.alt?.trim()) {
       add("info", "image-no-alt", "Bild ohne Alternativtext.", here);
     }
@@ -470,6 +456,13 @@ export function validate(loaded: LoadedWeft): Finding[] {
 
     // What a block that describes itself (see core/blocks) says is wrong with it.
     for (const problem of descriptorOf(block)?.validate?.(block as never, content) ?? []) add(problem.level, problem.code, problem.message, problem.hint ? { ...here, hint: problem.hint } : here);
+    // (And a file such a block uses that is in the list of the module's files but not in the archive.)
+    if (descriptorOf(block) && loaded.archive) {
+      for (const id of new Set(assetIdsOfFields(block))) {
+        const meta = content.assets.find((a) => a.id === id);
+        if (meta && !loaded.files.has(`assets/${meta.id}_${meta.fileName}`)) add("error", "asset-file-missing", `Die Datei „${meta.fileName}" fehlt im Archiv.`, { ...here, hint: "Das Bild neu einfügen." });
+      }
+    }
 
     // {{placeholders}}.
     const problems = [...new Set(placeholderSources(block).flatMap((html) => placeholderProblems(html, variableNames)))];

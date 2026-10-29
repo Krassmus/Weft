@@ -339,7 +339,10 @@ describe.each(KINDS)("the texts of %s in `weft text export` and `weft text impor
     const mine = file.items.filter((item) => item.key.startsWith(`${block.id}#`));
 
     // Every text that has words is in the list, once - and the list has nothing else of this block.
+    // (The label of a revealer's button is an object field: the texts of the descriptor are not all of its texts, and it is exported by hand.)
+    const byHand = kind === "revealer" ? [`${block.id}#button`] : [];
     const expected = [
+      ...byHand,
       ...exportedTexts(block).filter((text) => hasWords(text.value)).map((text) => `${block.id}#${text.part}`),
       ...exportedItemTexts(block).filter((text) => hasWords(text.value)).map((text) => `${block.id}#${text.part}:${text.itemId}`),
     ];
@@ -380,6 +383,7 @@ describe("what is known about each kind", () => {
     text: { pageOnly: false, task: false, translatable: ["html"], lists: [] },
     list: { pageOnly: false, task: false, translatable: [], lists: ["items"] },
     cloze: { pageOnly: true, task: true, translatable: ["html"], lists: [] },
+    revealer: { pageOnly: false, task: false, translatable: ["body", "imageAlt", "title"], lists: [] },
     quiz: { pageOnly: true, task: true, translatable: ["explanation", "questionHtml"], lists: ["options"] },
   };
 

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Block, ButtonBlock, CheckerBlock, ClozeBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ListBlock, ProgressBlock, QuizBlock, SolutionBlock, TextBlock } from "../../../core/types";
+import type { Block, ButtonBlock, CheckerBlock, ClozeBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ListBlock, ProgressBlock, QuizBlock, RevealerBlock, SolutionBlock, TextBlock } from "../../../core/types";
 import { ButtonView } from "./ButtonView";
 import { CheckerCanvas } from "./CheckerCanvas";
 import { CheckerView } from "./CheckerView";
@@ -12,6 +12,7 @@ import { LinkView } from "./LinkView";
 import { ListView } from "./ListView";
 import { ProgressView } from "./ProgressView";
 import { QuizView } from "./QuizView";
+import { RevealerView } from "./RevealerView";
 import { SolutionView } from "./SolutionView";
 import { TextView } from "./TextView";
 
@@ -117,6 +118,13 @@ const quizView: BlockViewSpec<QuizBlock> = {
   freelyMovable: false,
 };
 
+const revealerView: BlockViewSpec<RevealerBlock> = {
+  View: ({ block, lang, defaultLang, mode }) => <RevealerView block={block} lang={lang} defaultLang={defaultLang} mode={mode} />,
+  // On the canvas the window stands open around the icon while the block is selected.
+  Canvas: ({ block, lang, defaultLang, selected }) => <RevealerView block={block} lang={lang} defaultLang={defaultLang} mode="edit" open={selected} />,
+  freelyMovable: true,
+};
+
 const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   solution: solutionView as BlockViewSpec<never>,
   gallery: galleryView as BlockViewSpec<never>,
@@ -130,6 +138,7 @@ const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   list: listView as BlockViewSpec<never>,
   cloze: clozeView as BlockViewSpec<never>,
   quiz: quizView as BlockViewSpec<never>,
+  revealer: revealerView as BlockViewSpec<never>,
 };
 
 /** The editor's views of a kind, if it has them here. */

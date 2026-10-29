@@ -60,14 +60,6 @@ function hasWords(html: string | undefined): boolean {
 function textsOfBlock(block: Block): { key: string; source: string; role: string }[] {
   const id = block.id;
   switch (block.kind) {
-    case "revealer": {
-      const items: { key: string; source: string; role: string }[] = [];
-      if (block.title.trim()) items.push({ key: `${id}#title`, source: plainToHtml(block.title), role: "Überschrift" });
-      if (block.body.trim()) items.push({ key: `${id}#body`, source: plainToHtml(block.body), role: "Text des Fensters" });
-      if (block.button?.text.trim()) items.push({ key: `${id}#button`, source: plainToHtml(block.button.text), role: "Button des Fensters" });
-      if (block.imageAlt.trim()) items.push({ key: `${id}#alt`, source: plainToHtml(block.imageAlt), role: "Bildbeschreibung" });
-      return items;
-    }
     case "matching":
       return [...block.sources.map((item, index) => ({ item, role: `Objekt ${index + 1}` })), ...block.targets.map((item, index) => ({ item, role: `Ziel ${index + 1}` }))]
         .filter(({ item }) => hasWords(item.text))
@@ -95,7 +87,9 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
             .filter(({ value }) => hasWords(value))
             // (The points of a list are formatted: HTML already.)
             .map(({ part, itemId, role, value, html }) => ({ key: `${id}#${part}:${itemId}`, source: html ? value : value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role })),
-        );
+        )
+        // (The label of the button of a revealer's window is an object field: it is not one of those the descriptor lists - see revealerBlock.)
+        .concat(block.kind === "revealer" && block.button?.text.trim() ? [{ key: `${id}#button`, source: plainToHtml(block.button.text), role: "Button des Fensters" }] : []);
   }
 }
 

@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import { pageProgress } from "../../core/document/pageProgress";
 import { backdropBlurCss, hasBackdropBlur, shapeCornerCss } from "../../core/document/backdropBlur";
-import { revealerIconSvg } from "../../core/runtime/revealerGeometry.js";
 import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
 import { resolveInlineAssets } from "./blocks/richText";
 import { useAssetStore } from "../../core/assets/assetStore";
@@ -214,15 +213,6 @@ function ThumbBlockBody({
       </div>
     ) : (
       <div className="weft-thumb-block weft-thumb-block-placeholder" style={style} />
-    );
-  }
-  if (block.kind === "revealer") {
-    return (
-      <div
-        className="weft-thumb-block weft-thumb-block-revealer"
-        style={style}
-        dangerouslySetInnerHTML={{ __html: revealerIconSvg(block.icon, block.color) }}
-      />
     );
   }
   if (block.kind === "audio") {

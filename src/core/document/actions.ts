@@ -688,6 +688,7 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
     case "list":
     case "cloze":
     case "quiz":
+    case "revealer":
       // (A kind with a descriptor is made above - it has no case of its own.)
       throw new Error(`The kind "${kind}" has no descriptor.`);
     case "placeholder":
@@ -717,21 +718,6 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
       return { ...base, kind, position, assetId: null, autoplay: false, loop: false, muted: false, controls: true, stopPoints: [] };
     case "audio":
       return { ...base, kind, position: { x: 30, y: 40, width: 40, height: 12 }, assetId: null, autoplay: false, loop: false, appearance: "player", stopPoints: [] };
-    case "revealer":
-      return {
-        ...base,
-        kind,
-        // A square on a 16:9 slide (the icon is drawn as large as fits in its box, whatever the box is).
-        position: { x: 20, y: 30, width: 4.5, height: 8 },
-        icon: "info",
-        color: "#3b82f6",
-        title: tr("ui.revealer_default_title"),
-        body: tr("ui.revealer_default_text"),
-        imageAssetId: null,
-        imageAlt: "",
-        button: { text: tr("ui.revealer_default_button"), action: "event" },
-        windowStyle: "dark",
-      };
     case "shape":
       return {
         ...base,

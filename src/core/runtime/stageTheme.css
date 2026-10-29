@@ -189,7 +189,7 @@
 
 /* The window of a revealer in the futuristic style has a border too, which the cut would take away at the corners: it is drawn along the cuts
    (--slide-revealer-line is the colour of the border, set by the window itself - light or dark). */
-:is(.weft-stage, .weft-thumb)[data-weft-style="futuristic"] :is(.weft-revealer-panel, .weft-edit-revealer-panel) {
+:is(.weft-stage, .weft-thumb)[data-weft-style="futuristic"] .weft-revealer-panel {
   background-image:
     linear-gradient(135deg, transparent 50%, var(--slide-revealer-line) 50%, var(--slide-revealer-line) calc(50% + 1px), transparent calc(50% + 1px)),
     linear-gradient(315deg, transparent 50%, var(--slide-revealer-line) 50%, var(--slide-revealer-line) calc(50% + 1px), transparent calc(50% + 1px));

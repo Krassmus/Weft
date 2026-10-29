@@ -24,7 +24,6 @@ function assetIdsOfPlain(block: Block | StaticBlock): string[] {
   if (descriptorOf(block)) return assetIdsOfFields(block as Block);
   if (block.kind === "sort") return block.items.flatMap((item) => (item.kind === "image" && item.assetId ? [item.assetId] : []));
   if (block.kind === "matching") return [...block.sources, ...block.targets].flatMap((item) => (item.kind === "image" && item.assetId ? [item.assetId] : []));
-  if (block.kind === "revealer") return block.imageAssetId ? [block.imageAssetId] : [];
   return (block.kind === "image" || block.kind === "video" || block.kind === "audio") && block.assetId ? [block.assetId] : [];
 }
 

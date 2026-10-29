@@ -28,6 +28,8 @@ import listCss from "../blocks/list/render.css?raw";
 import clozeRenderSource from "../blocks/cloze/render.js?raw";
 import clozeCss from "../blocks/cloze/render.css?raw";
 import quizRenderSource from "../blocks/quiz/render.js?raw";
+import revealerRenderSource from "../blocks/revealer/render.js?raw";
+import revealerCss from "../blocks/revealer/render.css?raw";
 import playerRuntimeSource from "./player.runtime.js?raw";
 import quizCardCss from "./quizCard.css?raw";
 import playerRuntimeCss from "./player.runtime.css?raw";
@@ -117,6 +119,7 @@ export async function buildRuntimeHtml(
 <style>${textCss}</style>
 <style>${listCss}</style>
 <style>${clozeCss}</style>
+<style>${revealerCss}</style>
 <style>${playerRuntimeCss}</style>
 <style>${fontFaceCss}</style>
 ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` : ""}${hasTex ? `<style>${buildKatexCss()}</style>\n` : ""}</head>
@@ -151,6 +154,7 @@ ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` 
 <script>${listRenderSource.replace(/^export /gm, "")}</script>
 <script>${clozeRenderSource.replace(/^export /gm, "")}</script>
 <script>${quizRenderSource.replace(/^export /gm, "")}</script>
+<script>${revealerRenderSource.replace(/^export /gm, "")}</script>
 <script>${playerRuntimeSource}</script>
 </body>
 </html>

@@ -83,8 +83,6 @@ function blockLines(block: Block): string[] {
       return [...block.sources, ...block.targets].map((item) => item.text).filter((text) => text.trim() !== "");
     case "sort":
       return [block.startLabel ?? "", ...block.items.map((item) => item.text), block.endLabel ?? ""].filter((text) => text.trim() !== "");
-    case "revealer":
-      return [block.title, block.body];
     case "code":
       return block.code.split("\n");
     case "tex":

@@ -10,6 +10,7 @@ import { linkBlock } from "./link/descriptor";
 import { listBlock } from "./list/descriptor";
 import { progressBlock } from "./progress/descriptor";
 import { quizBlock } from "./quiz/descriptor";
+import { revealerBlock } from "./revealer/descriptor";
 import { solutionBlock } from "./solution/descriptor";
 import { textBlock } from "./text/descriptor";
 
@@ -35,6 +36,7 @@ registerBlock(textBlock);
 registerBlock(listBlock);
 registerBlock(clozeBlock);
 registerBlock(quizBlock);
+registerBlock(revealerBlock);
 
 /** The descriptor of a kind, if it has one. */
 export function descriptorOf<B extends Block>(block: B): BlockDescriptor<B> | undefined;

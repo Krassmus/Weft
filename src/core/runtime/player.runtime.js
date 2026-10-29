@@ -2899,103 +2899,49 @@
 
   // ---- RevealerBlock: an icon that opens a window around itself ----
   // The window opens with a click on the icon or with a trigger to its event (`revealer-open:<id>`), and closes with its x or Escape. Its button is an
-  // event of its own (`revealer-button:<id>`) that does what a button block does. The icon is drawn by revealerIconSvg (revealerGeometry.js).
+  // event of its own (`revealer-button:<id>`) that does what a button block does. The icon, the window and its placing are what renderRevealer
+  // (blocks/revealer/render.js, inlined ahead of this file) draws; the icon's picture is revealerIconSvg (revealerGeometry.js).
+  function revealerProps(block) {
+    var t = currentTranslation(block) || {};
+    return {
+      id: block.id,
+      // The icon is a square as large as fits in the block's box.
+      size: Math.min(block.position.width, block.position.height / slideAspectNumeric()),
+      x: block.position.x,
+      iconSvg: revealerIconSvg(block.icon, block.color),
+      signColor: revealerSignColor(block.color),
+      color: block.color,
+      title: t.title !== undefined ? t.title : block.title,
+      body: t.body !== undefined ? t.body : block.body,
+      imageSrc: block.imageAssetId ? assetSrc(block.imageAssetId) : null,
+      imageAlt: t.alt !== undefined ? t.alt : block.imageAlt,
+      windowStyle: block.windowStyle === "light" ? "light" : "dark",
+      button: block.button ? { text: t.text !== undefined ? t.text : block.button.text } : null,
+    };
+  }
+
   function renderRevealerBlock(block) {
     var wrap = el("div", { class: "weft-block weft-block-revealer", "data-weft-block": block.id, style: positionStyle(block.position) });
-    // The icon is a square as large as fits in the block's box - at its top left; the window opens around it.
-    var size = Math.min(block.position.width, block.position.height / slideAspectNumeric());
-    wrap.style.width = size + "cqw";
-    wrap.style.height = size + "cqw";
     var openEventId = "revealer-open:" + block.id;
     var buttonEventId = "revealer-button:" + block.id;
-    var panelId = "weft-revealer-" + block.id;
-    var isOpen = false;
-
-    var icon = el("button", { type: "button", class: "weft-revealer-icon", "aria-expanded": "false", "aria-controls": panelId }, []);
-    icon.innerHTML = revealerIconSvg(block.icon, block.color);
-
-    var panel = el("div", { class: "weft-revealer-panel is-" + (block.windowStyle === "light" ? "light" : "dark"), id: panelId, role: "region", hidden: "" }, []);
-    var closeButton = el("button", { type: "button", class: "weft-revealer-close" }, [document.createTextNode("\u00d7")]);
-    var heading = el("h2", { class: "weft-revealer-title" }, []);
-    var bodyText = el("p", { class: "weft-revealer-text" }, []);
-    var picture = null;
-    if (block.imageAssetId) {
-      picture = el("img", { class: "weft-revealer-image", src: assetSrc(block.imageAssetId) }, []);
-    }
-    var action = null;
-    if (block.button) {
-      action = el("button", { type: "button", class: "weft-revealer-button" }, []);
-      action.style.background = block.color;
-      action.style.color = revealerSignColor(block.color);
-    }
-    panel.appendChild(closeButton);
-    panel.appendChild(heading);
-    panel.appendChild(bodyText);
-    if (picture) panel.appendChild(picture);
-    if (action) panel.appendChild(el("div", { class: "weft-revealer-actions" }, [action]));
-
-    var fill = function () {
-      var t = currentTranslation(block) || {};
-      var title = t.title !== undefined ? t.title : block.title;
-      var body = t.body !== undefined ? t.body : block.body;
-      var alt = t.alt !== undefined ? t.alt : block.imageAlt;
-      heading.textContent = title;
-      bodyText.textContent = body;
-      bodyText.hidden = !String(body || "").trim();
-      panel.setAttribute("aria-label", title);
-      icon.setAttribute("aria-label", uiString("revealerOpen") + (title ? ": " + title : ""));
-      closeButton.setAttribute("aria-label", uiString("revealerClose"));
-      if (picture) picture.setAttribute("alt", alt || "");
-      if (action) action.textContent = t.text !== undefined ? t.text : block.button.text;
-    };
-    fill();
-    languageRefreshers.push(fill);
-
-    // On the side of the icon that has room: the window stands at the right of the icon unless it would leave the slide there (then at its left),
-    // and is moved up as far as it needs to when it would leave the slide at the bottom.
-    function place() {
-      var overflowRight = block.position.x + REVEALER_WINDOW_WIDTH_CQW - REVEALER_PAD_CQW > 100;
-      panel.classList.toggle("is-right", overflowRight);
-      panel.style.top = "";
-      var stage = wrap.parentNode;
-      if (!stage || !stage.getBoundingClientRect) return;
-      var stageRect = stage.getBoundingClientRect();
-      var panelRect = panel.getBoundingClientRect();
-      var overflow = panelRect.bottom - stageRect.bottom;
-      if (overflow > 0) panel.style.top = "calc(" + -REVEALER_PAD_CQW + "cqw - " + Math.round(overflow) + "px)";
-    }
-    function setOpen(next) {
-      if (next === isOpen) return;
-      isOpen = next;
-      panel.hidden = !next;
-      wrap.classList.toggle("is-open", next);
-      icon.setAttribute("aria-expanded", next ? "true" : "false");
-      if (next) {
-        place();
-        announce([heading.textContent, bodyText.textContent].filter(Boolean).join(". "));
-      } else if (wrap.contains(document.activeElement) && document.activeElement !== icon) {
-        icon.focus();
-      }
-    }
-    // A trigger to the event opens the window; a click on the icon does the same (and is then the event as well).
+    var instance = renderRevealer(wrap, revealerProps(block), {
+      mode: "play",
+      text: uiString,
+      // A click on the icon that opened the window is the event as well.
+      opened: function () {
+        happened(openEventId);
+      },
+      announce: announce,
+    });
+    languageRefreshers.push(function () {
+      instance.update(revealerProps(block));
+    });
+    // A trigger to the event opens the window.
     performers[openEventId] = function () {
-      setOpen(true);
+      instance.open();
       happened(openEventId);
     };
-    icon.addEventListener("click", function () {
-      if (isOpen) setOpen(false);
-      else performers[openEventId]();
-    });
-    closeButton.addEventListener("click", function () {
-      setOpen(false);
-    });
-    wrap.addEventListener("keydown", function (ev) {
-      if (ev.key === "Escape" && isOpen) {
-        ev.stopPropagation();
-        setOpen(false);
-        icon.focus();
-      }
-    });
+    var action = instance.button;
     if (action) {
       var buttonSpec = block.button;
       action.addEventListener("click", function () {
@@ -3016,12 +2962,8 @@
         }
       });
     }
-    wrap.appendChild(icon);
-    wrap.appendChild(panel);
     return wrap;
   }
-  var REVEALER_WINDOW_WIDTH_CQW = 28;
-  var REVEALER_PAD_CQW = 1.4;
 
   // ---- LinkBlock: a link to a page (opens in a new tab) ----
 

@@ -10,6 +10,7 @@ import { renderProgress } from "../src/core/blocks/progress/render.js";
 import { linkHref, renderLink } from "../src/core/blocks/link/render.js";
 import { renderList } from "../src/core/blocks/list/render.js";
 import { renderQuiz } from "../src/core/blocks/quiz/render.js";
+import { renderRevealer } from "../src/core/blocks/revealer/render.js";
 import { renderSolution } from "../src/core/blocks/solution/render.js";
 import { renderText, textBoxStyle } from "../src/core/blocks/text/render.js";
 
@@ -63,6 +64,8 @@ const WORDS: Record<string, string> = {
   thanks: "Danke!",
   next: "Weiter",
   noAddress: "(keine Adresse)",
+  revealerOpen: "Öffnen",
+  revealerClose: "Schließen",
 };
 const text = (key: string) => WORDS[key] ?? "";
 const textWith = (key: string, values: Record<string, string | number>) => text(key).replace(/\{(\w+)\}/g, (all, name: string) => String(values[name] ?? all));
@@ -78,7 +81,7 @@ const ICONS = {
 };
 
 /** Every render.js there is must be run here: this is the list of what is run (a new one fails the test below until it is added). */
-const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text", "list", "cloze", "quiz"];
+const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text", "list", "cloze", "quiz", "revealer"];
 
 describe("the render functions", () => {
   it("are all tested here", () => {
@@ -95,7 +98,7 @@ describe("the render functions", () => {
     const inlined = source.replace(/^export /gm, "");
     expect(inlined).not.toMatch(/\bexport\b\s+(function|var|const|let|default)/);
     // The way the page has it: a script of its own that leaves the function there for the player after it.
-    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText", list: "renderList", cloze: "renderCloze", quiz: "renderQuiz" }[kind];
+    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText", list: "renderList", cloze: "renderCloze", quiz: "renderQuiz", revealer: "renderRevealer" }[kind];
     expect(new Function(`${inlined}; return typeof ${name};`)()).toBe("function");
   });
 });
@@ -1168,6 +1171,157 @@ describe.each(MODES)("a quiz drawn for %s", (mode) => {
       const root = element();
       renderQuiz(root, { ...props, marked: [] }, context());
       expect(boxes(root).some((box) => box.hasAttribute("checked"))).toBe(false);
+    });
+  }
+});
+
+// ---- the revealer -----------------------------------------------------------------------------------------------------------------------
+
+describe.each(MODES)("a revealer drawn for %s", (mode) => {
+  const props = {
+    id: "r1",
+    size: 4.5,
+    x: 20,
+    iconSvg: "<svg id='icon'></svg>",
+    signColor: "#ffffff",
+    color: "#3b82f6",
+    title: "Titel",
+    body: "Text\nmit Zeilen",
+    imageSrc: "data:image/png;base64,AAAA" as string | null,
+    imageAlt: "Ein Bild",
+    windowStyle: "dark" as "dark" | "light",
+    button: { text: "Mehr" } as { text: string } | null,
+    open: false,
+  };
+  const context = () => ({ mode, text, opened: vi.fn(), announce: vi.fn() });
+  const panel = (root: Element) => find(root, ".weft-revealer-panel") as HTMLElement;
+
+  it("is drawn as the icon and a window that is shut, takes the size of the icon, can be drawn again, and gives the place back", () => {
+    const root = element();
+    root.setAttribute("style", "left:20%;");
+    const instance = renderRevealer(root, props, context());
+    expect(root.className).toContain("weft-block-revealer");
+    expect(root.getAttribute("style")).toContain("width:4.5cqw");
+    expect(root.getAttribute("style")).toContain("height:4.5cqw");
+    expect(find(root, ".weft-revealer-icon svg")?.getAttribute("id")).toBe("icon");
+    expect(panel(root).hidden).toBe(true);
+    expect(panel(root).className).toContain("is-dark");
+    expect(find(root, ".weft-revealer-title")?.textContent).toBe("Titel");
+    expect(find(root, ".weft-revealer-text")?.textContent).toBe("Text\nmit Zeilen");
+    expect(find(root, ".weft-revealer-image")?.getAttribute("src")).toBe("data:image/png;base64,AAAA");
+    expect(find(root, ".weft-revealer-image")?.getAttribute("alt")).toBe("Ein Bild");
+    expect(find(root, ".weft-revealer-button")?.textContent).toBe("Mehr");
+    expect((find(root, ".weft-revealer-button") as HTMLElement).getAttribute("style")).toContain("background");
+    expect(instance.button).toBe(find(root, ".weft-revealer-button"));
+    instance.update({ ...props, title: "Neu", body: "", imageAlt: "Anders", button: { text: "Los" } });
+    expect(find(root, ".weft-revealer-title")?.textContent).toBe("Neu");
+    expect((find(root, ".weft-revealer-text") as HTMLElement).hidden).toBe(true);
+    expect(find(root, ".weft-revealer-image")?.getAttribute("alt")).toBe("Anders");
+    expect(find(root, ".weft-revealer-button")?.textContent).toBe("Los");
+    instance.destroy();
+    expect(root.childNodes.length).toBe(0);
+    expect(root.className).toBe("");
+    expect(root.getAttribute("style")).toContain("left:20%");
+    expect(root.getAttribute("style")).not.toContain("cqw");
+  });
+
+  it("has no picture and no button where it was told none, and the light window where it was told so", () => {
+    const root = element();
+    renderRevealer(root, { ...props, imageSrc: null, button: null, windowStyle: "light" }, context());
+    expect(find(root, ".weft-revealer-image")).toBeNull();
+    expect(find(root, ".weft-revealer-button")).toBeNull();
+    expect(find(root, ".weft-revealer-actions")).toBeNull();
+    expect(panel(root).className).toContain("is-light");
+  });
+
+  it("puts the window to the left of the icon near the right edge of the slide - and only there", () => {
+    const near = element();
+    renderRevealer(near, { ...props, x: 92, open: true }, context());
+    const far = element();
+    renderRevealer(far, { ...props, x: 20, open: true }, context());
+    if (mode === "play") {
+      (find(near, ".weft-revealer-icon") as HTMLElement).click();
+      (find(far, ".weft-revealer-icon") as HTMLElement).click();
+    }
+    expect(panel(near).classList.contains("is-right")).toBe(true);
+    expect(panel(far).classList.contains("is-right")).toBe(false);
+  });
+
+  if (mode === "play") {
+    it("is a button that opens the window and tells the place, and closes it again", () => {
+      const root = element();
+      const ctx = context();
+      renderRevealer(root, props, ctx);
+      const icon = find(root, ".weft-revealer-icon") as HTMLButtonElement;
+      expect(icon.tagName).toBe("BUTTON");
+      expect(icon.getAttribute("aria-expanded")).toBe("false");
+      expect(icon.getAttribute("aria-controls")).toBe("weft-revealer-r1");
+      expect(icon.getAttribute("aria-label")).toBe("Öffnen: Titel");
+      expect(panel(root).id).toBe("weft-revealer-r1");
+      expect(panel(root).getAttribute("role")).toBe("region");
+      expect(panel(root).getAttribute("aria-label")).toBe("Titel");
+      expect(find(root, ".weft-revealer-close")?.getAttribute("aria-label")).toBe("Schließen");
+      icon.click();
+      expect(panel(root).hidden).toBe(false);
+      expect(icon.getAttribute("aria-expanded")).toBe("true");
+      expect(root.classList.contains("is-open")).toBe(true);
+      expect(ctx.opened).toHaveBeenCalledTimes(1);
+      expect(ctx.announce).toHaveBeenCalledWith("Titel. Text\nmit Zeilen");
+      icon.click();
+      expect(panel(root).hidden).toBe(true);
+      expect(root.classList.contains("is-open")).toBe(false);
+      expect(ctx.opened).toHaveBeenCalledTimes(1);
+    });
+
+    it("is closed by its x and by Escape, and opened by a trigger without the place being told it was a click", () => {
+      const root = element();
+      const ctx = context();
+      const instance = renderRevealer(root, props, ctx);
+      instance.open();
+      expect(panel(root).hidden).toBe(false);
+      expect(ctx.opened).not.toHaveBeenCalled();
+      (find(root, ".weft-revealer-close") as HTMLElement).click();
+      expect(panel(root).hidden).toBe(true);
+      instance.open();
+      fire(root, "keydown");
+      expect(panel(root).hidden).toBe(false);
+      const escape = new window.Event("keydown", { bubbles: true, cancelable: true });
+      Object.assign(escape, { key: "Escape" });
+      root.dispatchEvent(escape);
+      expect(panel(root).hidden).toBe(true);
+      instance.open();
+      instance.close();
+      expect(panel(root).hidden).toBe(true);
+    });
+
+    it("keeps the window open and in the language that is shown when the words change", () => {
+      const root = element();
+      const instance = renderRevealer(root, props, context());
+      instance.open();
+      instance.update({ ...props, title: "Title" });
+      expect(panel(root).hidden).toBe(false);
+      expect(find(root, ".weft-revealer-icon")?.getAttribute("aria-label")).toBe("Öffnen: Title");
+    });
+  } else {
+    it("is only a picture: the icon is not a button, nothing can be focused, and the window stands open only where it was told to", () => {
+      const root = element();
+      const ctx = context();
+      renderRevealer(root, props, ctx);
+      const icon = find(root, ".weft-revealer-icon") as HTMLElement;
+      expect(icon.tagName).toBe("DIV");
+      expect(icon.className).toContain("is-picture");
+      expect(icon.getAttribute("aria-expanded")).toBeNull();
+      expect(panel(root).hidden).toBe(true);
+      expect(panel(root).className).toContain("is-picture");
+      icon.click();
+      expect(ctx.opened).not.toHaveBeenCalled();
+      expect(panel(root).hidden).toBe(true);
+      const shown = element();
+      renderRevealer(shown, { ...props, open: true }, context());
+      expect(panel(shown).hidden).toBe(false);
+      expect(shown.classList.contains("is-open")).toBe(true);
+      expect(find(shown, ".weft-revealer-close")?.getAttribute("tabindex")).toBe("-1");
+      expect(find(shown, ".weft-revealer-button")?.getAttribute("tabindex")).toBe("-1");
     });
   }
 });

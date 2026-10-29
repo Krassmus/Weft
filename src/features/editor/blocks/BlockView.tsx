@@ -26,7 +26,6 @@ import {
   quizOptionPatch,
   quizQuestionHtml,
   quizQuestionPatch,
-  revealerWording,
   textHtml,
   textHtmlPatch,
 } from "../../../core/document/translations";
@@ -38,12 +37,11 @@ import { hasBackdropBlur, shapeBackdropCss } from "../../../core/document/backdr
 import { useDocumentStore } from "../../../core/document/store";
 import { createId } from "../../../core/id";
 import { confirmDestructive } from "../../../core/io/fileIO";
-import type { ArrowPoint, Block, BlockPosition, ClozeBlock, ImageMask, ListBlock, QuizBlock, RevealerBlock } from "../../../core/types";
+import type { ArrowPoint, Block, BlockPosition, ClozeBlock, ImageMask, ListBlock, QuizBlock } from "../../../core/types";
 import { ListMarkerView } from "./ListMarkerView";
 import { caretAt, caretOnLine, caretX, fitListMarkers, focusItem, textLength } from "./listCaret";
 import { ContextMenu, isContextMenuKey, useContextMenu } from "../ContextMenu";
 import { blockTitle } from "../blockTitle";
-import { revealerIconSvg, revealerSignColor } from "../../../core/runtime/revealerGeometry.js";
 import { useTranslation } from "../../../core/i18n/useTranslation";
 import type { ContextMenuItem } from "../ContextMenu";
 import { registerActiveEditable, registerWholeRegion, resolveInlineAssets, saveSelection, storeableHtml } from "./richText";
@@ -845,7 +843,8 @@ function BlockContent({
         <div className="weft-edit-block-placeholder">{tr("ui.choose_video")}</div>
       );
     case "revealer":
-      return <RevealerCanvas block={block} selected={selected} />;
+      // (Drawn by its view above.)
+      return null;
     case "progress":
       // (Drawn by its view above.)
       return null;
@@ -947,67 +946,6 @@ function BlockContent({
  *    a new option via the app's regular context menu, mirroring how the slide list already
  *    handles add/remove (see Sidebar.tsx).
  */
-/**
- * A revealer on the canvas: its icon - and, while the block is selected, its window open around it (what a click on the icon does in the module),
- * so that what is written in its panel can be seen where it stands. The window is placed as the player places it: at the right of the icon unless
- * it would leave the slide there, and moved up as far as it needs to at the bottom (see renderRevealerBlock in player.runtime.js).
- */
-function RevealerCanvas({ block, selected }: { block: RevealerBlock; selected: boolean }) {
-  const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
-  const { lang, defaultLang } = useEditingLanguage();
-  const words = revealerWording(block, lang, defaultLang);
-  const slideAspect = useDocumentStore((s) => aspectRatioNumeric(s.doc.content.aspectRatio));
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [lift, setLift] = useState(0);
-  // The icon is a square as large as fits in the block's box.
-  const size = Math.min(block.position.width, block.position.height / slideAspect);
-  const toTheLeft = block.position.x + REVEALER_WINDOW_WIDTH_CQW - REVEALER_PAD_CQW > 100;
-  const imageUrl = block.imageAssetId ? getObjectUrl(block.imageAssetId) : undefined;
-  useLayoutEffect(() => {
-    const panel = panelRef.current;
-    const stage = panel?.closest(".weft-stage-edit, .weft-stage");
-    if (!panel || !stage) {
-      setLift(0);
-      return;
-    }
-    const overflow = panel.getBoundingClientRect().bottom - stage.getBoundingClientRect().bottom + lift;
-    setLift(overflow > 0 ? Math.round(overflow) : 0);
-    // (After every change of what it is made of; `lift` is what this sets.)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, block, words.title, words.body, imageUrl, size]);
-  return (
-    <div className="weft-edit-revealer" style={{ width: `${size}cqw`, height: `${size}cqw` }}>
-      <div className="weft-edit-revealer-icon" dangerouslySetInnerHTML={{ __html: revealerIconSvg(block.icon, block.color) }} />
-      {selected && (
-        <div
-          ref={panelRef}
-          className={"weft-edit-revealer-panel is-" + block.windowStyle + (toTheLeft ? " is-right" : "")}
-          style={lift > 0 ? { top: `calc(${-REVEALER_PAD_CQW}cqw - ${lift}px)` } : undefined}
-        >
-          <span className="weft-edit-revealer-close" aria-hidden="true">
-            ×
-          </span>
-          <div className="weft-edit-revealer-title">{words.title}</div>
-          {words.body.trim() !== "" && <div className="weft-edit-revealer-text">{words.body}</div>}
-          {imageUrl && <img className="weft-edit-revealer-image" src={imageUrl} alt="" draggable={false} />}
-          {block.button && (
-            <div className="weft-edit-revealer-actions">
-              <span className="weft-edit-revealer-button" style={{ background: block.color, color: revealerSignColor(block.color) }}>
-                {words.buttonText}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** The width of a revealer's window as a share of the slide's width, and how far it reaches around the icon (kept in sync by hand with
- * player.runtime.js and the stylesheets). */
-const REVEALER_WINDOW_WIDTH_CQW = 28;
-const REVEALER_PAD_CQW = 1.4;
-
 function QuizBlockCanvas({
   block,
   selected,

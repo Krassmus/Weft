@@ -1275,6 +1275,7 @@ describe("the placeholder of a layout", () => {
     const m = made();
     expect(Object.values(m.content.layouts).some((layout) => layout.blocks[m.blockId])).toBe(true);
     expect(Object.values(m.content.pages[m.pageId].blocks).length).toBe(0);
+    expect(m.block.position).toEqual({ x: 10, y: 40, width: 80, height: 20 });
     expect(stored(m).label.trim()).not.toBe("");
     expect(stored(m).html).toMatch(/^<p>.+<\/p>$/);
     stored(m).label = "Titel";

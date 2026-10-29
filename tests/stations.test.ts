@@ -1054,6 +1054,8 @@ describe("the sorting puzzle", () => {
     block.items[0].kind = "image";
     block.items[0].text = "";
     expect(descriptorOf("sort")!.summary!(m.block as never, { labels: {} })).toContain("[Bild: ohne Beschreibung]");
+    block.startLabel = "";
+    expect(descriptorOf("sort")!.summary!(m.block as never, { labels: {} })).toContain("( … Spät)");
   });
 
   it("has what is wrong with it said: one object, a picture without a picture or file or description, no points at all", () => {
@@ -1069,6 +1071,12 @@ describe("the sorting puzzle", () => {
     expect(codes(m)).toContain("image-no-alt");
     block.items = block.items.slice(0, 1);
     expect(codes(m)).toContain("sort-too-few");
+    // (Points for one of the four are points.)
+    const some = moduleWith("sort", false);
+    const partly = some.content.pages[some.pageId].blocks[some.blockId] as unknown as Record<string, unknown[]>;
+    for (const name of ["onSubmit", "onCorrect", "onIncorrect"]) partly[name] = [];
+    partly.onEachError = [{ variable: some.variable, op: "add", value: 1 }];
+    expect(codes(some)).not.toContain("sort-no-effects");
     const none = moduleWith("sort", false);
     const bare = none.content.pages[none.pageId].blocks[none.blockId] as unknown as Record<string, unknown[]>;
     for (const name of ["onSubmit", "onEachError", "onCorrect", "onIncorrect"]) bare[name] = [];

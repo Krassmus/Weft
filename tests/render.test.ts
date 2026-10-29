@@ -1752,6 +1752,8 @@ describe("what a sorting puzzle works out", () => {
     expect(sortLayout(block(9, 20, "horizontal"))).toEqual({ lines: 2, per: 5 });
     expect(sortLayout(block(0, 20))).toEqual({ lines: 1, per: 1 });
     expect(sortLayout(block(3, 150))).toEqual({ lines: 3, per: 1 });
+    // (Eleven at an eleventh of the line fit on it, though 100 / (100 / 11) comes out a hair below eleven.)
+    expect(sortLayout(block(11, 100 / 11))).toEqual({ lines: 1, per: 11 });
   });
 
   it("puts a dragged object after every other one whose middle the pointer has passed - on the line whose middle is nearest across", () => {
@@ -1770,6 +1772,8 @@ describe("what a sorting puzzle works out", () => {
     expect(sortDropIndex(2, lanes, 0, 0, 24)).toBe(1);
     expect(sortDropIndex(2, lanes, 0, 20, 24)).toBe(2);
     expect(sortDropIndex(2, lanes, 0, 99, 24)).toBe(3);
+    // (Exactly between two lines it is the first.)
+    expect(sortDropIndex(2, lanes, 3, 99, 15)).toBe(2);
   });
 });
 
@@ -1835,6 +1839,7 @@ describe.each(MODES)("a sorting puzzle drawn for %s", (mode) => {
     expect(cardOf(root, "x0").getAttribute("style")).toContain("width:80%");
     expect(cardOf(root, "x0").getAttribute("style")).toContain("height:20%");
     expect(cardOf(root, "x2").getAttribute("style")).toContain("height:40%");
+    expect(cardOf(root, "x2").querySelector("img")?.getAttribute("alt")).toBe("Bild");
     expect(cardOf(root, "x2").querySelector(".weft-matching-frame .weft-matching-image")?.getAttribute("src")).toBe("data:image/png;base64,AAAA");
   });
 
@@ -1867,9 +1872,11 @@ describe.each(MODES)("a sorting puzzle drawn for %s", (mode) => {
       key(a, "ArrowRight");
       key(a, "ArrowDown");
       expect(order(root)).toEqual(["b", "c", "d", "a"]);
-      // (At the end it stays.)
-      key(a, "ArrowDown");
+      // (At the end it stays, and nothing is told - the page is still told not to turn.)
+      const told = ctx.announce.mock.calls.length;
+      expect(key(a, "ArrowDown")).toBe(false);
       expect(order(root)).toEqual(["b", "c", "d", "a"]);
+      expect(ctx.announce.mock.calls.length).toBe(told);
       key(a, "ArrowUp");
       key(a, "ArrowLeft");
       expect(order(root)).toEqual(["b", "a", "c", "d"]);
@@ -1900,6 +1907,7 @@ describe.each(MODES)("a sorting puzzle drawn for %s", (mode) => {
       setOrder(root, ["x0", "x1", "x2", "x3", "x4", "x5"]);
       expect(find(root, ".weft-sort")?.getAttribute("style")).toContain("--sort-per:3");
       const first = cardOf(root, "x0");
+      expect(first.getAttribute("style")).toContain("height:90%");
       click(first);
       // (Vertical lines: down is one along the line, right is a line further - three objects.)
       key(first, "ArrowRight");
@@ -1946,6 +1954,32 @@ describe.each(MODES)("a sorting puzzle drawn for %s", (mode) => {
       window.dispatchEvent(pointer("pointermove", 5, 80));
       window.dispatchEvent(pointer("pointercancel", 5, 80));
       expect(find(root, ".is-ghost")).toBeNull();
+      // A drag that ends where it began changes nothing and tells nothing.
+      const calm = element();
+      document.body.appendChild(calm);
+      const ctx3 = context();
+      renderSort(calm, props(), ctx3);
+      const first = order(calm)[0];
+      order(calm).forEach((id, index) => {
+        const card = cardOf(calm, id);
+        Object.defineProperty(card, "offsetTop", { configurable: true, value: index * 20 });
+        Object.defineProperty(card, "offsetHeight", { configurable: true, value: 20 });
+        Object.defineProperty(card, "offsetLeft", { configurable: true, value: 0 });
+        Object.defineProperty(card, "offsetWidth", { configurable: true, value: 10 });
+      });
+      const before = order(calm);
+      cardOf(calm, first).dispatchEvent(pointer("pointerdown", 5, 10));
+      window.dispatchEvent(pointer("pointermove", 5, 20));
+      expect(find(calm, ".is-ghost")).not.toBeNull();
+      window.dispatchEvent(pointer("pointerup", 5, 20));
+      expect(order(calm)).toEqual(before);
+      expect(ctx3.fill).not.toHaveBeenCalled();
+      // Once submitted nothing is dragged.
+      fire(find(calm, ".weft-quiz-submit") as Element, "click");
+      cardOf(calm, first).dispatchEvent(pointer("pointerdown", 5, 10));
+      window.dispatchEvent(pointer("pointermove", 5, 60));
+      expect(find(calm, ".is-ghost")).toBeNull();
+      calm.remove();
       // Another button does not drag.
       a.dispatchEvent(Object.assign(pointer("pointerdown", 5, 50), { button: 2 }));
       window.dispatchEvent(pointer("pointermove", 5, 10));
@@ -2007,6 +2041,18 @@ describe.each(MODES)("a sorting puzzle drawn for %s", (mode) => {
       expect(ctx.enlarge).toHaveBeenCalledTimes(2);
       key(cardOf(root, "b"), "z");
       expect(ctx.enlarge).toHaveBeenCalledTimes(2);
+      key(cardOf(root, "a"), "+");
+      expect(ctx.enlarge).toHaveBeenCalledTimes(3);
+      // (A text is not enlarged by a click of the mouse - and does not get picked up by one either; a picture that has no file yet is not enlarged.)
+      click(cardOf(root, "b"), 1);
+      expect(cardOf(root, "b").classList.contains("is-picked")).toBe(false);
+      expect(ctx.enlarge).toHaveBeenCalledTimes(3);
+      const empty = element();
+      const ctx2 = context();
+      renderSort(empty, props({ items: [item("a", "Noch kein Bild", "image", ""), item("b", "Text")] }), ctx2);
+      click(cardOf(empty, "a"), 1);
+      key(cardOf(empty, "a"), "z");
+      expect(ctx2.enlarge).not.toHaveBeenCalled();
     });
 
     it("keeps the order and what was submitted when the words change", () => {
@@ -2014,12 +2060,15 @@ describe.each(MODES)("a sorting puzzle drawn for %s", (mode) => {
       const instance = renderSort(root, props(), context());
       setOrder(root, ["c", "a", "d", "b"]);
       fire(find(root, ".weft-quiz-submit") as Element, "click");
-      WORDS.correct = "Correct";
+      WORDS.incorrect = "Wrong";
+      WORDS.submit = "Submit";
       instance.update(props({ items: props().items.map((i) => ({ ...i, text: "EN " + i.text })) }));
       expect(order(root)).toEqual(["c", "a", "d", "b"]);
       expect(cardOf(root, "c").textContent).toBe("EN Drittens");
-      expect(find(root, ".weft-quiz-feedback-title")?.textContent).toBe("Falsch");
-      WORDS.correct = "Richtig";
+      expect(find(root, ".weft-quiz-feedback-title")?.textContent).toBe("Wrong");
+      expect(find(root, ".weft-quiz-submit")?.textContent).toBe("Submit");
+      WORDS.incorrect = "Falsch";
+      WORDS.submit = "Abschicken";
     });
   } else {
     it("is only a picture: the objects stand in their right order whatever luck says, are not buttons, and nothing can be picked or pressed", () => {

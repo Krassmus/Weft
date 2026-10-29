@@ -384,21 +384,6 @@ export function validate(loaded: LoadedWeft): Finding[] {
       }
     }
 
-    // Media.
-    if ((block.kind === "image" || block.kind === "video" || block.kind === "audio") && block.assetId) {
-      const meta = content.assets.find((a) => a.id === block.assetId);
-      if (!meta) add("error", "asset-missing", `${block.kind}-Block verweist auf die Datei ${block.assetId}, die nicht in der Liste der Dateien steht.`, here);
-      else if (loaded.archive && !loaded.files.has(`assets/${meta.id}_${meta.fileName}`)) {
-        add("error", "asset-file-missing", `Die Datei „${meta.fileName}" fehlt im Archiv.`, { ...here, hint: "Das Bild/Video/Audio neu einfügen." });
-      }
-    }
-    if ((block.kind === "image" || block.kind === "video" || block.kind === "audio") && !block.assetId) {
-      add("warning", "media-empty", `${block.kind}-Block hat noch keine Datei.`, here);
-    }
-    if (block.kind === "image" && block.assetId && !block.alt?.trim()) {
-      add("info", "image-no-alt", "Bild ohne Alternativtext.", here);
-    }
-
     // Variables in effects.
     for (const { effects, what } of effectsOf(block)) {
       for (const effect of effects) {
@@ -414,7 +399,7 @@ export function validate(loaded: LoadedWeft): Finding[] {
     if (descriptorOf(block) && loaded.archive) {
       for (const id of new Set(assetIdsOfFields(block))) {
         const meta = content.assets.find((a) => a.id === id);
-        if (meta && !loaded.files.has(`assets/${meta.id}_${meta.fileName}`)) add("error", "asset-file-missing", `Die Datei „${meta.fileName}" fehlt im Archiv.`, { ...here, hint: "Das Bild neu einfügen." });
+        if (meta && !loaded.files.has(`assets/${meta.id}_${meta.fileName}`)) add("error", "asset-file-missing", `Die Datei „${meta.fileName}" fehlt im Archiv.`, { ...here, hint: "Die Datei neu einfügen." });
       }
     }
 

@@ -678,11 +678,11 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
     case "tex":
       return { ...base, kind, position: { x: 25, y: 35, width: 50, height: 30 }, tex: "\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2}", color: "" };
     case "image":
-      return { ...base, kind, position, assetId: null, alt: "" };
     case "video":
-      return { ...base, kind, position, assetId: null, autoplay: false, loop: false, muted: false, controls: true, stopPoints: [] };
     case "audio":
-      return { ...base, kind, position: { x: 30, y: 40, width: 40, height: 12 }, assetId: null, autoplay: false, loop: false, appearance: "player", stopPoints: [] };
+    case "files":
+      // (A kind with a descriptor is made above - it has no case of its own.)
+      throw new Error(`The kind "${kind}" has no descriptor.`);
     case "shape":
       return {
         ...base,
@@ -697,8 +697,6 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
         stroke: defaultShapeStroke(),
         shadow: defaultShapeShadow(),
       };
-    case "files":
-      return { ...base, kind, position: { x: 30, y: 35, width: 40, height: 30 }, title: "", files: [], protection: null };
     case "arrow":
       return {
         ...base,

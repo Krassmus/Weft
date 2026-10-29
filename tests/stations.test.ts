@@ -393,6 +393,10 @@ describe("what is known about each kind", () => {
     cloze: { pageOnly: true, task: true, translatable: ["html"], lists: [] },
     matching: { pageOnly: true, task: true, translatable: [], lists: ["sources", "targets"] },
     sort: { pageOnly: true, task: true, translatable: ["endLabel", "startLabel"], lists: ["items"] },
+    image: { pageOnly: false, task: false, translatable: [], lists: [] },
+    video: { pageOnly: false, task: false, translatable: [], lists: [] },
+    audio: { pageOnly: false, task: false, translatable: [], lists: [] },
+    files: { pageOnly: false, task: false, translatable: [], lists: [] },
     revealer: { pageOnly: false, task: false, translatable: ["body", "imageAlt", "title"], lists: [] },
     quiz: { pageOnly: true, task: true, translatable: ["explanation", "questionHtml"], lists: ["options"] },
   };
@@ -421,6 +425,13 @@ describe("what `weft validate` says about a block that is wrong", () => {
     ["gallery", (block) => ((block.items as Fields[])[0].assetId = null), "gallery-no-image", "warning"],
     ["gallery", (block) => ((block.items as Fields[])[0].assetId = "gibt-es-nicht"), "asset-missing", "error"],
     ["gallery", (block) => ((block.items as Fields[])[0].caption = ""), "image-no-alt", "info"],
+    ["image", (block) => (block.assetId = null), "media-empty", "warning"],
+    ["image", (block) => (block.assetId = "gibt-es-nicht"), "asset-missing", "error"],
+    ["image", (block) => (block.alt = " "), "image-no-alt", "info"],
+    ["video", (block) => (block.assetId = null), "media-empty", "warning"],
+    ["video", (block) => (block.assetId = "gibt-es-nicht"), "asset-missing", "error"],
+    ["audio", (block) => (block.assetId = null), "media-empty", "warning"],
+    ["audio", (block) => (block.assetId = "gibt-es-nicht"), "asset-missing", "error"],
     ["link", (block) => (block.url = "https://"), "link-no-target", "warning"],
     ["link", (block) => (block.url = "javascript:alert(1)"), "link-url-invalid", "error"],
     ["progress", (block) => (block.variable = "gibt-es-nicht"), "progress-variable-unknown", "warning"],
@@ -1095,5 +1106,70 @@ describe("the sorting puzzle", () => {
     expect(block.startLabel).toBe("Early");
     expect((block.translations![DE].items as Record<string, string>)[block.items[0].id]).toBe(own);
     expect(block.translations![DE].startLabel).toBe("Früh");
+  });
+});
+
+describe("the picture, the video, the sound and the box of files", () => {
+  type Media = { assetId: string | null; alt?: string; appearance?: string; stopPoints?: unknown[]; files?: unknown[]; protection?: unknown; title?: string };
+  const stored = (m: ReturnType<typeof moduleWith>) => m.content.pages[m.pageId].blocks[m.blockId] as unknown as Media;
+  const say = (m: ReturnType<typeof moduleWith>) => descriptorOf(m.block.kind)!.summary!(m.block as never, { labels: {}, assets: m.content.assets });
+
+  it("say in one line what they are (`weft inspect`): the name of the file, the description, the time marks, how it shows", () => {
+    const image = moduleWith("image", true);
+    expect(say(image)).toBe(`„Beispiel alt" eins.png`);
+    stored(image).alt = "";
+    expect(say(image)).toBe("eins.png");
+    stored(image).assetId = null;
+    expect(say(image)).toBe("(kein Bild)");
+    const video = moduleWith("video", true);
+    expect(say(video)).toBe("eins.png");
+    stored(video).stopPoints = [{ id: "a", timeSeconds: 2, stopsVideo: true }, { id: "b", timeSeconds: 5, stopsVideo: false }];
+    expect(say(video)).toBe("eins.png, 2 Zeitmarken");
+    stored(video).assetId = null;
+    expect(say(video)).toBe("(kein Video), 2 Zeitmarken");
+    const audio = moduleWith("audio", true);
+    expect(say(audio)).toBe("eins.png, mit Player");
+    stored(audio).appearance = "hidden";
+    stored(audio).stopPoints = [{ id: "a", timeSeconds: 2, stopsVideo: true }];
+    expect(say(audio)).toBe("eins.png, unsichtbar, 1 Zeitmarken");
+    stored(audio).assetId = null;
+    expect(say(audio)).toBe("(keine Audiodatei), unsichtbar, 1 Zeitmarken");
+    const files = moduleWith("files", false);
+    expect(say(files)).toBe("0 Dateien");
+    stored(files).files = [{ id: "asset-2", name: "x.pdf", mimeType: "application/pdf", size: 1 }];
+    stored(files).protection = { salt: "a", iterations: 1, verifier: "b" };
+    expect(say(files)).toBe("1 Dateien, geschützt");
+  });
+
+  it("are made as they always were: where on the slide, what is set, nothing chosen yet", () => {
+    const made = (kind: string) => moduleWith(kind, false).block as unknown as Record<string, unknown>;
+    expect(made("image")).toMatchObject({ position: { x: 10, y: 40, width: 80, height: 20 }, assetId: null, alt: "" });
+    expect(made("video")).toMatchObject({ position: { x: 10, y: 40, width: 80, height: 20 }, assetId: null, autoplay: false, loop: false, muted: false, controls: true, stopPoints: [] });
+    expect(made("audio")).toMatchObject({ position: { x: 30, y: 40, width: 40, height: 12 }, assetId: null, autoplay: false, loop: false, appearance: "player", stopPoints: [] });
+    expect(made("files")).toMatchObject({ position: { x: 30, y: 35, width: 40, height: 30 }, title: "", files: [], protection: null });
+  });
+
+  it("keep the file they show - and the box of files the files it holds - in the module, and let go of it when the block is not that any more", () => {
+    for (const kind of ["image", "video", "audio"]) {
+      const m = moduleWith(kind, true);
+      expect(new Set(usedAssetIds(m.content)).has("asset-1"), kind).toBe(true);
+      stored(m).assetId = null;
+      expect(new Set(usedAssetIds(m.content)).has("asset-1"), kind).toBe(false);
+    }
+    const files = moduleWith("files", false);
+    stored(files).files = [{ id: "asset-2", name: "x.pdf", mimeType: "application/pdf", size: 1 }];
+    expect(new Set(usedAssetIds(files.content))).toEqual(new Set(["asset-2"]));
+  });
+
+  it("have a file that is in the list of the module's files but not in the archive reported (a file of any kind)", () => {
+    for (const kind of ["image", "video", "audio"]) {
+      const m = moduleWith(kind, true);
+      const asset = m.content.assets[0];
+      const inArchive = new Set(m.content.assets.map((a) => `assets/${a.id}_${a.fileName}`));
+      const check = () => validate({ path: "test.weft", json: { formatVersion: CURRENT_FORMAT_VERSION, content: m.content }, content: m.content, files: inArchive, archive: true }).filter((finding) => finding.code === "asset-file-missing");
+      expect(check(), kind).toEqual([]);
+      inArchive.delete(`assets/${asset.id}_${asset.fileName}`);
+      expect(check()[0]?.severity, kind).toBe("error");
+    }
   });
 });

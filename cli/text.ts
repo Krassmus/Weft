@@ -27,7 +27,7 @@ export function blockSummary(block: Block, content: WeftModule, labels: Record<s
 function blockContent(block: Block, content: WeftModule, labels: Record<string, string>): string {
   // A block that describes itself (see core/blocks) says what it is itself.
   const summary = descriptorOf(block)?.summary;
-  if (summary) return summary(block as never, { labels });
+  if (summary) return summary(block as never, { labels, assets: content.assets });
   switch (block.kind) {
     case "placeholder":
       return `Platzhalter „${block.label}"`;
@@ -37,19 +37,11 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
     case "progress":
       // (Described above.)
       return "";
-    case "image": {
-      const asset = content.assets.find((a) => a.id === block.assetId);
-      return `${block.alt ? `„${block.alt}" ` : ""}${asset ? asset.fileName : "(kein Bild)"}`.trim();
-    }
-    case "video": {
-      const asset = content.assets.find((a) => a.id === block.assetId);
-      return `${asset ? asset.fileName : "(kein Video)"}${block.stopPoints.length > 0 ? `, ${block.stopPoints.length} Zeitmarken` : ""}`;
-    }
-    case "audio": {
-      const asset = content.assets.find((a) => a.id === block.assetId);
-      const shown = block.appearance === "hidden" ? "unsichtbar" : "mit Player";
-      return `${asset ? asset.fileName : "(keine Audiodatei)"}, ${shown}${block.stopPoints.length > 0 ? `, ${block.stopPoints.length} Zeitmarken` : ""}`;
-    }
+    case "image":
+    case "video":
+    case "audio":
+      // (Described above.)
+      return "";
     case "code":
       return `${block.language}: ${(block.code.split("\n")[0] ?? "").slice(0, 50)}`;
     case "tex":
@@ -74,7 +66,8 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
       // (Described above.)
       return "";
     case "files":
-      return `${block.files.length} Dateien${block.protection ? ", geschützt" : ""}`;
+      // (Described above.)
+      return "";
     case "language":
       // (Described above.)
       return "";

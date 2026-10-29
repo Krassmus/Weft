@@ -126,7 +126,7 @@ export interface EffectsField {
 /** A file of the module (an asset): the id of the asset, or null while none is chosen. */
 export interface AssetField {
   type: "asset";
-  kind: "image";
+  kind: "image" | "video" | "audio";
   /** The file is only used while another field of the block has this value (the picture of a list's marker, while its marker is "image") - in the item of a
    * list: while another field of the item has it (a card of a matching: its picture, while it is a picture): else it does not stay in the module and is not
    * exported. */
@@ -227,7 +227,7 @@ export interface BlockDescriptor<B extends Block = Block> {
   /** What the panel in the sidebar shows, in what order. Absent: the block's panel is its own (panels/BlockPanel.tsx). */
   panel?: PanelSpec;
   /** What `weft inspect` says about the block, in one line (German). */
-  summary?(block: B, context: { labels: Record<string, string> }): string;
+  summary?(block: B, context: { labels: Record<string, string>; assets?: { id: string; fileName: string }[] }): string;
   /** What is wrong with the block (`weft validate`; German). */
   validate?(block: B, module: { assets: { id: string }[]; variables: { name: string; type: string }[]; pages: Record<string, unknown> }): BlockProblem[];
 }

@@ -1,10 +1,13 @@
 import type { Block } from "../types";
 import type { BlockDescriptor, FieldSpec, HtmlField, ListField, TaskSpec, TextField } from "./types";
+import { audioBlock } from "./audio/descriptor";
 import { buttonBlock } from "./button/descriptor";
 import { checkerBlock } from "./checker/descriptor";
 import { clozeBlock } from "./cloze/descriptor";
+import { filesBlock } from "./files/descriptor";
 import { galleryBlock } from "./gallery/descriptor";
 import { iframeBlock } from "./iframe/descriptor";
+import { imageBlock } from "./image/descriptor";
 import { languageBlock } from "./language/descriptor";
 import { linkBlock } from "./link/descriptor";
 import { listBlock } from "./list/descriptor";
@@ -15,6 +18,7 @@ import { revealerBlock } from "./revealer/descriptor";
 import { solutionBlock } from "./solution/descriptor";
 import { sortBlock } from "./sort/descriptor";
 import { textBlock } from "./text/descriptor";
+import { videoBlock } from "./video/descriptor";
 
 /**
  * Every kind of block that describes itself (see BlockDescriptor), by its kind. The stations that treat all blocks alike ask here; a kind that is
@@ -41,6 +45,10 @@ registerBlock(quizBlock);
 registerBlock(revealerBlock);
 registerBlock(matchingBlock);
 registerBlock(sortBlock);
+registerBlock(imageBlock);
+registerBlock(videoBlock);
+registerBlock(audioBlock);
+registerBlock(filesBlock);
 
 /** The descriptor of a kind, if it has one. */
 export function descriptorOf<B extends Block>(block: B): BlockDescriptor<B> | undefined;

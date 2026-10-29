@@ -36,8 +36,8 @@ export const mediaEvents: OwnEventSpec<VideoBlock | AudioBlock>[] = [
     timelineTypes: ["video-start-auto", "video-start-manual"],
     triggerable: true,
     looks: {
-      "video-start-auto": { label: () => tr("ui.start_of_the_video"), icon: "video" },
-      "video-start-manual": { label: () => tr("ui.start_of_the_video"), icon: "play" },
+      "video-start-auto": { label: () => tr("ui.start_of_the_video"), icon: "video", color: "violet", triggeredColor: "blue" },
+      "video-start-manual": { label: () => tr("ui.start_of_the_video"), icon: "play", color: "violet", triggeredColor: "blue" },
     },
   },
   {
@@ -47,7 +47,7 @@ export const mediaEvents: OwnEventSpec<VideoBlock | AudioBlock>[] = [
     timelineType: "video-stop-point",
     perItem: "stopPoints",
     triggerable: false,
-    looks: { "video-stop-point": { label: () => tr("ui.time_mark_2"), hint: () => tr("ui.happens_as_soon_as_playback_reaches"), icon: "stop-point" } },
+    looks: { "video-stop-point": { label: () => tr("ui.time_mark_2"), hint: () => tr("ui.happens_as_soon_as_playback_reaches"), icon: "stop-point", color: "blue" } },
     companions: [
       {
         key: "resume",
@@ -56,7 +56,7 @@ export const mediaEvents: OwnEventSpec<VideoBlock | AudioBlock>[] = [
         timelineType: "video-resume",
         exists: (_block, _where, item) => item?.stopsVideo === true,
         triggerable: false,
-        looks: { "video-resume": { label: () => tr("ui.video_continues_2"), hint: () => tr("ui.happens_as_soon_as_the_learner_3"), icon: "play" } },
+        looks: { "video-resume": { label: () => tr("ui.video_continues_2"), hint: () => tr("ui.happens_as_soon_as_the_learner_3"), icon: "play", color: "violet" } },
       },
     ],
   },
@@ -67,8 +67,8 @@ export const mediaEvents: OwnEventSpec<VideoBlock | AudioBlock>[] = [
     timelineType: (block) => (block.loop ? "video-end-loop" : "video-end-stop"),
     triggerable: false,
     looks: {
-      "video-end-loop": { label: () => tr("ui.end_of_the_video"), hint: () => tr("ui.never_happens_the_video_runs_in"), icon: "infinity" },
-      "video-end-stop": { label: () => tr("ui.end_of_the_video"), hint: () => tr("ui.happens_as_soon_as_the_video"), icon: "stop" },
+      "video-end-loop": { label: () => tr("ui.end_of_the_video"), hint: () => tr("ui.never_happens_the_video_runs_in"), icon: "infinity", color: "blue" },
+      "video-end-stop": { label: () => tr("ui.end_of_the_video"), hint: () => tr("ui.happens_as_soon_as_the_video"), icon: "stop", color: "blue" },
     },
   },
 ];

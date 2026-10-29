@@ -123,7 +123,7 @@ function taskEventSpecs(task: TaskSpec): OwnEventSpec<Block>[] {
       timelineType: "quiz-fill-start",
       triggerable: false,
       label: () => tr(task.labels.fill),
-      looks: { "quiz-fill-start": { label: () => tr("ui.fill_in"), hint: () => tr("ui.happens_as_soon_as_the_learner_2"), icon: "cursor" } },
+      looks: { "quiz-fill-start": { label: () => tr("ui.fill_in"), hint: () => tr("ui.happens_as_soon_as_the_learner_2"), icon: "cursor", color: "violet", byLearner: true } },
     },
     {
       key: "submit",
@@ -132,7 +132,7 @@ function taskEventSpecs(task: TaskSpec): OwnEventSpec<Block>[] {
       timelineType: "quiz-submit",
       triggerable: false,
       label: () => tr(task.labels.submit),
-      looks: { "quiz-submit": { label: () => tr("ui.quiz_submitted"), hint: () => tr("ui.happens_as_soon_as_the_quiz"), icon: "accept" } },
+      looks: { "quiz-submit": { label: () => tr("ui.quiz_submitted"), hint: () => tr("ui.happens_as_soon_as_the_quiz"), icon: "accept", color: "violet", byLearner: true } },
     },
     {
       key: "correct",
@@ -142,7 +142,7 @@ function taskEventSpecs(task: TaskSpec): OwnEventSpec<Block>[] {
       timelineType: "quiz-submit-correct",
       triggerable: false,
       label: () => tr(task.labels.correct),
-      looks: { "quiz-submit-correct": { label: () => tr("ui.quiz_submitted"), hint: () => tr("ui.happens_as_soon_as_the_quiz_2"), icon: "accept" } },
+      looks: { "quiz-submit-correct": { label: () => tr("ui.quiz_submitted"), hint: () => tr("ui.happens_as_soon_as_the_quiz_2"), icon: "accept", color: "violet", byLearner: true } },
     },
     {
       // (Its own icon, not the checkmark of "richtig": the two outcome lanes should read apart from each other at a glance, not just by their label.)
@@ -153,7 +153,7 @@ function taskEventSpecs(task: TaskSpec): OwnEventSpec<Block>[] {
       timelineType: "quiz-submit-incorrect",
       triggerable: false,
       label: () => tr(task.labels.incorrect),
-      looks: { "quiz-submit-incorrect": { label: () => tr("ui.quiz_submitted"), hint: () => tr("ui.happens_as_soon_as_the_quiz_3"), icon: "decline" } },
+      looks: { "quiz-submit-incorrect": { label: () => tr("ui.quiz_submitted"), hint: () => tr("ui.happens_as_soon_as_the_quiz_3"), icon: "decline", color: "violet", byLearner: true } },
     },
   ];
 }

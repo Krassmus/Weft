@@ -9,12 +9,11 @@ import {
   videoStartNodeId,
 } from "../../../core/document/pageTimeline";
 import { isMediaBlock } from "../../../core/types";
-import { isTaskBlock } from "../../../core/blocks/registry";
+import { eventLookOf, isTaskBlock } from "../../../core/blocks/registry";
+import type { EventColor } from "../../../core/blocks/types";
 import type { Block, Page, TimelineEdgeKind, TimelineNode } from "../../../core/types";
 
-/** What kind an event is, which is what its colour says (docs/event-graph.md, section 2): the learner doing something (violet), an
- * animation (yellow), a script that runs (green), or anything else (blue). */
-export type EventColor = "blue" | "yellow" | "violet" | "green";
+export type { EventColor };
 
 export interface GraphNodeModel {
   id: string;
@@ -69,17 +68,9 @@ export interface GraphModel {
   shownIn: Map<string, string>;
 }
 
-/** Events that happen because the learner does something. */
+/** Events that happen because the learner does something (see `byLearner` in the look of an event type). */
 function isUserEvent(node: TimelineNode): boolean {
-  const type = node.eventType;
-  return (
-    type === "quiz-fill-start" ||
-    type === "quiz-submit" ||
-    type === "quiz-submit-correct" ||
-    type === "quiz-submit-incorrect" ||
-    type === "button-click" ||
-    type === "revealer-button"
-  );
+  return !!node.eventType && !!eventLookOf(node.eventType)?.byLearner;
 }
 
 /**
@@ -227,23 +218,10 @@ export function buildGraphModel(page: Page): GraphModel {
       (isTaskBlock(block) || isMediaBlock(block)) &&
       node.eventType !== "block-entrance" &&
       node.eventType !== "block-exit";
-    let color: EventColor = "blue";
-    if (
-      node.kind === "event" &&
-      (node.eventType === "block-entrance" ||
-        node.eventType === "block-exit" ||
-        node.eventType?.startsWith("block-action") ||
-        node.eventType === "group-entrance" ||
-        node.eventType === "group-exit" ||
-        node.eventType === "list-item-entrance")
-    ) {
-      color = "yellow";
-    }
-    // (A condition of a variable can come true from the start, and by itself: it needs no way in.)
-    else if (node.eventType === "script-run" || node.eventType === "variable-condition") color = "green";
-    else if (isUserEvent(node) || node.eventType === "video-resume") color = "violet";
-    // A video start nothing triggers is the learner pressing play.
-    else if (node.eventType?.startsWith("video-start") && !incoming.has(node.id)) color = "violet";
+    // (What the look of the type says; a video start nothing triggers is the learner pressing play. A condition of a variable can come true from the start,
+    // and by itself: it needs no way in.)
+    const look = node.eventType ? eventLookOf(node.eventType) : undefined;
+    const color: EventColor = (incoming.has(node.id) ? look?.triggeredColor : undefined) ?? look?.color ?? "blue";
     return {
       id: node.id,
       node,

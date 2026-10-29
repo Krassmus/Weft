@@ -229,6 +229,10 @@ export interface OwnEventSpec<B = never> {
 /** The icons of the editor's set that an event type can have (the editor draws them: features/editor/Timeline.tsx). */
 export type EventIconName = "cursor" | "accept" | "decline" | "video" | "play" | "stop-point" | "infinity" | "stop" | "info" | "hand" | "gear" | "animation" | "dashing-away" | "action-move" | "action-shake" | "action-blink" | "condition";
 
+/** What kind an event is, which is what its colour says (docs/event-graph.md, section 2): the learner doing something (violet), an animation (yellow), a
+ * script that runs or a condition (green), or anything else (blue). */
+export type EventColor = "blue" | "yellow" | "violet" | "green";
+
 /** How the editor shows one type of event (see `looks` of OwnEventSpec). The words are functions: they follow the language of the editor. */
 export interface EventTypeLook {
   /** The title the node has in the graph where the author gave none (and the block none of its own: see `label`). */
@@ -236,6 +240,12 @@ export interface EventTypeLook {
   /** What the panel of the event says about it, for an event nothing can trigger (what makes it happen). Absent: the panel says it happens through the learner's interaction. */
   hint?(): string;
   icon: EventIconName;
+  /** The colour of the node in the graph. */
+  color: EventColor;
+  /** The colour where a trigger leads to it, if that differs (a video's start is the learner pressing play, violet, until something triggers it). */
+  triggeredColor?: EventColor;
+  /** The learner does it - no trigger and no script can: it can always happen, whatever else does (a click, an answer). */
+  byLearner?: boolean;
 }
 
 /** The panel of a block, made from its fields: sections in the order they are shown. */

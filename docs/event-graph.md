@@ -221,8 +221,10 @@ der Zeitleiste in `pageTimeline.ts`, `ensureEffectTriggers`, die Prüfung, welch
 Zeilen von Video und Aufgabe in der Zeitleiste (`buildVideoLane`: die Zeitmarken in Abspielreihenfolge mit den Zeiten dazwischen, `buildQuizLane`
 und die Zeilen der Ausgänge mit „Nächste Folie“) sind von Hand gebaut, aus den Knoten, die der Deskriptor nennt. Titel und Symbol der Ereignisse, die zur Folie gehören und zu keiner Art - Aufbau und Abbau (eines Blocks und einer Gruppe), die drei
 Aktionseffekte, die Bedingung einer Variablen - stehen in `src/core/blocks/pageEvents.ts` (`pageEventLooks`, dieselbe Form wie `looks`;
-`eventLookOf` kennt sie). Nicht beschrieben ist das Verhalten von Aufbau, Abbau, Aktionen, Gruppen und Bedingungen im Graphen und die Farben aller
-Arten (`eventGraph/model.ts`).
+`eventLookOf` kennt sie). Auch die Farbe jeder Art (`color`; `triggeredColor`, wo sie anders ist, sobald ein Trigger zu ihr führt: der Start eines Videos ist
+das Drücken von Play, violett, bis etwas ihn auslöst) und ob sie der Lernende macht (`byLearner`: ein Klick, eine Antwort - davon geht die
+Erreichbarkeit im Graphen aus) steht dort; `buildGraphModel` (`eventGraph/model.ts`) liest beides aus `eventLookOf`. Nicht beschrieben ist das
+Verhalten von Aufbau, Abbau, Aktionen, Gruppen und Bedingungen im Graphen.
 
 ## 6. Layout
 

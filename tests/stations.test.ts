@@ -11,6 +11,7 @@ import { buildRuntimeHtml } from "../src/core/runtime/buildRuntimeHtml";
 import { pageReadingOrder } from "../src/core/document/readingOrder";
 import { TRIGGERABLE_EVENT_TYPES, blockNameOf, buttonClickNodeId, canTriggerActionEffectFrom, ensureEffectTriggers, getPageLanes, isListPerItem, listItemNodeId, quizFillNodeId, quizSubmitNodeId, revealerButtonNodeId, revealerOpenNodeId, scriptRunNodeId, syncPageTimelineEvents, videoEndNodeId, videoResumeNodeId, videoStartNodeId, videoStopNodeId } from "../src/core/document/pageTimeline";
 import { buildEventGraph } from "../src/core/eventGraph/buildEventGraph";
+import { buildGraphModel } from "../src/features/editor/eventGraph/model";
 import { readFileSync } from "node:fs";
 import type { BlockDescriptor, FieldSpec, ListField } from "../src/core/blocks/types";
 import { pasteBlockInto } from "../src/core/document/actions";
@@ -1607,6 +1608,35 @@ describe("the events of their own that a block gives its page (the descriptor's 
       expect(triggersTo(page, `block-entrance:${whole}`).length).toBe(1);
     });
 
+    it("are coloured as the look of their type says: what the learner does violet, an animation yellow, a script or a condition green, the rest blue - a video's start violet until something triggers it", () => {
+      const { m, page, add } = setup();
+      const quiz = add("quiz");
+      const button = add("button", { entranceEffect: fade });
+      const revealer = add("revealer");
+      const list = add("list", { items: [{ id: "a", html: "<p>1</p>" }], entranceEffect: fade, itemEntrance: true });
+      const video = add("video", { stopPoints: [{ id: "s1", timeSeconds: 3, stopsVideo: true }], entranceEffect: fade });
+      syncPageTimelineEvents(page);
+      const colors = () => {
+        const out: Record<string, string> = {};
+        for (const node of buildGraphModel(page).nodes) for (const each of [node, ...node.companions]) out[each.id] = each.color;
+        return out;
+      };
+      const before = colors();
+      expect(before[`revealer-button:${revealer}`]).toBe("violet");
+      expect(before[`script-run:${m.blockId}`]).toBe("green");
+      for (const id of [`quiz-fill:${quiz}`, `quiz-submit:${quiz}`, `button-click:${button}`, `video-resume:${video}:s1`, `video-start:${video}`])
+        expect(before[id], id).toBe("violet");
+      for (const id of [`list-item:${list}:a`, `block-entrance:${button}`, `block-entrance:${video}`]) expect(before[id], id).toBe("yellow");
+      for (const id of [`revealer-open:${revealer}`, `video-stop:${video}:s1`, `video-end:${video}`, "start", "end"]) expect(before[id], id).toBe("blue");
+      // (What the learner does needs no way in: nothing marks it unreachable. A stop point of a video that nothing starts is not the learner's.)
+      const unreachable = new Set(buildGraphModel(page).nodes.flatMap((node) => [node, ...node.companions]).filter((node) => node.unreachable).map((node) => node.id));
+      for (const id of [`quiz-fill:${quiz}`, `quiz-submit:${quiz}`, `button-click:${button}`, `revealer-button:${revealer}`]) expect(unreachable.has(id), id).toBe(false);
+      // (Something triggers the start of the video: it is no longer the learner pressing play.)
+      page.timeline.triggers["t:video"] = { from: "start", to: `video-start:${video}`, delayMs: 0 } as never;
+      syncPageTimelineEvents(page);
+      expect(colors()[`video-start:${video}`]).toBe("blue");
+    });
+
     it("take their place in the chain of Weiter when the block is made, or asked for - the items of a list in the order of the list", () => {
       const { m, page, add } = setup();
       // (A logic block made by add_block - addBlockToPage - has its trigger at once.)
@@ -1692,6 +1722,19 @@ describe("the events of their own that a block gives its page (the descriptor's 
     // (And the events of the page: Aufbau, Abbau, the Aktionseffekte, the condition - see the next test - so that every type of the timeline has one.)
     const all = ["quiz-fill-start", "quiz-submit", "quiz-submit-correct", "quiz-submit-incorrect", "video-start-auto", "video-start-manual", "video-stop-point", "video-resume", "video-end-loop", "video-end-stop", "block-entrance", "block-exit", "block-action-move", "block-action-shake", "block-action-blink", "button-click", "group-entrance", "group-exit", "list-item-entrance", "script-run", "revealer-open", "revealer-button", "variable-condition"];
     for (const type of all) expect(eventLookOf(type as never)?.label(), type).toBeTruthy();
+  });
+
+  it("have the colour they had before the descriptors named it, and the learner does the violet ones the graph lets happen at any time", () => {
+    const violet = ["quiz-fill-start", "quiz-submit", "quiz-submit-correct", "quiz-submit-incorrect", "button-click", "revealer-button", "video-resume", "video-start-auto", "video-start-manual"];
+    const yellow = ["block-entrance", "block-exit", "group-entrance", "group-exit", "block-action-move", "block-action-shake", "block-action-blink", "list-item-entrance"];
+    const green = ["script-run", "variable-condition"];
+    const blue = ["revealer-open", "video-stop-point", "video-end-loop", "video-end-stop"];
+    for (const [color, types] of Object.entries({ violet, yellow, green, blue })) for (const type of types) expect(eventLookOf(type as never)?.color, type).toBe(color);
+    // (Only a video's start has another colour once a trigger leads to it.)
+    for (const type of [...violet, ...yellow, ...green, ...blue]) expect(eventLookOf(type as never)?.triggeredColor, type).toBe(type.startsWith("video-start") ? "blue" : undefined);
+    // (What the learner does and nothing else can make happen: the reachability of the graph starts from these.)
+    const learner = [...violet, ...yellow, ...green, ...blue].filter((type) => eventLookOf(type as never)?.byLearner);
+    expect(learner.sort()).toEqual(["button-click", "quiz-fill-start", "quiz-submit", "quiz-submit-correct", "quiz-submit-incorrect", "revealer-button"]);
   });
 
   it("show what they showed before the descriptors named them: title, hint and icon of every type (the 15 of the blocks and the 8 of the page)", () => {

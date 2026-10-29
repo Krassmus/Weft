@@ -6,17 +6,16 @@ import { runOperations } from "../cli/ops";
 import { setCurrentModule } from "../cli/storeStub";
 import { collectTexts, exportTexts, importTexts } from "../cli/texts";
 import { validate } from "../cli/validate";
-import { describedKinds, descriptorOf, exportedItemTexts, exportedTexts, fieldsOf, isInvisibleKind, isPageOnlyKind, isTaskBlock, listFieldsOf, ownEventId, ownEventsOf, replacesEntrance, shownWordings, triggerableOwnEventTypes, variableWordings } from "../src/core/blocks/registry";
+import { describedKinds, descriptorOf, exportedItemTexts, exportedTexts, fieldsOf, isInvisibleKind, isPageOnlyKind, isTaskBlock, listFieldsOf, ownEventId, ownEventsOf, replacesEntrance, shownWordings, taskEventId, triggerableOwnEventTypes, variableWordings } from "../src/core/blocks/registry";
 import { buildRuntimeHtml } from "../src/core/runtime/buildRuntimeHtml";
 import { pageReadingOrder } from "../src/core/document/readingOrder";
-import { TRIGGERABLE_EVENT_TYPES, blockNameOf, buttonClickNodeId, canTriggerActionEffectFrom, ensureEffectTriggers, getPageLanes, isListPerItem, listItemNodeId, revealerButtonNodeId, revealerOpenNodeId, scriptRunNodeId, syncPageTimelineEvents } from "../src/core/document/pageTimeline";
+import { TRIGGERABLE_EVENT_TYPES, blockNameOf, buttonClickNodeId, canTriggerActionEffectFrom, ensureEffectTriggers, getPageLanes, isListPerItem, listItemNodeId, quizFillNodeId, quizSubmitNodeId, revealerButtonNodeId, revealerOpenNodeId, scriptRunNodeId, syncPageTimelineEvents, videoEndNodeId, videoResumeNodeId, videoStartNodeId, videoStopNodeId } from "../src/core/document/pageTimeline";
 import { buildEventGraph } from "../src/core/eventGraph/buildEventGraph";
 import { readFileSync } from "node:fs";
 import type { BlockDescriptor, FieldSpec, ListField } from "../src/core/blocks/types";
 import { pasteBlockInto } from "../src/core/document/actions";
 import { clipboardEntryPlainText } from "../src/core/document/clipboard";
 import { createEmptyDocument } from "../src/core/document/createEmptyDocument";
-import { quizFillNodeId, quizSubmitNodeId } from "../src/core/document/pageTimeline";
 import { fieldHtml, fieldHtmlPatch, fieldWording, fieldWordingPatch, isTranslated, itemWording, itemWordingPatch, rotateDefaultLanguage } from "../src/core/document/translations";
 import { allowedSlips, clozeIsRight, levenshtein } from "../src/core/document/cloze";
 import { usedAssetIds } from "../src/core/document/usedAssets";
@@ -1359,24 +1358,32 @@ describe("the events of their own that a block gives its page (the descriptor's 
   const OFF = { onPage: false };
   const fade = { type: "fade", durationMs: 400 };
 
-  it("are described well: the keys of a kind differ, the ids differ between all kinds, an event of items names a list the block has", () => {
-    const prefixes: string[] = [];
+  it("are described well: the keys of a kind differ, the ids differ between all kinds (a video and a sound have the same events), an event of items names an array the block has", () => {
+    const specsByPrefix = new Map<string, unknown>();
     for (const kind of KINDS) {
       const specs = descriptorOf(kind)?.events ?? [];
-      expect(new Set(specs.map((spec) => spec.key)).size, kind).toBe(specs.length);
-      for (const spec of specs) {
+      const all = specs.flatMap((spec) => [spec, ...(spec.companions ?? [])]);
+      expect(new Set(all.map((spec) => spec.key)).size, kind).toBe(all.length);
+      for (const spec of all) {
         expect(spec.idPrefix, kind).toMatch(/^[a-z]+(-[a-z]+)*$/);
-        prefixes.push(spec.idPrefix);
-        if (spec.perItem) expect(listFieldsOf({ kind } as Block).map(([name]) => name), `${kind}.${spec.key}`).toContain(spec.perItem);
+        // (The same prefix in two kinds is the same event: the one description, shared.)
+        const same = specsByPrefix.get(spec.idPrefix + (spec.idSuffix ?? ""));
+        if (same) expect(same, spec.idPrefix).toBe(spec);
+        specsByPrefix.set(spec.idPrefix + (spec.idSuffix ?? ""), spec);
+        if (spec.perItem) {
+          const sample = (descriptorOf(kind) as BlockDescriptor).defaults() as unknown as Record<string, unknown>;
+          expect(Array.isArray(sample[spec.perItem]), `${kind}.${spec.key}`).toBe(true);
+        }
       }
     }
-    expect(new Set(prefixes).size).toBe(prefixes.length);
-    expect(KINDS.filter((kind) => descriptorOf(kind)?.events).sort()).toEqual(["button", "list", "revealer", "script"]);
+    expect(KINDS.filter((kind) => descriptorOf(kind)?.events).sort()).toEqual(["audio", "button", "list", "revealer", "script", "video"]);
   });
 
   it("have ids that the player makes the same way - the ids are part of the file", () => {
     const player = readFileSync("src/core/runtime/player.runtime.js", "utf8");
-    for (const kind of KINDS) for (const spec of descriptorOf(kind)?.events ?? []) expect(player, spec.idPrefix).toContain(`"${spec.idPrefix}:"`);
+    for (const kind of KINDS) for (const spec of (descriptorOf(kind)?.events ?? []).flatMap((event) => [event, ...(event.companions ?? [])])) expect(player, spec.idPrefix).toContain(`"${spec.idPrefix}:"`);
+    // (And a task's: the first answer, submitted - with the outcome after it.)
+    for (const prefix of ["quiz-fill", "quiz-submit"]) expect(player, prefix).toContain(`"${prefix}:"`);
   });
 
   it("are made into the ids the editor's functions give", () => {
@@ -1385,6 +1392,13 @@ describe("the events of their own that a block gives its page (the descriptor's 
     expect(ownEventId("revealer", "open", "b1")).toBe("revealer-open:b1");
     expect(ownEventId("revealer", "button", "b1")).toBe("revealer-button:b1");
     expect(ownEventId("list", "item", "b1", "i1")).toBe("list-item:b1:i1");
+    expect(ownEventId("video", "start", "b1")).toBe("video-start:b1");
+    expect(ownEventId("audio", "end", "b1")).toBe("video-end:b1");
+    expect(ownEventId("video", "stop", "b1", "s1")).toBe("video-stop:b1:s1");
+    expect(ownEventId("video", "resume", "b1", "s1")).toBe("video-resume:b1:s1");
+    expect([taskEventId("fill", "q"), taskEventId("submit", "q"), taskEventId("correct", "q"), taskEventId("incorrect", "q")]).toEqual(["quiz-fill:q", "quiz-submit:q", "quiz-submit:q:richtig", "quiz-submit:q:falsch"]);
+    expect([quizFillNodeId("q"), quizSubmitNodeId("q"), quizSubmitNodeId("q", "richtig"), quizSubmitNodeId("q", "falsch")]).toEqual(["quiz-fill:q", "quiz-submit:q", "quiz-submit:q:richtig", "quiz-submit:q:falsch"]);
+    expect([videoStartNodeId("v"), videoStopNodeId("v", "s"), videoResumeNodeId("v", "s"), videoEndNodeId("v")]).toEqual(["video-start:v", "video-stop:v:s", "video-resume:v:s", "video-end:v"]);
     expect([scriptRunNodeId("b1"), buttonClickNodeId("b1"), revealerOpenNodeId("b1"), revealerButtonNodeId("b1"), listItemNodeId("b1", "i1")]).toEqual(["script-run:b1", "button-click:b1", "revealer-open:b1", "revealer-button:b1", "list-item:b1:i1"]);
     expect(() => ownEventId("text", "run", "b1")).toThrow(/no event/);
     expect(() => ownEventId("script", "gibt-es-nicht", "b1")).toThrow(/no event/);
@@ -1402,6 +1416,51 @@ describe("the events of their own that a block gives its page (the descriptor's 
     (revealer.block as unknown as { button: unknown }).button = { text: "ok", action: "none" };
     expect(ownEventsOf(revealer.block, ON).map((event) => event.id)).toEqual([`revealer-open:${revealer.block.id}`, `revealer-button:${revealer.block.id}`]);
     expect(ownEventsOf(make("text").block, ON)).toEqual([]);
+  });
+
+  it("are, for a video and a sound: the start, each time mark - and after one that stops it the video going on - and the end; the start and the end as the block says", () => {
+    const stops = [{ id: "s1", timeSeconds: 3, stopsVideo: true }, { id: "s2", timeSeconds: 7, stopsVideo: false }, { id: "s3", timeSeconds: 9, stopsVideo: true }];
+    for (const kind of ["video", "audio"]) {
+      const media = make(kind, { stopPoints: stops, autoplay: false, loop: false });
+      const id = media.block.id;
+      const events = () => ownEventsOf(media.block, ON).map((event) => [event.id, event.spec.graphKind, event.timelineType]);
+      expect(events(), kind).toEqual([
+        [`video-start:${id}`, "video-start", "video-start-manual"],
+        [`video-stop:${id}:s1`, "video-stop", "video-stop-point"],
+        [`video-resume:${id}:s1`, "video-resume", "video-resume"],
+        [`video-stop:${id}:s2`, "video-stop", "video-stop-point"],
+        [`video-stop:${id}:s3`, "video-stop", "video-stop-point"],
+        [`video-resume:${id}:s3`, "video-resume", "video-resume"],
+        [`video-end:${id}`, "video-end", "video-end-stop"],
+      ]);
+      Object.assign(media.block, { autoplay: true, loop: true });
+      expect(events()[0][2], kind).toBe("video-start-auto");
+      expect(events()[events().length - 1][2], kind).toBe("video-end-loop");
+      // (In a layout too: a block of a layout has them.)
+      expect(ownEventsOf(media.block, OFF).length, kind).toBe(7);
+      Object.assign(media.block, { stopPoints: [] });
+      expect(events().map((event) => event[0]), kind).toEqual([`video-start:${id}`, `video-end:${id}`]);
+    }
+  });
+
+  it("are, for a task - a quiz, a gap text, a checker, a solution word, a matching, a sorting puzzle - the first answer, submitted, and submitted right and wrong, in the words of its descriptor", () => {
+    const tasks = KINDS.filter((kind) => descriptorOf(kind)?.task);
+    expect(tasks.sort()).toEqual(["checker", "cloze", "matching", "quiz", "solution", "sort"]);
+    for (const kind of tasks) {
+      const task = make(kind);
+      const id = task.block.id;
+      const labels = (descriptorOf(kind) as BlockDescriptor).task!.labels;
+      const events = ownEventsOf(task.block, ON);
+      expect(events.map((event) => [event.id, event.spec.graphKind, event.timelineType]), kind).toEqual([
+        [`quiz-fill:${id}`, "quiz-fill", "quiz-fill-start"],
+        [`quiz-submit:${id}`, "quiz-submit", "quiz-submit"],
+        [`quiz-submit:${id}:richtig`, "quiz-submit", "quiz-submit-correct"],
+        [`quiz-submit:${id}:falsch`, "quiz-submit", "quiz-submit-incorrect"],
+      ]);
+      expect(events.map((event) => event.spec.label?.(task.block as never, { name: "" })), kind).toEqual([tr(labels.fill), tr(labels.submit), tr(labels.correct), tr(labels.incorrect)]);
+      expect(ownEventsOf(task.block, OFF).length, kind).toBe(4);
+    }
+    expect(() => taskEventId("gibt-es-nicht" as never, "q")).toThrow(/no event/);
   });
 
   it("are, for a list, one for each item - while it has an Aufbau for each item, on a page", () => {
@@ -1429,9 +1488,9 @@ describe("the events of their own that a block gives its page (the descriptor's 
   });
 
   it("can be made to happen by a trigger where the descriptor says so: the opening of a revealer, a list's items, a script - not a click", () => {
-    expect(triggerableOwnEventTypes().sort()).toEqual(["list-item-entrance", "revealer-open", "script-run"]);
-    for (const type of ["revealer-open", "list-item-entrance", "script-run"] as const) expect(TRIGGERABLE_EVENT_TYPES.has(type), type).toBe(true);
-    for (const type of ["button-click", "revealer-button"] as const) expect(TRIGGERABLE_EVENT_TYPES.has(type), type).toBe(false);
+    expect(triggerableOwnEventTypes().sort()).toEqual(["list-item-entrance", "revealer-open", "script-run", "video-start-auto", "video-start-manual"]);
+    for (const type of ["revealer-open", "list-item-entrance", "script-run", "video-start-auto", "video-start-manual"] as const) expect(TRIGGERABLE_EVENT_TYPES.has(type), type).toBe(true);
+    for (const type of ["button-click", "revealer-button", "video-stop-point", "video-resume", "video-end-loop", "video-end-stop", "quiz-fill-start", "quiz-submit", "quiz-submit-correct", "quiz-submit-incorrect"] as const) expect(TRIGGERABLE_EVENT_TYPES.has(type), type).toBe(false);
   });
 
   it("are in the page's graph as what the player makes of them, where the descriptor puts them - and a layout's block gives a page the same only where it may", () => {

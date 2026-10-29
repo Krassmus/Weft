@@ -204,17 +204,21 @@ Modul läuft weiter. Ein `jump` im Skript lässt das Event ohne Ausgangstrigger 
 ### Wer die Ereignisse einer Blockart beschreibt
 
 Die Ereignisse, die eine Blockart der Folie von sich aus gibt - der Lauf des Skripts eines Logikblocks, der Klick auf einen Button, das Öffnen
-des Fensters eines Revealers und der Klick auf dessen Button, die Punkte einer Liste mit Aufbau je Punkt -, stehen im **Deskriptor** der Art
-(`events`, siehe `OwnEventSpec` in `src/core/blocks/types.ts`): die Id (`idPrefix`, dazu `:<Block>` und bei Punkten `:<Punkt>`), was es im
+des Fensters eines Revealers und der Klick auf dessen Button, die Punkte einer Liste mit Aufbau je Punkt, der Start, die Zeitmarken (mit dem
+Weiterlaufen nach einer, die das Video anhält) und das Ende eines Videos oder einer Audiodatei -, stehen im **Deskriptor** der Art
+(`events`, siehe `OwnEventSpec` in `src/core/blocks/types.ts`; die der Aufgaben - erste Antwort, abgeschickt, richtig, falsch - leitet die Registry
+für jede Art mit `task` ab, die Wörter stehen in deren `TaskSpec`): die Id (`idPrefix`, dazu `:<Block>`, bei Punkten und Zeitmarken `:<Punkt>`, bei
+Aufgaben `:richtig` / `:falsch`), was es im
 Graphen des Players (`graphKind`) und in der Zeitleiste des Editors (`timelineType`) ist, ob ein Trigger es auslösen kann (`triggerable`), ob es
 wie ein Aufbau in der Weiter-Kette steht (`inChain`), ob es statt des Aufbaus gilt (`replacesEntrance`), ob es in einer eigenen Zeile nach dem
 Aufbau gezeichnet wird (`lane`), wann es das Ereignis gibt (`exists`, mit `onPage`: ein Block eines Layouts hat auf der Folie keine eigenen
 Ereignisse) und seine Beschriftung im Graphen (`label`). Wer alle Ereignisse einer Folie aufzählt (`buildEventGraph`, die Zeilen und Knoten
 der Zeitleiste in `pageTimeline.ts`, `ensureEffectTriggers`, die Prüfung, welche Ereignisse es gibt), fragt die Registry (`ownEventsOf`,
 `replacesEntrance`), nicht die Art. Was ein Ereignis **tut** (ein Skript ausführen, einen Punkt zeigen), steht nur im Player - er hat für jede
-`graphKind` eine eigene Behandlung -, und die Ids sind Teil der Datei: der Player bildet dieselben (ein Test sucht die Präfixe in ihm). Nicht
-beschrieben sind noch die Ereignisse eines Videos und eines Audios (Start, Zeitmarken, Ende), die der Aufgaben (`task`), die Aufbau/Abbau- und
-Aktionseffekte, die der Gruppen und die der Bedingungen.
+`graphKind` eine eigene Behandlung -, und die Ids sind Teil der Datei: der Player bildet dieselben (ein Test sucht die Präfixe in ihm). Auch die
+Zeilen von Video und Aufgabe in der Zeitleiste (`buildVideoLane`: die Zeitmarken in Abspielreihenfolge mit den Zeiten dazwischen, `buildQuizLane`
+und die Zeilen der Ausgänge mit „Nächste Folie“) sind von Hand gebaut, aus den Knoten, die der Deskriptor nennt. Nicht beschrieben sind die
+Aufbau/Abbau- und Aktionseffekte, die der Gruppen und die der Bedingungen.
 
 ## 6. Layout
 

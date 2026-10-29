@@ -1,4 +1,5 @@
-import type { BlockProblem } from "./types";
+import type { AudioBlock, VideoBlock } from "../types";
+import type { BlockProblem, OwnEventSpec } from "./types";
 
 /** The words of "the kind of block" in what `weft validate` says about a file: `image-Block hat noch keine Datei.` */
 export function mediaProblems(block: { kind: string; assetId: string | null; alt?: string }, module: { assets: { id: string }[] }): BlockProblem[] {
@@ -17,3 +18,47 @@ export function mediaProblems(block: { kind: string; assetId: string | null; alt
 export function fileNameOf(assetId: string | null, assets: { id: string; fileName: string }[] | undefined): string | undefined {
   return assets?.find((asset) => asset.id === assetId)?.fileName;
 }
+
+/**
+ * The events of a video and of a sound (the same ones - see isMediaBlock): it starts (by the learner pressing play or by a trigger: by itself when
+ * `autoplay`), it reaches each of its time marks (`stopPoints`), a mark that stops it has it going on again after it (the learner presses play), it ends
+ * (or, looping, goes round). The player makes the stops and the end happen and the start when the learner does it; a trigger can make it start. The nodes
+ * are drawn in a lane of the editor's own (buildVideoLane in document/pageTimeline.ts: the time marks in playback order, the times between them) - the
+ * words of the nodes are made there as well, a sound has its own.
+ */
+export const mediaEvents: OwnEventSpec<VideoBlock | AudioBlock>[] = [
+  {
+    key: "start",
+    idPrefix: "video-start",
+    graphKind: "video-start",
+    timelineType: (block) => (block.autoplay ? "video-start-auto" : "video-start-manual"),
+    timelineTypes: ["video-start-auto", "video-start-manual"],
+    triggerable: true,
+  },
+  {
+    key: "stop",
+    idPrefix: "video-stop",
+    graphKind: "video-stop",
+    timelineType: "video-stop-point",
+    perItem: "stopPoints",
+    triggerable: false,
+    companions: [
+      {
+        key: "resume",
+        idPrefix: "video-resume",
+        graphKind: "video-resume",
+        timelineType: "video-resume",
+        exists: (_block, _where, item) => item?.stopsVideo === true,
+        triggerable: false,
+      },
+    ],
+  },
+  {
+    key: "end",
+    idPrefix: "video-end",
+    graphKind: "video-end",
+    timelineType: (block) => (block.loop ? "video-end-loop" : "video-end-stop"),
+    timelineTypes: ["video-end-loop", "video-end-stop"],
+    triggerable: false,
+  },
+];

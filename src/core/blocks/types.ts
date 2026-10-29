@@ -187,8 +187,9 @@ export interface TaskSpec {
 }
 
 /**
- * An event a block gives its page that is its own - beyond the Aufbau, the Abbau and the Aktionseffekte every block can have, and beyond the events of a
- * task (`TaskSpec`): a logic block's script runs, a button is clicked, a revealer's window opens, an item of a list appears. The page's graph (see
+ * An event a block gives its page that is its own - beyond the Aufbau, the Abbau and the Aktionseffekte every block can have: a logic block's script runs, a
+ * button is clicked, a revealer's window opens, an item of a list appears, a video starts, reaches a time mark, ends. (The events of a task - the first
+ * answer, submitted, submitted right or wrong - are the same for every kind that has a `task`: the registry makes them, the words are the TaskSpec's.) The page's graph (see
  * docs/event-graph.md) has a node for it, the stations that list a page's events ask the descriptor instead of each knowing the kind.
  * What the event DOES (a script is run, an item is shown) is the player's: it has a handler for each `graphKind`. The ids are part of the file's protocol
  * - the player makes the same ones (`${idPrefix}:${blockId}`, and `:${itemId}` for one of an item).
@@ -196,15 +197,21 @@ export interface TaskSpec {
 export interface OwnEventSpec<B = never> {
   /** Names it among the block's events (the id of a node does not contain it). */
   key: string;
-  /** The id of the node: `${idPrefix}:${blockId}`, or `${idPrefix}:${blockId}:${itemId}` for an event of an item. */
+  /** The id of the node: `${idPrefix}:${blockId}`, or `${idPrefix}:${blockId}:${itemId}` for an event of an item; with `idSuffix`, `:${idSuffix}` more. */
   idPrefix: string;
+  idSuffix?: string;
   /** What it is in the graph the player runs (eventGraph/types.ts) and what the editor's timeline calls it. */
   graphKind: GraphEventKind;
-  timelineType: TimelineEventType;
-  /** One event for each item of this list field of the block, instead of one for the block. */
+  /** What the timeline calls it: one type, or - where it depends on the block (a video starts by itself or by the learner) - a function, with all the types
+   * it can be in `timelineTypes`. */
+  timelineType: TimelineEventType | ((block: B) => TimelineEventType);
+  timelineTypes?: TimelineEventType[];
+  /** One event for each item of this array of the block (a list's items, a video's stop points), instead of one for the block. */
   perItem?: string;
-  /** Whether the block has the event now; `onPage` is false for a block of a layout. Absent: always. */
-  exists?(block: B, where: { onPage: boolean }): boolean;
+  /** Whether the block has the event now (for an event of items: whether this item has it); `onPage` is false for a block of a layout. Absent: always. */
+  exists?(block: B, where: { onPage: boolean }, item?: Record<string, unknown>): boolean;
+  /** Events of the same item that follow this one, in this order (a stop point that stops the video has the video going on after it). */
+  companions?: OwnEventSpec<B>[];
   /** The event is instead of the block's Aufbau: while it is there the block has none of its own. */
   replacesEntrance?(block: B, where: { onPage: boolean }): boolean;
   /** A trigger can make it happen (the editor offers it as a target), not only the learner or the player. */

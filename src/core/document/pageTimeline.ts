@@ -5,7 +5,7 @@ import type { ActionEffect, Block, BlockEffect, BlockGroup, CheckerBlock, Soluti
 import { isMediaBlock } from "../types";
 import type { MediaBlock } from "../types";
 import { tr } from "../i18n/tr";
-import { describedKinds, isInvisibleKind, isTaskBlock, ownEventId, ownEventsOf, replacesEntrance, taskSpecOf, triggerableOwnEventTypes } from "../blocks/registry";
+import { describedKinds, isInvisibleKind, isTaskBlock, ownEventId, ownEventsOf, replacesEntrance, taskEventId, taskSpecOf, triggerableOwnEventTypes } from "../blocks/registry";
 import type { OwnEvent } from "../blocks/registry";
 
 /**
@@ -22,7 +22,7 @@ export function createDefaultPageTimeline(): PageTimeline {
 }
 
 export function quizFillNodeId(quizBlockId: string): string {
-  return `quiz-fill:${quizBlockId}`;
+  return taskEventId("fill", quizBlockId);
 }
 
 /** Distinct per outcome, exactly like quizEndNodeId - when a quiz's advanceOnCorrect AND
@@ -34,7 +34,7 @@ export function quizFillNodeId(quizBlockId: string): string {
  * is on - see syncPageTimelineEvents), so that single, genuinely generic case doesn't churn ids
  * for no reason. Kept in sync by hand with player.runtime.js's own quizSubmitEventId. */
 export function quizSubmitNodeId(quizBlockId: string, outcome?: "richtig" | "falsch"): string {
-  return outcome ? `quiz-submit:${quizBlockId}:${outcome}` : `quiz-submit:${quizBlockId}`;
+  return taskEventId(outcome === "richtig" ? "correct" : outcome === "falsch" ? "incorrect" : "submit", quizBlockId);
 }
 
 const QUIZ_OUTCOME_EVENT_TYPES = { richtig: "quiz-submit-correct", falsch: "quiz-submit-incorrect" } as const;
@@ -92,20 +92,20 @@ function buildQuizLane(
 }
 
 export function videoStartNodeId(videoBlockId: string): string {
-  return `video-start:${videoBlockId}`;
+  return ownEventId("video", "start", videoBlockId);
 }
 
 /** A video goes on after a stop point (that stops it) had paused it - the learner pressing play again. */
 export function videoResumeNodeId(videoBlockId: string, stopPointId: string): string {
-  return `video-resume:${videoBlockId}:${stopPointId}`;
+  return ownEventId("video", "resume", videoBlockId, stopPointId);
 }
 
 export function videoEndNodeId(videoBlockId: string): string {
-  return `video-end:${videoBlockId}`;
+  return ownEventId("video", "end", videoBlockId);
 }
 
 export function videoStopNodeId(videoBlockId: string, stopPointId: string): string {
-  return `video-stop:${videoBlockId}:${stopPointId}`;
+  return ownEventId("video", "stop", videoBlockId, stopPointId);
 }
 
 /**
@@ -334,7 +334,7 @@ const ON_PAGE = { onPage: true } as const;
 /** The node of an event of a block that is its own (see OwnEventSpec in blocks/types.ts): its id, what it is, and the words it shows in the graph. */
 function makeOwnEventNode(block: Block, event: OwnEvent): TimelineNode {
   const label = event.spec.label?.(block as never, { name: blockNameOf(block), index: event.index });
-  return { id: event.id, kind: "event", sourceBlockId: block.id, eventType: event.spec.timelineType, ...(label !== undefined ? { label } : {}) };
+  return { id: event.id, kind: "event", sourceBlockId: block.id, eventType: event.timelineType, ...(label !== undefined ? { label } : {}) };
 }
 
 /** The event of a logic block: its script runs (a green event that is triggered like an Aufbau). Kept in sync by hand with player.runtime.js. */
@@ -403,8 +403,6 @@ function makeGroupEffectNode(group: BlockGroup, phase: "entrance" | "exit"): Tim
  * that, however useful it might look in the abstract. Expect this set to grow as more block kinds
  * gain their own scriptable events - see the module doc comment on syncPageTimelineEvents below. */
 export const TRIGGERABLE_EVENT_TYPES: ReadonlySet<TimelineEventType> = new Set<TimelineEventType>([
-  "video-start-auto",
-  "video-start-manual",
   "block-entrance",
   "block-exit",
   "block-action-move",
@@ -412,7 +410,8 @@ export const TRIGGERABLE_EVENT_TYPES: ReadonlySet<TimelineEventType> = new Set<T
   "block-action-blink",
   "group-entrance",
   "group-exit",
-  // (The events of their own that a kind of block says a trigger can make happen: a revealer's opening, a list's items, a logic block's script.)
+  // (The events of their own that a kind of block says a trigger can make happen: a video's or a sound's start, a revealer's opening, a list's items, a
+  // logic block's script.)
   ...triggerableOwnEventTypes(),
 ]);
 
@@ -929,20 +928,6 @@ function blockEventIds(page: Page): Set<string> {
     if (!replacesEntrance(block, ON_PAGE) && block.entranceEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "entrance"));
     for (const effect of block.actionEffects ?? []) ids.add(blockActionNodeId(block.id, effect.id));
     if (block.exitEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "exit"));
-    if (isMediaBlock(block)) {
-      ids.add(videoStartNodeId(block.id));
-      for (const stopPoint of block.stopPoints) {
-        ids.add(videoStopNodeId(block.id, stopPoint.id));
-        if (stopPoint.stopsVideo) ids.add(videoResumeNodeId(block.id, stopPoint.id));
-      }
-      ids.add(videoEndNodeId(block.id));
-    }
-    if (isTaskBlock(block)) {
-      ids.add(quizFillNodeId(block.id));
-      ids.add(quizSubmitNodeId(block.id));
-      ids.add(quizSubmitNodeId(block.id, "richtig"));
-      ids.add(quizSubmitNodeId(block.id, "falsch"));
-    }
   }
   for (const group of page.groups) {
     if (group.entranceEffect && group.entranceEffect.type !== "off") ids.add(groupEffectNodeId(group.id, "entrance"));

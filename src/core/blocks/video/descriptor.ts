@@ -1,6 +1,6 @@
 import type { VideoBlock } from "../../types";
 import type { BlockDescriptor } from "../types";
-import { fileNameOf, mediaProblems } from "../media";
+import { fileNameOf, mediaEvents, mediaProblems } from "../media";
 
 /**
  * The video: a file of the module that plays on the slide. Its time marks (`stopPoints`: a point on its own timeline that pauses it and makes things
@@ -22,6 +22,7 @@ export const videoBlock: BlockDescriptor<VideoBlock> = {
     muted: { type: "bool" },
     controls: { type: "bool" },
   },
+  events: mediaEvents,
   defaults: () => ({ kind: "video", assetId: null, autoplay: false, loop: false, muted: false, controls: true, stopPoints: [] }),
   summary: (block, context) => `${fileNameOf(block.assetId, context?.assets) ?? "(kein Video)"}${block.stopPoints.length > 0 ? `, ${block.stopPoints.length} Zeitmarken` : ""}`,
   validate: (block, module) => mediaProblems(block, module),

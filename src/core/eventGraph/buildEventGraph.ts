@@ -5,16 +5,9 @@ import {
   blockEffectNodeId,
   endNodeIds,
   groupEffectNodeId,
-  quizFillNodeId,
-  quizSubmitNodeId,
-  videoEndNodeId,
-  videoResumeNodeId,
-  videoStartNodeId,
-  videoStopNodeId,
 } from "../document/pageTimeline";
 import type { Block, Layout, Page } from "../types";
-import { isMediaBlock } from "../types";
-import { isTaskBlock, ownEventsOf, replacesEntrance } from "../blocks/registry";
+import { ownEventsOf, replacesEntrance } from "../blocks/registry";
 import type { GraphEvent, GraphTrigger, PageGraph } from "./types";
 
 /**
@@ -46,7 +39,8 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
     if (pageBlockIds.has(block.id)) for (const effect of block.actionEffects ?? []) events.push({ id: blockActionNodeId(block.id, effect.id), kind: "action" });
     if (block.exitEffect.type !== "off") events.push({ id: blockEffectNodeId(block.id, "exit"), kind: "exit" });
 
-    // The other events of its own (a revealer's opening and its button, a button's click).
+    // The other events of its own: a revealer's opening and its button, a button's click, a video's start, its stop points (and the video going on after the
+    // ones that stop it - the learner presses play again) and its end, the first answer to a task, its being submitted and being submitted right or wrong.
     for (const event of own) if (!event.spec.replacesEntrance) events.push({ id: event.id, kind: event.spec.graphKind });
 
     if (block.kind === "button" && !pageBlockIds.has(block.id) && block.action === "event") {
@@ -55,23 +49,6 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
       triggers.push({ id: `layout:${id}`, from: id, to: "end", delayMs: 0, weiter: false });
     }
 
-    if (isMediaBlock(block)) {
-      events.push({ id: videoStartNodeId(block.id), kind: "video-start" });
-      for (const stopPoint of block.stopPoints) {
-        events.push({ id: videoStopNodeId(block.id, stopPoint.id), kind: "video-stop" });
-        // The player lets "the video goes on" happen when the learner presses play again after this stop point stopped the video.
-        if (stopPoint.stopsVideo) events.push({ id: videoResumeNodeId(block.id, stopPoint.id), kind: "video-resume" });
-      }
-      events.push({ id: videoEndNodeId(block.id), kind: "video-end" });
-    }
-
-    if (isTaskBlock(block)) {
-      events.push({ id: quizFillNodeId(block.id), kind: "quiz-fill" });
-      // The player lets the plain "submitted" event happen, and the one of the outcome as well.
-      events.push({ id: quizSubmitNodeId(block.id), kind: "quiz-submit" });
-      events.push({ id: quizSubmitNodeId(block.id, "richtig"), kind: "quiz-submit" });
-      events.push({ id: quizSubmitNodeId(block.id, "falsch"), kind: "quiz-submit" });
-    }
   }
 
   for (const group of page.groups) {

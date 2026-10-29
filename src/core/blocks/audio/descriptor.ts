@@ -1,6 +1,6 @@
 import type { AudioBlock } from "../../types";
 import type { BlockDescriptor } from "../types";
-import { fileNameOf, mediaProblems } from "../media";
+import { fileNameOf, mediaEvents, mediaProblems } from "../media";
 
 /**
  * The sound: a file of the module that plays like a video (it starts by itself, by a trigger or by the learner; its time marks `stopPoints` have the
@@ -21,6 +21,7 @@ export const audioBlock: BlockDescriptor<AudioBlock> = {
     loop: { type: "bool" },
     appearance: { type: "choice", options: ["hidden", "player"] },
   },
+  events: mediaEvents,
   defaults: () => ({ kind: "audio", assetId: null, autoplay: false, loop: false, appearance: "player", stopPoints: [] }),
   summary: (block, context) =>
     `${fileNameOf(block.assetId, context?.assets) ?? "(keine Audiodatei)"}, ${block.appearance === "hidden" ? "unsichtbar" : "mit Player"}${block.stopPoints.length > 0 ? `, ${block.stopPoints.length} Zeitmarken` : ""}`,

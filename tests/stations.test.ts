@@ -715,6 +715,26 @@ describe("the quiz", () => {
     expect(importTexts(m.content, file).unchanged).toBe(mine.length);
   });
 
+  it("keeps the formatted words of its question as `questionHtml` of a translation - read and written", () => {
+    const m = moduleWith("quiz", true);
+    const quiz = stored(m);
+    Object.assign(quiz, fieldHtmlPatch(m.block, "questionHtml", EN, DE, "<p>Is it?</p>"));
+    expect(quiz.translations![EN]).toEqual({ questionHtml: "<p>Is it?</p>" });
+    expect(fieldHtml(m.block, "questionHtml", EN, DE)).toBe("<p>Is it?</p>");
+    expect(fieldHtml(m.block, "questionHtml", DE, DE)).toBe((m.block as unknown as { questionHtml: string }).questionHtml);
+    expect(fieldWording(m.block, "questionHtml", EN, DE)).toBe("<p>Is it?</p>");
+  });
+
+  it("says in one line what it is (`weft inspect`): the question, how many answers, how many right - or that it is open", () => {
+    const m = moduleWith("quiz", true);
+    const quiz = stored(m);
+    quiz.open = false;
+    quiz.correctOptionIds = [quiz.options[0].id];
+    expect(descriptorOf("quiz")!.summary!(m.block as never, { labels: {} })).toMatch(/\[2 Optionen, 1 richtig\]$/);
+    quiz.open = true;
+    expect(descriptorOf("quiz")!.summary!(m.block as never, { labels: {} })).toMatch(/\[2 Optionen, offen\]$/);
+  });
+
   it("is found translated only when its question, its explanation and its first answer are", () => {
     const m = moduleWith("quiz", true);
     const quiz = stored(m);

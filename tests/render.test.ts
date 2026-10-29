@@ -1081,6 +1081,16 @@ describe.each(MODES)("a quiz drawn for %s", (mode) => {
       expect(ctx.announce).toHaveBeenCalledWith("Richtig");
     });
 
+    it("is wrong when as many answers are ticked as are right, but not the right ones", () => {
+      const root = element();
+      const ctx = context();
+      renderQuiz(root, props, ctx);
+      tick(boxes(root)[0]);
+      tick(boxes(root)[1]);
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      expect(ctx.submit).toHaveBeenCalledWith({ ticked: ["a", "b"], correct: false });
+    });
+
     it("is wrong with a right answer missing, with one too many - and with nothing ticked", () => {
       const submitted = (ticks: number[]) => {
         const root = element();

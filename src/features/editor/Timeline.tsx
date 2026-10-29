@@ -54,16 +54,12 @@ const shakeActionIconSvg =
 const blinkActionIconSvg =
   '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#28497c" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="2.2" fill="#28497c" stroke="none"/><path d="M8 1.5 V3.5 M8 12.5 V14.5 M1.5 8 H3.5 M12.5 8 H14.5 M3.4 3.4 L4.8 4.8 M11.2 11.2 L12.6 12.6 M12.6 3.4 L11.2 4.8 M4.8 11.2 L3.4 12.6"/></svg>';
 
-// The titles of the events the editor itself gives the page (the others are the descriptors': eventLookOf in core/blocks/registry.ts).
+// The titles of the events the editor itself gives the page (the others are the descriptors' and the effects': eventLookOf in core/blocks/registry.ts).
 const EVENT_LABELS: Partial<Record<TimelineEventType, string>> = {
   get "variable-condition"() { return tr("ui.condition_event_label"); },
-  get "block-entrance"() { return tr("ui.appears"); },
-  get "block-exit"() { return tr("ui.disappears"); },
   get "block-action-move"() { return tr("ui.action_move_event"); },
   get "block-action-shake"() { return tr("ui.action_shake_event"); },
   get "block-action-blink"() { return tr("ui.action_blink_event"); },
-  get "group-entrance"() { return tr("ui.group_appears"); },
-  get "group-exit"() { return tr("ui.group_disappears"); },
 };
 
 // The cursor (cursor.svg) has its colour fixed in the file; the graph colours its icons itself (currentColor, see App.css). It is cut to its
@@ -88,19 +84,16 @@ const ICONS: Record<EventIconName, string> = {
   hand: hand2IconSvg,
   gear: gearIconSvg,
   animation: animationIconSvg,
+  "dashing-away": dashingAwayIconSvg,
 };
 
-// The icons of the events the editor itself gives the page: Aufbau - the animations (Fade, Move, ...) - and Abbau (dashing away) have an icon each.
+// The icons of the events the editor itself gives the page (Aufbau and Abbau have theirs in ICONS: the animation and the dashing away).
 const EVENT_ICONS: Partial<Record<TimelineEventType, string>> = {
   // A condition of a variable that came true: lines and a tick.
   "variable-condition": conditionIconSvg,
-  "block-entrance": animationIconSvg,
-  "block-exit": dashingAwayIconSvg,
   "block-action-move": moveActionIconSvg,
   "block-action-shake": shakeActionIconSvg,
   "block-action-blink": blinkActionIconSvg,
-  "group-entrance": animationIconSvg,
-  "group-exit": dashingAwayIconSvg,
 };
 
 /** Exported for BlockEffectEditor in panels/BlockPanel.tsx, which lists these same nodes (minus

@@ -219,9 +219,10 @@ der Zeitleiste in `pageTimeline.ts`, `ensureEffectTriggers`, die Prüfung, welch
 `replacesEntrance`), nicht die Art. Was ein Ereignis **tut** (ein Skript ausführen, einen Punkt zeigen), steht nur im Player - er hat für jede
 `graphKind` eine eigene Behandlung -, und die Ids sind Teil der Datei: der Player bildet dieselben (ein Test sucht die Präfixe in ihm). Auch die
 Zeilen von Video und Aufgabe in der Zeitleiste (`buildVideoLane`: die Zeitmarken in Abspielreihenfolge mit den Zeiten dazwischen, `buildQuizLane`
-und die Zeilen der Ausgänge mit „Nächste Folie“) sind von Hand gebaut, aus den Knoten, die der Deskriptor nennt. Nicht beschrieben sind die
-Aufbau/Abbau- und Aktionseffekte, die der Gruppen und die der Bedingungen - auch ihre Titel und Symbole stehen noch in der Zeitleiste
-(`EVENT_LABELS`, `EVENT_ICONS` in `Timeline.tsx`), ebenso die Farben aller Arten (`eventGraph/model.ts`).
+und die Zeilen der Ausgänge mit „Nächste Folie“) sind von Hand gebaut, aus den Knoten, die der Deskriptor nennt. Titel und Symbol von Aufbau und Abbau - eines Blocks und einer Gruppe, sie gehören zu keiner Art - stehen in
+`src/core/blocks/effectEvents.ts` (`effectEventLooks`, dieselbe Form wie `looks`; `eventLookOf` kennt sie). Nicht beschrieben sind die
+Aktionseffekte und die Bedingungen - ihre Titel und Symbole stehen noch in der Zeitleiste (`EVENT_LABELS`, `EVENT_ICONS` in `Timeline.tsx`) -, ebenso
+das Verhalten von Aufbau, Abbau, Aktionen, Gruppen und Bedingungen im Graphen und die Farben aller Arten (`eventGraph/model.ts`).
 
 ## 6. Layout
 

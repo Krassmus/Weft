@@ -1675,7 +1675,7 @@ describe("the events of their own that a block gives its page (the descriptor's 
     expect(blockNameOf(m.content.pages[m.pageId].blocks[m.blockId])).toBe("Mein Skript");
   });
 
-  it("have a look each in the editor: every type a spec can give has a title and an icon, and the types the editor makes itself have none", () => {
+  it("have a look each in the editor: every type a spec can give has a title and an icon, and the types the editor makes itself (an Aktionseffekt, a condition) have none", () => {
     const specs = describedKinds().flatMap((kind) => descriptorOf(kind)?.events ?? []);
     const typesOf = (spec: (typeof specs)[number]): string[] => [
       ...(spec.timelineTypes ?? (typeof spec.timelineType === "string" ? [spec.timelineType] : [])),
@@ -1689,11 +1689,10 @@ describe("the events of their own that a block gives its page (the descriptor's 
       expect(look, type).toBeDefined();
       expect(look!.label(), type).not.toBe("");
     }
-    for (const type of ["block-entrance", "block-exit", "block-action-move", "block-action-shake", "block-action-blink", "group-entrance", "group-exit", "variable-condition"] as const)
-      expect(eventLookOf(type), type).toBeUndefined();
+    for (const type of ["block-action-move", "block-action-shake", "block-action-blink", "variable-condition"] as const) expect(eventLookOf(type), type).toBeUndefined();
   });
 
-  it("show what they showed before the descriptors named them: title, hint and icon of every type", () => {
+  it("show what they showed before the descriptors named them: title, hint and icon of every type (the 15 of the blocks and the 4 of Aufbau and Abbau)", () => {
     const expected: Record<string, [string, string | undefined, string]> = {
       "quiz-fill-start": ["ui.fill_in", "ui.happens_as_soon_as_the_learner_2", "cursor"],
       "quiz-submit": ["ui.quiz_submitted", "ui.happens_as_soon_as_the_quiz", "accept"],
@@ -1710,6 +1709,11 @@ describe("the events of their own that a block gives its page (the descriptor's 
       "revealer-button": ["ui.revealer_button_clicked", "ui.revealer_button_hint", "hand"],
       "list-item-entrance": ["ui.list_item_3", undefined, "animation"],
       "script-run": ["ui.script_block", undefined, "gear"],
+      // (Aufbau and Abbau of a block and of a group: effectEvents.ts.)
+      "block-entrance": ["ui.appears", undefined, "animation"],
+      "block-exit": ["ui.disappears", undefined, "dashing-away"],
+      "group-entrance": ["ui.group_appears", undefined, "animation"],
+      "group-exit": ["ui.group_disappears", undefined, "dashing-away"],
     };
     for (const [type, [label, hint, icon]] of Object.entries(expected)) {
       const look = eventLookOf(type as never);

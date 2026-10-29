@@ -227,7 +227,7 @@ export interface OwnEventSpec<B = never> {
 }
 
 /** The icons of the editor's set that an event type can have (the editor draws them: features/editor/Timeline.tsx). */
-export type EventIconName = "cursor" | "accept" | "decline" | "video" | "play" | "stop-point" | "infinity" | "stop" | "info" | "hand" | "gear" | "animation";
+export type EventIconName = "cursor" | "accept" | "decline" | "video" | "play" | "stop-point" | "infinity" | "stop" | "info" | "hand" | "gear" | "animation" | "dashing-away";
 
 /** How the editor shows one type of event (see `looks` of OwnEventSpec). The words are functions: they follow the language of the editor. */
 export interface EventTypeLook {

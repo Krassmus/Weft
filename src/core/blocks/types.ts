@@ -1,4 +1,5 @@
-import type { Block, BlockTranslation } from "../types";
+import type { GraphEventKind } from "../eventGraph/types";
+import type { Block, BlockTranslation, TimelineEventType } from "../types";
 import type { TranslationKey } from "../i18n/translations";
 
 /**
@@ -185,6 +186,37 @@ export interface TaskSpec {
   outcomesAlwaysShown?: boolean;
 }
 
+/**
+ * An event a block gives its page that is its own - beyond the Aufbau, the Abbau and the Aktionseffekte every block can have, and beyond the events of a
+ * task (`TaskSpec`): a logic block's script runs, a button is clicked, a revealer's window opens, an item of a list appears. The page's graph (see
+ * docs/event-graph.md) has a node for it, the stations that list a page's events ask the descriptor instead of each knowing the kind.
+ * What the event DOES (a script is run, an item is shown) is the player's: it has a handler for each `graphKind`. The ids are part of the file's protocol
+ * - the player makes the same ones (`${idPrefix}:${blockId}`, and `:${itemId}` for one of an item).
+ */
+export interface OwnEventSpec<B = never> {
+  /** Names it among the block's events (the id of a node does not contain it). */
+  key: string;
+  /** The id of the node: `${idPrefix}:${blockId}`, or `${idPrefix}:${blockId}:${itemId}` for an event of an item. */
+  idPrefix: string;
+  /** What it is in the graph the player runs (eventGraph/types.ts) and what the editor's timeline calls it. */
+  graphKind: GraphEventKind;
+  timelineType: TimelineEventType;
+  /** One event for each item of this list field of the block, instead of one for the block. */
+  perItem?: string;
+  /** Whether the block has the event now; `onPage` is false for a block of a layout. Absent: always. */
+  exists?(block: B, where: { onPage: boolean }): boolean;
+  /** The event is instead of the block's Aufbau: while it is there the block has none of its own. */
+  replacesEntrance?(block: B, where: { onPage: boolean }): boolean;
+  /** A trigger can make it happen (the editor offers it as a target), not only the learner or the player. */
+  triggerable: boolean;
+  /** It takes its place in the chain of Weiter when it is made, like an Aufbau, and is shown on a row of its own where nothing triggers it. */
+  inChain?: boolean;
+  /** Drawn in a lane of its own, after the block's Aufbau if it has one, joined to the block's other lane events by dashed lines (the learner does them). */
+  lane?: boolean;
+  /** The words of the node in the graph (editor language): `index` is the place of the item. Absent or undefined: it has none of its own. */
+  label?(block: B, context: { name: string; index?: number }): string | undefined;
+}
+
 /** The panel of a block, made from its fields: sections in the order they are shown. */
 export interface PanelSpec {
   sections: {
@@ -224,6 +256,8 @@ export interface BlockDescriptor<B extends Block = Block> {
   defaults(): Omit<B, "id" | "order" | "position" | "entranceEffect" | "exitEffect" | "actionEffects">;
   /** Present: the block has the events of a quiz. */
   task?: TaskSpec;
+  /** The events the block gives its page that are its own (see OwnEventSpec). */
+  events?: OwnEventSpec<B>[];
   /** Nothing of the block is seen or read when a slide is played, and it has no Aufbau or Abbau (a logic block): it is not in the reading order, not in the
    * picture the cover is made from, and cannot be made to appear by a video's time mark. The editor draws a mark where it stands. */
   invisible?: boolean;

@@ -5,7 +5,7 @@ import type { BlockDescriptor, BlockProblem } from "../types";
 /**
  * The revealer: a small icon in a coloured shape on the slide (an i, a warning, an exclamation mark, a question mark) that opens a window around itself
  * - with a click on it, or with a trigger to its event - holding a heading and, all of them optional, a small text, a picture and a button (see
- * RevealerBlock). Its two events (it opens; its button was clicked) are the page's graph's (revealerOpenNodeId in document/pageTimeline.ts). Drawn by
+ * RevealerBlock). Its two events (it opens; its button was clicked) are described in `events` below. Drawn by
  * one function for the player, the thumbnails, the PDF and the canvas (blocks/revealer/render.js); on the canvas the window stands open while the block
  * is selected. What the button does is the player's (renderRevealerBlock) and its panel (RevealerEditor in panels/BlockPanel.tsx) the editor's own.
  *
@@ -31,6 +31,29 @@ export const revealerBlock: BlockDescriptor<RevealerBlock> = {
     imageAlt: { type: "text", translatable: true, translationKey: "alt", cli: { part: "alt", role: "Bildbeschreibung" } },
     windowStyle: { type: "choice", options: ["dark", "light"] },
   },
+  // Its events: its window opens (by a click on the icon or by a trigger, so it is triggerable like a video's start) and, when it has one, the button in the
+  // window is clicked (a user event: it comes after the opening, a dashed line - the learner does it). An icon that appears can be opened only after it has.
+  events: [
+    {
+      key: "open",
+      idPrefix: "revealer-open",
+      graphKind: "revealer-open",
+      timelineType: "revealer-open",
+      triggerable: true,
+      lane: true,
+      label: () => tr("ui.revealer_opens"),
+    },
+    {
+      key: "button",
+      idPrefix: "revealer-button",
+      graphKind: "revealer-button",
+      timelineType: "revealer-button",
+      exists: (block) => !!block.button,
+      triggerable: false,
+      lane: true,
+      label: () => tr("ui.revealer_button_clicked"),
+    },
+  ],
   defaults: () => ({
     kind: "revealer",
     icon: "info",

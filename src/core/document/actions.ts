@@ -646,8 +646,9 @@ export function addBlockToPage(pageId: string, kind: Block["kind"]) {
     if (!page) return;
     insertOrdered(page.blocks, block.id, block);
     syncPageTimelineEvents(page);
-    // A logic block's event waits for Weiter at the end of the chain, like the Aufbau of any block.
-    if (kind === "script") ensureEffectTriggers(page, [block.id]);
+    // The events of its own that a kind of block has in the chain (a logic block's script running) wait for Weiter at the end of it, like the Aufbau of
+    // any block.
+    if (descriptorOf(kind)?.events?.some((event) => event.inChain)) ensureEffectTriggers(page, [block.id]);
   });
   return block.id;
 }

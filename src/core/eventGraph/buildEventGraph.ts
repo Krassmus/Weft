@@ -3,15 +3,10 @@ import { orderedValues } from "../document/ordering";
 import {
   blockActionNodeId,
   blockEffectNodeId,
-  buttonClickNodeId,
   endNodeIds,
   groupEffectNodeId,
-  listItemNodeId,
   quizFillNodeId,
-  scriptRunNodeId,
   quizSubmitNodeId,
-  revealerButtonNodeId,
-  revealerOpenNodeId,
   videoEndNodeId,
   videoResumeNodeId,
   videoStartNodeId,
@@ -19,7 +14,7 @@ import {
 } from "../document/pageTimeline";
 import type { Block, Layout, Page } from "../types";
 import { isMediaBlock } from "../types";
-import { isTaskBlock } from "../blocks/registry";
+import { isTaskBlock, ownEventsOf, replacesEntrance } from "../blocks/registry";
 import type { GraphEvent, GraphTrigger, PageGraph } from "./types";
 
 /**
@@ -36,12 +31,13 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
   const pageBlockIds = new Set(Object.keys(page.blocks));
   const blocks: Block[] = [...orderedValues(layout?.blocks ?? {}), ...orderedValues(page.blocks)];
   for (const block of blocks) {
-    if (block.kind === "list" && block.itemEntrance && block.entranceEffect.type !== "off" && pageBlockIds.has(block.id)) {
-      // Each item of the list appears on its own, with the list's effect; the list as a whole has no Aufbau event.
-      for (const item of block.items) events.push({ id: listItemNodeId(block.id, item.id), kind: "list-item" });
-    } else if (block.kind === "script") {
-      // A logic block has no Aufbau - its event is the script running. (Only a page has them: there are none in a layout.)
-      if (pageBlockIds.has(block.id)) events.push({ id: scriptRunNodeId(block.id), kind: "script-run", title: page.timeline.titles?.[scriptRunNodeId(block.id)]?.trim() || undefined });
+    // (Only a page has the events of its own that stand in for an Aufbau: a list whose items appear one by one has the items', a logic block its script
+    // running - and there is none in a layout. What they are is the descriptor's: see OwnEventSpec.)
+    const where = { onPage: pageBlockIds.has(block.id) };
+    const own = ownEventsOf(block, where);
+    for (const event of own) if (event.spec.replacesEntrance) events.push({ id: event.id, kind: event.spec.graphKind });
+    if (replacesEntrance(block, where)) {
+      // (The block has no Aufbau of its own.)
     } else if (block.entranceEffect.type !== "off") {
       const id = blockEffectNodeId(block.id, "entrance");
       events.push({ id, kind: "entrance" });
@@ -50,18 +46,13 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
     if (pageBlockIds.has(block.id)) for (const effect of block.actionEffects ?? []) events.push({ id: blockActionNodeId(block.id, effect.id), kind: "action" });
     if (block.exitEffect.type !== "off") events.push({ id: blockEffectNodeId(block.id, "exit"), kind: "exit" });
 
-    if (block.kind === "revealer") {
-      events.push({ id: revealerOpenNodeId(block.id), kind: "revealer-open" });
-      if (block.button) events.push({ id: revealerButtonNodeId(block.id), kind: "revealer-button" });
-    }
+    // The other events of its own (a revealer's opening and its button, a button's click).
+    for (const event of own) if (!event.spec.replacesEntrance) events.push({ id: event.id, kind: event.spec.graphKind });
 
-    if (block.kind === "button") {
-      const id = buttonClickNodeId(block.id);
-      events.push({ id, kind: "button-click" });
+    if (block.kind === "button" && !pageBlockIds.has(block.id) && block.action === "event") {
       // A button of the layout can't have a trigger of its own per page: what it does as an "event" button is to go on.
-      if (!pageBlockIds.has(block.id) && block.action === "event") {
-        triggers.push({ id: `layout:${id}`, from: id, to: "end", delayMs: 0, weiter: false });
-      }
+      const id = own[0].id;
+      triggers.push({ id: `layout:${id}`, from: id, to: "end", delayMs: 0, weiter: false });
     }
 
     if (isMediaBlock(block)) {

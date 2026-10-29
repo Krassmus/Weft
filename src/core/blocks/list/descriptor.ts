@@ -50,6 +50,22 @@ export const listBlock: BlockDescriptor<ListBlock> = {
     spacing: { type: "number", min: 0 },
     itemEntrance: { type: "bool" },
   },
+  // Its events, when it has an Aufbau for each item (`itemEntrance`): the items appear one by one, each an event of its own - and the list as a whole has no
+  // Aufbau event. Only a list on a page has them (a list of a layout appears as a whole).
+  events: [
+    {
+      key: "item",
+      idPrefix: "list-item",
+      graphKind: "list-item",
+      timelineType: "list-item-entrance",
+      perItem: "items",
+      exists: (block, where) => where.onPage && !!block.itemEntrance && block.entranceEffect.type !== "off",
+      replacesEntrance: (block, where) => where.onPage && !!block.itemEntrance && block.entranceEffect.type !== "off",
+      triggerable: true,
+      inChain: true,
+      label: (_block, context) => tr("ui.list_item", { n0: (context.index ?? 0) + 1 }),
+    },
+  ],
   defaults: () => ({
     kind: "list",
     items: [

@@ -6,10 +6,12 @@ import { runOperations } from "../cli/ops";
 import { setCurrentModule } from "../cli/storeStub";
 import { collectTexts, exportTexts, importTexts } from "../cli/texts";
 import { validate } from "../cli/validate";
-import { describedKinds, descriptorOf, exportedItemTexts, exportedTexts, fieldsOf, isInvisibleKind, isPageOnlyKind, isTaskBlock, listFieldsOf, shownWordings, variableWordings } from "../src/core/blocks/registry";
+import { describedKinds, descriptorOf, exportedItemTexts, exportedTexts, fieldsOf, isInvisibleKind, isPageOnlyKind, isTaskBlock, listFieldsOf, ownEventId, ownEventsOf, replacesEntrance, shownWordings, triggerableOwnEventTypes, variableWordings } from "../src/core/blocks/registry";
 import { buildRuntimeHtml } from "../src/core/runtime/buildRuntimeHtml";
 import { pageReadingOrder } from "../src/core/document/readingOrder";
-import { canTriggerActionEffectFrom } from "../src/core/document/pageTimeline";
+import { TRIGGERABLE_EVENT_TYPES, blockNameOf, buttonClickNodeId, canTriggerActionEffectFrom, getPageLanes, listItemNodeId, revealerButtonNodeId, revealerOpenNodeId, scriptRunNodeId } from "../src/core/document/pageTimeline";
+import { buildEventGraph } from "../src/core/eventGraph/buildEventGraph";
+import { readFileSync } from "node:fs";
 import type { BlockDescriptor, FieldSpec, ListField } from "../src/core/blocks/types";
 import { pasteBlockInto } from "../src/core/document/actions";
 import { clipboardEntryPlainText } from "../src/core/document/clipboard";
@@ -19,8 +21,8 @@ import { fieldHtml, fieldHtmlPatch, fieldWording, fieldWordingPatch, isTranslate
 import { allowedSlips, clozeIsRight, levenshtein } from "../src/core/document/cloze";
 import { usedAssetIds } from "../src/core/document/usedAssets";
 import { placeholderSources, withProgress } from "../src/core/document/variablePlaceholders";
-import { buildEventGraph } from "../src/core/eventGraph/buildEventGraph";
 import { translations } from "../src/core/i18n/translations";
+import { tr } from "../src/core/i18n/tr";
 import { CURRENT_FORMAT_VERSION } from "../src/core/io/unpack";
 import type { Block, WeftModule } from "../src/core/types";
 
@@ -1343,5 +1345,147 @@ describe("what nothing is seen of when a slide is played (a logic block)", () =>
     const m = withBlocks();
     const html = await buildRuntimeHtml(m.content);
     expect(html).toContain('<script id="weft-invisible-kinds" type="application/json">["script"]</script>');
+  });
+});
+
+describe("the events of their own that a block gives its page (the descriptor's `events`)", () => {
+  const make = (kind: string, set: Record<string, unknown> = {}) => {
+    const m = moduleWith(kind, false);
+    const block = m.content.pages[m.pageId].blocks[m.blockId] ?? Object.values(m.content.layouts)[0].blocks[m.blockId];
+    Object.assign(block, set);
+    return { ...m, block: block as Block };
+  };
+  const ON = { onPage: true };
+  const OFF = { onPage: false };
+  const fade = { type: "fade", durationMs: 400 };
+
+  it("are described well: the keys of a kind differ, the ids differ between all kinds, an event of items names a list the block has", () => {
+    const prefixes: string[] = [];
+    for (const kind of KINDS) {
+      const specs = descriptorOf(kind)?.events ?? [];
+      expect(new Set(specs.map((spec) => spec.key)).size, kind).toBe(specs.length);
+      for (const spec of specs) {
+        expect(spec.idPrefix, kind).toMatch(/^[a-z]+(-[a-z]+)*$/);
+        prefixes.push(spec.idPrefix);
+        if (spec.perItem) expect(listFieldsOf({ kind } as Block).map(([name]) => name), `${kind}.${spec.key}`).toContain(spec.perItem);
+      }
+    }
+    expect(new Set(prefixes).size).toBe(prefixes.length);
+    expect(KINDS.filter((kind) => descriptorOf(kind)?.events).sort()).toEqual(["button", "list", "revealer", "script"]);
+  });
+
+  it("have ids that the player makes the same way - the ids are part of the file", () => {
+    const player = readFileSync("src/core/runtime/player.runtime.js", "utf8");
+    for (const kind of KINDS) for (const spec of descriptorOf(kind)?.events ?? []) expect(player, spec.idPrefix).toContain(`"${spec.idPrefix}:"`);
+  });
+
+  it("are made into the ids the editor's functions give", () => {
+    expect(ownEventId("script", "run", "b1")).toBe("script-run:b1");
+    expect(ownEventId("button", "click", "b1")).toBe("button-click:b1");
+    expect(ownEventId("revealer", "open", "b1")).toBe("revealer-open:b1");
+    expect(ownEventId("revealer", "button", "b1")).toBe("revealer-button:b1");
+    expect(ownEventId("list", "item", "b1", "i1")).toBe("list-item:b1:i1");
+    expect([scriptRunNodeId("b1"), buttonClickNodeId("b1"), revealerOpenNodeId("b1"), revealerButtonNodeId("b1"), listItemNodeId("b1", "i1")]).toEqual(["script-run:b1", "button-click:b1", "revealer-open:b1", "revealer-button:b1", "list-item:b1:i1"]);
+    expect(() => ownEventId("text", "run", "b1")).toThrow(/no event/);
+    expect(() => ownEventId("script", "gibt-es-nicht", "b1")).toThrow(/no event/);
+  });
+
+  it("are a logic block's script running (on a page, not in a layout), a button's click, a revealer's opening and - while it has one - its button", () => {
+    const script = make("script");
+    expect(ownEventsOf(script.block, ON).map((event) => event.id)).toEqual([`script-run:${script.block.id}`]);
+    expect(ownEventsOf(script.block, OFF)).toEqual([]);
+    const button = make("button");
+    expect(ownEventsOf(button.block, ON).map((event) => event.id)).toEqual([`button-click:${button.block.id}`]);
+    expect(ownEventsOf(button.block, OFF).map((event) => event.id)).toEqual([`button-click:${button.block.id}`]);
+    const revealer = make("revealer", { button: undefined });
+    expect(ownEventsOf(revealer.block, ON).map((event) => event.id)).toEqual([`revealer-open:${revealer.block.id}`]);
+    (revealer.block as unknown as { button: unknown }).button = { text: "ok", action: "none" };
+    expect(ownEventsOf(revealer.block, ON).map((event) => event.id)).toEqual([`revealer-open:${revealer.block.id}`, `revealer-button:${revealer.block.id}`]);
+    expect(ownEventsOf(make("text").block, ON)).toEqual([]);
+  });
+
+  it("are, for a list, one for each item - while it has an Aufbau for each item, on a page", () => {
+    const list = make("list", { items: [{ id: "a", html: "<p>1</p>" }, { id: "b", html: "<p>2</p>" }], entranceEffect: fade, itemEntrance: true });
+    const id = list.block.id;
+    expect(ownEventsOf(list.block, ON).map((event) => [event.id, event.itemId, event.index])).toEqual([[`list-item:${id}:a`, "a", 0], [`list-item:${id}:b`, "b", 1]]);
+    expect(ownEventsOf(list.block, OFF)).toEqual([]);
+    Object.assign(list.block, { itemEntrance: false });
+    expect(ownEventsOf(list.block, ON)).toEqual([]);
+    Object.assign(list.block, { itemEntrance: true, entranceEffect: { type: "off", durationMs: 400 } });
+    expect(ownEventsOf(list.block, ON)).toEqual([]);
+  });
+
+  it("stand in for the Aufbau of the block: a logic block has none, a list with an Aufbau for each item has the items', nothing else does", () => {
+    expect(replacesEntrance(make("script").block, ON)).toBe(true);
+    expect(replacesEntrance(make("script").block, OFF)).toBe(true);
+    const list = make("list", { entranceEffect: fade, itemEntrance: true });
+    expect(replacesEntrance(list.block, ON)).toBe(true);
+    expect(replacesEntrance(list.block, OFF)).toBe(false);
+    Object.assign(list.block, { itemEntrance: false });
+    expect(replacesEntrance(list.block, ON)).toBe(false);
+    Object.assign(list.block, { itemEntrance: true, entranceEffect: { type: "off", durationMs: 400 } });
+    expect(replacesEntrance(list.block, ON)).toBe(false);
+    for (const kind of ["button", "revealer", "text", "quiz"]) expect(replacesEntrance(make(kind).block, ON), kind).toBe(false);
+  });
+
+  it("can be made to happen by a trigger where the descriptor says so: the opening of a revealer, a list's items, a script - not a click", () => {
+    expect(triggerableOwnEventTypes().sort()).toEqual(["list-item-entrance", "revealer-open", "script-run"]);
+    for (const type of ["revealer-open", "list-item-entrance", "script-run"] as const) expect(TRIGGERABLE_EVENT_TYPES.has(type), type).toBe(true);
+    for (const type of ["button-click", "revealer-button"] as const) expect(TRIGGERABLE_EVENT_TYPES.has(type), type).toBe(false);
+  });
+
+  it("are in the page's graph as what the player makes of them, where the descriptor puts them - and a layout's block gives a page the same only where it may", () => {
+    const m = make("script");
+    const add = (kind: string, set: Record<string, unknown>, layout = false) => runOperations(m.content, [{ op: "add_block", ...(layout ? { layout: Object.keys(m.content.layouts)[0] } : { page: m.pageId }), kind, set }]).results[0].result.block as string;
+    const revealer = add("revealer", { button: { text: "ok", action: "none" } });
+    const button = add("button", {});
+    const list = add("list", { items: [{ id: "a", html: "<p>1</p>" }], entranceEffect: fade, itemEntrance: true });
+    const layoutList = add("list", { items: [{ id: "z", html: "<p>1</p>" }], entranceEffect: fade, itemEntrance: true }, true);
+    const layoutButton = add("button", { action: "event" }, true);
+    const page = m.content.pages[m.pageId];
+    const graph = buildEventGraph(page, m.content.layouts[Object.keys(m.content.layouts)[0]]);
+    const kinds = Object.fromEntries(graph.events.map((event) => [event.id, event.kind]));
+    expect(kinds[`script-run:${m.blockId}`]).toBe("script-run");
+    expect(kinds[`revealer-open:${revealer}`]).toBe("revealer-open");
+    expect(kinds[`revealer-button:${revealer}`]).toBe("revealer-button");
+    expect(kinds[`button-click:${button}`]).toBe("button-click");
+    expect(kinds[`list-item:${list}:a`]).toBe("list-item");
+    expect(kinds[`block-entrance:${list}`]).toBeUndefined();
+    // (A list of the layout appears as a whole, and a button of the layout that goes on does so for every page.)
+    expect(kinds[`list-item:${layoutList}:z`]).toBeUndefined();
+    expect(kinds[`block-entrance:${layoutList}`]).toBe("entrance");
+    expect(kinds[`button-click:${layoutButton}`]).toBe("button-click");
+    expect(graph.triggers.some((trigger) => trigger.id === `layout:button-click:${layoutButton}` && trigger.to === "end")).toBe(true);
+    // The order of the events: the ones that stand in for an Aufbau where the Aufbau would be, the others after the Abbau.
+    const order = graph.events.map((event) => event.id);
+    expect(order.indexOf(`revealer-open:${revealer}`)).toBeLessThan(order.indexOf(`revealer-button:${revealer}`));
+  });
+
+  it("show in the lanes of the timeline with the words the descriptor gives them", () => {
+    const m = make("script", { name: "Mein Skript" });
+    const add = (kind: string, set: Record<string, unknown>) => runOperations(m.content, [{ op: "add_block", page: m.pageId, kind, set }]).results[0].result.block as string;
+    const list = add("list", { items: [{ id: "a", html: "<p>1</p>" }, { id: "b", html: "<p>2</p>" }], entranceEffect: fade, itemEntrance: true });
+    const named = add("button", { name: "Knopf", entranceEffect: fade });
+    const plain = add("button", {});
+    const revealer = add("revealer", { button: { text: "ok", action: "none" } });
+    const page = m.content.pages[m.pageId];
+    const nodes = getPageLanes(page).flatMap((lane) => lane.nodes);
+    const label = (id: string) => nodes.find((node) => node.id === id)?.label;
+    expect(label(`script-run:${m.blockId}`)).toBe("Mein Skript");
+    expect(label(`list-item:${list}:a`)).toBe(tr("ui.list_item", { n0: 1 }));
+    expect(label(`list-item:${list}:b`)).toBe(tr("ui.list_item", { n0: 2 }));
+    expect(label(`button-click:${named}`)).toBe(tr("ui.named_clicked", { n0: "Knopf" }));
+    expect(nodes.find((node) => node.id === `button-click:${plain}`)).toBeDefined();
+    expect("label" in (nodes.find((node) => node.id === `button-click:${plain}`) ?? {})).toBe(false);
+    expect(label(`revealer-open:${revealer}`)).toBe(tr("ui.revealer_opens"));
+    expect(label(`revealer-button:${revealer}`)).toBe(tr("ui.revealer_button_clicked"));
+    // A lane of a block that appears starts with its Aufbau, joined to the events by dashed lines; a block that does not has the events alone.
+    const lane = getPageLanes(page).find((candidate) => candidate.nodes.some((node) => node.id === `button-click:${named}`));
+    expect(lane?.nodes.map((node) => node.id)).toEqual([`block-entrance:${named}`, `button-click:${named}`]);
+    expect(lane?.edges).toEqual([{ from: `block-entrance:${named}`, to: `button-click:${named}`, kind: "unknown" }]);
+    const bare = getPageLanes(page).find((candidate) => candidate.nodes.some((node) => node.id === `button-click:${plain}`));
+    expect(bare?.nodes.map((node) => node.id)).toEqual([`button-click:${plain}`]);
+    expect(bare?.edges).toEqual([]);
+    expect(blockNameOf(m.content.pages[m.pageId].blocks[m.blockId])).toBe("Mein Skript");
   });
 });

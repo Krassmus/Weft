@@ -1,11 +1,12 @@
 import { isSnapshot } from "../collab/mutationScope";
 import { formatTimeMMSS } from "../formatTime";
 import { orderedValues } from "./ordering";
-import type { ActionEffect, Block, BlockEffect, RevealerBlock, BlockGroup, CheckerBlock, SolutionBlock, ClozeBlock, MatchingBlock, SortBlock, ListBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode } from "../types";
+import type { ActionEffect, Block, BlockEffect, BlockGroup, CheckerBlock, SolutionBlock, ClozeBlock, MatchingBlock, SortBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode } from "../types";
 import { isMediaBlock } from "../types";
 import type { MediaBlock } from "../types";
 import { tr } from "../i18n/tr";
-import { isInvisibleKind, isTaskBlock, taskSpecOf } from "../blocks/registry";
+import { describedKinds, isInvisibleKind, isTaskBlock, ownEventId, ownEventsOf, replacesEntrance, taskSpecOf, triggerableOwnEventTypes } from "../blocks/registry";
+import type { OwnEvent } from "../blocks/registry";
 
 /**
  * What every page's timeline starts out as (and what a page missing it is given on load, see io/unpack.ts): one trigger from the
@@ -244,7 +245,7 @@ export type ActionEffectProblem = "before-entrance" | "after-exit";
 /** The event of the Aufbau of `block` as the Aktionseffekte of the block have to wait for it - none where the block has none that is one
  * node (no Aufbau; a list whose items appear one by one; a logic block). */
 function entranceNodeIdOf(block: Block): string | null {
-  if (isInvisibleKind(block.kind) || block.entranceEffect.type === "off" || isListPerItem(block)) return null;
+  if (isInvisibleKind(block.kind) || block.entranceEffect.type === "off" || replacesEntrance(block, ON_PAGE)) return null;
   return blockEffectNodeId(block.id, "entrance");
 }
 
@@ -318,37 +319,32 @@ function makeBlockActionNode(page: Page, block: Block, effect: ActionEffect): Ti
 
 /** The Aufbau of one item of a list (see ListBlock.itemEntrance). Kept in sync by hand with player.runtime.js. */
 export function listItemNodeId(blockId: string, itemId: string): string {
-  return `list-item:${blockId}:${itemId}`;
+  return ownEventId("list", "item", blockId, itemId);
 }
 
 /** Whether the Aufbau of `block` is made by each of its items on its own: a list on a page with an Aufbau and the switch on. (The
  * block has then no Aufbau event of its own.) */
 export function isListPerItem(block: Block): boolean {
-  return block.kind === "list" && !!block.itemEntrance && block.entranceEffect.type !== "off";
+  return block.kind === "list" && replacesEntrance(block, ON_PAGE);
 }
 
-function makeListItemNode(block: ListBlock, index: number, itemId: string): TimelineNode {
-  return {
-    id: listItemNodeId(block.id, itemId),
-    kind: "event",
-    sourceBlockId: block.id,
-    eventType: "list-item-entrance",
-    label: tr("ui.list_item", { n0: index + 1 }),
-  };
+/** What the events of the blocks of a page are for: the blocks are the page's own (a layout's have no events of their own per page). */
+const ON_PAGE = { onPage: true } as const;
+
+/** The node of an event of a block that is its own (see OwnEventSpec in blocks/types.ts): its id, what it is, and the words it shows in the graph. */
+function makeOwnEventNode(block: Block, event: OwnEvent): TimelineNode {
+  const label = event.spec.label?.(block as never, { name: blockNameOf(block), index: event.index });
+  return { id: event.id, kind: "event", sourceBlockId: block.id, eventType: event.spec.timelineType, ...(label !== undefined ? { label } : {}) };
 }
 
 /** The event of a logic block: its script runs (a green event that is triggered like an Aufbau). Kept in sync by hand with player.runtime.js. */
 export function scriptRunNodeId(blockId: string): string {
-  return `script-run:${blockId}`;
-}
-
-function makeScriptNode(block: Block): TimelineNode {
-  return { id: scriptRunNodeId(block.id), kind: "event", sourceBlockId: block.id, eventType: "script-run", label: blockNameOf(block) };
+  return ownEventId("script", "run", blockId);
 }
 
 /** The event of a button being clicked (a user event: nothing can make it happen but the learner). */
 export function buttonClickNodeId(blockId: string): string {
-  return `button-click:${blockId}`;
+  return ownEventId("button", "click", blockId);
 }
 
 /** The event of the condition ("Ausgelöst durch: Variable") that triggers the event `targetId` - see PageTimeline.conditions. */
@@ -378,27 +374,12 @@ export function groupEffectNodeId(groupId: string, phase: "entrance" | "exit"): 
 
 /** The event of a revealer's window opening - by a click on its icon or by a trigger, so it is triggerable like a video's start. */
 export function revealerOpenNodeId(blockId: string): string {
-  return `revealer-open:${blockId}`;
+  return ownEventId("revealer", "open", blockId);
 }
 
 /** The event of the button in a revealer's window being clicked (a user event). */
 export function revealerButtonNodeId(blockId: string): string {
-  return `revealer-button:${blockId}`;
-}
-
-function makeRevealerNodes(block: RevealerBlock): TimelineNode[] {
-  const nodes: TimelineNode[] = [
-    { id: revealerOpenNodeId(block.id), kind: "event", sourceBlockId: block.id, eventType: "revealer-open", label: tr("ui.revealer_opens") },
-  ];
-  if (block.button) {
-    nodes.push({ id: revealerButtonNodeId(block.id), kind: "event", sourceBlockId: block.id, eventType: "revealer-button", label: tr("ui.revealer_button_clicked") });
-  }
-  return nodes;
-}
-
-function makeButtonNode(block: Block): TimelineNode {
-  const name = block.name?.trim();
-  return { id: buttonClickNodeId(block.id), kind: "event", sourceBlockId: block.id, eventType: "button-click", ...(name ? { label: tr("ui.named_clicked", { n0: name }) } : {}) };
+  return ownEventId("revealer", "button", blockId);
 }
 
 function makeGroupEffectNode(group: BlockGroup, phase: "entrance" | "exit"): TimelineNode {
@@ -424,7 +405,6 @@ function makeGroupEffectNode(group: BlockGroup, phase: "entrance" | "exit"): Tim
 export const TRIGGERABLE_EVENT_TYPES: ReadonlySet<TimelineEventType> = new Set<TimelineEventType>([
   "video-start-auto",
   "video-start-manual",
-  "revealer-open",
   "block-entrance",
   "block-exit",
   "block-action-move",
@@ -432,8 +412,8 @@ export const TRIGGERABLE_EVENT_TYPES: ReadonlySet<TimelineEventType> = new Set<T
   "block-action-blink",
   "group-entrance",
   "group-exit",
-  "list-item-entrance",
-  "script-run",
+  // (The events of their own that a kind of block says a trigger can make happen: a revealer's opening, a list's items, a logic block's script.)
+  ...triggerableOwnEventTypes(),
 ]);
 
 export function isTriggerableNode(node: TimelineNode): boolean {
@@ -715,23 +695,18 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
   }
   const videoLanes = videos.map((video) => ({ video, lane: buildVideoLane(video, page) }));
   for (const { lane } of videoLanes) lanes.push(lane);
-  // A button's click is an event of its own (a violet one: the learner does it); what it triggers is drawn from its triggers.
-  // A button that appears (it has an Aufbau) cannot be clicked before: its own event leads the lane, joined by a dashed line (the learner
-  // does it), as with a revealer.
-  for (const block of blocks) {
-    if (block.kind !== "button") continue;
-    const nodes = [makeButtonNode(block)];
-    if (block.entranceEffect.type !== "off") nodes.unshift(makeBlockEffectNode(block, "entrance"));
-    lanes.push({ nodes, edges: nodes.length > 1 ? [{ from: nodes[0].id, to: nodes[1].id, kind: "unknown" as const }] : [] });
-  }
-  // A revealer: the opening of its window and, when it has one, the click on the button in it - which only comes after (a dashed line, as
-  // from a quiz's first answer to its submit: the learner does it) - and, before them, its own Aufbau if it has one.
-  for (const block of blocks) {
-    if (block.kind !== "revealer") continue;
-    const nodes = makeRevealerNodes(block);
-    // An icon that appears (it has an Aufbau) cannot be opened before: its own event leads the lane, as the source of a video's start does.
-    if (block.entranceEffect.type !== "off") nodes.unshift(makeBlockEffectNode(block, "entrance"));
-    lanes.push({ nodes, edges: nodes.slice(1).map((node, index) => ({ from: nodes[index].id, to: node.id, kind: "unknown" as const })) });
+  // The events of their own that a kind of block draws in a lane (see OwnEventSpec.lane) - a button's click (a violet one: the learner does it; what it
+  // triggers is drawn from its triggers), a revealer's opening and, when it has one, the click on the button in its window - which only comes after (a dashed
+  // line, as from a quiz's first answer to its submit: the learner does it). A block that appears (it has an Aufbau) cannot be used before: its own event
+  // leads the lane, as the source of a video's start does. One kind after the other, in the order the kinds are registered, the blocks in their order.
+  for (const kind of describedKinds()) {
+    for (const block of blocks) {
+      if (block.kind !== kind) continue;
+      const nodes = ownEventsOf(block, ON_PAGE).filter((event) => event.spec.lane).map((event) => makeOwnEventNode(block, event));
+      if (nodes.length === 0) continue;
+      if (block.entranceEffect.type !== "off") nodes.unshift(makeBlockEffectNode(block, "entrance"));
+      lanes.push({ nodes, edges: nodes.slice(1).map((node, index) => ({ from: nodes[index].id, to: node.id, kind: "unknown" as const })) });
+    }
   }
 
   // The condition of an "Ausgelöst durch: Variable" is an event of its own (it happens when the formula turns true): a node to start from,
@@ -747,17 +722,14 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
   // The same goes for the Aufbau/Abbau of a group (an event block of its own: see BlockGroup).
   const effectTargets: { node: TimelineNode; trigger: ResolvedTrigger | null }[] = [];
   for (const block of blocks) {
-    if (block.kind === "list" && isListPerItem(block)) {
-      // Each item of the list is an Aufbau of its own - and the list as a whole has none.
-      block.items.forEach((item, index) => {
-        const edge = findTriggerEdge(page.timeline, listItemNodeId(block.id, item.id));
-        effectTargets.push({ node: makeListItemNode(block, index, item.id), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
-      });
-    } else if (block.kind === "script") {
-      // A logic block has an event of its own (its script runs) instead of an Aufbau, with the trigger the page stores for it.
-      const edge = findTriggerEdge(page.timeline, scriptRunNodeId(block.id));
-      effectTargets.push({ node: makeScriptNode(block), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
-    } else if (block.entranceEffect.type !== "off") {
+    // The events of its own that are in the chain (a list's items - each an Aufbau of its own and the list as a whole has none -, a logic block's script
+    // running instead of an Aufbau), each with the trigger the page stores for it.
+    for (const event of ownEventsOf(block, ON_PAGE)) {
+      if (!event.spec.inChain) continue;
+      const edge = findTriggerEdge(page.timeline, event.id);
+      effectTargets.push({ node: makeOwnEventNode(block, event), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
+    }
+    if (!replacesEntrance(block, ON_PAGE) && block.entranceEffect.type !== "off") {
       effectTargets.push({ node: makeBlockEffectNode(block, "entrance"), trigger: getBlockEntranceTrigger(page, block) });
     }
     // The Aktionseffekte lie between the Aufbau and the Abbau (only on a page: a layout block has none of its own per page).
@@ -952,10 +924,9 @@ export function getPageLanes(page: Page): TimelineLane[] {
 function blockEventIds(page: Page): Set<string> {
   const ids = new Set<string>(["start"]);
   for (const block of orderedValues(page.blocks)) {
-    if (block.kind === "list" && isListPerItem(block)) {
-      for (const item of block.items) ids.add(listItemNodeId(block.id, item.id));
-    } else if (block.kind === "script") ids.add(scriptRunNodeId(block.id));
-    else if (block.entranceEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "entrance"));
+    const own = ownEventsOf(block, ON_PAGE);
+    for (const event of own) ids.add(event.id);
+    if (!replacesEntrance(block, ON_PAGE) && block.entranceEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "entrance"));
     for (const effect of block.actionEffects ?? []) ids.add(blockActionNodeId(block.id, effect.id));
     if (block.exitEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "exit"));
     if (isMediaBlock(block)) {
@@ -965,11 +936,6 @@ function blockEventIds(page: Page): Set<string> {
         if (stopPoint.stopsVideo) ids.add(videoResumeNodeId(block.id, stopPoint.id));
       }
       ids.add(videoEndNodeId(block.id));
-    }
-    if (block.kind === "button") ids.add(buttonClickNodeId(block.id));
-    if (block.kind === "revealer") {
-      ids.add(revealerOpenNodeId(block.id));
-      if (block.button) ids.add(revealerButtonNodeId(block.id));
     }
     if (isTaskBlock(block)) {
       ids.add(quizFillNodeId(block.id));
@@ -1140,9 +1106,8 @@ export function ensureEffectTriggers(page: Page, blockIds: string[]): void {
     const block = page.blocks[blockId];
     if (!block) continue;
     const wanted: string[] = [];
-    if (block.kind === "list" && isListPerItem(block)) for (const item of block.items) wanted.push(listItemNodeId(blockId, item.id));
-    else if (block.kind === "script") wanted.push(scriptRunNodeId(blockId));
-    else if (block.entranceEffect.type !== "off") wanted.push(blockEffectNodeId(blockId, "entrance"));
+    for (const event of ownEventsOf(block, ON_PAGE)) if (event.spec.inChain) wanted.push(event.id);
+    if (!replacesEntrance(block, ON_PAGE) && block.entranceEffect.type !== "off") wanted.push(blockEffectNodeId(blockId, "entrance"));
     if (block.exitEffect.type !== "off") wanted.push(blockEffectNodeId(blockId, "exit"));
     for (const nodeId of wanted) {
       if (hasIncoming(nodeId)) continue;

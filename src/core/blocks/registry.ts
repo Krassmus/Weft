@@ -1,5 +1,5 @@
-import type { Block } from "../types";
-import type { BlockDescriptor, FieldSpec, HtmlField, ListField, TaskSpec, TextField } from "./types";
+import type { Block, TimelineEventType } from "../types";
+import type { BlockDescriptor, FieldSpec, HtmlField, ListField, OwnEventSpec, TaskSpec, TextField } from "./types";
 import { audioBlock } from "./audio/descriptor";
 import { buttonBlock } from "./button/descriptor";
 import { checkerBlock } from "./checker/descriptor";
@@ -91,6 +91,48 @@ export function isTaskBlock(block: { kind: string }): boolean {
 /** What the events of a task block are called, if its kind describes it (the other kinds name them by hand). */
 export function taskSpecOf(block: { kind: string }): TaskSpec | undefined {
   return descriptorOf(block.kind)?.task;
+}
+
+/** An event of a block that is its own (see OwnEventSpec), as it is now: its node's id, and for an event of an item the item. */
+export interface OwnEvent {
+  spec: OwnEventSpec;
+  id: string;
+  itemId?: string;
+  /** The place of the item in its list. */
+  index?: number;
+}
+
+/** Whether the block is on a page (its events are the page's) or in a layout (a block of the layout has no events of its own per page). */
+export type Where = { onPage: boolean };
+
+/** The events of its own that `block` has now: in the order of its descriptor, an event of items in the order of the items. None for a kind without. */
+export function ownEventsOf(block: Block, where: Where): OwnEvent[] {
+  const events: OwnEvent[] = [];
+  for (const spec of (descriptorOf(block)?.events ?? []) as OwnEventSpec<Block>[]) {
+    if (spec.exists && !spec.exists(block, where)) continue;
+    if (spec.perItem) {
+      const items = ((block as unknown as Record<string, { id: string }[] | undefined>)[spec.perItem]) ?? [];
+      items.forEach((item, index) => events.push({ spec: spec as unknown as OwnEventSpec, id: `${spec.idPrefix}:${block.id}:${item.id}`, itemId: item.id, index }));
+    } else events.push({ spec: spec as unknown as OwnEventSpec, id: `${spec.idPrefix}:${block.id}` });
+  }
+  return events;
+}
+
+/** The id of the node of an event of a kind of block that is its own: `key` names it among the events of the kind. */
+export function ownEventId(kind: string, key: string, blockId: string, itemId?: string): string {
+  const spec = descriptorOf(kind)?.events?.find((candidate) => candidate.key === key);
+  if (!spec) throw new Error(`The kind "${kind}" has no event "${key}".`);
+  return itemId === undefined ? `${spec.idPrefix}:${blockId}` : `${spec.idPrefix}:${blockId}:${itemId}`;
+}
+
+/** Whether an event of its own stands in for the Aufbau of the block (a logic block has none; a list whose items appear one by one has the items'). */
+export function replacesEntrance(block: Block, where: Where): boolean {
+  return ((descriptorOf(block)?.events ?? []) as OwnEventSpec<Block>[]).some((spec) => !!spec.replacesEntrance?.(block, where));
+}
+
+/** What the timeline calls the events of its own that a trigger can make happen (the editor offers them as targets). */
+export function triggerableOwnEventTypes(): TimelineEventType[] {
+  return describedKinds().flatMap((kind) => (descriptorOf(kind)?.events ?? []).filter((spec) => spec.triggerable).map((spec) => spec.timelineType));
 }
 
 /** Whether nothing of a kind is seen or read when a slide is played (it has no Aufbau or Abbau, is not in the reading order or the cover's picture). */

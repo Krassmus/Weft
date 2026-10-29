@@ -36,6 +36,22 @@ export const buttonBlock: BlockDescriptor<ButtonBlock> = {
     text: { type: "text", translatable: true, formatted: "html", shown: true, variables: true, cli: { part: "label", role: "Beschriftung" } },
     onClick: { type: "effects", cliWhat: "beim Klick" },
   },
+  // Its one event: it is clicked - a user event, nothing can make it happen but the learner (violet in the graph; a button that appears can be clicked only
+  // after it has). Where the click leads is what its action says and the triggers from this event.
+  events: [
+    {
+      key: "click",
+      idPrefix: "button-click",
+      graphKind: "button-click",
+      timelineType: "button-click",
+      triggerable: false,
+      lane: true,
+      label: (block) => {
+        const name = block.name?.trim();
+        return name ? tr("ui.named_clicked", { n0: name }) : undefined;
+      },
+    },
+  ],
   defaults: () => ({ kind: "button", text: tr("ui.next"), action: "advance" }),
   summary: (block, context) => {
     const label = clip(block.html ?? block.text, 40) || "(ohne Text)";

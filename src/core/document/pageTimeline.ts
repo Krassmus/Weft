@@ -68,7 +68,7 @@ function buildQuizLane(
   // (A block that describes itself - see blocks/registry.ts - names its events itself.)
   const task = taskSpecOf(quiz);
   const nodes: TimelineNode[] = [
-    { id: fillId, kind: "event", sourceBlockId: quiz.id, eventType: "quiz-fill-start", ...(task ? { label: tr(task.labels.fill) } : quiz.kind === "matching" ? { label: tr("ui.matching_first") } : quiz.kind === "sort" ? { label: tr("ui.sort_first") } : {}) },
+    { id: fillId, kind: "event", sourceBlockId: quiz.id, eventType: "quiz-fill-start", ...(task ? { label: tr(task.labels.fill) } : quiz.kind === "sort" ? { label: tr("ui.sort_first") } : {}) },
     {
       id: submitId,
       kind: "event",
@@ -79,8 +79,6 @@ function buildQuizLane(
         ? { label: tr(outcome === "richtig" ? task.labels.correct : outcome === "falsch" ? task.labels.incorrect : task.labels.submit) }
         : quiz.kind === "sort"
         ? { label: tr(outcome === "richtig" ? "ui.sort_submitted_correct" : outcome === "falsch" ? "ui.sort_submitted_incorrect" : "ui.sort_submitted") }
-        : quiz.kind === "matching"
-        ? { label: tr(outcome === "richtig" ? "ui.matching_submitted_correct" : outcome === "falsch" ? "ui.matching_submitted_incorrect" : "ui.matching_submitted") }
         : outcome
           ? { label: tr("ui.submitted", { n0: tr("ui.quiz"), outcome: tr(outcome === "richtig" ? "ui.outcome_correct" : "ui.outcome_incorrect") }) }
           : {}),

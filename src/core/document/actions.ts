@@ -641,27 +641,6 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
   const described = descriptorOf(kind);
   if (described) return { ...base, ...described.defaults(), kind, position: { ...described.placement.box } } as NewBlock;
   switch (kind) {
-    case "matching": {
-      // Three objects, two of which belong to a target and one to none (a decoy), and the two targets: the cards stand in two columns.
-      const sourceTexts = tr("ui.matching_sample_sources").split("|");
-      const targetTexts = tr("ui.matching_sample_targets").split("|");
-      const sources = sourceTexts.map((text, i) => ({ id: createId(), kind: "text" as const, text, x: 3, y: 4 + i * 28 }));
-      const targets = targetTexts.map((text, i) => ({ id: createId(), kind: "text" as const, text, x: 55, y: 4 + i * 44 }));
-      return {
-        ...base,
-        kind,
-        position: { x: 10, y: 22, width: 80, height: 58 },
-        sources,
-        targets,
-        pairs: { [sources[0].id]: targets[0].id, [sources[1].id]: targets[1].id },
-        sourceSize: { width: 34, height: 20 },
-        targetSize: { width: 40, height: 40 },
-        onEachCorrect: [],
-        onEachWrong: [],
-        onCorrect: [],
-        onIncorrect: [],
-      };
-    }
     case "sort": {
       // Four objects in their right order; the learner sees them mixed up.
       const items = tr("ui.sort_sample_items").split("|").map((text) => ({ id: createId(), kind: "text" as const, text }));
@@ -689,6 +668,7 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
     case "cloze":
     case "quiz":
     case "revealer":
+    case "matching":
       // (A kind with a descriptor is made above - it has no case of its own.)
       throw new Error(`The kind "${kind}" has no descriptor.`);
     case "placeholder":

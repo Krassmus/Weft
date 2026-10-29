@@ -60,10 +60,6 @@ function hasWords(html: string | undefined): boolean {
 function textsOfBlock(block: Block): { key: string; source: string; role: string }[] {
   const id = block.id;
   switch (block.kind) {
-    case "matching":
-      return [...block.sources.map((item, index) => ({ item, role: `Objekt ${index + 1}` })), ...block.targets.map((item, index) => ({ item, role: `Ziel ${index + 1}` }))]
-        .filter(({ item }) => hasWords(item.text))
-        .map(({ item, role }) => ({ key: `${id}#item:${item.id}`, source: item.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role: item.kind === "image" ? `${role} (Bildbeschreibung)` : role }));
     case "sort": {
       const plain = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       return [
@@ -91,6 +87,11 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
         // (The label of the button of a revealer's window is an object field: it is not one of those the descriptor lists - see revealerBlock.)
         .concat(block.kind === "revealer" && block.button?.text.trim() ? [{ key: `${id}#button`, source: plainToHtml(block.button.text), role: "Button des Fensters" }] : []);
   }
+}
+
+/** A plain text escaped - the form in which the texts of a matching, a sorting puzzle and the other plain ones are exported. */
+function escapePlain(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 /** A plain text (lines) as paragraphs of HTML - the form every text of the list has - and back. */
@@ -141,15 +142,16 @@ function existingTranslation(block: Block, key: string, language: string): strin
   const list = listOfPart(block, part);
   if (list) {
     const own = (translation as Record<string, Record<string, string> | undefined>)[itemsKeyOf(list)]?.[part.slice(part.indexOf(":") + 1)] ?? "";
-    return itemTextIsHtml(list) || !own ? own : plainToHtml(own);
+    // (A plain text is exported escaped - that is the form its translation is compared in.)
+    return itemTextIsHtml(list) ? own : escapePlain(own);
   }
   if (part === "title" || part === "body" || part === "alt") return translation[part] ? plainToHtml(translation[part] as string) : "";
   if (part === "button") return translation.text ? plainToHtml(translation.text) : "";
-  if (part === "start" || part === "end") return translation[part === "start" ? "startLabel" : "endLabel"] ? plainToHtml(translation[part === "start" ? "startLabel" : "endLabel"] as string) : "";
+  if (part === "start" || part === "end") return escapePlain((translation[part === "start" ? "startLabel" : "endLabel"] as string | undefined) ?? "");
   if (part.startsWith("item:")) {
     const own = translation.items?.[part.slice(5)] ?? "";
-    // (The cards of a matching and the objects of a sorting puzzle are plain texts.)
-    return (block.kind === "matching" || block.kind === "sort") && own ? plainToHtml(own) : own;
+    // (The objects of a sorting puzzle are plain texts, exported escaped.)
+    return block.kind === "sort" ? escapePlain(own) : own;
   }
   return "";
 }

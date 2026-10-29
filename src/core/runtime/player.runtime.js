@@ -3233,22 +3233,6 @@
     return (t && t.items && t.items[item.id] !== undefined ? t.items[item.id] : item.text) || "";
   }
 
-  // Which of the places of a list's cards each card takes: the cards of the list swap places at random (Fisher-Yates), if the block says so.
-  function matchingPlaces(block, items) {
-    var places = items.map(function (item) {
-      return { x: item.x, y: item.y };
-    });
-    if (block.shuffle) {
-      for (var i = places.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var swap = places[i];
-        places[i] = places[j];
-        places[j] = swap;
-      }
-    }
-    return places;
-  }
-
   // A picture shown large, over the slide, until a click, a key or Escape closes it.
   // `gallery` (a gallery's pictures): { index, total, get(i) -> { src, alt, caption }, changed(i) } - the window then has an arrow to each side (and
   // the arrow keys, and a swipe) to go on through the pictures; `changed` tells the carousel behind it which picture was reached.
@@ -3600,343 +3584,56 @@
     return wrap;
   }
 
+  // What a matching says, in the language the learner works in - what renderMatching (blocks/matching/render.js, inlined ahead of this file) draws it with,
+  // and what the learner does with it (picking up, dragging, putting down, the keyboard) and how an answer is judged.
+  function matchingProps(block) {
+    var card = function (item) {
+      return { id: item.id, kind: item.kind, text: matchingLabel(block, item), src: item.assetId ? assetSrc(item.assetId) : "", x: item.x, y: item.y };
+    };
+    return {
+      id: block.id,
+      sources: block.sources.map(card),
+      targets: block.targets.map(card),
+      pairs: block.pairs,
+      sourceSize: block.sourceSize,
+      targetSize: block.targetSize,
+      shuffle: block.shuffle === true,
+    };
+  }
+
   function renderMatchingBlock(block) {
     var wrap = el("div", { class: "weft-block weft-block-matching", "data-weft-block": block.id, style: positionStyle(block.position) });
     if (block.required) requiredPending[block.id] = true;
-    var box = el("div", { class: "weft-matching" }, []);
-    var area = el("div", { class: "weft-matching-area" }, []);
-    var bar = el("div", { class: "weft-matching-bar" }, []);
-    box.appendChild(area);
-    box.appendChild(bar);
-
-    var assigned = {}; // source id -> target id
-    var cards = {}; // item id -> its button
-    var homes = {}; // source id -> its dashed place (shown while it stands in a target)
-    var docks = {}; // target id -> where its sources stand
-    var picked = null; // the source that was picked by a click or Enter
-    var locked = false;
-    var hasFiredFill = false;
-    var itemById = {};
-    block.sources.concat(block.targets).forEach(function (item) {
-      itemById[item.id] = item;
-    });
-
-    function place(node, item, size, spot, minimum) {
-      node.style.left = spot.x + "%";
-      node.style.top = spot.y + "%";
-      node.style.width = size.width + "%";
-      node.style[minimum ? "minHeight" : "height"] = size.height + "%";
-    }
-
-    // The shape of a picture (width / height), once it has loaded: the frame - and the place it leaves - take exactly that shape.
-    var ratios = {}; // item id -> ratio
-    var frames = {}; // item id -> the frames drawn for it (the card's, the place's)
-    function setRatio(id, ratio) {
-      ratios[id] = ratio;
-      (frames[id] || []).forEach(function (frame) {
-        frame.style.setProperty("--ratio", String(ratio));
-      });
-    }
-    function pictureFrame(item) {
-      var frame = el("span", { class: "weft-matching-frame" }, []);
-      (frames[item.id] = frames[item.id] || []).push(frame);
-      if (ratios[item.id]) frame.style.setProperty("--ratio", String(ratios[item.id]));
-      var pic = el("span", { class: "weft-matching-pic" }, [frame]);
-      return { pic: pic, frame: frame };
-    }
-
-    // The content of a card: its words, or its picture (with the way to enlarge it).
-    function fillCard(card, item) {
-      card.innerHTML = "";
-      var label = matchingLabel(block, item);
-      if (item.kind === "image") {
-        var image = el("img", { class: "weft-matching-image", src: item.assetId ? assetSrc(item.assetId) : "", alt: label, draggable: "false" }, []);
-        var made = pictureFrame(item);
-        made.frame.appendChild(image);
-        var measured = function () {
-          if (image.naturalWidth && image.naturalHeight) setRatio(item.id, image.naturalWidth / image.naturalHeight);
-        };
-        if (image.complete) measured();
-        else image.addEventListener("load", measured);
-        card.appendChild(made.pic);
-        card.setAttribute("aria-label", label || "");
-      } else {
-        var text = el("span", { class: "weft-matching-text" }, []);
-        text.textContent = label;
-        applyVariablesToNode(text);
-        card.appendChild(text);
-      }
-    }
-
-    function enlarge(item) {
-      if (item.kind !== "image" || !item.assetId) return;
-      openMatchingLightbox(wrap, assetSrc(item.assetId), matchingLabel(block, item));
-    }
-
-    // ---- the cards ----
-    var targetPlaces = matchingPlaces(block, block.targets);
-    block.targets.forEach(function (item, index) {
-      var card = el("button", { type: "button", class: "weft-matching-card weft-matching-target" + (item.kind === "image" ? " is-image" : ""), "data-weft-target": item.id }, []);
-      // (A target grows with the cards put on it - except a picture, which is shown as large as the card allows: the cards then stand below it.)
-      place(card, item, block.targetSize, targetPlaces[index], item.kind !== "image");
-      var body = el("span", { class: "weft-matching-body" }, []);
-      var dock = el("span", { class: "weft-matching-dock" }, []);
-      card.appendChild(body);
-      card.appendChild(dock);
-      docks[item.id] = dock;
-      var fill = function () {
-        fillCard(body, item);
-        // (the body is a span in a button: its own aria-label is the card's)
-        if (item.kind === "image") card.setAttribute("aria-label", matchingLabel(block, item));
-      };
-      fill();
-      languageRefreshers.push(fill);
-      card.addEventListener("click", function (event) {
-        if (!locked && picked) {
-          assign(picked, item.id);
-          return;
-        }
-        // A click of the mouse on a picture enlarges it - also after submitting (a key does not: Enter drops what was picked).
-        if (event.detail > 0) enlarge(item);
-      });
-      card.addEventListener("keydown", function (event) {
-        if ((event.key === "z" || event.key === "+") && item.kind === "image") {
-          event.preventDefault();
-          enlarge(item);
-        }
-      });
-      cards[item.id] = card;
-      area.appendChild(card);
-    });
-
-    var sourcePlaces = matchingPlaces(block, block.sources);
-    block.sources.forEach(function (item, index) {
-      var card = el("button", { type: "button", class: "weft-matching-card weft-matching-source" + (item.kind === "image" ? " is-image" : ""), "data-weft-source": item.id }, []);
-      place(card, item, block.sourceSize, sourcePlaces[index], false);
-      var fill = function () {
-        fillCard(card, item);
-      };
-      fill();
-      languageRefreshers.push(fill);
-      // Its dashed place, where it stood, for as long as it stands in a target.
-      var home = el("span", { class: "weft-matching-slot" + (item.kind === "image" ? " is-image" : ""), hidden: "" }, []);
-      // (A picture leaves the silhouette of its frame: the same shape, dashed and empty.)
-      if (item.kind === "image") home.appendChild(pictureFrame(item).pic);
-      place(home, item, block.sourceSize, sourcePlaces[index], false);
-      homes[item.id] = home;
-      area.appendChild(home);
-      card.addEventListener("pointerdown", function (event) {
-        startDrag(event, item.id);
-      });
-      card.addEventListener("click", function (event) {
-        if (suppressClick) {
-          suppressClick = false;
-          return;
-        }
-        // The mouse on a picture enlarges it (also after submitting); a key (or the click on a text) picks the card up, and picks it down again.
-        if (item.kind === "image" && event.detail > 0 && (!picked || locked)) {
-          enlarge(item);
-          return;
-        }
-        if (locked) return;
-        pick(picked === item.id ? null : item.id);
-      });
-      card.addEventListener("keydown", function (event) {
-        if ((event.key === "z" || event.key === "+") && item.kind === "image") {
-          event.preventDefault();
-          enlarge(item);
-        } else if ((event.key === "Delete" || event.key === "Backspace") && assigned[item.id] && !locked) {
-          event.preventDefault();
-          unassign(item.id);
-        } else if (event.key === "Escape" && picked) {
-          event.preventDefault();
-          event.stopPropagation();
-          pick(null);
-        }
-      });
-      cards[item.id] = card;
-      area.appendChild(card);
-    });
-
-    function pick(sourceId) {
-      if (picked && cards[picked]) cards[picked].classList.remove("is-picked");
-      picked = sourceId;
-      area.classList.toggle("has-picked", !!sourceId);
-      if (sourceId) {
-        cards[sourceId].classList.add("is-picked");
-        announce(uiString("matchingPicked"));
-      }
-    }
-
-    function assign(sourceId, targetId) {
-      pick(null);
-      assigned[sourceId] = targetId;
-      var card = cards[sourceId];
-      card.classList.add("is-docked");
-      card.style.left = card.style.top = card.style.width = card.style.height = "";
-      docks[targetId].appendChild(card);
-      homes[sourceId].hidden = false;
-      announce(uiString("matchingAssigned"));
-      if (!hasFiredFill) {
-        hasFiredFill = true;
+    var instance = renderMatching(wrap, matchingProps(block), {
+      mode: "play",
+      text: uiString,
+      icons: { submit: QUIZ_SUBMIT_ICON_SVG, correct: QUIZ_CORRECT_ICON_SVG, incorrect: QUIZ_INCORRECT_ICON_SVG },
+      applyVariables: applyVariablesToNode,
+      // The first card put on a target is the quiz's "first answer" (see quizFillEventId).
+      fill: function () {
         happened(quizFillEventId(block.id));
-      }
-    }
-
-    function unassign(sourceId) {
-      delete assigned[sourceId];
-      var card = cards[sourceId];
-      var item = itemById[sourceId];
-      var index = block.sources.indexOf(item);
-      card.classList.remove("is-docked");
-      place(card, item, block.sourceSize, sourcePlaces[index], false);
-      homes[sourceId].hidden = true;
-      area.appendChild(card);
-    }
-
-    // ---- dragging: a picture of the card follows the pointer; where it is let go, it is put - on a target, or (a card that stood in one) back ----
-    var suppressClick = false;
-    function startDrag(event, sourceId) {
-      if (locked || event.button !== 0) return;
-      var card = cards[sourceId];
-      var startX = event.clientX;
-      var startY = event.clientY;
-      var started = false;
-      var ghost = null;
-      var grab = { x: 0, y: 0 };
-      var areaRect = null;
-      var lastTarget = null;
-      function targetAt(x, y) {
-        var found = document.elementFromPoint(x, y);
-        var target = found && found.closest ? found.closest(".weft-matching-target") : null;
-        return target && area.contains(target) ? target : null;
-      }
-      function move(e) {
-        if (!started) {
-          if (Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY) < 6) return;
-          started = true;
-          areaRect = area.getBoundingClientRect();
-          var rect = card.getBoundingClientRect();
-          grab = { x: startX - rect.left, y: startY - rect.top };
-          ghost = card.cloneNode(true);
-          ghost.classList.add("is-ghost");
-          ghost.classList.remove("is-docked", "is-picked");
-          ghost.style.width = rect.width + "px";
-          ghost.style.height = rect.height + "px";
-          area.appendChild(ghost);
-          card.classList.add("is-dragging");
-        }
-        ghost.style.left = e.clientX - areaRect.left - grab.x + "px";
-        ghost.style.top = e.clientY - areaRect.top - grab.y + "px";
-        var over = targetAt(e.clientX, e.clientY);
-        if (over !== lastTarget) {
-          if (lastTarget) lastTarget.classList.remove("is-over");
-          if (over) over.classList.add("is-over");
-          lastTarget = over;
-        }
-      }
-      function end(e) {
-        window.removeEventListener("pointermove", move);
-        window.removeEventListener("pointerup", end);
-        window.removeEventListener("pointercancel", end);
-        if (!started) return;
-        // A click follows the let-go pointer on a card; this was a drag.
-        suppressClick = true;
-        setTimeout(function () {
-          suppressClick = false;
-        }, 0);
-        if (lastTarget) lastTarget.classList.remove("is-over");
-        var target = e.type === "pointercancel" ? null : targetAt(e.clientX, e.clientY);
-        if (ghost && ghost.parentNode) ghost.parentNode.removeChild(ghost);
-        card.classList.remove("is-dragging");
-        if (target) assign(sourceId, target.getAttribute("data-weft-target"));
-        else if (assigned[sourceId]) unassign(sourceId);
-      }
-      window.addEventListener("pointermove", move);
-      window.addEventListener("pointerup", end);
-      window.addEventListener("pointercancel", end);
-    }
-
-    // ---- submitting ----
-    var submit = el("button", { type: "button", class: "weft-quiz-submit" }, []);
-    var submitIcon = el("span", { class: "weft-quiz-submit-icon", "aria-hidden": "true" }, []);
-    submitIcon.innerHTML = QUIZ_SUBMIT_ICON_SVG;
-    submit.appendChild(submitIcon);
-    var submitLabel = document.createTextNode(uiString("submit"));
-    submit.appendChild(submitLabel);
-    bar.appendChild(submit);
-    var answered = null; // null until submitted, then whether everything was right
-    var feedback = el("div", { class: "weft-quiz-feedback", hidden: "" }, []);
-    var feedbackIcon = el("span", { class: "weft-quiz-feedback-icon", "aria-hidden": "true" }, []);
-    var feedbackTitle = el("strong", { class: "weft-quiz-feedback-title" }, []);
-    feedback.appendChild(feedbackIcon);
-    feedback.appendChild(feedbackTitle);
-    bar.appendChild(feedback);
-    var showFeedbackTitle = function () {
-      feedbackTitle.textContent = uiString(answered ? "correct" : "incorrect");
-    };
+      },
+      submit: function (result) {
+        var mark = scoreMark(block);
+        result.results.forEach(function (one) {
+          if (one.status === "correct") (block.onEachCorrect || []).forEach(applyEffect);
+          else if (one.status === "wrong") (block.onEachWrong || []).forEach(applyEffect);
+        });
+        ((result.allRight ? block.onCorrect : block.onIncorrect) || []).forEach(applyEffect);
+        scoreRecord(block, mark, result.allRight ? "right" : "wrong");
+        requiredDone(block.id);
+        // The same events as a quiz (see quizSubmitNodeId in pageTimeline.ts): the plain one and the one of this outcome.
+        happened(quizSubmitEventId(block.id));
+        happened(quizSubmitEventId(block.id, result.allRight ? "richtig" : "falsch"));
+      },
+      announce: announce,
+      enlarge: function (src, alt) {
+        openMatchingLightbox(wrap, src, alt);
+      },
+    });
     languageRefreshers.push(function () {
-      submitLabel.nodeValue = uiString("submit");
-      if (answered !== null) showFeedbackTitle();
+      instance.update(matchingProps(block));
     });
-
-    submit.addEventListener("click", function () {
-      if (locked) return;
-      locked = true;
-      pick(null);
-      var allRight = true;
-      var mark = scoreMark(block);
-      block.sources.forEach(function (source) {
-        var target = assigned[source.id];
-        var right = block.pairs ? block.pairs[source.id] : undefined;
-        var status;
-        if (right) {
-          if (target === right) {
-            status = "correct";
-            (block.onEachCorrect || []).forEach(applyEffect);
-          } else if (target) {
-            status = "wrong";
-            allRight = false;
-            (block.onEachWrong || []).forEach(applyEffect);
-          } else {
-            status = "missed";
-            allRight = false;
-          }
-        } else if (target) {
-          // A decoy put somewhere: wrong.
-          status = "wrong";
-          allRight = false;
-          (block.onEachWrong || []).forEach(applyEffect);
-        } else {
-          status = "ok";
-        }
-        var card = cards[source.id];
-        card.classList.add("is-" + status);
-        if (status === "correct" || status === "wrong") {
-          var markIcon = el("span", { class: "weft-matching-mark", "aria-hidden": "true" }, []);
-          markIcon.innerHTML = status === "correct" ? QUIZ_CORRECT_ICON_SVG : QUIZ_INCORRECT_ICON_SVG;
-          // On a picture the mark sits on the picture's corner (its frame), not the card's.
-          (card.querySelector(".weft-matching-frame") || card).appendChild(markIcon);
-        }
-        // Where it belonged, for whoever could not see the colours.
-        if (right && status !== "correct") card.setAttribute("title", matchingLabel(block, itemById[right]));
-      });
-      ((allRight ? block.onCorrect : block.onIncorrect) || []).forEach(applyEffect);
-      scoreRecord(block, mark, allRight ? "right" : "wrong");
-      requiredDone(block.id);
-      happened(quizSubmitEventId(block.id));
-      happened(quizSubmitEventId(block.id, allRight ? "richtig" : "falsch"));
-      box.classList.add("is-locked");
-      submit.hidden = true;
-      feedbackIcon.innerHTML = allRight ? QUIZ_CORRECT_ICON_SVG : QUIZ_INCORRECT_ICON_SVG;
-      answered = allRight;
-      showFeedbackTitle();
-      feedback.className = "weft-quiz-feedback " + (allRight ? "is-correct" : "is-incorrect");
-      feedback.hidden = false;
-      announce(feedbackTitle.textContent);
-    });
-
-    wrap.appendChild(box);
     return wrap;
   }
 

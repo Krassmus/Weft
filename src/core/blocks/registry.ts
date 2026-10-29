@@ -8,6 +8,7 @@ import { iframeBlock } from "./iframe/descriptor";
 import { languageBlock } from "./language/descriptor";
 import { linkBlock } from "./link/descriptor";
 import { listBlock } from "./list/descriptor";
+import { matchingBlock } from "./matching/descriptor";
 import { progressBlock } from "./progress/descriptor";
 import { quizBlock } from "./quiz/descriptor";
 import { revealerBlock } from "./revealer/descriptor";
@@ -37,6 +38,7 @@ registerBlock(listBlock);
 registerBlock(clozeBlock);
 registerBlock(quizBlock);
 registerBlock(revealerBlock);
+registerBlock(matchingBlock);
 
 /** The descriptor of a kind, if it has one. */
 export function descriptorOf<B extends Block>(block: B): BlockDescriptor<B> | undefined;
@@ -56,8 +58,8 @@ export function fieldsOf(block: Block): [string, FieldSpec][] {
 }
 
 // The kinds that have not been moved to a descriptor yet and have the events of a quiz / cannot be in a layout.
-const TASK_KINDS_BY_HAND = new Set(["matching", "sort"]);
-const PAGE_ONLY_KINDS_BY_HAND = new Set(["matching", "sort", "script"]);
+const TASK_KINDS_BY_HAND = new Set(["sort"]);
+const PAGE_ONLY_KINDS_BY_HAND = new Set(["sort", "script"]);
 
 /** Whether the block has the events of a quiz in the page's graph: the first answer, submitted, and submitted right / wrong. */
 export function isTaskBlock(block: { kind: string }): boolean {
@@ -112,7 +114,9 @@ export function assetIdsOfFields(block: Block): string[] {
     }
     else if (spec.type === "list") {
       for (const item of (record[name] as Record<string, unknown>[] | undefined) ?? []) {
-        for (const [itemName, itemSpec] of Object.entries(spec.item)) if (itemSpec.type === "asset") ids.push(item[itemName]);
+        for (const [itemName, itemSpec] of Object.entries(spec.item)) {
+          if (itemSpec.type === "asset" && (!itemSpec.usedWhen || item[itemSpec.usedWhen.field] === itemSpec.usedWhen.is)) ids.push(item[itemName]);
+        }
       }
     }
   }
@@ -213,6 +217,6 @@ export function exportedItemTexts(block: Block): { list: string; itemId: string;
     const textName = itemTextName(spec);
     if (!textName || !spec.cliRole) return [];
     const items = (record[name] as (Items[number] & Record<string, unknown>)[] | undefined) ?? [];
-    return items.map((item, index) => ({ list: name, itemId: item.id, part: spec.cliPart ?? "item", role: spec.cliRole!(index + 1), value: (item[textName] as string | undefined) ?? "", html: itemTextIsHtml(spec) }));
+    return items.map((item, index) => ({ list: name, itemId: item.id, part: spec.cliPart ?? "item", role: spec.cliRole!(index + 1, item), value: (item[textName] as string | undefined) ?? "", html: itemTextIsHtml(spec) }));
   });
 }

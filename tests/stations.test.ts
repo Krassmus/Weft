@@ -65,6 +65,8 @@ function sampleOf(name: string, spec: FieldSpec, ids: { asset: string; variable:
       return [{ variableId: ids.variable, op: "add", value: 1 }];
     case "ids":
       return [];
+    case "pairs":
+      return {};
     case "effectsMap":
       return { [`Beispiel ${name}`]: [{ variableId: ids.variable, op: "add", value: 1 }] };
     case "asset":
@@ -76,6 +78,9 @@ function sampleOf(name: string, spec: FieldSpec, ids: { asset: string; variable:
           if (itemSpec.type === "text") made[itemName] = `Beispiel ${name} ${n}`;
           if (itemSpec.type === "html") made[itemName] = `<p>Beispiel ${name} ${n}</p>`;
           if (itemSpec.type === "effects") made[itemName] = [{ variableId: ids.variable, op: "add", value: 1 }];
+          if (itemSpec.type === "choice") made[itemName] = itemSpec.options[itemSpec.options.length - 1];
+          if (itemSpec.type === "number") made[itemName] = Math.max(itemSpec.min ?? 0, 2) + 0.5;
+          if (itemSpec.type === "asset") made[itemName] = ids.asset;
         }
         return made;
       };
@@ -349,7 +354,8 @@ describe.each(KINDS)("the texts of %s in `weft text export` and `weft text impor
     expect(mine.map((item) => item.key).sort()).toEqual(expected.sort());
     expect(collectTexts(content).filter((entry) => entry.block.id === block.id).length).toBe(expected.length);
 
-    for (const item of mine) item.translations[EN] = `EN ${item.source}`;
+    // (The label of a revealer's button is exported as a paragraph: its translation is one too.)
+    for (const item of mine) item.translations[EN] = item.key.endsWith("#button") ? item.source.replace("<p>", "<p>EN ") : `EN ${item.source}`;
     const report = importTexts(content, file);
     expect(report.problems).toEqual([]);
     expect(report.applied).toBe(mine.length);
@@ -362,6 +368,8 @@ describe.each(KINDS)("the texts of %s in `weft text export` and `weft text impor
     }
     expect(isTranslated(imported as never, EN, DE)).toBe(true);
     // (A second export finds them translated: nothing is missing.)
+    // (And the same texts again are not written again: what a translation has is compared in the form it was exported in.)
+    expect(importTexts(content, file).applied).toBe(0);
     const again = exportTexts(content, { file: "test.weft", to: [EN], onlyMissing: true });
     expect(again.items.filter((item) => item.key.startsWith(`${block.id}#`))).toEqual([]);
     expect(own.length).toBeGreaterThanOrEqual(0);
@@ -383,6 +391,7 @@ describe("what is known about each kind", () => {
     text: { pageOnly: false, task: false, translatable: ["html"], lists: [] },
     list: { pageOnly: false, task: false, translatable: [], lists: ["items"] },
     cloze: { pageOnly: true, task: true, translatable: ["html"], lists: [] },
+    matching: { pageOnly: true, task: true, translatable: [], lists: ["sources", "targets"] },
     revealer: { pageOnly: false, task: false, translatable: ["body", "imageAlt", "title"], lists: [] },
     quiz: { pageOnly: true, task: true, translatable: ["explanation", "questionHtml"], lists: ["options"] },
   };
@@ -431,7 +440,7 @@ describe("what `weft validate` says about a block that is wrong", () => {
 describe("a field of every type", () => {
   // The field types the stations are told about (blocks/types.ts): a type that is new has to be in a descriptor that is tested above, or it is
   // not tested at all.
-  const TYPES = ["text", "html", "choice", "number", "bool", "int", "effects", "effectsMap", "ids", "asset", "list"];
+  const TYPES = ["text", "html", "choice", "number", "bool", "int", "effects", "effectsMap", "ids", "pairs", "asset", "list"];
 
   it("is in at least one descriptor, so that every station has been run with it", () => {
     const seen = new Set<string>();
@@ -858,5 +867,111 @@ describe("the revealer", () => {
     expect(lost[0].severity).toBe("error");
     // (A module that is not an archive has no files to look in.)
     expect(findings(m, { archive: false, files: new Set() }).some((finding) => finding.code === "asset-file-missing")).toBe(false);
+  });
+});
+
+describe("the matching", () => {
+  type Card = { id: string; kind: string; text: string; assetId?: string | null; x: number; y: number };
+  type Stored = { sources: Card[]; targets: Card[]; pairs: Record<string, string>; shuffle?: boolean; translations?: Record<string, Record<string, unknown>> };
+  const stored = (m: ReturnType<typeof moduleWith>) => m.content.pages[m.pageId].blocks[m.blockId] as unknown as Stored;
+  const findings = (m: ReturnType<typeof moduleWith>) => validate({ path: "test.weft", json: { formatVersion: CURRENT_FORMAT_VERSION, content: m.content }, content: m.content, files: new Set(), archive: false });
+  const codes = (m: ReturnType<typeof moduleWith>) => findings(m).filter((finding) => JSON.stringify(finding).includes(m.block.id)).map((finding) => finding.code);
+
+  it("has its two lists of cards, the right pairs and four lists of changes to variables - the effects of the whole and of every card", () => {
+    const m = moduleWith("matching", false);
+    expect(fieldsOf(m.block).filter(([, spec]) => spec.type === "list").map(([name]) => name)).toEqual(["sources", "targets"]);
+    expect(fieldsOf(m.block).filter(([, spec]) => spec.type === "effects").map(([name]) => name)).toEqual(["onEachCorrect", "onEachWrong", "onCorrect", "onIncorrect"]);
+    expect(fieldsOf(m.block).find(([name]) => name === "pairs")![1]).toEqual({ type: "pairs", from: "sources", to: "targets" });
+  });
+
+  it("is made with the cards the author finds in a new one: two columns, three objects (one a decoy) and two targets", () => {
+    const m = moduleWith("matching", false);
+    const block = stored(m);
+    expect(block.sources.length).toBe(3);
+    expect(block.targets.length).toBe(2);
+    expect(Object.keys(block.pairs).length).toBe(2);
+    expect(Object.entries(block.pairs).every(([s, t]) => block.sources.some((c) => c.id === s) && block.targets.some((c) => c.id === t))).toBe(true);
+    expect(block.sources.every((card) => card.x === 3)).toBe(true);
+    expect(block.targets.every((card) => card.x === 55)).toBe(true);
+  });
+
+  it("has the picture of a card kept only while the card is a picture", () => {
+    const m = moduleWith("matching", true);
+    const block = stored(m);
+    expect(block.sources[0].kind).toBe("image");
+    expect(new Set(usedAssetIds(m.content)).has("asset-1")).toBe(true);
+    for (const card of [...block.sources, ...block.targets]) card.kind = "text";
+    expect(new Set(usedAssetIds(m.content)).has("asset-1")).toBe(false);
+    block.targets[1].kind = "image";
+    expect(new Set(usedAssetIds(m.content)).has("asset-1")).toBe(true);
+  });
+
+  it("is exported with the numbers of its objects and its targets - a picture's words as its description - and exported plain, escaped", () => {
+    const m = moduleWith("matching", true);
+    const block = stored(m);
+    block.sources[0].text = "A & B";
+    block.sources[1].kind = "text";
+    const file = exportTexts(m.content, { file: "test.weft", to: [EN] });
+    const mine = file.items.filter((item) => item.key.startsWith(`${m.block.id}#item:`));
+    expect(mine.map((item) => item.source)).toContain("A &amp; B");
+    expect(exportedItemTexts(m.block).map((text) => text.role)).toEqual(["Objekt 1 (Bildbeschreibung)", "Objekt 2", "Ziel 1 (Bildbeschreibung)", "Ziel 2 (Bildbeschreibung)"]);
+    for (const item of mine) item.translations[EN] = item.source.replace("A &amp; B", "C &amp; D");
+    importTexts(m.content, file);
+    const translated = (stored(m).translations![EN] as { items: Record<string, string> }).items;
+    expect(translated[block.sources[0].id]).toBe("C & D");
+  });
+
+  it("has the words of its cards found by the clipboard, and its text checked for placeholders (the words of a picture card too)", () => {
+    const m = moduleWith("matching", true);
+    const block = stored(m);
+    block.sources[1].text = "{{gibtesnicht}} da";
+    expect(clipboardEntryPlainText({ kind: "block", block: m.block } as never)).toContain("{{gibtesnicht}} da");
+    expect(findings(m).filter((finding) => finding.code === "placeholder-variable").map((finding) => finding.message)).toEqual(expect.arrayContaining([expect.stringContaining("gibtesnicht")]));
+  });
+
+  it("says in one line what it is (`weft inspect`): the cards of both lists, how many pairs and decoys, and its flags", () => {
+    const m = moduleWith("matching", false);
+    const block = stored(m);
+    block.shuffle = true;
+    (block as unknown as { required: boolean }).required = true;
+    const line = descriptorOf("matching")!.summary!(m.block as never, { labels: {} });
+    expect(line).toMatch(/^Objekte: .* → Ziele: .* \(2 richtig, 1 Ablenker\) \[zufällig\] \[Pflicht\]$/);
+    block.sources[0].kind = "image";
+    block.sources[0].text = "";
+    expect(descriptorOf("matching")!.summary!(m.block as never, { labels: {} })).toContain("[Bild: ohne Beschreibung]");
+  });
+
+  it("has what is wrong with it said: no cards, a pair that leads nowhere, nothing paired, a picture card without a picture or file or description", () => {
+    const m = moduleWith("matching", false);
+    const block = stored(m);
+    block.pairs = { gibtsnicht: block.targets[0].id };
+    expect(findings(m).find((finding) => finding.code === "matching-pair-broken")?.severity).toBe("error");
+    block.pairs = {};
+    expect(codes(m)).toContain("matching-no-pairs");
+    block.sources[0].kind = "image";
+    block.sources[0].assetId = null;
+    expect(codes(m)).toContain("matching-no-image");
+    block.sources[0].assetId = "gibtsnicht";
+    expect(findings(m).find((finding) => finding.code === "asset-missing")?.severity).toBe("error");
+    block.sources[0].assetId = "asset-1";
+    block.sources[0].text = " ";
+    expect(codes(m)).toContain("image-no-alt");
+    block.sources = [];
+    expect(codes(m)).toContain("matching-empty");
+  });
+
+  it("is found translated only when the first card of each list is - and its cards swap with the new default language", () => {
+    const m = moduleWith("matching", false);
+    const block = stored(m);
+    expect(isTranslated(block as never, EN, DE)).toBe(false);
+    block.translations = { [EN]: { items: { [block.sources[0].id]: "Dog" } } };
+    expect(isTranslated(block as never, EN, DE)).toBe(false);
+    (block.translations[EN].items as Record<string, string>)[block.targets[0].id] = "Animal";
+    expect(isTranslated(block as never, EN, DE)).toBe(true);
+    const own = block.sources[0].text;
+    rotateDefaultLanguage(m.content, DE, EN);
+    expect(block.sources[0].text).toBe("Dog");
+    expect(block.targets[0].text).toBe("Animal");
+    expect((block.translations![DE].items as Record<string, string>)[block.sources[0].id]).toBe(own);
   });
 });

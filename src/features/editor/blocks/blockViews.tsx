@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Block, ButtonBlock, CheckerBlock, ClozeBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ListBlock, ProgressBlock, QuizBlock, RevealerBlock, SolutionBlock, TextBlock } from "../../../core/types";
+import type { Block, ButtonBlock, CheckerBlock, ClozeBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ListBlock, MatchingBlock, ProgressBlock, QuizBlock, RevealerBlock, SolutionBlock, TextBlock } from "../../../core/types";
 import { ButtonView } from "./ButtonView";
 import { CheckerCanvas } from "./CheckerCanvas";
 import { CheckerView } from "./CheckerView";
@@ -10,6 +10,7 @@ import { IframeView } from "./IframeView";
 import { LanguageView } from "./LanguageView";
 import { LinkView } from "./LinkView";
 import { ListView } from "./ListView";
+import { MatchingRenderView } from "./MatchingRenderView";
 import { ProgressView } from "./ProgressView";
 import { QuizView } from "./QuizView";
 import { RevealerView } from "./RevealerView";
@@ -125,6 +126,13 @@ const revealerView: BlockViewSpec<RevealerBlock> = {
   freelyMovable: true,
 };
 
+const matchingView: BlockViewSpec<MatchingBlock> = {
+  View: ({ block, lang, defaultLang, mode, progress }) => <MatchingRenderView block={block} lang={lang} defaultLang={defaultLang} mode={mode} progress={progress} />,
+  // (On the canvas the cards are moved, their words written in place and their pictures changed: the editor's own, MatchingCanvas.)
+  ownCanvas: true,
+  freelyMovable: false,
+};
+
 const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   solution: solutionView as BlockViewSpec<never>,
   gallery: galleryView as BlockViewSpec<never>,
@@ -139,6 +147,7 @@ const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   cloze: clozeView as BlockViewSpec<never>,
   quiz: quizView as BlockViewSpec<never>,
   revealer: revealerView as BlockViewSpec<never>,
+  matching: matchingView as BlockViewSpec<never>,
 };
 
 /** The editor's views of a kind, if it has them here. */

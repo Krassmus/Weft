@@ -18,7 +18,6 @@ import { TexView } from "./blocks/TexView";
 // visually consistent between the two views, per the same reasoning: it's not clickable here
 // either.
 import video2IconSvg from "../../../mockups/icons/video2.svg?raw";
-import { MatchingView } from "./blocks/MatchingView";
 import { viewOf } from "./blocks/blockViews";
 import { SortView } from "./blocks/SortView";
 import { ScriptHexagon } from "./blocks/ScriptHexagon";
@@ -265,13 +264,6 @@ function ThumbBlockBody({
     return (
       <div className="weft-thumb-block" style={style}>
         <view.View block={block} lang={lang} defaultLang={defaultLang} selected={false} mode={exportPxPerCqw ? "print" : "thumbnail"} qrSvg={qrSvg} progress={progress} />
-      </div>
-    );
-  }
-  if (block.kind === "matching") {
-    return (
-      <div className="weft-thumb-block" style={style}>
-        <MatchingView block={block} lang={lang} defaultLang={defaultLang} />
       </div>
     );
   }

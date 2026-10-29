@@ -40,7 +40,7 @@ export function FieldsPanel({ block, container, page, onUpdate }: { block: Block
   }
 
   const control = (name: string, spec: FieldSpec) => {
-    if (spec.type === "asset" || spec.type === "html" || spec.type === "effectsMap" || spec.type === "ids") return null;
+    if (spec.type === "asset" || spec.type === "html" || spec.type === "effectsMap" || spec.type === "ids" || spec.type === "pairs") return null;
     if (spec.type === "list") return listControl(name, spec);
     const ui: FieldUi | undefined = spec.ui;
     if (!ui) return null;

@@ -19,12 +19,6 @@ export function placeholderSources(block: Block): string[] {
     // Every language's wording, not just the default's - a placeholder is just as wrong in French.
     case "placeholder":
       return [block.html];
-    case "matching":
-      // The words of the cards (plain texts, escaped first), in every language.
-      return [
-        ...[...block.sources, ...block.targets].filter((item) => item.kind === "text").map((item) => escapeText(item.text)),
-        ...Object.values(block.translations ?? {}).flatMap((t) => Object.values(t.items ?? {}).map(escapeText)),
-      ];
     case "sort":
       // The words of the objects and the two ends of the line (plain texts, escaped first), in every language.
       return [

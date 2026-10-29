@@ -226,10 +226,6 @@ export function plainTextOfHtml(html: string): string {
 export function isTranslated(block: Translatable, language: string | null, defaultLanguage: string | null): boolean {
   if (isOwnWording(language, defaultLanguage) || !language) return true;
   const translation = block.translations?.[language];
-  if (block.kind === "matching") {
-    const first = block.sources[0] ?? block.targets[0];
-    return !first || translation?.items?.[first.id] !== undefined;
-  }
   if (descriptorOf(block)) {
     // (Every text of the block that has words has to be there in the language.)
     const own = block as unknown as Record<string, string | undefined>;
@@ -469,17 +465,10 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       (block as Translatable).translations = translations;
       continue;
     }
-    if (block.kind !== "matching" && block.kind !== "sort") continue;
+    if (block.kind !== "sort") continue;
     const incoming = block.translations?.[newDefault];
     const outgoing: BlockTranslation = {};
-    if (block.kind === "matching") {
-      const cards = [...block.sources, ...block.targets];
-      outgoing.items = Object.fromEntries(cards.map((item) => [item.id, item.text]));
-      for (const item of cards) {
-        const translated = incoming?.items?.[item.id];
-        if (translated !== undefined) item.text = translated;
-      }
-    } else if (block.kind === "sort") {
+    if (block.kind === "sort") {
       outgoing.items = Object.fromEntries(block.items.map((item) => [item.id, item.text]));
       for (const item of block.items) {
         const translated = incoming?.items?.[item.id];

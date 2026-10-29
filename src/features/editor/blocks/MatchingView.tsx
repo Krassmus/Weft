@@ -81,6 +81,31 @@ export function MatchingView({
     const size = side === "source" ? block.sourceSize : block.targetSize;
     const place = drag && drag.id === item.id ? drag : item;
     const src = item.kind === "image" && item.assetId ? getObjectUrl(item.assetId) : undefined;
+    const content =
+      item.kind === "image" ? (
+        <span className="weft-matching-pic">
+          <span className="weft-matching-frame">
+            {src ? (
+              <img
+                className="weft-matching-image"
+                src={src}
+                alt=""
+                draggable={false}
+                onLoad={(e) => {
+                  const image = e.currentTarget;
+                  if (image.naturalWidth && image.naturalHeight) image.parentElement?.style.setProperty("--ratio", String(image.naturalWidth / image.naturalHeight));
+                }}
+              />
+            ) : (
+              <span className="weft-matching-empty" />
+            )}
+          </span>
+        </span>
+      ) : editing && editing.id === item.id ? (
+        <MatchingTextField editing={editing} />
+      ) : (
+        <span className="weft-matching-text">{matchingItemText(block, item, lang, defaultLang)}</span>
+      );
     return (
       <div
         key={item.id}
@@ -89,29 +114,14 @@ export function MatchingView({
         onPointerDown={onCardPointerDown ? (e) => onCardPointerDown(e, item, side) : undefined}
         onDoubleClick={onCardDoubleClick ? () => onCardDoubleClick(item) : undefined}
       >
-        {item.kind === "image" ? (
-          <span className="weft-matching-pic">
-            <span className="weft-matching-frame">
-              {src ? (
-                <img
-                  className="weft-matching-image"
-                  src={src}
-                  alt=""
-                  draggable={false}
-                  onLoad={(e) => {
-                    const image = e.currentTarget;
-                    if (image.naturalWidth && image.naturalHeight) image.parentElement?.style.setProperty("--ratio", String(image.naturalWidth / image.naturalHeight));
-                  }}
-                />
-              ) : (
-                <span className="weft-matching-empty" />
-              )}
-            </span>
-          </span>
-        ) : editing && editing.id === item.id ? (
-          <MatchingTextField editing={editing} />
+        {side === "target" ? (
+          // (A target is made as the player makes it: its words or picture in a body, and the dock where the cards put on it would stand.)
+          <>
+            <span className="weft-matching-body">{content}</span>
+            <span className="weft-matching-dock" />
+          </>
         ) : (
-          <span className="weft-matching-text">{matchingItemText(block, item, lang, defaultLang)}</span>
+          content
         )}
       </div>
     );

@@ -9,6 +9,7 @@ import { renderLanguage } from "../src/core/blocks/language/render.js";
 import { renderProgress } from "../src/core/blocks/progress/render.js";
 import { linkHref, renderLink } from "../src/core/blocks/link/render.js";
 import { renderList } from "../src/core/blocks/list/render.js";
+import { renderMatching } from "../src/core/blocks/matching/render.js";
 import { renderQuiz } from "../src/core/blocks/quiz/render.js";
 import { renderRevealer } from "../src/core/blocks/revealer/render.js";
 import { renderSolution } from "../src/core/blocks/solution/render.js";
@@ -65,6 +66,8 @@ const WORDS: Record<string, string> = {
   next: "Weiter",
   noAddress: "(keine Adresse)",
   revealerOpen: "Öffnen",
+  matchingPicked: "Aufgenommen",
+  matchingAssigned: "Abgelegt",
   revealerClose: "Schließen",
 };
 const text = (key: string) => WORDS[key] ?? "";
@@ -81,7 +84,7 @@ const ICONS = {
 };
 
 /** Every render.js there is must be run here: this is the list of what is run (a new one fails the test below until it is added). */
-const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text", "list", "cloze", "quiz", "revealer"];
+const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text", "list", "cloze", "quiz", "revealer", "matching"];
 
 describe("the render functions", () => {
   it("are all tested here", () => {
@@ -98,7 +101,7 @@ describe("the render functions", () => {
     const inlined = source.replace(/^export /gm, "");
     expect(inlined).not.toMatch(/\bexport\b\s+(function|var|const|let|default)/);
     // The way the page has it: a script of its own that leaves the function there for the player after it.
-    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText", list: "renderList", cloze: "renderCloze", quiz: "renderQuiz", revealer: "renderRevealer" }[kind];
+    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText", list: "renderList", cloze: "renderCloze", quiz: "renderQuiz", revealer: "renderRevealer", matching: "renderMatching" }[kind];
     expect(new Function(`${inlined}; return typeof ${name};`)()).toBe("function");
   });
 });
@@ -1357,4 +1360,279 @@ describe("the window of a revealer, which has to stay on the slide", () => {
     expect((find(root, ".weft-revealer-panel") as HTMLElement).getAttribute("style") ?? "").not.toContain("calc");
     stage.remove();
   });
+});
+
+// ---- the matching -----------------------------------------------------------------------------------------------------------------------
+
+describe.each(MODES)("a matching drawn for %s", (mode) => {
+  const card = (id: string, text: string, x: number, y: number, kind: "text" | "image" = "text", src = "") => ({ id, kind, text, src, x, y });
+  const props = () => ({
+    id: "m1",
+    sources: [card("s0", "Hund", 3, 4), card("s1", "Katze", 3, 32), card("s2", "Auto", 3, 60)],
+    targets: [card("t0", "Tier A", 55, 4), card("t1", "Tier B", 55, 44)],
+    pairs: { s0: "t0", s1: "t1" } as Record<string, string>,
+    sourceSize: { width: 34, height: 20 },
+    targetSize: { width: 40, height: 36 },
+    shuffle: false,
+  });
+  const context = () => ({ mode, text, icons: ICONS, applyVariables: vi.fn(), fill: vi.fn(), submit: vi.fn(), announce: vi.fn(), enlarge: vi.fn() });
+  const cardOf = (root: Element, id: string) => find(root, `[data-weft-source="${id}"], [data-weft-target="${id}"]`) as HTMLElement;
+  const click = (el: Element, detail = 0) => el.dispatchEvent(Object.assign(new window.Event("click", { bubbles: true, cancelable: true }), { detail }));
+  const key = (el: Element, keyName: string) => el.dispatchEvent(Object.assign(new window.Event("keydown", { bubbles: true, cancelable: true }), { key: keyName }));
+
+  it("is drawn with its cards where they stand, a dock in every target, a dashed place for every source, and the button; can be drawn again and goes away", () => {
+    const root = element();
+    const ctx = context();
+    const instance = renderMatching(root, props(), ctx);
+    expect(root.querySelectorAll(".weft-matching-source").length).toBe(3);
+    expect(root.querySelectorAll(".weft-matching-target").length).toBe(2);
+    expect(cardOf(root, "s1").getAttribute("style")).toContain("left:3%");
+    expect(cardOf(root, "s1").getAttribute("style")).toContain("top:32%");
+    expect(cardOf(root, "s1").getAttribute("style")).toContain("width:34%");
+    expect(cardOf(root, "s1").getAttribute("style")).toContain("height:20%");
+    // (A target grows with what is put on it: it has a least height, not a height.)
+    expect(cardOf(root, "t0").getAttribute("style")).toContain("min-height:36%");
+    expect(cardOf(root, "t0").querySelector(".weft-matching-body .weft-matching-text")?.textContent).toBe("Tier A");
+    expect(cardOf(root, "t0").querySelector(".weft-matching-dock")).not.toBeNull();
+    expect(root.querySelectorAll(".weft-matching-slot").length).toBe(3);
+    expect((find(root, ".weft-matching-slot") as HTMLElement).hidden).toBe(true);
+    expect(find(root, ".weft-quiz-submit")?.textContent).toBe("Abschicken");
+    expect(ctx.applyVariables).toHaveBeenCalledTimes(5);
+    instance.update({ ...props(), sources: props().sources.map((c) => ({ ...c, text: c.text + "!" })) });
+    expect(cardOf(root, "s0").textContent).toBe("Hund!");
+    instance.destroy();
+    expect(root.childNodes.length).toBe(0);
+  });
+
+  it("draws a picture card with its frame, its description and its address - and none where it has no picture yet", () => {
+    const root = element();
+    const p = props();
+    p.sources[0] = card("s0", "Ein Hund", 3, 4, "image", "data:image/png;base64,AAAA");
+    p.sources[1] = card("s1", "Noch keins", 3, 32, "image", "");
+    renderMatching(root, p, context());
+    const image = cardOf(root, "s0").querySelector(".weft-matching-frame .weft-matching-image") as HTMLElement;
+    expect(image.getAttribute("src")).toBe("data:image/png;base64,AAAA");
+    expect(image.getAttribute("alt")).toBe("Ein Hund");
+    expect(cardOf(root, "s0").className).toContain("is-image");
+    expect(cardOf(root, "s0").getAttribute("aria-label")).toBe("Ein Hund");
+    // (A picture leaves the silhouette of its frame where it stood.)
+    expect(root.querySelectorAll(".weft-matching-slot.is-image .weft-matching-frame").length).toBe(2);
+  });
+
+  it("is drawn in a place that has no variables", () => {
+    const root = element();
+    renderMatching(root, props(), { mode, text, icons: ICONS, fill: vi.fn(), submit: vi.fn(), announce: vi.fn(), enlarge: vi.fn() });
+    expect(cardOf(root, "s2").textContent).toBe("Auto");
+  });
+
+  it("makes its cards buttons where it is played and plain boxes where it is only a picture", () => {
+    const root = element();
+    renderMatching(root, props(), context());
+    expect(cardOf(root, "s0").tagName).toBe(mode === "play" ? "BUTTON" : "DIV");
+    expect(cardOf(root, "t0").tagName).toBe(mode === "play" ? "BUTTON" : "DIV");
+  });
+
+  if (mode === "play") {
+    it("has its cards swapped at random between the places of their list where it was told to - the cards of each list among themselves", () => {
+      const root = element();
+      const draws = [0.9, 0.1, 0.9, 0.1];
+      const random = vi.spyOn(Math, "random").mockImplementation(() => draws.shift() ?? 0);
+      renderMatching(root, { ...props(), shuffle: true }, context());
+      random.mockRestore();
+      const places = (id: string) => [cardOf(root, id).style.left, cardOf(root, id).style.top].join("/");
+      const sources = ["s0", "s1", "s2"].map(places).sort();
+      expect(sources).toEqual(["3%/32%", "3%/4%", "3%/60%"].sort());
+      expect(["s0", "s1", "s2"].map(places)).not.toEqual(["3%/4%", "3%/32%", "3%/60%"]);
+      expect(["t0", "t1"].map(places).sort()).toEqual(["55%/4%", "55%/44%"].sort());
+    });
+
+    it("has a card picked up by a click and put on a target by another: it stands in the dock, leaves its place, and the place's first assignment is told once", () => {
+      const root = element();
+      const ctx = context();
+      renderMatching(root, props(), ctx);
+      click(cardOf(root, "s0"));
+      expect(cardOf(root, "s0").classList.contains("is-picked")).toBe(true);
+      expect(find(root, ".weft-matching-area")?.classList.contains("has-picked")).toBe(true);
+      expect(ctx.announce).toHaveBeenCalledWith("Aufgenommen");
+      click(cardOf(root, "t1"));
+      expect(cardOf(root, "t1").querySelector(".weft-matching-dock")?.contains(cardOf(root, "s0"))).toBe(true);
+      expect(cardOf(root, "s0").classList.contains("is-docked")).toBe(true);
+      expect(cardOf(root, "s0").classList.contains("is-picked")).toBe(false);
+      expect(cardOf(root, "s0").getAttribute("style") ?? "").not.toContain("left:3%");
+      expect((find(root, ".weft-matching-slot") as HTMLElement).hidden).toBe(false);
+      expect(ctx.announce).toHaveBeenCalledWith("Abgelegt");
+      click(cardOf(root, "s1"));
+      click(cardOf(root, "t0"));
+      expect(ctx.fill).toHaveBeenCalledTimes(1);
+    });
+
+    it("has a picked card put down again by a second click and by Escape, and a card in a target taken out of it by Delete - back where it stood", () => {
+      const root = element();
+      renderMatching(root, props(), context());
+      click(cardOf(root, "s0"));
+      click(cardOf(root, "s0"));
+      expect(cardOf(root, "s0").classList.contains("is-picked")).toBe(false);
+      click(cardOf(root, "s1"));
+      key(cardOf(root, "s1"), "Escape");
+      expect(cardOf(root, "s1").classList.contains("is-picked")).toBe(false);
+      click(cardOf(root, "s0"));
+      click(cardOf(root, "t0"));
+      key(cardOf(root, "s0"), "Delete");
+      expect(cardOf(root, "s0").classList.contains("is-docked")).toBe(false);
+      expect(find(root, ".weft-matching-area")?.contains(cardOf(root, "s0"))).toBe(true);
+      expect(cardOf(root, "s0").getAttribute("style")).toContain("left:3%");
+      expect((find(root, ".weft-matching-slot") as HTMLElement).hidden).toBe(true);
+    });
+
+    it("has a card dragged onto a target - and, let go anywhere else, a card that stood in one taken out again", () => {
+      const root = element();
+      document.body.appendChild(root);
+      const ctx = context();
+      renderMatching(root, props(), ctx);
+      const pointer = (type: string, x: number, y: number) => Object.assign(new window.Event(type, { bubbles: true, cancelable: true }), { clientX: x, clientY: y, button: 0 });
+      let over: Element | null = cardOf(root, "t0");
+      const original = document.elementFromPoint;
+      (document as unknown as { elementFromPoint: unknown }).elementFromPoint = () => over;
+      const s0 = cardOf(root, "s0");
+      s0.dispatchEvent(pointer("pointerdown", 10, 10));
+      window.dispatchEvent(pointer("pointermove", 11, 11));
+      expect(find(root, ".is-ghost")).toBeNull();
+      window.dispatchEvent(pointer("pointermove", 40, 40));
+      expect(find(root, ".is-ghost")).not.toBeNull();
+      expect(s0.classList.contains("is-dragging")).toBe(true);
+      expect(cardOf(root, "t0").classList.contains("is-over")).toBe(true);
+      window.dispatchEvent(pointer("pointerup", 40, 40));
+      expect(find(root, ".is-ghost")).toBeNull();
+      expect(s0.classList.contains("is-dragging")).toBe(false);
+      expect(cardOf(root, "t0").querySelector(".weft-matching-dock")?.contains(s0)).toBe(true);
+      expect(ctx.fill).toHaveBeenCalledTimes(1);
+      // (The click that follows a drag is not a pick.)
+      click(s0);
+      expect(s0.classList.contains("is-picked")).toBe(false);
+      // Let go over nothing: out of the target again.
+      over = null;
+      s0.dispatchEvent(pointer("pointerdown", 10, 10));
+      window.dispatchEvent(pointer("pointermove", 60, 60));
+      window.dispatchEvent(pointer("pointerup", 60, 60));
+      expect(s0.classList.contains("is-docked")).toBe(false);
+      (document as unknown as { elementFromPoint: unknown }).elementFromPoint = original;
+      root.remove();
+    });
+
+    it("judges every card when it is submitted: right on its target, wrong on another (or a decoy anywhere), missed, or a decoy left alone", () => {
+      const root = element();
+      const ctx = context();
+      renderMatching(root, props(), ctx);
+      click(cardOf(root, "s0"));
+      click(cardOf(root, "t0"));
+      click(cardOf(root, "s2"));
+      click(cardOf(root, "t1"));
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      expect(ctx.submit).toHaveBeenCalledWith({
+        results: [
+          { id: "s0", status: "correct", rightId: "t0" },
+          { id: "s1", status: "missed", rightId: "t1" },
+          { id: "s2", status: "wrong", rightId: undefined },
+        ],
+        allRight: false,
+      });
+      expect(cardOf(root, "s0").classList.contains("is-correct")).toBe(true);
+      expect(cardOf(root, "s1").classList.contains("is-missed")).toBe(true);
+      expect(cardOf(root, "s2").classList.contains("is-wrong")).toBe(true);
+      expect(cardOf(root, "s0").querySelector(".weft-matching-mark")).not.toBeNull();
+      expect(cardOf(root, "s1").querySelector(".weft-matching-mark")).toBeNull();
+      // Where it belonged, for whoever cannot see the colours.
+      expect(cardOf(root, "s1").getAttribute("title")).toBe("Tier B");
+      expect(cardOf(root, "s2").getAttribute("title")).toBeNull();
+      expect(find(root, ".weft-matching")?.classList.contains("is-locked")).toBe(true);
+      expect((find(root, ".weft-quiz-submit") as HTMLButtonElement).hidden).toBe(true);
+      const feedback = find(root, ".weft-quiz-feedback") as HTMLElement;
+      expect(feedback.hidden).toBe(false);
+      expect(feedback.className).toBe("weft-quiz-feedback is-incorrect");
+      expect(find(root, ".weft-quiz-feedback-title")?.textContent).toBe("Falsch");
+      expect(ctx.announce).toHaveBeenCalledWith("Falsch");
+      // (Once is enough, and nothing can be picked any more.)
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      expect(ctx.submit).toHaveBeenCalledTimes(1);
+      click(cardOf(root, "s1"));
+      expect(cardOf(root, "s1").classList.contains("is-picked")).toBe(false);
+    });
+
+    it("is right when every card with a partner is on it and a decoy is left alone - and a decoy is 'ok'", () => {
+      const root = element();
+      const ctx = context();
+      renderMatching(root, props(), ctx);
+      click(cardOf(root, "s0"));
+      click(cardOf(root, "t0"));
+      click(cardOf(root, "s1"));
+      click(cardOf(root, "t1"));
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      expect(ctx.submit).toHaveBeenCalledWith({
+        results: [
+          { id: "s0", status: "correct", rightId: "t0" },
+          { id: "s1", status: "correct", rightId: "t1" },
+          { id: "s2", status: "ok", rightId: undefined },
+        ],
+        allRight: true,
+      });
+      expect(cardOf(root, "s2").classList.contains("is-ok")).toBe(true);
+      expect((find(root, ".weft-quiz-feedback") as HTMLElement).className).toBe("weft-quiz-feedback is-correct");
+      expect(find(root, ".weft-quiz-feedback-title")?.textContent).toBe("Richtig");
+    });
+
+    it("enlarges a picture with a click of the mouse (not with a key) and with z - on a target as on a source", () => {
+      const root = element();
+      const ctx = context();
+      const p = props();
+      p.sources[0] = card("s0", "Ein Hund", 3, 4, "image", "data:image/png;base64,AAAA");
+      p.targets[1] = card("t1", "Ein Haus", 55, 44, "image", "data:image/png;base64,BBBB");
+      renderMatching(root, p, ctx);
+      click(cardOf(root, "s0"), 0);
+      expect(ctx.enlarge).not.toHaveBeenCalled();
+      expect(cardOf(root, "s0").classList.contains("is-picked")).toBe(true);
+      click(cardOf(root, "s0"), 0);
+      click(cardOf(root, "s0"), 1);
+      expect(ctx.enlarge).toHaveBeenCalledWith("data:image/png;base64,AAAA", "Ein Hund");
+      key(cardOf(root, "t1"), "z");
+      expect(ctx.enlarge).toHaveBeenCalledWith("data:image/png;base64,BBBB", "Ein Haus");
+      // (A text card is not enlarged.)
+      key(cardOf(root, "t0"), "z");
+      expect(ctx.enlarge).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps what was put where when the words change - and the other way round, the words of a card marked after the submit are drawn again", () => {
+      const root = element();
+      const instance = renderMatching(root, props(), context());
+      click(cardOf(root, "s0"));
+      click(cardOf(root, "t0"));
+      WORDS.correct = "Correct";
+      instance.update({ ...props(), sources: props().sources.map((c) => ({ ...c, text: "EN " + c.text })) });
+      expect(cardOf(root, "s0").textContent).toBe("EN Hund");
+      expect(cardOf(root, "t0").querySelector(".weft-matching-dock")?.contains(cardOf(root, "s0"))).toBe(true);
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      instance.update(props());
+      expect(find(root, ".weft-quiz-feedback-title")?.textContent).toBe("Falsch");
+      WORDS.correct = "Richtig";
+    });
+  } else {
+    it("is only a picture: the cards are not buttons and nothing can be picked, dragged or pressed - and they stand where the author put them, whatever `shuffle` says", () => {
+      const root = element();
+      const ctx = context();
+      const random = vi.spyOn(Math, "random").mockReturnValue(0.5);
+      renderMatching(root, { ...props(), shuffle: true }, ctx);
+      random.mockRestore();
+      expect(cardOf(root, "s0").tagName).toBe("DIV");
+      expect(cardOf(root, "s0").getAttribute("style")).toContain("top:4%");
+      expect(cardOf(root, "s1").getAttribute("style")).toContain("top:32%");
+      click(cardOf(root, "s0"));
+      click(cardOf(root, "t0"));
+      expect(cardOf(root, "s0").classList.contains("is-picked")).toBe(false);
+      expect(cardOf(root, "s0").classList.contains("is-docked")).toBe(false);
+      const button = find(root, ".weft-quiz-submit") as HTMLButtonElement;
+      expect(button.getAttribute("tabindex")).toBe("-1");
+      fire(button, "click");
+      expect(ctx.submit).not.toHaveBeenCalled();
+      expect(ctx.fill).not.toHaveBeenCalled();
+    });
+  }
 });

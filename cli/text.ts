@@ -61,11 +61,6 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
       return block.shapeKind;
     case "arrow":
       return `${block.points.length} Punkte`;
-    case "matching": {
-      const cards = (items: typeof block.sources) => items.map((item) => (item.kind === "image" ? `[Bild: ${words(item.text, 20) || "ohne Beschreibung"}]` : words(item.text, 20))).join(", ");
-      const pairs = Object.keys(block.pairs ?? {}).length;
-      return `Objekte: ${cards(block.sources)} → Ziele: ${cards(block.targets)} (${pairs} richtig, ${block.sources.length - pairs} Ablenker)${block.shuffle ? " [zufällig]" : ""}${block.required ? " [Pflicht]" : ""}`;
-    }
     case "sort": {
       const items = block.items.map((item) => (item.kind === "image" ? `[Bild: ${words(item.text, 20) || "ohne Beschreibung"}]` : words(item.text, 20))).join(" → ");
       const ends = block.startLabel || block.endLabel ? ` (${block.startLabel ?? ""} … ${block.endLabel ?? ""})` : "";

@@ -83,6 +83,14 @@ export interface IdsField {
   of: string;
 }
 
+/** The right pairs of two lists of the block (a matching's `pairs`): a record of the id of an item of the list `from` -> the id of one of `to`. An item that
+ * is not in it has no partner (a decoy). */
+export interface PairsField {
+  type: "pairs";
+  from: string;
+  to: string;
+}
+
 /** A number that may have decimals (a distance, a size); absent when the author has not set it. */
 export interface NumberField {
   type: "number";
@@ -119,8 +127,9 @@ export interface EffectsField {
 export interface AssetField {
   type: "asset";
   kind: "image";
-  /** The file is only used while another field of the block has this value (the picture of a list's marker, while its marker is "image"): else it
-   * does not stay in the module and is not exported. */
+  /** The file is only used while another field of the block has this value (the picture of a list's marker, while its marker is "image") - in the item of a
+   * list: while another field of the item has it (a card of a matching: its picture, while it is a picture): else it does not stay in the module and is not
+   * exported. */
   usedWhen?: { field: string; is: string };
 }
 
@@ -132,7 +141,7 @@ export interface AssetField {
 export interface ListField {
   type: "list";
   /** The fields of one item, by name. */
-  item: { [name: string]: TextField | HtmlField | AssetField | EffectsField };
+  item: { [name: string]: TextField | HtmlField | AssetField | EffectsField | ChoiceField | NumberField };
   /** The key in a BlockTranslation the words of the items are kept under (`items`; a quiz's options are `options`). */
   translationKey?: "items" | "options";
   /** `weft text export`: the part of the key of an item's words, `<block>#<cliPart>:<id>` (`item`; a quiz's are `option`). */
@@ -142,7 +151,7 @@ export interface ListField {
   /** What the steps are called in the history (German): files added (one, several), the file of an item changed. */
   history: { add: string; addMany: string; change: string };
   /** `weft text export`: what the words of the item with this number (from 1) are (German). */
-  cliRole?: (number: number) => string;
+  cliRole?: (number: number, item: Record<string, unknown>) => string;
   ui?: ListUi;
 }
 
@@ -160,7 +169,7 @@ export interface ListUi {
   remove: TranslationKey;
 }
 
-export type FieldSpec = TextField | HtmlField | BoolField | NumberField | ChoiceField | IntField | EffectsField | EffectsMapField | IdsField | AssetField | ListField;
+export type FieldSpec = TextField | HtmlField | BoolField | NumberField | ChoiceField | IntField | EffectsField | EffectsMapField | IdsField | PairsField | AssetField | ListField;
 
 /**
  * A block with a task, as a quiz has: the events "first answer", "submitted", and "submitted - right / wrong" in the page's graph, which what is to

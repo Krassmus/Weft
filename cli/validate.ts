@@ -166,10 +166,7 @@ function placeholderProblems(html: string, names: ReadonlySet<string>): string[]
 
 function effectsOf(block: Block): { effects: VariableEffect[]; what: string }[] {
   const groups: { effects: VariableEffect[]; what: string }[] = [];
-  if (block.kind === "matching") {
-    groups.push({ effects: block.onEachCorrect ?? [], what: "bei jeder richtigen Zuordnung" }, { effects: block.onEachWrong ?? [], what: "bei jeder falschen Zuordnung" });
-    groups.push({ effects: block.onCorrect ?? [], what: "wenn alles richtig ist" }, { effects: block.onIncorrect ?? [], what: "wenn nicht alles richtig ist" });
-  } else if (block.kind === "sort") {
+  if (block.kind === "sort") {
     groups.push({ effects: block.onSubmit ?? [], what: "beim Abschicken" }, { effects: block.onEachError ?? [], what: "bei jedem Fehler" });
     groups.push({ effects: block.onCorrect ?? [], what: "wenn die Reihenfolge stimmt" }, { effects: block.onIncorrect ?? [], what: "wenn die Reihenfolge nicht stimmt" });
   } else if (descriptorOf(block)) {
@@ -422,25 +419,6 @@ export function validate(loaded: LoadedWeft): Finding[] {
       }
     }
 
-    // Matching.
-    if (block.kind === "matching") {
-      const sources = block.sources ?? [];
-      const targets = block.targets ?? [];
-      const sourceIds = new Set(sources.map((item) => item.id));
-      const targetIds = new Set(targets.map((item) => item.id));
-      if (sources.length === 0 || targets.length === 0) add("warning", "matching-empty", "Das Matching braucht mindestens ein Objekt und ein Ziel.", here);
-      for (const [source, target] of Object.entries(block.pairs ?? {})) {
-        if (!sourceIds.has(source) || !targetIds.has(target)) add("error", "matching-pair-broken", "Eine richtige Zuordnung (pairs) verweist auf ein Objekt oder Ziel, das es nicht gibt.", { ...here, hint: "pairs: Objekt-Id → Ziel-Id; ein Objekt ohne Eintrag ist ein Ablenker." });
-      }
-      if (sources.length > 0 && sources.every((item) => !(block.pairs ?? {})[item.id])) add("info", "matching-no-pairs", "Kein Objekt hat ein Ziel: alles ist ein Ablenker, nichts kann richtig zugeordnet werden.", here);
-      for (const item of [...sources, ...targets]) {
-        if (item.kind !== "image") continue;
-        if (!item.assetId) add("warning", "matching-no-image", "Eine Karte des Matchings ist ein Bild, hat aber noch keins.", here);
-        else if (!content.assets.some((a) => a.id === item.assetId)) add("error", "asset-missing", `Eine Karte des Matchings verweist auf die Datei ${item.assetId}, die nicht in der Liste der Dateien steht.`, here);
-        else if (!item.text?.trim()) add("info", "image-no-alt", "Ein Bild des Matchings ohne Beschreibung (text).", here);
-      }
-    }
-
     // Sorting puzzle.
     if (block.kind === "sort") {
       const items = block.items ?? [];
@@ -512,8 +490,8 @@ export function validate(loaded: LoadedWeft): Finding[] {
     };
     // (A block that describes itself: any of its texts has words.)
     if (languages.length > 1 && descriptorOf(block) && [...exportedTexts(block), ...exportedItemTexts(block)].some((text) => ("html" in text && text.html ? plainTextOfHtml(text.value) : text.value).trim() !== "")) markUntranslated();
-    if (languages.length > 1 && (block.kind === "matching" || block.kind === "sort")) {
-      const hasWords = block.kind === "sort" ? block.items.some((item) => item.text.trim() !== "") : [...block.sources, ...block.targets].some((item) => item.text.trim() !== "");
+    if (languages.length > 1 && block.kind === "sort") {
+      const hasWords = block.items.some((item) => item.text.trim() !== "");
       // A text that stands for a placeholder of the layout is the page's own, and has its words in each language like any other.
       if (hasWords) markUntranslated();
     }

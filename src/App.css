@@ -6075,63 +6075,23 @@ h2.weft-inspector-header {
   padding: 2px 0;
 }
 
-/* A matching (MatchingBlock, blocks/MatchingView.tsx; the player has the same in player.runtime.css): an area with the cards of both lists at their
-   places - positions and sizes in percent of the area - and the button under it. The cards follow the module's style of interactive elements. */
-.weft-matching {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6em;
-  width: 100%;
-  height: 100%;
-  font-family: var(--slide-ui-font);
-  font-size: calc(1.7cqw * var(--slide-ui-scale));
-  font-weight: var(--slide-ui-weight);
-  letter-spacing: var(--slide-ui-spacing);
-  color: var(--slide-fg);
-}
-
-.weft-matching-area {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-.weft-matching-bar {
-  flex: none;
-}
-
+/* A matching on the canvas (MatchingCanvas, MatchingView in blocks/): the player's own look - the cards of both lists at their places, the button under them
+   (core/blocks/matching/render.css) - made quiet: nothing on the canvas is picked up, hovered or dropped on; what can be moved is `is-movable` below. */
 .weft-matching-bar .weft-thumb-block-quiz-submit {
   display: inline-flex;
 }
 
-.weft-matching-card {
-  position: absolute;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.35em 0.5em;
-  overflow: hidden;
-  text-align: center;
-  line-height: 1.25;
-  border-radius: var(--slide-ui-radius);
-  clip-path: var(--slide-ui-clip);
+.weft-matching-view .weft-matching-card {
+  cursor: auto;
+  touch-action: auto;
+  user-select: auto;
+  -webkit-user-select: auto;
+  transition: none;
 }
 
-.weft-matching-source {
-  background: var(--slide-surface);
-  border: 1px solid var(--slide-line-strong);
-}
-
-.weft-matching-target {
-  background: var(--slide-surface-quiet);
-  border: 1px dashed var(--slide-line-strong);
-}
-
-.weft-matching-text {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+.weft-matching-view .weft-matching-source:hover {
+  border-color: var(--slide-line-strong);
+  box-shadow: none;
 }
 
 /* The words of a card written in place on the canvas (a double click): a field that looks like them. */
@@ -6156,13 +6116,6 @@ h2.weft-inspector-header {
   outline: none;
 }
 
-.weft-matching-image {
-  display: block;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
 .weft-matching-empty {
   width: 1.6em;
   height: 1.6em;
@@ -6170,7 +6123,7 @@ h2.weft-inspector-header {
   border-radius: 0.25em;
 }
 
-.weft-matching-card.is-movable {
+.weft-matching-view .weft-matching-card.is-movable {
   cursor: grab;
   touch-action: none;
 }

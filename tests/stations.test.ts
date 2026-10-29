@@ -6,7 +6,7 @@ import { runOperations } from "../cli/ops";
 import { setCurrentModule } from "../cli/storeStub";
 import { collectTexts, exportTexts, importTexts } from "../cli/texts";
 import { validate } from "../cli/validate";
-import { describedKinds, descriptorOf, exportedItemTexts, exportedTexts, fieldsOf, isInvisibleKind, isPageOnlyKind, isTaskBlock, listFieldsOf, ownEventId, ownEventsOf, replacesEntrance, shownWordings, taskEventId, triggerableOwnEventTypes, variableWordings } from "../src/core/blocks/registry";
+import { describedKinds, descriptorOf, eventLookOf, exportedItemTexts, exportedTexts, fieldsOf, isInvisibleKind, isPageOnlyKind, isTaskBlock, listFieldsOf, ownEventId, ownEventsOf, replacesEntrance, shownWordings, taskEventId, triggerableOwnEventTypes, variableWordings } from "../src/core/blocks/registry";
 import { buildRuntimeHtml } from "../src/core/runtime/buildRuntimeHtml";
 import { pageReadingOrder } from "../src/core/document/readingOrder";
 import { TRIGGERABLE_EVENT_TYPES, blockNameOf, buttonClickNodeId, canTriggerActionEffectFrom, ensureEffectTriggers, getPageLanes, isListPerItem, listItemNodeId, quizFillNodeId, quizSubmitNodeId, revealerButtonNodeId, revealerOpenNodeId, scriptRunNodeId, syncPageTimelineEvents, videoEndNodeId, videoResumeNodeId, videoStartNodeId, videoStopNodeId } from "../src/core/document/pageTimeline";
@@ -1673,5 +1673,49 @@ describe("the events of their own that a block gives its page (the descriptor's 
     expect(bare?.nodes.map((node) => node.id)).toEqual([`button-click:${plain}`]);
     expect(bare?.edges).toEqual([]);
     expect(blockNameOf(m.content.pages[m.pageId].blocks[m.blockId])).toBe("Mein Skript");
+  });
+
+  it("have a look each in the editor: every type a spec can give has a title and an icon, and the types the editor makes itself have none", () => {
+    const specs = describedKinds().flatMap((kind) => descriptorOf(kind)?.events ?? []);
+    const typesOf = (spec: (typeof specs)[number]): string[] => [
+      ...(spec.timelineTypes ?? (typeof spec.timelineType === "string" ? [spec.timelineType] : [])),
+      ...(spec.companions ?? []).flatMap(typesOf),
+    ];
+    const given = new Set(specs.flatMap(typesOf));
+    // (The types of a task come from the registry: the four of a quiz.)
+    for (const type of ["quiz-fill-start", "quiz-submit", "quiz-submit-correct", "quiz-submit-incorrect"] as const) given.add(type);
+    for (const type of given) {
+      const look = eventLookOf(type as never);
+      expect(look, type).toBeDefined();
+      expect(look!.label(), type).not.toBe("");
+    }
+    for (const type of ["block-entrance", "block-exit", "block-action-move", "block-action-shake", "block-action-blink", "group-entrance", "group-exit", "variable-condition"] as const)
+      expect(eventLookOf(type), type).toBeUndefined();
+  });
+
+  it("show what they showed before the descriptors named them: title, hint and icon of every type", () => {
+    const expected: Record<string, [string, string | undefined, string]> = {
+      "quiz-fill-start": ["ui.fill_in", "ui.happens_as_soon_as_the_learner_2", "cursor"],
+      "quiz-submit": ["ui.quiz_submitted", "ui.happens_as_soon_as_the_quiz", "accept"],
+      "quiz-submit-correct": ["ui.quiz_submitted", "ui.happens_as_soon_as_the_quiz_2", "accept"],
+      "quiz-submit-incorrect": ["ui.quiz_submitted", "ui.happens_as_soon_as_the_quiz_3", "decline"],
+      "video-start-auto": ["ui.start_of_the_video", undefined, "video"],
+      "video-start-manual": ["ui.start_of_the_video", undefined, "play"],
+      "video-stop-point": ["ui.time_mark_2", "ui.happens_as_soon_as_playback_reaches", "stop-point"],
+      "video-resume": ["ui.video_continues_2", "ui.happens_as_soon_as_the_learner_3", "play"],
+      "video-end-loop": ["ui.end_of_the_video", "ui.never_happens_the_video_runs_in", "infinity"],
+      "video-end-stop": ["ui.end_of_the_video", "ui.happens_as_soon_as_the_video", "stop"],
+      "button-click": ["ui.button_clicked", "ui.happens_as_soon_as_the_learner", "cursor"],
+      "revealer-open": ["ui.revealer_opens", undefined, "info"],
+      "revealer-button": ["ui.revealer_button_clicked", "ui.revealer_button_hint", "hand"],
+      "list-item-entrance": ["ui.list_item_3", undefined, "animation"],
+      "script-run": ["ui.script_block", undefined, "gear"],
+    };
+    for (const [type, [label, hint, icon]] of Object.entries(expected)) {
+      const look = eventLookOf(type as never);
+      expect(look?.label(), type).toBe(tr(label as never));
+      expect(look?.hint?.(), type).toBe(hint === undefined ? undefined : tr(hint as never));
+      expect(look?.icon, type).toBe(icon);
+    }
   });
 });

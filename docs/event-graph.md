@@ -212,13 +212,16 @@ Aufgaben `:richtig` / `:falsch`), was es im
 Graphen des Players (`graphKind`) und in der Zeitleiste des Editors (`timelineType`) ist, ob ein Trigger es auslösen kann (`triggerable`), ob es
 wie ein Aufbau in der Weiter-Kette steht (`inChain`), ob es statt des Aufbaus gilt (`replacesEntrance`), ob es in einer eigenen Zeile nach dem
 Aufbau gezeichnet wird (`lane`), wann es das Ereignis gibt (`exists`, mit `onPage`: ein Block eines Layouts hat auf der Folie keine eigenen
-Ereignisse) und seine Beschriftung im Graphen (`label`). Wer alle Ereignisse einer Folie aufzählt (`buildEventGraph`, die Zeilen und Knoten
+Ereignisse) und seine Beschriftung im Graphen (`label`). Wie der Editor jede Ereignisart zeigt, die ein Eintrag geben kann, steht in `looks` (je `timelineType`:
+der Standardtitel, der Hinweis der Seitenleiste für ein Ereignis, das nichts auslösen kann, und der Name des Symbols aus dem Satz des Editors,
+`EventIconName`; die Registry gibt sie heraus: `eventLookOf`). Wer alle Ereignisse einer Folie aufzählt (`buildEventGraph`, die Zeilen und Knoten
 der Zeitleiste in `pageTimeline.ts`, `ensureEffectTriggers`, die Prüfung, welche Ereignisse es gibt), fragt die Registry (`ownEventsOf`,
 `replacesEntrance`), nicht die Art. Was ein Ereignis **tut** (ein Skript ausführen, einen Punkt zeigen), steht nur im Player - er hat für jede
 `graphKind` eine eigene Behandlung -, und die Ids sind Teil der Datei: der Player bildet dieselben (ein Test sucht die Präfixe in ihm). Auch die
 Zeilen von Video und Aufgabe in der Zeitleiste (`buildVideoLane`: die Zeitmarken in Abspielreihenfolge mit den Zeiten dazwischen, `buildQuizLane`
 und die Zeilen der Ausgänge mit „Nächste Folie“) sind von Hand gebaut, aus den Knoten, die der Deskriptor nennt. Nicht beschrieben sind die
-Aufbau/Abbau- und Aktionseffekte, die der Gruppen und die der Bedingungen.
+Aufbau/Abbau- und Aktionseffekte, die der Gruppen und die der Bedingungen - auch ihre Titel und Symbole stehen noch in der Zeitleiste
+(`EVENT_LABELS`, `EVENT_ICONS` in `Timeline.tsx`), ebenso die Farben aller Arten (`eventGraph/model.ts`).
 
 ## 6. Layout
 

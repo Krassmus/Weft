@@ -17,6 +17,8 @@ import animationIconSvgRaw from "../../../mockups/icons/animation.svg?raw";
 import dashingAwayIconSvgRaw from "../../../mockups/icons/dashing-away.svg?raw";
 import { reorderChain } from "../../core/document/actions";
 import { isChainOrderAllowed, isTriggerableNode, listAllNodes } from "../../core/document/pageTimeline";
+import { eventLookOf } from "../../core/blocks/registry";
+import type { EventIconName } from "../../core/blocks/types";
 import { findChain } from "../../core/eventGraph/chains";
 import { useDocumentStore } from "../../core/document/store";
 import { stopPointIconSvg } from "./stopPointIcon";
@@ -52,30 +54,16 @@ const shakeActionIconSvg =
 const blinkActionIconSvg =
   '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#28497c" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="2.2" fill="#28497c" stroke="none"/><path d="M8 1.5 V3.5 M8 12.5 V14.5 M1.5 8 H3.5 M12.5 8 H14.5 M3.4 3.4 L4.8 4.8 M11.2 11.2 L12.6 12.6 M12.6 3.4 L11.2 4.8 M4.8 11.2 L3.4 12.6"/></svg>';
 
-const EVENT_LABELS: Record<TimelineEventType, string> = {
-  get "quiz-fill-start"() { return tr("ui.fill_in"); },
-  get "quiz-submit"() { return tr("ui.quiz_submitted"); },
-  get "quiz-submit-correct"() { return tr("ui.quiz_submitted"); },
-  get "quiz-submit-incorrect"() { return tr("ui.quiz_submitted"); },
+// The titles of the events the editor itself gives the page (the others are the descriptors': eventLookOf in core/blocks/registry.ts).
+const EVENT_LABELS: Partial<Record<TimelineEventType, string>> = {
   get "variable-condition"() { return tr("ui.condition_event_label"); },
-  get "video-start-auto"() { return tr("ui.start_of_the_video"); },
-  get "video-start-manual"() { return tr("ui.start_of_the_video"); },
-  get "video-stop-point"() { return tr("ui.time_mark_2"); },
-  get "video-resume"() { return tr("ui.video_continues_2"); },
-  get "video-end-loop"() { return tr("ui.end_of_the_video"); },
-  get "video-end-stop"() { return tr("ui.end_of_the_video"); },
   get "block-entrance"() { return tr("ui.appears"); },
   get "block-exit"() { return tr("ui.disappears"); },
   get "block-action-move"() { return tr("ui.action_move_event"); },
   get "block-action-shake"() { return tr("ui.action_shake_event"); },
   get "block-action-blink"() { return tr("ui.action_blink_event"); },
-  get "button-click"() { return tr("ui.button_clicked"); },
-  get "revealer-open"() { return tr("ui.revealer_opens"); },
-  get "revealer-button"() { return tr("ui.revealer_button_clicked"); },
   get "group-entrance"() { return tr("ui.group_appears"); },
   get "group-exit"() { return tr("ui.group_disappears"); },
-  get "list-item-entrance"() { return tr("ui.list_item_3"); },
-  get "script-run"() { return tr("ui.script_block"); },
 };
 
 // The cursor (cursor.svg) has its colour fixed in the file; the graph colours its icons itself (currentColor, see App.css). It is cut to its
@@ -84,38 +72,35 @@ const cursorIconSvg = cursorIconRaw
   .replace(/fill:rgb\([^)]*\);/, "")
   .replace('viewBox="0 0 50 50"', 'viewBox="5.7 2 35 46" class="weft-cursor-icon"');
 
-// "richtig" keeps the checkmark; "falsch" gets its own (decline.svg) rather than sharing accept.svg
-// - the two outcome lanes should read apart from each other at a glance, not just by their label.
-const EVENT_ICONS: Record<TimelineEventType, string> = {
-  "quiz-fill-start": cursorIconSvg,
-  "quiz-submit": acceptIconSvg,
-  "quiz-submit-correct": acceptIconSvg,
-  "quiz-submit-incorrect": declineIconSvg,
-  // A condition of a variable that came true: lines and a tick.
-  "variable-condition": conditionIconSvg,
-  "video-start-auto": video2IconSvg,
-  "video-start-manual": playIconSvg,
+// The icons by the name the descriptors give them (EventIconName in core/blocks/types.ts).
+const ICONS: Record<EventIconName, string> = {
+  cursor: cursorIconSvg,
+  accept: acceptIconSvg,
+  decline: declineIconSvg,
+  video: video2IconSvg,
+  play: playIconSvg,
   // Same icon VideoStopPointDialog's own mini-timeline markers use (see panels/BlockPanel.tsx) -
   // so a stop point reads as the same thing whether you're looking at it there or here.
-  "video-stop-point": stopPointIconSvg(true),
-  // The learner presses play again.
-  "video-resume": playIconSvg,
-  "video-end-loop": INFINITY_ICON_SVG,
-  "video-end-stop": stopIconSvg,
-  // Aufbau - the animations (Fade, Move, ...) - and Abbau (dashing away) have an icon each.
+  "stop-point": stopPointIconSvg(true),
+  infinity: INFINITY_ICON_SVG,
+  stop: stopIconSvg,
+  info: infoIconSvg,
+  hand: hand2IconSvg,
+  gear: gearIconSvg,
+  animation: animationIconSvg,
+};
+
+// The icons of the events the editor itself gives the page: Aufbau - the animations (Fade, Move, ...) - and Abbau (dashing away) have an icon each.
+const EVENT_ICONS: Partial<Record<TimelineEventType, string>> = {
+  // A condition of a variable that came true: lines and a tick.
+  "variable-condition": conditionIconSvg,
   "block-entrance": animationIconSvg,
   "block-exit": dashingAwayIconSvg,
   "block-action-move": moveActionIconSvg,
   "block-action-shake": shakeActionIconSvg,
   "block-action-blink": blinkActionIconSvg,
-  "button-click": cursorIconSvg,
-  "revealer-open": infoIconSvg,
-  "revealer-button": hand2IconSvg,
   "group-entrance": animationIconSvg,
   "group-exit": dashingAwayIconSvg,
-  "list-item-entrance": animationIconSvg,
-  // A logic block's script runs: the gear (see the hexagon of the block itself).
-  "script-run": gearIconSvg,
 };
 
 /** Exported for BlockEffectEditor in panels/BlockPanel.tsx, which lists these same nodes (minus
@@ -130,7 +115,7 @@ export function nodeLabel(node: TimelineNode): string {
   if (node.label) return node.label;
   if (node.kind === "start") return tr("ui.start_of_the_slide");
   if (node.kind === "end") return tr("ui.next_slide");
-  if (node.kind === "event" && node.eventType) return EVENT_LABELS[node.eventType];
+  if (node.kind === "event" && node.eventType) return EVENT_LABELS[node.eventType] ?? eventLookOf(node.eventType)?.label() ?? "";
   return "";
 }
 
@@ -815,7 +800,7 @@ function TimelineNodeIcon({
       : node.eventType === "video-stop-point"
         ? stopPointIconSvg(node.stopsVideo !== false, node.shownKinds ?? [])
         : node.kind === "event" && node.eventType
-          ? EVENT_ICONS[node.eventType]
+          ? (EVENT_ICONS[node.eventType] ?? ICONS[eventLookOf(node.eventType)?.icon ?? "play"])
           : playIconSvg;
   const className = "weft-timeline-node-icon is-" + color + (isSelected ? " is-selected" : "") + (isHot ? " is-hot" : "");
   return (

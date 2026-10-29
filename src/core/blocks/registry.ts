@@ -1,6 +1,6 @@
 import { tr } from "../i18n/tr";
 import type { Block, TimelineEventType } from "../types";
-import type { BlockDescriptor, FieldSpec, HtmlField, ListField, OwnEventSpec, TaskSpec, TextField } from "./types";
+import type { BlockDescriptor, EventTypeLook, FieldSpec, HtmlField, ListField, OwnEventSpec, TaskSpec, TextField } from "./types";
 import { audioBlock } from "./audio/descriptor";
 import { buttonBlock } from "./button/descriptor";
 import { checkerBlock } from "./checker/descriptor";
@@ -32,9 +32,12 @@ import { videoBlock } from "./video/descriptor";
  * not in it yet is still known to them by hand - what they know by hand about the kinds that have not been moved here is below.
  */
 const descriptors = new Map<string, BlockDescriptor<never>>();
+/** What eventLookOf has gathered from the descriptors (made anew once a kind is registered). */
+let eventLooks: Map<TimelineEventType, EventTypeLook> | undefined;
 
 export function registerBlock<B extends Block>(descriptor: BlockDescriptor<B>): void {
   descriptors.set(descriptor.kind, descriptor as unknown as BlockDescriptor<never>);
+  eventLooks = undefined;
 }
 
 registerBlock(solutionBlock);
@@ -112,10 +115,45 @@ export type Where = { onPage: boolean };
  * descriptor's (TaskSpec). `key` names them in taskEventId. */
 function taskEventSpecs(task: TaskSpec): OwnEventSpec<Block>[] {
   return [
-    { key: "fill", idPrefix: "quiz-fill", graphKind: "quiz-fill", timelineType: "quiz-fill-start", triggerable: false, label: () => tr(task.labels.fill) },
-    { key: "submit", idPrefix: "quiz-submit", graphKind: "quiz-submit", timelineType: "quiz-submit", triggerable: false, label: () => tr(task.labels.submit) },
-    { key: "correct", idPrefix: "quiz-submit", idSuffix: "richtig", graphKind: "quiz-submit", timelineType: "quiz-submit-correct", triggerable: false, label: () => tr(task.labels.correct) },
-    { key: "incorrect", idPrefix: "quiz-submit", idSuffix: "falsch", graphKind: "quiz-submit", timelineType: "quiz-submit-incorrect", triggerable: false, label: () => tr(task.labels.incorrect) },
+    {
+      key: "fill",
+      idPrefix: "quiz-fill",
+      graphKind: "quiz-fill",
+      timelineType: "quiz-fill-start",
+      triggerable: false,
+      label: () => tr(task.labels.fill),
+      looks: { "quiz-fill-start": { label: () => tr("ui.fill_in"), hint: () => tr("ui.happens_as_soon_as_the_learner_2"), icon: "cursor" } },
+    },
+    {
+      key: "submit",
+      idPrefix: "quiz-submit",
+      graphKind: "quiz-submit",
+      timelineType: "quiz-submit",
+      triggerable: false,
+      label: () => tr(task.labels.submit),
+      looks: { "quiz-submit": { label: () => tr("ui.quiz_submitted"), hint: () => tr("ui.happens_as_soon_as_the_quiz"), icon: "accept" } },
+    },
+    {
+      key: "correct",
+      idPrefix: "quiz-submit",
+      idSuffix: "richtig",
+      graphKind: "quiz-submit",
+      timelineType: "quiz-submit-correct",
+      triggerable: false,
+      label: () => tr(task.labels.correct),
+      looks: { "quiz-submit-correct": { label: () => tr("ui.quiz_submitted"), hint: () => tr("ui.happens_as_soon_as_the_quiz_2"), icon: "accept" } },
+    },
+    {
+      // (Its own icon, not the checkmark of "richtig": the two outcome lanes should read apart from each other at a glance, not just by their label.)
+      key: "incorrect",
+      idPrefix: "quiz-submit",
+      idSuffix: "falsch",
+      graphKind: "quiz-submit",
+      timelineType: "quiz-submit-incorrect",
+      triggerable: false,
+      label: () => tr(task.labels.incorrect),
+      looks: { "quiz-submit-incorrect": { label: () => tr("ui.quiz_submitted"), hint: () => tr("ui.happens_as_soon_as_the_quiz_3"), icon: "decline" } },
+    },
   ];
 }
 
@@ -176,6 +214,17 @@ export function triggerableOwnEventTypes(): TimelineEventType[] {
   return [...new Set(types)];
 }
 
+/** How the editor shows an event of a type that a kind of block gives its page (its standard title, what the panel says, its icon): from the descriptors, the
+ * events of tasks included. None for a type no kind gives (an Aufbau, a "Nächste Folie": those are the editor's own). */
+export function eventLookOf(type: TimelineEventType): EventTypeLook | undefined {
+  if (!eventLooks) {
+    eventLooks = new Map();
+    const specs: OwnEventSpec<Block>[] = describedKinds().flatMap((kind) => (descriptorOf(kind)?.events ?? []) as OwnEventSpec<Block>[]);
+    specs.push(...taskEventSpecs({ labels: {} as never, cliNames: {} as never }));
+    for (const spec of specs) for (const each of [spec, ...(spec.companions ?? [])]) for (const [looked, look] of Object.entries(each.looks)) eventLooks.set(looked as TimelineEventType, look);
+  }
+  return eventLooks.get(type);
+}
 /** Whether nothing of a kind is seen or read when a slide is played (it has no Aufbau or Abbau, is not in the reading order or the cover's picture). */
 export function isInvisibleKind(kind: string): boolean {
   return !!descriptorOf(kind)?.invisible;

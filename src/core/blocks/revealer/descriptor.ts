@@ -41,6 +41,7 @@ export const revealerBlock: BlockDescriptor<RevealerBlock> = {
       timelineType: "revealer-open",
       triggerable: true,
       lane: true,
+      looks: { "revealer-open": { label: () => tr("ui.revealer_opens"), icon: "info" } },
       label: () => tr("ui.revealer_opens"),
     },
     {
@@ -51,6 +52,7 @@ export const revealerBlock: BlockDescriptor<RevealerBlock> = {
       exists: (block) => !!block.button,
       triggerable: false,
       lane: true,
+      looks: { "revealer-button": { label: () => tr("ui.revealer_button_clicked"), hint: () => tr("ui.revealer_button_hint"), icon: "hand" } },
       label: () => tr("ui.revealer_button_clicked"),
     },
   ],

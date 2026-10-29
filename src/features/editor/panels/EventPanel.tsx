@@ -13,8 +13,9 @@ import { useDocumentStore } from "../../../core/document/store";
 import { formulaProblem } from "../../../core/document/variables";
 import { virtualVariableNamesFor } from "../../../core/document/virtualVariables";
 import { BLOCK_KIND_KEYS } from "../../../core/i18n/translations";
+import { eventLookOf } from "../../../core/blocks/registry";
 import { useTranslation } from "../../../core/i18n/useTranslation";
-import type { Page, TimelineEventType, TimelineNode } from "../../../core/types";
+import type { Page, TimelineNode } from "../../../core/types";
 import { Collapsible } from "../Collapsible";
 import { buildGraphModel } from "../eventGraph/model";
 import { listPageTriggerEvents, nodeLabel } from "../Timeline";
@@ -24,23 +25,6 @@ import { FormulaInput } from "./VariablesTab";
 import { OutgoingTriggersSection, TriggerCard, resumableBlock } from "./TriggerSections";
 import { TransitionPanel } from "./TransitionPanel";
 import { tr } from "../../../core/i18n/tr";
-
-// Purely descriptive, for every event that ISN'T in TRIGGERABLE_EVENT_TYPES (document/
-// pageTimeline.ts) and so gets no editable "Wird ausgelöst durch" of its own (see
-// IncomingTriggersSection below) - each only ever happens through genuine learner interaction or
-// real playback time that nothing could fake, so there's nothing here to edit, just to explain.
-const EVENT_HINTS: Partial<Record<TimelineEventType, string>> = {
-  get "button-click"() { return tr("ui.happens_as_soon_as_the_learner"); },
-  get "revealer-button"() { return tr("ui.revealer_button_hint"); },
-  get "quiz-fill-start"() { return tr("ui.happens_as_soon_as_the_learner_2"); },
-  get "quiz-submit"() { return tr("ui.happens_as_soon_as_the_quiz"); },
-  get "quiz-submit-correct"() { return tr("ui.happens_as_soon_as_the_quiz_2"); },
-  get "quiz-submit-incorrect"() { return tr("ui.happens_as_soon_as_the_quiz_3"); },
-  get "video-stop-point"() { return tr("ui.happens_as_soon_as_playback_reaches"); },
-  get "video-resume"() { return tr("ui.happens_as_soon_as_the_learner_3"); },
-  get "video-end-loop"() { return tr("ui.never_happens_the_video_runs_in"); },
-  get "video-end-stop"() { return tr("ui.happens_as_soon_as_the_video"); },
-};
 
 /**
  * Shown instead of BlockPanel when the current selection is a node in a page's own event graph (see SelectionRef's "event" variant in
@@ -263,7 +247,7 @@ function IncomingTriggersSection({ page, node }: { page: Page; node: TimelineNod
     return (
       <div className="weft-event-section">
         <span className="weft-hint-label">{tr("ui.is_triggered_by")}</span>
-        <p className="weft-hint">{EVENT_HINTS[node.eventType] ?? tr("ui.happens_through_the_learner_s_interaction")}</p>
+        <p className="weft-hint">{eventLookOf(node.eventType)?.hint?.() ?? tr("ui.happens_through_the_learner_s_interaction")}</p>
       </div>
     );
   }

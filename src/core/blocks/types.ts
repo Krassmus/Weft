@@ -222,6 +222,20 @@ export interface OwnEventSpec<B = never> {
   lane?: boolean;
   /** The words of the node in the graph (editor language): `index` is the place of the item. Absent or undefined: it has none of its own. */
   label?(block: B, context: { name: string; index?: number }): string | undefined;
+  /** How the editor shows each type this event can be in (`timelineType` / `timelineTypes`): its standard title, what the panel says about it, its icon. */
+  looks: Partial<Record<TimelineEventType, EventTypeLook>>;
+}
+
+/** The icons of the editor's set that an event type can have (the editor draws them: features/editor/Timeline.tsx). */
+export type EventIconName = "cursor" | "accept" | "decline" | "video" | "play" | "stop-point" | "infinity" | "stop" | "info" | "hand" | "gear" | "animation";
+
+/** How the editor shows one type of event (see `looks` of OwnEventSpec). The words are functions: they follow the language of the editor. */
+export interface EventTypeLook {
+  /** The title the node has in the graph where the author gave none (and the block none of its own: see `label`). */
+  label(): string;
+  /** What the panel of the event says about it, for an event nothing can trigger (what makes it happen). Absent: the panel says it happens through the learner's interaction. */
+  hint?(): string;
+  icon: EventIconName;
 }
 
 /** The panel of a block, made from its fields: sections in the order they are shown. */

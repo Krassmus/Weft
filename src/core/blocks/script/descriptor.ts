@@ -31,6 +31,7 @@ export const scriptBlock: BlockDescriptor<ScriptBlock> = {
       replacesEntrance: () => true,
       triggerable: true,
       inChain: true,
+      looks: { "script-run": { label: () => tr("ui.script_block"), icon: "gear" } },
       label: (_block, context) => context.name,
     },
   ],

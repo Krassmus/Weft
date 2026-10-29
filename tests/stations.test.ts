@@ -1227,7 +1227,7 @@ describe("the shape, the arrow, the code, the formula and the logic block", () =
   it("are made as they always were: where on the slide and with what", () => {
     const made = (kind: string) => moduleWith(kind, false).block as unknown as Record<string, unknown>;
     expect(made("shape")).toMatchObject({ position: { x: 30, y: 30, width: 40, height: 40 }, shapeKind: "rectangle", sides: 6, starPoints: 5, starInnerRadius: 45, fill: { type: "solid" }, stroke: { enabled: false }, shadow: { enabled: false } });
-    expect(made("arrow")).toMatchObject({ position: { x: 20, y: 35, width: 60, height: 30 }, arrowStyle: "plain", width: 0.8, startHead: false, endHead: true });
+    expect(made("arrow")).toMatchObject({ position: { x: 20, y: 35, width: 60, height: 30 }, arrowStyle: "plain", width: 0.8, startHead: false, endHead: true, points: [{ x: 0, y: 80 }, { x: 45, y: 25 }, { x: 100, y: 50 }] });
     expect(made("code")).toMatchObject({ position: { x: 10, y: 30, width: 80, height: 40 }, language: "javascript", theme: "atom-one-dark", fontSize: 13 });
     expect(made("tex")).toMatchObject({ position: { x: 25, y: 35, width: 50, height: 30 }, color: "" });
     expect(made("script")).toMatchObject({ position: { x: 44.5, y: 40.25, width: 11, height: 19.5 } });

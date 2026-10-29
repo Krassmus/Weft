@@ -31,6 +31,7 @@ import { createId } from "../src/core/id";
 import { aspectRatioNumeric } from "../src/core/aspectRatio";
 import { CliError } from "./load";
 import { readMedia } from "./media";
+import { isLayoutOnlyKind } from "../src/core/blocks/registry";
 import { setCurrentModule } from "./storeStub";
 
 /**
@@ -608,7 +609,7 @@ const HANDLERS: Record<string, Handler> = {
     } else {
       const page = pageId(ctx, op.page);
       if (ctx.content.pages[page].jump) fail("Auf eine Sprung-Folie lassen sich keine Blöcke legen.");
-      if (kind === "placeholder") fail("Ein Platzhalter-Text gehört in ein Layout (mit \"layout\"), nicht auf eine Folie.");
+      if (isLayoutOnlyKind(kind)) fail("Ein Platzhalter-Text gehört in ein Layout (mit \"layout\"), nicht auf eine Folie.");
       id = actions.addBlockToPage(page, kind);
       if (op.set) actions.updateBlock(page, id, mergePatch(ctx.content.pages[page].blocks[id], resolveSet(ctx, op.set)) as never);
     }

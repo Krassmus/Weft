@@ -27,52 +27,5 @@ export function blockSummary(block: Block, content: WeftModule, labels: Record<s
 function blockContent(block: Block, content: WeftModule, labels: Record<string, string>): string {
   // A block that describes itself (see core/blocks) says what it is itself.
   const summary = descriptorOf(block)?.summary;
-  if (summary) return summary(block as never, { labels, assets: content.assets });
-  switch (block.kind) {
-    case "placeholder":
-      return `Platzhalter „${block.label}"`;
-    case "button":
-      // (Described above.)
-      return "";
-    case "progress":
-      // (Described above.)
-      return "";
-    case "image":
-    case "video":
-    case "audio":
-      // (Described above.)
-      return "";
-    case "code":
-    case "tex":
-      // (Described above.)
-      return "";
-    case "iframe":
-      // (Described above.)
-      return "";
-    case "shape":
-    case "arrow":
-      // (Described above.)
-      return "";
-    case "gallery":
-      // (Described above.)
-      return "";
-    case "solution":
-      // (Described above.)
-      return "";
-    case "checker":
-      // (Described above.)
-      return "";
-    case "link":
-      // (Described above.)
-      return "";
-    case "files":
-      // (Described above.)
-      return "";
-    case "language":
-      // (Described above.)
-      return "";
-    case "script":
-      // (Described above.)
-      return "";
-  }
+  return summary ? summary(block as never, { labels, assets: content.assets }) : "";
 }

@@ -77,8 +77,6 @@ function plainLinesOfHtml(html: string): string[] {
 /** The text of one block - what a reader of the slide would read in it - as lines. */
 function blockLines(block: Block): string[] {
   switch (block.kind) {
-    case "placeholder":
-      return plainLinesOfHtml(block.html);
     default:
       // (A block that describes itself says which of its texts are seen.)
       return shownWordings(block)

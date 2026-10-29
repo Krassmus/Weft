@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { addBlockToLayout, addBlockToPage } from "../../core/document/actions";
 import { useDocumentStore } from "../../core/document/store";
-import { isPageOnlyKind } from "../../core/blocks/registry";
+import { isLayoutOnlyKind, isPageOnlyKind } from "../../core/blocks/registry";
 import { tr } from "../../core/i18n/tr";
 import { BLOCK_KIND_KEYS } from "../../core/i18n/translations";
 import { useTranslation } from "../../core/i18n/useTranslation";
@@ -36,7 +36,7 @@ export function AddElementMenu({ container }: { container: { kind: "page"; pageI
   const allowed = (kind: Kind) => {
     if (kind === "language") return languageCount > 1;
     if (inLayout) return !isPageOnlyKind(kind);
-    return kind !== "placeholder";
+    return !isLayoutOnlyKind(kind);
   };
   const presentation = PRESENTATION_KINDS.filter(allowed);
   const interactive = INTERACTIVE_KINDS.filter(allowed);

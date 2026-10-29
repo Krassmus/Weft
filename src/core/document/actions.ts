@@ -70,7 +70,7 @@ import {
 import type { BlockContainerRef } from "./store";
 import { useDocumentStore } from "./store";
 import { tr } from "../i18n/tr";
-import { descriptorOf, isPageOnlyKind, isTaskBlock } from "../blocks/registry";
+import { descriptorOf, isLayoutOnlyKind, isPageOnlyKind, isTaskBlock } from "../blocks/registry";
 
 function edit(label: string, recipe: (draft: WeftModule) => void) {
   useDocumentStore.getState().edit(label, recipe);
@@ -633,12 +633,9 @@ export function moveLogicBlockStep(logicBlockId: string, by: -1 | 1): boolean {
 // ---- Blocks ----------------------------------------------------------------
 
 function defaultBlockFor(kind: Block["kind"]): NewBlock {
-  const position = { x: 10, y: 40, width: 80, height: 20 };
   const base = { id: createId(), entranceEffect: defaultEntranceEffect(), exitEffect: defaultExitEffect() };
   const described = descriptorOf(kind);
   if (described) return { ...base, ...described.defaults(), kind, position: { ...described.placement.box } } as NewBlock;
-  // (Only the placeholder of a layout is still made by hand; every other kind has a descriptor and is made above.)
-  if (kind === "placeholder") return { ...base, kind, position, label: tr("ui.placeholder"), html: tr("ui.placeholder_text") };
   throw new Error(`The kind "${kind}" has no descriptor.`);
 }
 
@@ -1849,7 +1846,7 @@ export function pasteBlockInto(
 ): string | null {
   if (target.kind === "layout" && isPageOnlyKind(sourceBlock.kind)) return null;
   // A placeholder only exists in a layout.
-  if (target.kind === "page" && sourceBlock.kind === "placeholder") return null;
+  if (target.kind === "page" && isLayoutOnlyKind(sourceBlock.kind)) return null;
   const newBlock = cloneBlockWithNewId(sourceBlock);
   // A copy of a page's text for a placeholder is a text of its own (one placeholder has one text).
   if (newBlock.kind === "text") delete newBlock.placeholderOf;

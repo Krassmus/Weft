@@ -103,9 +103,18 @@ function moduleWith(kind: string, filled: boolean) {
   const pageId = base.results[1].result.page as string;
   const descriptor = descriptorOf(kind) as BlockDescriptor;
   const set = filled ? sampleFields(descriptor, { asset: "asset-1", variable }) : undefined;
-  const made = runOperations(content, [{ op: "add_block", page: pageId, kind, ...(set ? { set } : {}) }]);
+  // (A kind that exists only in a layout is put in the first layout.)
+  const layoutId = Object.keys(content.layouts)[0];
+  const where = descriptor.placement.layoutOnly ? { layout: layoutId } : { page: pageId };
+  const made = runOperations(content, [{ op: "add_block", ...where, kind, ...(set ? { set } : {}) }]);
   const blockId = made.results[0].result.block as string;
-  return { content, pageId, blockId, block: content.pages[pageId].blocks[blockId] as Block, descriptor, variable };
+  const block = (descriptor.placement.layoutOnly ? content.layouts[layoutId].blocks[blockId] : content.pages[pageId].blocks[blockId]) as Block;
+  return { content, pageId, blockId, block, descriptor, variable };
+}
+
+/** The block `blockId` of the module, on the page or (a placeholder) in a layout. */
+function blockIn(content: WeftModule, pageId: string, blockId: string) {
+  return content.pages[pageId].blocks[blockId] ?? Object.values(content.layouts).map((layout) => layout.blocks[blockId]).find(Boolean);
 }
 
 const ajv = new Ajv({ allErrors: true, strict: false });
@@ -220,6 +229,8 @@ describe.each(KINDS)("%s with every field filled", (kind) => {
     try {
       const pasted = pasteBlockInto({ kind: "layout", layoutId }, block);
       expect(pasted === null).toBe(descriptor.placement.pageOnly);
+      // (And on a slide exactly when it is not layout-only.)
+      expect(pasteBlockInto({ kind: "page", pageId: Object.keys(content.pages)[0] }, block) === null).toBe(!!descriptor.placement.layoutOnly);
     } finally {
       setCurrentModule(null);
     }
@@ -302,9 +313,9 @@ describe.each(KINDS)("the words of %s in other languages", (kind) => {
     const { block, content, pageId, blockId } = moduleWith(kind, true);
     const all = wordings(block);
     for (const wording of all) {
-      Object.assign(content.pages[pageId].blocks[blockId], wording.patch(EN, `EN ${wording.what}`));
+      Object.assign(blockIn(content, pageId, blockId), wording.patch(EN, `EN ${wording.what}`));
     }
-    const written = content.pages[pageId].blocks[blockId] as Block;
+    const written = blockIn(content, pageId, blockId) as Block;
     for (const wording of wordings(written)) {
       expect(wording.read(EN), wording.what).toBe(`EN ${wording.what}`);
       expect(wording.read(DE), wording.what).toBe(wording.own);
@@ -317,12 +328,12 @@ describe.each(KINDS)("the words of %s in other languages", (kind) => {
 
   it("swap places with the new default language and back (the texts of each language are what they were)", () => {
     const { block, content, pageId, blockId } = moduleWith(kind, true);
-    for (const wording of wordings(block)) Object.assign(content.pages[pageId].blocks[blockId], wording.patch(EN, `EN ${wording.what}`));
-    const read = () => wordings(content.pages[pageId].blocks[blockId] as Block).map((wording) => [wording.what, wording.own, wording.read(EN)]);
+    for (const wording of wordings(block)) Object.assign(blockIn(content, pageId, blockId), wording.patch(EN, `EN ${wording.what}`));
+    const read = () => wordings(blockIn(content, pageId, blockId) as Block).map((wording) => [wording.what, wording.own, wording.read(EN)]);
     const before = read();
     rotateDefaultLanguage(content, DE, EN);
     // (EN is the default now: its words are the block's own.)
-    const rotated = wordings(content.pages[pageId].blocks[blockId] as Block);
+    const rotated = wordings(blockIn(content, pageId, blockId) as Block);
     for (const wording of rotated) expect(wording.own, wording.what).toBe(`EN ${wording.what}`);
     rotateDefaultLanguage(content, EN, DE);
     expect(read()).toEqual(before);
@@ -332,7 +343,7 @@ describe.each(KINDS)("the words of %s in other languages", (kind) => {
     const { block, content, pageId, blockId } = moduleWith(kind, true);
     if (wordings(block).length > 0) return;
     rotateDefaultLanguage(content, DE, EN);
-    expect((content.pages[pageId].blocks[blockId] as { translations?: unknown }).translations).toBeUndefined();
+    expect((blockIn(content, pageId, blockId) as { translations?: unknown }).translations).toBeUndefined();
   });
 });
 
@@ -360,7 +371,7 @@ describe.each(KINDS)("the texts of %s in `weft text export` and `weft text impor
     expect(report.problems).toEqual([]);
     expect(report.applied).toBe(mine.length);
 
-    const imported = content.pages[pageId].blocks[blockId] as Block;
+    const imported = blockIn(content, pageId, blockId) as Block;
     for (const wording of wordings(imported)) {
       if (!hasWords(wording.own)) continue;
       expect(wording.read(EN), wording.what).toBe(`EN ${"html" in wording && wording.html ? wording.own : escapeText(wording.own)}`);
@@ -393,6 +404,7 @@ describe("what is known about each kind", () => {
     cloze: { pageOnly: true, task: true, translatable: ["html"], lists: [] },
     matching: { pageOnly: true, task: true, translatable: [], lists: ["sources", "targets"] },
     sort: { pageOnly: true, task: true, translatable: ["endLabel", "startLabel"], lists: ["items"] },
+    placeholder: { pageOnly: false, task: false, translatable: [], lists: [] },
     shape: { pageOnly: false, task: false, translatable: [], lists: [] },
     arrow: { pageOnly: false, task: false, translatable: [], lists: [] },
     code: { pageOnly: false, task: false, translatable: [], lists: [] },
@@ -1251,5 +1263,39 @@ describe("the shape, the arrow, the code, the formula and the logic block", () =
       expect(placeholderSources(m.block), kind).toEqual([]);
       expect(isPageOnlyKind(kind), kind).toBe(kind === "script");
     }
+  });
+});
+
+describe("the placeholder of a layout", () => {
+  const made = () => moduleWith("placeholder", false);
+  const stored = (m: ReturnType<typeof moduleWith>) => m.block as unknown as { label: string; html: string };
+  const findings = (m: ReturnType<typeof moduleWith>) => validate({ path: "test.weft", json: { formatVersion: CURRENT_FORMAT_VERSION, content: m.content }, content: m.content, files: new Set(), archive: false });
+
+  it("is made in a layout, with a label and a sample text, and says in one line what it is", () => {
+    const m = made();
+    expect(Object.values(m.content.layouts).some((layout) => layout.blocks[m.blockId])).toBe(true);
+    expect(Object.values(m.content.pages[m.pageId].blocks).length).toBe(0);
+    expect(stored(m).label.trim()).not.toBe("");
+    expect(stored(m).html).toMatch(/^<p>.+<\/p>$/);
+    stored(m).label = "Titel";
+    expect(descriptorOf("placeholder")!.summary!(m.block as never, { labels: {} })).toBe("Platzhalter „Titel\"");
+  });
+
+  it("is refused on a slide: by `weft edit`, by a paste - and reported when a file has one there", () => {
+    const m = made();
+    expect(() => runOperations(m.content, [{ op: "add_block", page: m.pageId, kind: "placeholder" }])).toThrow(/gehört in ein Layout/);
+    const clean = findings(m).filter((finding) => finding.code === "placeholder-on-page");
+    expect(clean).toEqual([]);
+    m.content.pages[m.pageId].blocks[m.blockId] = { ...m.block, order: 1 } as never;
+    const found = findings(m).find((finding) => finding.code === "placeholder-on-page");
+    expect(found?.severity).toBe("error");
+  });
+
+  it("has its sample text checked for variables that do not exist, but not exported for translation", () => {
+    const m = made();
+    (m.block as unknown as { html: string }).html = "<p>Wert {{gibtesnicht}}</p>";
+    expect(placeholderSources(m.block)).toEqual(["<p>Wert {{gibtesnicht}}</p>"]);
+    expect(findings(m).some((finding) => finding.code === "placeholder-variable")).toBe(true);
+    expect(exportedTexts(m.block)).toEqual([]);
   });
 });

@@ -212,7 +212,7 @@ export interface BlockDescriptor<B extends Block = Block> {
   /** The version of the shape of the block's data. Built-in blocks follow the file's format version; a plugin block carries its own (see `migrate`). */
   version: number;
   /** Where the block can stand and how big it is when it is added. `pageOnly`: not in a layout (it holds a state, or needs an answer). */
-  placement: { pageOnly: boolean; box: { x: number; y: number; width: number; height: number } };
+  placement: { pageOnly: boolean; layoutOnly?: boolean; box: { x: number; y: number; width: number; height: number } };
   /** What `weft inspect`, `weft validate` and `weft text export` call the kind (German). */
   cliName: string;
   /** The name of the block's definition in the file's JSON schema (docs/weft.schema.json), and what `weft schema` says it is (German). */

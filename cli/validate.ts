@@ -1,5 +1,5 @@
 import Ajv from "ajv";
-import { assetIdsOfFields, descriptorOf, exportedItemTexts, exportedTexts, fieldsOf } from "../src/core/blocks/registry";
+import { assetIdsOfFields, descriptorOf, exportedItemTexts, exportedTexts, fieldsOf, isLayoutOnlyKind } from "../src/core/blocks/registry";
 import type { ErrorObject } from "ajv";
 import schema from "../docs/weft.schema.json";
 import { buildGraphModel } from "../src/features/editor/eventGraph/model";
@@ -373,7 +373,7 @@ export function validate(loaded: LoadedWeft): Finding[] {
     }
 
     // Placeholders.
-    if (block.kind === "placeholder" && !isLayout) {
+    if (isLayoutOnlyKind(block.kind) && !isLayout) {
       add("error", "placeholder-on-page", "Ein Platzhalter-Text kann nur in einem Layout stehen.", { ...here, hint: "Den Block in ein Layout verschieben oder in einen Text-Block umwandeln." });
     }
     if (block.kind === "text" && block.placeholderOf) {

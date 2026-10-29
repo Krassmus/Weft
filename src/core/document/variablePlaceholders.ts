@@ -15,14 +15,8 @@ function escapeText(text: string): string {
  * same ones the player substitutes in: text, a quiz's question and options, a button's label),
  * all as HTML - a button's plain label is escaped first, so it parses as the text it is. */
 export function placeholderSources(block: Block): string[] {
-  switch (block.kind) {
-    // Every language's wording, not just the default's - a placeholder is just as wrong in French.
-    case "placeholder":
-      return [block.html];
-    default:
-      // (A block that describes itself says which of its texts are seen: plain texts, escaped first.)
-      return variableWordings(block).flatMap(({ own, translated, html }) => [...(own ? [html ? own : escapeText(own)] : []), ...translated.map((words) => (html ? words : escapeText(words)))]);
-  }
+  // (A block that describes itself says which of its texts are seen: plain texts, escaped first.)
+  return variableWordings(block).flatMap(({ own, translated, html }) => [...(own ? [html ? own : escapeText(own)] : []), ...translated.map((words) => (html ? words : escapeText(words)))]);
 }
 
 /**

@@ -12,6 +12,7 @@ import { languageBlock } from "./language/descriptor";
 import { linkBlock } from "./link/descriptor";
 import { listBlock } from "./list/descriptor";
 import { matchingBlock } from "./matching/descriptor";
+import { placeholderBlock } from "./placeholder/descriptor";
 import { progressBlock } from "./progress/descriptor";
 import { quizBlock } from "./quiz/descriptor";
 import { revealerBlock } from "./revealer/descriptor";
@@ -59,6 +60,7 @@ registerBlock(arrowBlock);
 registerBlock(codeBlock);
 registerBlock(texBlock);
 registerBlock(scriptBlock);
+registerBlock(placeholderBlock);
 
 /** The descriptor of a kind, if it has one. */
 export function descriptorOf<B extends Block>(block: B): BlockDescriptor<B> | undefined;
@@ -94,6 +96,11 @@ export function taskSpecOf(block: { kind: string }): TaskSpec | undefined {
 /** Whether a kind cannot be in a layout (it holds a state, or needs an answer). */
 export function isPageOnlyKind(kind: string): boolean {
   return PAGE_ONLY_KINDS_BY_HAND.has(kind) || !!descriptorOf(kind)?.placement.pageOnly;
+}
+
+/** Whether a kind exists only in a layout (a placeholder is the slot the slides of the layout fill). */
+export function isLayoutOnlyKind(kind: string): boolean {
+  return !!descriptorOf(kind)?.placement.layoutOnly;
 }
 
 /** The lists of a block that describes itself, by name. */

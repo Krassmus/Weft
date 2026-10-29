@@ -74,7 +74,7 @@ function buildQuizLane(
       kind: "event",
       sourceBlockId: quiz.id,
       eventType: outcome ? QUIZ_OUTCOME_EVENT_TYPES[outcome] : "quiz-submit",
-      // (A gap text and a checker have the events of a quiz, under their own names; a checker's "richtig" is a ticked box.)
+      // (A block that describes itself - a gap text, a checker - has the events of a quiz under its own names; a checker's "richtig" is a ticked box.)
       ...(task
         ? { label: tr(outcome === "richtig" ? task.labels.correct : outcome === "falsch" ? task.labels.incorrect : task.labels.submit) }
         : quiz.kind === "sort"
@@ -82,10 +82,8 @@ function buildQuizLane(
         : quiz.kind === "matching"
         ? { label: tr(outcome === "richtig" ? "ui.matching_submitted_correct" : outcome === "falsch" ? "ui.matching_submitted_incorrect" : "ui.matching_submitted") }
         : outcome
-          ? { label: tr("ui.submitted", { n0: quiz.kind === "cloze" ? tr("ui.gap_text") : tr("ui.quiz"), outcome: tr(outcome === "richtig" ? "ui.outcome_correct" : "ui.outcome_incorrect") }) }
-          : quiz.kind === "cloze"
-            ? { label: tr("ui.gap_text_submitted") }
-            : {}),
+          ? { label: tr("ui.submitted", { n0: tr("ui.quiz"), outcome: tr(outcome === "richtig" ? "ui.outcome_correct" : "ui.outcome_incorrect") }) }
+          : {}),
     },
   ];
   const edges: TimelineLane["edges"] = [{ from: fillId, to: submitId, kind: "unknown" }];

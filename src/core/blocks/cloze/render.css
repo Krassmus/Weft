@@ -1,0 +1,68 @@
+/* A gap text (ClozeBlock) as renderCloze (blocks/cloze/render.js) draws it: the text with its blanks as input fields, the button and the feedback of a quiz
+   under it (core/runtime/quizCard.css). Embedded into the exported page ahead of player.runtime.css and imported by the editor, so that the thumbnails and
+   the PDF draw what the player draws. */
+.weft-cloze {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  height: 100%;
+  overflow: auto;
+  padding: 0.25em;
+  box-sizing: border-box;
+}
+
+.weft-cloze-text > :first-child {
+  margin-top: 0;
+}
+
+.weft-cloze-text > :last-child {
+  margin-bottom: 0 !important;
+}
+
+.weft-cloze-input {
+  font: inherit;
+  color: inherit;
+  min-width: 3ch;
+  max-width: 100%;
+  padding: 0.05em 0.35em;
+  border: 0.06em solid var(--slide-line-strong);
+  border-radius: 0.25em;
+  background: var(--slide-surface);
+  text-align: center;
+  vertical-align: baseline;
+}
+
+.weft-cloze-input:focus {
+  outline: 0.12em solid var(--slide-accent-line);
+  outline-offset: 0.06em;
+}
+
+.weft-cloze-input.is-correct {
+  border-color: var(--slide-ok);
+  background: var(--slide-ok-soft);
+  color: var(--slide-ok-text);
+}
+
+.weft-cloze-input.is-incorrect {
+  border-color: var(--slide-bad);
+  background: var(--slide-bad-soft);
+  color: var(--slide-bad-text);
+}
+
+.weft-cloze-mark {
+  margin-left: 0.25em;
+  font-weight: 700;
+}
+
+.weft-cloze-mark.is-correct {
+  color: var(--slide-ok);
+}
+
+.weft-cloze-mark.is-incorrect {
+  color: var(--slide-bad);
+}
+
+/* A picture of it (a thumbnail, the PDF): what does not fit is cut off, not scrolled. */
+.weft-cloze.is-picture {
+  overflow: hidden;
+}

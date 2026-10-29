@@ -3,6 +3,7 @@ import { parseHTML } from "linkedom";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { buttonLookStyle, renderButton } from "../src/core/blocks/button/render.js";
 import { renderChecker } from "../src/core/blocks/checker/render.js";
+import { clozeIsRight, renderCloze } from "../src/core/blocks/cloze/render.js";
 import { renderIframe } from "../src/core/blocks/iframe/render.js";
 import { renderLanguage } from "../src/core/blocks/language/render.js";
 import { renderProgress } from "../src/core/blocks/progress/render.js";
@@ -24,7 +25,7 @@ beforeAll(() => {
   const { window, document } = parseHTML("<!doctype html><html><body></body></html>");
   // (A page has an address: a relative one is read against it.)
   (window as unknown as { location: unknown }).location = { href: "https://player.example/index.html" };
-  Object.assign(globalThis, { window, document });
+  Object.assign(globalThis, { window, document, NodeFilter: (window as unknown as { NodeFilter?: unknown }).NodeFilter ?? { SHOW_TEXT: 4 } });
   // (linkedom's drop-down cannot be given a value: it is told by the option that is selected, which is what a browser does.)
   const select = (window as unknown as { HTMLSelectElement: { prototype: object } }).HTMLSelectElement.prototype;
   Object.defineProperty(select, "value", {
@@ -56,6 +57,7 @@ const WORDS: Record<string, string> = {
   incorrect: "Falsch",
   solutionWord: "Lösungswort",
   solutionAttemptsLeft: "Noch {n}",
+  blank: "Lücke {n} von {total}",
   embedded: "Eingebettete Seite",
   thanks: "Danke!",
   next: "Weiter",
@@ -75,7 +77,7 @@ const ICONS = {
 };
 
 /** Every render.js there is must be run here: this is the list of what is run (a new one fails the test below until it is added). */
-const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text", "list"];
+const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text", "list", "cloze"];
 
 describe("the render functions", () => {
   it("are all tested here", () => {
@@ -92,7 +94,7 @@ describe("the render functions", () => {
     const inlined = source.replace(/^export /gm, "");
     expect(inlined).not.toMatch(/\bexport\b\s+(function|var|const|let|default)/);
     // The way the page has it: a script of its own that leaves the function there for the player after it.
-    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText", list: "renderList" }[kind];
+    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText", list: "renderList", cloze: "renderCloze" }[kind];
     expect(new Function(`${inlined}; return typeof ${name};`)()).toBe("function");
   });
 });
@@ -830,4 +832,159 @@ describe("the marks of a list's points", () => {
     vi.unstubAllGlobals();
     sizes.current = { H1: 22, P: 11, SPAN: 11, DIV: 11 };
   });
+});
+
+// ---- the gap text -----------------------------------------------------------------------------------------------------------------------
+
+describe("how an answer of a gap text is judged", () => {
+  it("is right when it is one of the answers - spaces never count, capital letters only when asked for", () => {
+    expect(clozeIsRight("berlin", ["Berlin"], false, 0)).toBe(true);
+    expect(clozeIsRight("berlin", ["Berlin"], true, 0)).toBe(false);
+    expect(clozeIsRight(" New  York ", ["NewYork"], false, 0)).toBe(true);
+    expect(clozeIsRight("Pariz", ["Paris", "Pariz"], true, 0)).toBe(true);
+    expect(clozeIsRight("", ["Berlin"], false, 0)).toBe(false);
+  });
+
+  it("puts up with as many wrong characters as the tolerance says - and with none in a very short answer", () => {
+    expect(clozeIsRight("Berlim", ["Berlin"], false, 1)).toBe(true);
+    expect(clozeIsRight("Berlmm", ["Berlin"], false, 1)).toBe(false);
+    expect(clozeIsRight("Berlmm", ["Berlin"], false, 2)).toBe(true);
+    // (An answer of two characters with one allowed slip: "Ra" is another word, not a typo of "Ro" - one of three is.)
+    expect(clozeIsRight("Ra", ["Ro"], false, 1)).toBe(false);
+    expect(clozeIsRight("Ram", ["Rom"], false, 1)).toBe(true);
+    expect(clozeIsRight("Ro ", ["Ro"], false, 1)).toBe(true);
+  });
+});
+
+describe.each(MODES)("a gap text drawn for %s", (mode) => {
+  const props = { html: "<p>Die Hauptstadt ist [[Berlin]] und [[Paris|Pariz]].</p>", caseSensitive: false, tolerance: 0 };
+  const context = () => ({ mode, text, textWith, icons: ICONS, applyVariables: vi.fn(), fill: vi.fn(), submit: vi.fn(), announce: vi.fn() });
+  const inputs = (root: Element) => [...root.querySelectorAll(".weft-cloze-input")] as HTMLInputElement[];
+  const type = (input: HTMLInputElement, value: string) => {
+    input.value = value;
+    fire(input, "input");
+  };
+
+  it("is drawn with a field for every blank (as wide as its longest answer, named for whoever cannot see it), the button, can be drawn again, and goes away", () => {
+    const root = element();
+    const ctx = context();
+    const instance = renderCloze(root, props, ctx);
+    expect(root.textContent).toContain("Die Hauptstadt ist ");
+    expect(root.textContent).not.toContain("[[");
+    expect(inputs(root).map((input) => input.getAttribute("aria-label"))).toEqual(["Lücke 1 von 2", "Lücke 2 von 2"]);
+    expect(inputs(root).map((input) => input.getAttribute("style"))).toEqual(["width:8ch;", "width:7ch;"]);
+    expect(find(root, ".weft-quiz-submit")?.textContent).toBe("Abschicken");
+    expect((find(root, ".weft-quiz-feedback") as HTMLElement).hidden).toBe(true);
+    expect(ctx.applyVariables).toHaveBeenCalledTimes(1);
+    instance.update({ ...props, html: "<p>[[eins]] Neu</p>" });
+    expect(inputs(root).length).toBe(1);
+    expect(root.textContent).toContain("Neu");
+    expect(ctx.applyVariables).toHaveBeenCalledTimes(2);
+    instance.destroy();
+    expect(root.childNodes.length).toBe(0);
+  });
+
+  it("is drawn in a place that has no variables, and without blanks it is just its words", () => {
+    const root = element();
+    renderCloze(root, { ...props, html: "<p>Nichts</p>" }, { mode, text, textWith, icons: ICONS, fill: vi.fn(), submit: vi.fn(), announce: vi.fn() });
+    expect(inputs(root).length).toBe(0);
+    expect(root.textContent).toContain("Nichts");
+  });
+
+  it("does not take a marker with formatting in the middle of it for a blank", () => {
+    const root = element();
+    renderCloze(root, { ...props, html: "<p>[[Ber<b>lin</b>]] und [[ok]]</p>" }, context());
+    expect(inputs(root).length).toBe(1);
+  });
+
+  if (mode === "play") {
+    it("tells the first letter typed once, and keeps what was typed when the language changes", () => {
+      const root = element();
+      const ctx = context();
+      const instance = renderCloze(root, props, ctx);
+      type(inputs(root)[0], "Ber");
+      type(inputs(root)[0], "Berl");
+      expect(ctx.fill).toHaveBeenCalledTimes(1);
+      instance.update({ ...props, html: "<p>Anders [[Berlin]] und [[Paris]]</p>" });
+      expect(inputs(root)[0].value).toBe("Berl");
+    });
+
+    it("judges every blank when it is submitted, marks them, tells the place what was right, and thanks the right answer", () => {
+      const root = element();
+      const ctx = context();
+      renderCloze(root, props, ctx);
+      type(inputs(root)[0], "berlin");
+      type(inputs(root)[1], "Pariz");
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      expect(ctx.submit).toHaveBeenCalledWith({ blanks: [{ key: "Berlin", right: true }, { key: "Paris|Pariz", right: true }], allRight: true });
+      expect(inputs(root).map((input) => input.className)).toEqual(["weft-cloze-input is-correct", "weft-cloze-input is-correct"]);
+      expect(inputs(root).every((input) => input.disabled)).toBe(true);
+      expect([...root.querySelectorAll(".weft-cloze-mark")].map((mark) => mark.textContent)).toEqual(["✓", "✓"]);
+      const feedback = find(root, ".weft-quiz-feedback") as HTMLElement;
+      expect(feedback.hidden).toBe(false);
+      expect(feedback.className).toBe("weft-quiz-feedback is-correct");
+      expect(feedback.textContent).toBe("Richtig");
+      expect(find(root, ".weft-quiz-feedback-icon")?.innerHTML).toContain("ok");
+      expect((find(root, ".weft-quiz-submit") as HTMLButtonElement).hidden).toBe(true);
+      expect(ctx.announce).toHaveBeenCalledWith("Richtig");
+    });
+
+    it("is wrong when one blank is - and says which", () => {
+      const root = element();
+      const ctx = context();
+      renderCloze(root, props, ctx);
+      type(inputs(root)[0], "Berlin");
+      type(inputs(root)[1], "Rom");
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      expect(ctx.submit).toHaveBeenCalledWith({ blanks: [{ key: "Berlin", right: true }, { key: "Paris|Pariz", right: false }], allRight: false });
+      expect(inputs(root)[1].getAttribute("aria-invalid")).toBe("true");
+      expect(inputs(root)[1].className).toBe("weft-cloze-input is-incorrect");
+      expect((find(root, ".weft-quiz-feedback") as HTMLElement).className).toBe("weft-quiz-feedback is-incorrect");
+      expect(find(root, ".weft-quiz-feedback")?.textContent).toBe("Falsch");
+    });
+
+    it("holds an empty answer wrong, and judges by the case and the tolerance it is given", () => {
+      const strict = element();
+      const ctx = context();
+      renderCloze(strict, { ...props, caseSensitive: true }, ctx);
+      type(inputs(strict)[0], "berlin");
+      fire(find(strict, ".weft-quiz-submit") as Element, "click");
+      expect(ctx.submit).toHaveBeenCalledWith({ blanks: [{ key: "Berlin", right: false }, { key: "Paris|Pariz", right: false }], allRight: false });
+      const loose = element();
+      const ctx2 = context();
+      renderCloze(loose, { ...props, tolerance: 1 }, ctx2);
+      type(inputs(loose)[0], "Berlim");
+      type(inputs(loose)[1], "Parix");
+      fire(find(loose, ".weft-quiz-submit") as Element, "click");
+      expect(ctx2.submit).toHaveBeenCalledWith({ blanks: [{ key: "Berlin", right: true }, { key: "Paris|Pariz", right: true }], allRight: true });
+    });
+
+    it("is not changed by another language once it was submitted - only the word of the feedback is", () => {
+      const root = element();
+      const instance = renderCloze(root, props, context());
+      type(inputs(root)[0], "Berlin");
+      type(inputs(root)[1], "Paris");
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      WORDS.correct = "Correct";
+      instance.update({ ...props, html: "<p>Andere Wörter [[x]]</p>" });
+      expect(find(root, ".weft-quiz-feedback")?.textContent).toBe("Correct");
+      expect(inputs(root).length).toBe(2);
+      expect(inputs(root)[0].value).toBe("Berlin");
+      WORDS.correct = "Richtig";
+    });
+  } else {
+    it("is only a picture of the empty fields and the button: nothing to write in or press", () => {
+      const root = element();
+      const ctx = context();
+      renderCloze(root, props, ctx);
+      expect(inputs(root).every((input) => input.readOnly && input.tabIndex === -1)).toBe(true);
+      const button = find(root, ".weft-quiz-submit") as HTMLButtonElement;
+      expect(button.tabIndex).toBe(-1);
+      type(inputs(root)[0], "x");
+      fire(button, "click");
+      expect(ctx.fill).not.toHaveBeenCalled();
+      expect(ctx.submit).not.toHaveBeenCalled();
+      expect((find(root, ".weft-cloze") as HTMLElement).className).toBe("weft-cloze is-picture");
+    });
+  }
 });

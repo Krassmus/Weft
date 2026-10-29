@@ -46,20 +46,20 @@ Guides: [docs/ai-authoring.en.md](docs/ai-authoring.en.md), [docs/operations.en.
   die alle Blöcke gleich behandeln (Menü, Standardwerte, Übersetzungen, Event-Graph, Textexport,
   `weft validate` / `inspect` / `schema`, das Panel in der Seitenleiste), fragen die Registry
   (`registry.ts`) statt eines eigenen `switch (block.kind)`. Der React-Teil (Icon, Ansicht) steht im
-  Editor in `features/editor/blocks/blockViews.tsx`. Acht davon (alle außer der Galerie) werden sogar von **einer** Funktion gezeichnet
+  Editor in `features/editor/blocks/blockViews.tsx`. Zehn davon (alle außer der Galerie) werden sogar von **einer** Funktion gezeichnet
   (`blocks/<Art>/render.js`, reines JavaScript ohne Imports): der
   Player bettet sie unverändert ein, der Editor ruft sie für Canvas, Miniaturen und PDF auf (`RenderHost.tsx`). Ein
   *Modus* sagt, wo gezeichnet wird, und der Block entscheidet selbst, was er dort zeigt: `play` (bedienbar), `edit`
   (Canvas: ein Bild, nichts darin ist bedienbar), `thumbnail`, `print` (PDF). Das Lösungswort und der Checker sind außerhalb von `play`
-  das leere Feld (beim Checker schreibt man die Worte auf dem Canvas an Ort und Stelle, beim Button die Beschriftung, beim Text die Worte mit dem Rich-Text des Editors: das sind die eigenen Ansichten des Editors, `ownCanvas`); die eingebettete Seite ist live im Player und im Canvas, ein grauer Kasten mit Icon in der Miniatur
+  das leere Feld (beim Checker schreibt man die Worte auf dem Canvas an Ort und Stelle, beim Button die Beschriftung, beim Text die Worte mit dem Rich-Text des Editors, bei der Liste ihre Punkte (Enter teilt, Rücktaste verbindet, Pfeiltasten wechseln den Punkt), beim Lückentext der Text mit den Lücken als `[[Antwort]]`: das sind die eigenen Ansichten des Editors, `ownCanvas`); die eingebettete Seite ist live im Player und im Canvas, ein grauer Kasten mit Icon in der Miniatur
   und eine Karte mit Adresse und QR-Code im PDF; der Link ist nur im Player ein Link, sonst ein Bild davon (im PDF
   mit der Adresse als Link); der Sprachumschalter ist ein echtes Auswahlfeld im Player, ein Bild davon im Canvas (ein
   natives Auswahlfeld skaliert nicht mit der Folie und ist beim Zoomen langsam) und ein grauer Kasten in Miniatur und PDF; der Fortschrittsbalken bekommt seinen Wert vom Ort (im Player von der Variable, mit
-  Animation); der Text ist das positionierte Element selbst (Kasten, Weichzeichner und Scrollen gehören ihm: ein Weichzeichner hinter einem Kind eines eingeblendeten Elements sähe die Folie nicht), scrollt nur im Player und kürzt sonst ab. Das gemeinsame Aussehen steht in `core/runtime/quizCard.css` und `blocks/*/render.css`,
-  die Player und Editor beide laden. Bisher beschreiben sich das Lösungswort, der Checker, der Button, der Text, die Galerie, die eingebettete Seite, der Link, der
+  Animation); der Text ist das positionierte Element selbst (Kasten, Weichzeichner und Scrollen gehören ihm: ein Weichzeichner hinter einem Kind eines eingeblendeten Elements sähe die Folie nicht), scrollt nur im Player und kürzt sonst ab; die Liste gibt dem Player die Zeile jedes Punktes zurück (`rows`), an der er den Aufbau Punkt für Punkt hängt (die Ereignisse stehen im Graph der Folie); der Lückentext ist außerhalb von `play` ein Bild der leeren Felder und des Buttons und beurteilt Antworten mit derselben Funktion, die der Editor benutzt (`core/document/cloze.ts` bezieht sie von dort) - was nach dem Abschicken passiert (Variablen, Punkte, Pflichtaufgabe, Ereignisse) ist Sache des Players. Das gemeinsame Aussehen steht in `core/runtime/quizCard.css` und `blocks/*/render.css`,
+  die Player und Editor beide laden. Bisher beschreiben sich das Lösungswort, der Checker, der Button, der Text, die Liste, der Lückentext, die Galerie, die eingebettete Seite, der Link, der
   Fortschrittsbalken und der Sprachumschalter so (`blocks/solution/`, `blocks/checker/`, `blocks/button/`, `blocks/text/`,
-  `blocks/gallery/`, `blocks/iframe/`, `blocks/link/`, `blocks/progress/`, `blocks/language/`; Feldtypen: Text - auch mit einer formatierten Variante (HTML) wie die Beschriftung des Buttons -, reines HTML (der Text-Block), Ja/Nein, Zahl (ganz oder mit Nachkommastellen), Auswahl aus einigen Wörtern,
-  Variablen-Effekte, Datei, Liste von Elementen mit Datei und Text); die anderen Arten sind noch von Hand an diesen Stellen eingetragen. Der Deskriptor
+  `blocks/list/`, `blocks/cloze/`, `blocks/gallery/`, `blocks/iframe/`, `blocks/link/`, `blocks/progress/`, `blocks/language/`; Feldtypen: Text - auch mit einer formatierten Variante (HTML) wie die Beschriftung des Buttons -, reines HTML (der Text-Block, die Punkte der Liste, der Lückentext), Ja/Nein, Zahl (ganz oder mit Nachkommastellen), Auswahl aus einigen Wörtern,
+  Variablen-Effekte (auch je Wort: `answerEffects` des Lückentexts), Datei, Liste von Elementen mit Datei und Text); die anderen Arten sind noch von Hand an diesen Stellen eingetragen. Der Deskriptor
   ist so geschnitten (nur Daten und reine Funktionen auf dem JSON des Blocks), dass er das Manifest
   eines Plugin-Blocks werden kann.
 - **Undo/Redo über immer-Patches**, gespeichert *im Dokument selbst*

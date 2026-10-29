@@ -2,6 +2,7 @@ import type { Block } from "../types";
 import type { BlockDescriptor, FieldSpec, HtmlField, ListField, TaskSpec, TextField } from "./types";
 import { buttonBlock } from "./button/descriptor";
 import { checkerBlock } from "./checker/descriptor";
+import { clozeBlock } from "./cloze/descriptor";
 import { galleryBlock } from "./gallery/descriptor";
 import { iframeBlock } from "./iframe/descriptor";
 import { languageBlock } from "./language/descriptor";
@@ -31,6 +32,7 @@ registerBlock(checkerBlock);
 registerBlock(buttonBlock);
 registerBlock(textBlock);
 registerBlock(listBlock);
+registerBlock(clozeBlock);
 
 /** The descriptor of a kind, if it has one. */
 export function descriptorOf<B extends Block>(block: B): BlockDescriptor<B> | undefined;
@@ -50,8 +52,8 @@ export function fieldsOf(block: Block): [string, FieldSpec][] {
 }
 
 // The kinds that have not been moved to a descriptor yet and have the events of a quiz / cannot be in a layout.
-const TASK_KINDS_BY_HAND = new Set(["quiz", "cloze", "matching", "sort"]);
-const PAGE_ONLY_KINDS_BY_HAND = new Set(["quiz", "cloze", "matching", "sort", "script"]);
+const TASK_KINDS_BY_HAND = new Set(["quiz", "matching", "sort"]);
+const PAGE_ONLY_KINDS_BY_HAND = new Set(["quiz", "matching", "sort", "script"]);
 
 /** Whether the block has the events of a quiz in the page's graph: the first answer, submitted, and submitted right / wrong. */
 export function isTaskBlock(block: { kind: string }): boolean {
@@ -179,13 +181,13 @@ export function variableWordings(block: Block): Wording[] {
  * The texts of a block that `weft text export` lists: its translatable text fields that say what they are (`cli`), in the order of the descriptor. `html`:
  * the value is HTML (a formatted text, or its plain words escaped), else a plain text.
  */
-export function exportedTexts(block: Block): { name: string; key: string; part: string; role: string; value: string; html: boolean; formatted?: string }[] {
+export function exportedTexts(block: Block): { name: string; key: string; part: string; role: string; value: string; html: boolean; formatted?: string; blanks?: boolean }[] {
   const record = block as unknown as Record<string, unknown>;
   return fieldsOf(block).flatMap(([name, spec]) => {
     // (A formatted text that is only HTML: its translation is `html` too.)
     if (spec.type === "html") {
       if (!spec.translatable || !spec.cli) return [];
-      return [{ name, key: "html", part: spec.cli.part, role: spec.cli.role, value: (record[name] as string | undefined) ?? "", html: true, formatted: undefined }];
+      return [{ name, key: "html", part: spec.cli.part, role: spec.cli.role, value: (record[name] as string | undefined) ?? "", html: true, formatted: undefined, blanks: spec.blanks }];
     }
     if (spec.type !== "text" || !spec.translatable || !spec.cli) return [];
     const plain = (record[name] as string | undefined) ?? "";

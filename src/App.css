@@ -1879,10 +1879,9 @@ button.weft-timeline-node-icon:hover {
   margin-bottom: 0 !important;
 }
 
-/* A gap text (ClozeBlock): the text, and under it the button of the quiz. The blanks of a thumbnail are empty boxes. Kept in step with
-   .weft-cloze* in player.runtime.css. */
-.weft-edit-block-cloze,
-.weft-thumb-block-cloze {
+/* A gap text (ClozeBlock) on the canvas: the text, and under it a picture of the button of the quiz. The thumbnails and the player draw it with
+   core/blocks/cloze/render.css (.weft-cloze*). */
+.weft-edit-block-cloze {
   display: flex;
   flex-direction: column;
   gap: 0.6em;
@@ -1894,22 +1893,12 @@ button.weft-timeline-node-icon:hover {
   outline: none;
 }
 
-.weft-edit-block-cloze-text > :first-child,
-.weft-thumb-block-cloze-text > :first-child {
+.weft-edit-block-cloze-text > :first-child {
   margin-top: 0;
 }
 
-.weft-edit-block-cloze-text > :last-child,
-.weft-thumb-block-cloze-text > :last-child {
+.weft-edit-block-cloze-text > :last-child {
   margin-bottom: 0 !important;
-}
-
-.weft-cloze-blank {
-  display: inline-block;
-  height: 1em;
-  vertical-align: text-bottom;
-  border-bottom: 0.08em solid currentColor;
-  opacity: 0.55;
 }
 
 /* The button next to the colour that opens the dialog "Schrift" (TextFormatDialog.tsx). */

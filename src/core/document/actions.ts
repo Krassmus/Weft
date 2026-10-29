@@ -641,16 +641,6 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
   const described = descriptorOf(kind);
   if (described) return { ...base, ...described.defaults(), kind, position: { ...described.placement.box } } as NewBlock;
   switch (kind) {
-    case "cloze":
-      return {
-        ...base,
-        kind,
-        position: { x: 10, y: 28, width: 80, height: 45 },
-        html: tr("ui.cloze_sample_text"),
-        onEachCorrect: [],
-        onCorrect: [],
-        onIncorrect: [],
-      };
     case "matching": {
       // Three objects, two of which belong to a target and one to none (a decoy), and the two targets: the cards stand in two columns.
       const sourceTexts = tr("ui.matching_sample_sources").split("|");
@@ -696,6 +686,7 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
     case "button":
     case "text":
     case "list":
+    case "cloze":
       // (A kind with a descriptor is made above - it has no case of its own.)
       throw new Error(`The kind "${kind}" has no descriptor.`);
     case "placeholder":

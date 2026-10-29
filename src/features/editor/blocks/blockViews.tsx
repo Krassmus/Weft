@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
-import type { Block, ButtonBlock, CheckerBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ListBlock, ProgressBlock, SolutionBlock, TextBlock } from "../../../core/types";
+import type { Block, ButtonBlock, CheckerBlock, ClozeBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ListBlock, ProgressBlock, SolutionBlock, TextBlock } from "../../../core/types";
 import { ButtonView } from "./ButtonView";
 import { CheckerCanvas } from "./CheckerCanvas";
 import { CheckerView } from "./CheckerView";
+import { ClozeView } from "./ClozeView";
 import { GalleryCanvas } from "./GalleryCanvas";
 import { GalleryView } from "./GalleryView";
 import { IframeView } from "./IframeView";
@@ -101,6 +102,13 @@ const listView: BlockViewSpec<ListBlock> = {
   freelyMovable: false,
 };
 
+const clozeView: BlockViewSpec<ClozeBlock> = {
+  View: ({ block, lang, defaultLang, mode, progress }) => <ClozeView block={block} lang={lang} defaultLang={defaultLang} mode={mode} progress={progress} />,
+  // (Its text is written in place on the canvas, the blanks as [[answer]], with the editor's rich text.)
+  ownCanvas: true,
+  freelyMovable: false,
+};
+
 const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   solution: solutionView as BlockViewSpec<never>,
   gallery: galleryView as BlockViewSpec<never>,
@@ -112,6 +120,7 @@ const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   button: buttonView as BlockViewSpec<never>,
   text: textView as BlockViewSpec<never>,
   list: listView as BlockViewSpec<never>,
+  cloze: clozeView as BlockViewSpec<never>,
 };
 
 /** The editor's views of a kind, if it has them here. */

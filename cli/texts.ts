@@ -59,8 +59,6 @@ function hasWords(html: string | undefined): boolean {
 function textsOfBlock(block: Block): { key: string; source: string; role: string }[] {
   const id = block.id;
   switch (block.kind) {
-    case "cloze":
-      return hasWords(block.html) ? [{ key: `${id}#html`, source: block.html, role: "Lückentext" }] : [];
     case "quiz": {
       const items: { key: string; source: string; role: string }[] = [];
       if (hasWords(block.questionHtml)) items.push({ key: `${id}#question`, source: block.questionHtml, role: "Frage" });
@@ -359,7 +357,7 @@ export function importTexts(content: WeftModule, file: TextsFile): ImportReport 
         report.skipped++;
         continue;
       }
-      const problems = checkTranslation(source, translated, block.kind === "cloze");
+      const problems = checkTranslation(source, translated, exportedTexts(block).find((text) => text.part === part)?.blanks === true);
       for (const problem of problems) report.problems.push({ ...problem, key: `${item.key} (${language})` });
       if (problems.some((p) => p.severity === "error")) {
         report.skipped++;

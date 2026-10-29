@@ -171,10 +171,6 @@ function effectsOf(block: Block): { effects: VariableEffect[]; what: string }[] 
     for (const option of block.options ?? []) {
       groups.push({ effects: option.onRight ?? [], what: "bei richtig behandelter Option" }, { effects: option.onWrong ?? [], what: "bei falsch behandelter Option" });
     }
-  } else if (block.kind === "cloze") {
-    groups.push({ effects: block.onCorrect ?? [], what: "wenn alles richtig ist" }, { effects: block.onIncorrect ?? [], what: "wenn etwas falsch ist" });
-    groups.push({ effects: block.onEachCorrect ?? [], what: "bei jeder richtigen Lücke" });
-    for (const effects of Object.values(block.answerEffects ?? {})) groups.push({ effects, what: "bei einer bestimmten Antwort" });
   } else if (block.kind === "matching") {
     groups.push({ effects: block.onEachCorrect ?? [], what: "bei jeder richtigen Zuordnung" }, { effects: block.onEachWrong ?? [], what: "bei jeder falschen Zuordnung" });
     groups.push({ effects: block.onCorrect ?? [], what: "wenn alles richtig ist" }, { effects: block.onIncorrect ?? [], what: "wenn nicht alles richtig ist" });
@@ -185,6 +181,7 @@ function effectsOf(block: Block): { effects: VariableEffect[]; what: string }[] 
     // (A block that describes itself - see core/blocks - says which of its fields are changes to variables, and when they happen.)
     for (const [name, spec] of fieldsOf(block)) {
       if (spec.type === "effects") groups.push({ effects: ((block as unknown as Record<string, VariableEffect[] | undefined>)[name]) ?? [], what: spec.cliWhat });
+      if (spec.type === "effectsMap") for (const effects of Object.values(((block as unknown as Record<string, Record<string, VariableEffect[]> | undefined>)[name]) ?? {})) groups.push({ effects, what: spec.cliWhat });
     }
   }
   return groups;
@@ -481,11 +478,6 @@ export function validate(loaded: LoadedWeft): Finding[] {
       if (block.options.length < 2 && !block.open) add("info", "quiz-few-options", "Das Quiz hat weniger als zwei Optionen.", here);
     }
 
-    // Gap text.
-    if (block.kind === "cloze" && !/\[\[[^\]]+\]\]/.test(block.html)) {
-      add("warning", "cloze-no-blanks", "Der Lückentext hat keine Lücke (Antworten stehen als [[Antwort]] im Text).", here);
-    }
-
     // {{placeholders}}.
     const problems = [...new Set(placeholderSources(block).flatMap((html) => placeholderProblems(html, variableNames)))];
     for (const problem of problems) add("warning", "placeholder-variable", problem, here);
@@ -534,7 +526,7 @@ export function validate(loaded: LoadedWeft): Finding[] {
     };
     // (A block that describes itself: any of its texts has words.)
     if (languages.length > 1 && descriptorOf(block) && [...exportedTexts(block), ...exportedItemTexts(block)].some((text) => ("html" in text && text.html ? plainTextOfHtml(text.value) : text.value).trim() !== "")) markUntranslated();
-    if (languages.length > 1 && (block.kind === "matching" || block.kind === "sort" || block.kind === "quiz" || block.kind === "cloze")) {
+    if (languages.length > 1 && (block.kind === "matching" || block.kind === "sort" || block.kind === "quiz")) {
       const hasWords =
         block.kind === "quiz"
           ? plainTextOfHtml(block.questionHtml).trim() !== ""

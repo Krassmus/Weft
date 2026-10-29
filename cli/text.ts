@@ -31,8 +31,6 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
   switch (block.kind) {
     case "placeholder":
       return `Platzhalter „${block.label}"`;
-    case "cloze":
-      return words(block.html) || "(leer)";
     case "quiz": {
       const options = block.options.length;
       const correct = block.correctOptionIds.length;

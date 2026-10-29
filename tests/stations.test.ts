@@ -51,7 +51,7 @@ function sampleOf(name: string, spec: FieldSpec, ids: { asset: string; variable:
     case "text":
       return spec.sample ?? `Beispiel ${name}`;
     case "html":
-      return `<p>Beispiel ${name}</p>`;
+      return spec.blanks ? `<p>Beispiel [[${name}]] und [[eins|zwei]]</p>` : `<p>Beispiel ${name}</p>`;
     case "number":
       return Math.max(spec.min ?? 0, 2) + 0.5;
     case "choice":
@@ -62,6 +62,8 @@ function sampleOf(name: string, spec: FieldSpec, ids: { asset: string; variable:
       return Math.max(spec.min ?? 0, 2);
     case "effects":
       return [{ variableId: ids.variable, op: "add", value: 1 }];
+    case "effectsMap":
+      return { [`Beispiel ${name}`]: [{ variableId: ids.variable, op: "add", value: 1 }] };
     case "asset":
       return ids.asset;
     case "list": {
@@ -373,6 +375,7 @@ describe("what is known about each kind", () => {
     language: { pageOnly: false, task: false, translatable: [], lists: [] },
     text: { pageOnly: false, task: false, translatable: ["html"], lists: [] },
     list: { pageOnly: false, task: false, translatable: [], lists: ["items"] },
+    cloze: { pageOnly: true, task: true, translatable: ["html"], lists: [] },
   };
 
   it("has an entry for every kind that describes itself - and for no other", () => {
@@ -419,7 +422,7 @@ describe("what `weft validate` says about a block that is wrong", () => {
 describe("a field of every type", () => {
   // The field types the stations are told about (blocks/types.ts): a type that is new has to be in a descriptor that is tested above, or it is
   // not tested at all.
-  const TYPES = ["text", "html", "choice", "number", "bool", "int", "effects", "asset", "list"];
+  const TYPES = ["text", "html", "choice", "number", "bool", "int", "effects", "effectsMap", "asset", "list"];
 
   it("is in at least one descriptor, so that every station has been run with it", () => {
     const seen = new Set<string>();

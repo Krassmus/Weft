@@ -12,9 +12,8 @@ import { ArrowSvg } from "./blocks/ArrowSvg";
 import { FilesView } from "./blocks/FilesView";
 import { ShapeSvg } from "./blocks/ShapeSvg";
 import { ImageSvg } from "./blocks/ImageSvg";
-import { quizOptionHtml, quizQuestionHtml, textHtml } from "../../core/document/translations";
+import { quizOptionHtml, quizQuestionHtml } from "../../core/document/translations";
 import { withProgress } from "../../core/document/variablePlaceholders";
-import { clozeBlanksAsBoxes } from "../../core/document/cloze";
 import { playerStringsFor } from "../../core/i18n/playerStrings";
 import { useEditingLanguage } from "./useEditingLanguage";
 import { CodeView } from "./blocks/CodeView";
@@ -180,17 +179,6 @@ function ThumbBlockBody({
         dangerouslySetInnerHTML={{ __html: block.html }}
       />
     ) : null;
-  }
-  if (block.kind === "cloze") {
-    return (
-      <div className="weft-thumb-block weft-thumb-block-cloze" style={style}>
-        <div className="weft-thumb-block-cloze-text" dangerouslySetInnerHTML={{ __html: clozeBlanksAsBoxes(shown(textHtml(block, lang, defaultLang))) }} />
-        <div className="weft-thumb-block-quiz-submit">
-          <span className="weft-thumb-block-quiz-submit-icon" dangerouslySetInnerHTML={{ __html: acceptSvg }} />
-          {playerStringsFor(lang).submit}
-        </div>
-      </div>
-    );
   }
   if (block.kind === "script") {
     return (

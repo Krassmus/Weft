@@ -78,7 +78,6 @@ function plainLinesOfHtml(html: string): string[] {
 function blockLines(block: Block): string[] {
   switch (block.kind) {
     case "placeholder":
-    case "cloze":
       return plainLinesOfHtml(block.html);
     case "matching":
       return [...block.sources, ...block.targets].map((item) => item.text).filter((text) => text.trim() !== "");

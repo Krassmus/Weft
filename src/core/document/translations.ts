@@ -219,7 +219,6 @@ export function plainTextOfHtml(html: string): string {
 export function isTranslated(block: Translatable, language: string | null, defaultLanguage: string | null): boolean {
   if (isOwnWording(language, defaultLanguage) || !language) return true;
   const translation = block.translations?.[language];
-  if (block.kind === "cloze") return translation?.html !== undefined;
   if (block.kind === "quiz") return translation?.questionHtml !== undefined;
   if (block.kind === "matching") {
     const first = block.sources[0] ?? block.targets[0];
@@ -463,13 +462,10 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       (block as Translatable).translations = translations;
       continue;
     }
-    if (block.kind !== "cloze" && block.kind !== "quiz" && block.kind !== "matching" && block.kind !== "sort") continue;
+    if (block.kind !== "quiz" && block.kind !== "matching" && block.kind !== "sort") continue;
     const incoming = block.translations?.[newDefault];
     const outgoing: BlockTranslation = {};
-    if (block.kind === "cloze") {
-      outgoing.html = block.html;
-      if (incoming?.html !== undefined) block.html = incoming.html;
-    } else if (block.kind === "matching") {
+    if (block.kind === "matching") {
       const cards = [...block.sources, ...block.targets];
       outgoing.items = Object.fromEntries(cards.map((item) => [item.id, item.text]));
       for (const item of cards) {

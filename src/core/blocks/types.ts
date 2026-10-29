@@ -54,6 +54,8 @@ export interface TextField {
  */
 export interface HtmlField {
   type: "html";
+  /** `[[answer]]` in it are the blanks of a gap text: a translation has to keep as many of them as the text has. */
+  blanks?: boolean;
   translatable?: boolean;
   shown?: boolean;
   variables?: boolean;
@@ -64,6 +66,13 @@ export interface HtmlField {
 export interface BoolField {
   type: "bool";
   ui?: FieldUi;
+}
+
+/** Changes to variables by a word: a record of lists of effects (a gap text's `answerEffects`, by what stands in the brackets). */
+export interface EffectsMapField {
+  type: "effectsMap";
+  /** What `weft validate` says it is for, in "… Effekt ohne Variable" (German). */
+  cliWhat: string;
 }
 
 /** A number that may have decimals (a distance, a size); absent when the author has not set it. */
@@ -139,7 +148,7 @@ export interface ListUi {
   remove: TranslationKey;
 }
 
-export type FieldSpec = TextField | HtmlField | BoolField | NumberField | ChoiceField | IntField | EffectsField | AssetField | ListField;
+export type FieldSpec = TextField | HtmlField | BoolField | NumberField | ChoiceField | IntField | EffectsField | EffectsMapField | AssetField | ListField;
 
 /**
  * A block with a task, as a quiz has: the events "first answer", "submitted", and "submitted - right / wrong" in the page's graph, which what is to

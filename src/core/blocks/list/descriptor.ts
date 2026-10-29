@@ -63,6 +63,7 @@ export const listBlock: BlockDescriptor<ListBlock> = {
       replacesEntrance: (block, where) => where.onPage && !!block.itemEntrance && block.entranceEffect.type !== "off",
       triggerable: true,
       inChain: true,
+      cliAlias: "list-item",
       looks: { "list-item-entrance": { label: () => tr("ui.list_item_3"), icon: "animation", color: "yellow" } },
       label: (_block, context) => tr("ui.list_item", { n0: (context.index ?? 0) + 1 }),
     },

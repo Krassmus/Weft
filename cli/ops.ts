@@ -9,29 +9,14 @@ import { buildTextHtml, estimateHeightPercent } from "./markup";
 import type { TextSpec } from "./markup";
 import { applyPlaceholderStyle, plainParagraphs } from "../src/core/document/placeholders";
 import { pageLabels } from "../src/core/document/pageLabels";
-import {
-  blockActionNodeId,
-  blockEffectNodeId,
-  buttonClickNodeId,
-  groupEffectNodeId,
-  listItemNodeId,
-  quizEndNodeId,
-  quizFillNodeId,
-  quizSubmitNodeId,
-  videoEndNodeId,
-  videoResumeNodeId,
-  videoStartNodeId,
-  revealerButtonNodeId,
-  revealerOpenNodeId,
-  videoStopNodeId,
-} from "../src/core/document/pageTimeline";
+import { quizEndNodeId } from "../src/core/document/pageTimeline";
 import { branchPageIds, sequenceOf } from "../src/core/document/sequence";
 import type { Block, VariableCondition, VariableType, WeftModule } from "../src/core/types";
 import { createId } from "../src/core/id";
 import { aspectRatioNumeric } from "../src/core/aspectRatio";
 import { CliError } from "./load";
 import { readMedia } from "./media";
-import { isLayoutOnlyKind } from "../src/core/blocks/registry";
+import { eventIdOfAlias, isLayoutOnlyKind } from "../src/core/blocks/registry";
 import { setCurrentModule } from "./storeStub";
 
 /**
@@ -163,54 +148,16 @@ function eventId(ctx: Context, raw: unknown, what: string): string {
   if (value === "start" || value === "end" || colon < 0) return value;
   const kind = value.slice(0, colon);
   const rest = value.slice(colon + 1);
+  // (The names the descriptors give their events, and the Aufbau, Abbau and Aktionseffekte: see eventIdOfAlias.)
+  const named = eventIdOfAlias(kind, rest, (ref) => findBlock(ctx, ref).block.id);
+  if (named !== undefined) return named;
   const blockOf = () => findBlock(ctx, rest).block.id;
   switch (kind) {
-    case "entrance":
-      return blockEffectNodeId(blockOf(), "entrance");
-    case "exit":
-      return blockEffectNodeId(blockOf(), "exit");
-    case "click":
-      return buttonClickNodeId(blockOf());
-    case "group-entrance":
-      return groupEffectNodeId(rest, "entrance");
-    case "group-exit":
-      return groupEffectNodeId(rest, "exit");
-    case "quiz-fill":
-      return quizFillNodeId(blockOf());
-    case "quiz-submit":
-      return quizSubmitNodeId(blockOf());
-    case "quiz-correct":
-      return quizSubmitNodeId(blockOf(), "richtig");
-    case "quiz-incorrect":
-      return quizSubmitNodeId(blockOf(), "falsch");
+    // (The "Nächste Folie" of an outcome of a quiz is no event of a block.)
     case "quiz-correct-end":
       return quizEndNodeId(blockOf(), "richtig");
     case "quiz-incorrect-end":
       return quizEndNodeId(blockOf(), "falsch");
-    case "revealer-open":
-      return revealerOpenNodeId(blockOf());
-    case "revealer-button":
-      return revealerButtonNodeId(blockOf());
-    case "video-start":
-      return videoStartNodeId(blockOf());
-    case "video-end":
-      return videoEndNodeId(blockOf());
-    case "video-stop": {
-      const [block, point] = rest.split(":");
-      return videoStopNodeId(findBlock(ctx, block).block.id, point);
-    }
-    case "video-resume": {
-      const [block, point] = rest.split(":");
-      return videoResumeNodeId(findBlock(ctx, block).block.id, point);
-    }
-    case "action": {
-      const [block, effect] = rest.split(":");
-      return blockActionNodeId(findBlock(ctx, block).block.id, effect);
-    }
-    case "list-item": {
-      const [block, item] = rest.split(":");
-      return listItemNodeId(findBlock(ctx, block).block.id, item);
-    }
     default:
       return value; // a real id with a colon in it ("block-entrance:<id>", "end:quiz:...")
   }

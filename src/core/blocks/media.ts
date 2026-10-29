@@ -50,6 +50,7 @@ export const mediaEvents: OwnEventSpec<VideoBlock | AudioBlock>[] = [
     timelineTypes: ["video-start-auto", "video-start-manual"],
     triggerable: true,
     lane: "own",
+    cliAlias: "video-start",
     label: (block) => (block.kind === "audio" ? tr("ui.start_of_the_audio") : undefined),
     looks: {
       "video-start-auto": { label: () => tr("ui.start_of_the_video"), icon: "video", color: "violet", triggeredColor: "blue" },
@@ -65,6 +66,7 @@ export const mediaEvents: OwnEventSpec<VideoBlock | AudioBlock>[] = [
     triggerable: false,
     lane: "own",
     timeField: "timeSeconds",
+    cliAlias: "video-stop",
     label: (_block, context) => tr("ui.time_mark", { n0: formatTimeMMSS(context.item?.timeSeconds as number) }),
     node: (_block, context) => ({ stopsVideo: context.item?.stopsVideo as boolean, shownKinds: stopPointShownKinds(context.page, context.id) }),
     looks: { "video-stop-point": { label: () => tr("ui.time_mark_2"), hint: () => tr("ui.happens_as_soon_as_playback_reaches"), icon: "stop-point", color: "blue" } },
@@ -77,6 +79,7 @@ export const mediaEvents: OwnEventSpec<VideoBlock | AudioBlock>[] = [
         exists: (_block, _where, item) => item?.stopsVideo === true,
         triggerable: false,
         lane: "own",
+        cliAlias: "video-resume",
         label: (block, context) => tr(block.kind === "audio" ? "ui.audio_continues" : "ui.video_continues", { n0: formatTimeMMSS(context.item?.timeSeconds as number) }),
         looks: { "video-resume": { label: () => tr("ui.video_continues_2"), hint: () => tr("ui.happens_as_soon_as_the_learner_3"), icon: "play", color: "violet" } },
       },
@@ -89,6 +92,7 @@ export const mediaEvents: OwnEventSpec<VideoBlock | AudioBlock>[] = [
     timelineType: (block) => (block.loop ? "video-end-loop" : "video-end-stop"),
     triggerable: false,
     lane: "own",
+    cliAlias: "video-end",
     label: (block) => (block.kind === "audio" ? tr("ui.end_of_the_audio") : undefined),
     looks: {
       "video-end-loop": { label: () => tr("ui.end_of_the_video"), hint: () => tr("ui.never_happens_the_video_runs_in"), icon: "infinity", color: "blue" },

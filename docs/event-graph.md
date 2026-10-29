@@ -233,7 +233,10 @@ Zeitleiste sind, die Worte ihres Knotens (`EffectEventSpec`, `effectEventSpecs` 
 (`effectEventsOf`, `groupEffectEventsOf` in der Registry: nicht, wo der Effekt „aus“ ist, und der Aufbau eines Blocks nicht, wo ein eigenes Ereignis
 des Blocks an seiner Stelle steht) - stehen an einer Stelle; `buildEventGraph` und `pageTimeline.ts` (die Knoten, `blockEventIds`,
 `ensureEffectTriggers`, `TRIGGERABLE_EVENT_TYPES`) fragen sie. Was Aufbau und Abbau **tun**, steht nur im Player (`blockEffectEventId` bildet dieselben Ids
-wie der Editor). Ebenso die Aktionseffekte eines Blocks
+wie der Editor). Die Kurznamen, unter denen `weft edit` ein Ereignis kennt (`click:<Button>`, `entrance:<Block>`, `video-stop:<Video>:<Zeitmarke>`, `quiz-correct:<Quiz>` ...),
+stehen als `cliAlias` am Eintrag (bei Aufbau, Abbau und Aktionseffekten in `pageEvents.ts`); `eventIdOfAlias` in der Registry macht aus Name und Rest die Id,
+`eventId` in `cli/ops.ts` fragt sie. Nur die „Nächste Folie“ der Ausgänge einer Aufgabe (`quiz-correct-end`, `quiz-incorrect-end`) kennt `cli/ops.ts` selbst; die
+Namen stehen in `docs/operations.md` und `.en.md` (ein Test prüft es). Ebenso die Aktionseffekte eines Blocks
 (`actionEventSpec`: `block-action:<Block>:<Effekt>`, nur auf einer Folie, die Art in der Zeitleiste je nach Effekt, in der Registry `actionEventsOf`) und die
 Bedingungen einer Folie (`conditionEventSpec`: `condition:<Ereignis, das sie auslöst>`, ein Ereignis, das der Player eintreten lässt, wenn die Formel wahr
 wird; kein Trigger kann es auslösen). Die Ereignisse, die ein Ziehen im Graphen umordnen kann, nennt `isReorderableEventId`. Was die Aktionen **tun** (der Block

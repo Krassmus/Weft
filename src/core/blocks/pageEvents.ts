@@ -34,16 +34,18 @@ export interface EffectEventSpec {
   timelineType: TimelineEventType;
   /** The words of the node where the author gave none (`name`: what the block is called in the graph). Absent: the look of the type. */
   label?(name: string): string;
+  /** The short name `weft edit` knows it by, followed by the block (or, for a group, the group): `entrance:<Block>` (see OwnEventSpec.cliAlias). */
+  cliAlias: string;
 }
 
 export const effectEventSpecs: Record<EffectPhase, { block: EffectEventSpec; group: EffectEventSpec }> = {
   entrance: {
-    block: { idPrefix: "block-entrance", graphKind: "entrance", timelineType: "block-entrance", label: (name) => `${name} erscheint` },
-    group: { idPrefix: "group-entrance", graphKind: "group-entrance", timelineType: "group-entrance" },
+    block: { idPrefix: "block-entrance", graphKind: "entrance", timelineType: "block-entrance", label: (name) => `${name} erscheint`, cliAlias: "entrance" },
+    group: { idPrefix: "group-entrance", graphKind: "group-entrance", timelineType: "group-entrance", cliAlias: "group-entrance" },
   },
   exit: {
-    block: { idPrefix: "block-exit", graphKind: "exit", timelineType: "block-exit", label: (name) => `${name} verschwindet` },
-    group: { idPrefix: "group-exit", graphKind: "group-exit", timelineType: "group-exit" },
+    block: { idPrefix: "block-exit", graphKind: "exit", timelineType: "block-exit", label: (name) => `${name} verschwindet`, cliAlias: "exit" },
+    group: { idPrefix: "group-exit", graphKind: "group-exit", timelineType: "group-exit", cliAlias: "group-exit" },
   },
 };
 
@@ -55,6 +57,8 @@ export const effectEventSpecs: Record<EffectPhase, { block: EffectEventSpec; gro
  */
 export const actionEventSpec = {
   idPrefix: "block-action",
+  /** `action:<Block>:<Effekt>` (see OwnEventSpec.cliAlias). */
+  cliAlias: "action",
   graphKind: "action" as GraphEventKind,
   timelineTypes: { move: "block-action-move", shake: "block-action-shake", blink: "block-action-blink" } as const satisfies Record<ActionEffect["type"], TimelineEventType>,
   /** The words of the node: what the block does (`name`: what it is called in the graph). */

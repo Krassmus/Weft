@@ -6,7 +6,7 @@ import { runOperations } from "../cli/ops";
 import { setCurrentModule } from "../cli/storeStub";
 import { collectTexts, exportTexts, importTexts } from "../cli/texts";
 import { validate } from "../cli/validate";
-import { actionEventId, actionEventsOf, conditionEventId, describedKinds, descriptorOf, effectEventId, effectEventsOf, eventLookOf, exportedItemTexts, exportedTexts, fieldsOf, isInvisibleKind, isPageOnlyKind, isTaskBlock, listFieldsOf, ownEventId, ownEventsOf, groupEffectEventsOf, isConditionEventId, isReorderableEventId, parseActionEventId, replacesEntrance, shownWordings, taskEventId, triggerableActionEventTypes, triggerableEffectEventTypes, triggerableOwnEventTypes, variableWordings } from "../src/core/blocks/registry";
+import { actionEventId, actionEventsOf, conditionEventId, describedKinds, descriptorOf, effectEventId, eventAliasNames, eventIdOfAlias, effectEventsOf, eventLookOf, exportedItemTexts, exportedTexts, fieldsOf, isInvisibleKind, isPageOnlyKind, isTaskBlock, listFieldsOf, ownEventId, ownEventsOf, groupEffectEventsOf, isConditionEventId, isReorderableEventId, parseActionEventId, replacesEntrance, shownWordings, taskEventId, triggerableActionEventTypes, triggerableEffectEventTypes, triggerableOwnEventTypes, variableWordings } from "../src/core/blocks/registry";
 import { buildRuntimeHtml } from "../src/core/runtime/buildRuntimeHtml";
 import { pageReadingOrder } from "../src/core/document/readingOrder";
 import { formatTimeMMSS } from "../src/core/formatTime";
@@ -1942,6 +1942,65 @@ describe("the events of their own that a block gives its page (the descriptor's 
     expect(groupEffectEventsOf({ id: "g", entranceEffect: fade, exitEffect: off }).map((event) => event.id)).toEqual(["group-entrance:g"]);
     expect(groupEffectEventsOf({ id: "g" })).toEqual([]);
     expect(groupEffectEventsOf({ id: "g", entranceEffect: null, exitEffect: undefined })).toEqual([]);
+  });
+
+  it("have the short names `weft edit` knows them by (cliAlias): each one once, made into the id the specs give, written down in the docs of both languages", () => {
+    const names = eventAliasNames().sort();
+    expect(names).toEqual(["action", "click", "entrance", "exit", "group-entrance", "group-exit", "list-item", "quiz-correct", "quiz-fill", "quiz-incorrect", "quiz-submit", "revealer-button", "revealer-open", "video-end", "video-resume", "video-start", "video-stop"]);
+    // (Every alias of a spec is its own: one name for one event.)
+    const specs = describedKinds().flatMap((kind) => (descriptorOf(kind)?.events ?? []).flatMap((spec) => [spec, ...(spec.companions ?? [])]));
+    const given = [...new Set(specs)].map((spec) => spec.cliAlias).filter(Boolean);
+    expect(new Set(given).size).toBe(given.length);
+    // The id made of the name and what follows it: the block (a name, an alias or an id: here the block is given by `b:` + the name), the item for an event of items.
+    const blockOf = (ref: string) => `B(${ref})`;
+    const id = (alias: string, rest: string) => eventIdOfAlias(alias, rest, blockOf);
+    expect(id("entrance", "x")).toBe("block-entrance:B(x)");
+    expect(id("exit", "x")).toBe("block-exit:B(x)");
+    expect(id("action", "x:e1")).toBe("block-action:B(x):e1");
+    expect(id("group-entrance", "g1")).toBe("group-entrance:g1");
+    expect(id("group-exit", "g1")).toBe("group-exit:g1");
+    expect(id("click", "x")).toBe("button-click:B(x)");
+    expect(id("revealer-open", "x")).toBe("revealer-open:B(x)");
+    expect(id("revealer-button", "x")).toBe("revealer-button:B(x)");
+    expect(id("list-item", "x:i1")).toBe("list-item:B(x):i1");
+    expect(id("list-item", "x")).toBe("list-item:B(x)");
+    expect(id("video-start", "x")).toBe("video-start:B(x)");
+    expect(id("video-end", "x")).toBe("video-end:B(x)");
+    expect(id("video-stop", "x:s1")).toBe("video-stop:B(x):s1");
+    expect(id("video-resume", "x:s1")).toBe("video-resume:B(x):s1");
+    expect(id("quiz-fill", "x")).toBe("quiz-fill:B(x)");
+    expect(id("quiz-submit", "x")).toBe("quiz-submit:B(x)");
+    expect(id("quiz-correct", "x")).toBe("quiz-submit:B(x):richtig");
+    expect(id("quiz-incorrect", "x")).toBe("quiz-submit:B(x):falsch");
+    expect(id("script-run", "x")).toBeUndefined();
+    expect(id("gibt-es-nicht", "x")).toBeUndefined();
+    // (The ids are the ones the editor's functions give.)
+    expect(id("video-resume", "b:s1")).toBe(videoResumeNodeId("B(b)", "s1"));
+    expect(id("quiz-correct", "b")).toBe(quizSubmitNodeId("B(b)", "richtig"));
+    // `weft edit` takes them: a trigger from the click on a button to the Aufbau of a text, from a right answer to its Abbau - the blocks by the name an operation gave them.
+    const m = moduleWith("text", false);
+    const run = (ops: object[]) => runOperations(m.content, [
+      { op: "add_block", page: m.pageId, kind: "text", set: { entranceEffect: fade, exitEffect: fade }, as: "t" },
+      { op: "add_block", page: m.pageId, kind: "button", set: {}, as: "btn" },
+      { op: "add_block", page: m.pageId, kind: "quiz", set: {}, as: "q" },
+      ...ops,
+    ] as never);
+    const page = m.content.pages[m.pageId];
+    const triggerIds = () => Object.values(page.timeline.triggers).map((t) => `${t.from} > ${t.to}`);
+    const made = run([{ op: "add_trigger", page: m.pageId, from: "click:$btn", to: "entrance:$t" }, { op: "add_trigger", page: m.pageId, from: "quiz-correct:$q", to: "exit:$t" }]);
+    const [text, button, quiz] = made.results.slice(0, 3).map((result) => result.result.block as string);
+    expect(triggerIds()).toContain(`button-click:${button} > block-entrance:${text}`);
+    expect(triggerIds()).toContain(`quiz-submit:${quiz}:richtig > block-exit:${text}`);
+    // (The "Nächste Folie" of an outcome is no event of a block: its own name.)
+    const ended = run([{ op: "add_trigger", page: m.pageId, from: "quiz-correct-end:$q", to: "entrance:$t" }, { op: "add_trigger", page: m.pageId, from: "quiz-incorrect-end:$q", to: "exit:$t" }]);
+    const [, , quiz2] = ended.results.slice(0, 3).map((result) => result.result.block as string);
+    expect(triggerIds()).toContain(`end:quiz:${quiz2}:richtig > block-entrance:${ended.results[0].result.block}`);
+    expect(triggerIds()).toContain(`end:quiz:${quiz2}:falsch > block-exit:${ended.results[0].result.block}`);
+    // The docs name every one of them, and the two "Nächste Folie" of a quiz's outcomes, in German and in English.
+    for (const file of ["docs/operations.md", "docs/operations.en.md"]) {
+      const text = readFileSync(file, "utf8");
+      for (const name of [...names, "quiz-correct-end", "quiz-incorrect-end"]) expect(text, `${file}: ${name}`).toContain(`"${name}:<`);
+    }
   });
 
   it("have a look each in the editor: every type a spec can give has a title and an icon; so has every type of the timeline", () => {

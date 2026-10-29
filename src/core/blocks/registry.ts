@@ -125,6 +125,7 @@ function taskEventSpecs(task: TaskSpec): OwnEventSpec<Block>[] {
       graphKind: "quiz-fill",
       timelineType: "quiz-fill-start",
       triggerable: false,
+      cliAlias: "quiz-fill",
       label: () => tr(task.labels.fill),
       looks: { "quiz-fill-start": { label: () => tr("ui.fill_in"), hint: () => tr("ui.happens_as_soon_as_the_learner_2"), icon: "cursor", color: "violet", byLearner: true } },
     },
@@ -134,6 +135,7 @@ function taskEventSpecs(task: TaskSpec): OwnEventSpec<Block>[] {
       graphKind: "quiz-submit",
       timelineType: "quiz-submit",
       triggerable: false,
+      cliAlias: "quiz-submit",
       label: () => tr(task.labels.submit),
       looks: { "quiz-submit": { label: () => tr("ui.quiz_submitted"), hint: () => tr("ui.happens_as_soon_as_the_quiz"), icon: "accept", color: "violet", byLearner: true } },
     },
@@ -144,6 +146,7 @@ function taskEventSpecs(task: TaskSpec): OwnEventSpec<Block>[] {
       graphKind: "quiz-submit",
       timelineType: "quiz-submit-correct",
       triggerable: false,
+      cliAlias: "quiz-correct",
       label: () => tr(task.labels.correct),
       looks: { "quiz-submit-correct": { label: () => tr("ui.quiz_submitted"), hint: () => tr("ui.happens_as_soon_as_the_quiz_2"), icon: "accept", color: "violet", byLearner: true } },
     },
@@ -155,6 +158,7 @@ function taskEventSpecs(task: TaskSpec): OwnEventSpec<Block>[] {
       graphKind: "quiz-submit",
       timelineType: "quiz-submit-incorrect",
       triggerable: false,
+      cliAlias: "quiz-incorrect",
       label: () => tr(task.labels.incorrect),
       looks: { "quiz-submit-incorrect": { label: () => tr("ui.quiz_submitted"), hint: () => tr("ui.happens_as_soon_as_the_quiz_3"), icon: "decline", color: "violet", byLearner: true } },
     },
@@ -267,6 +271,45 @@ export function isConditionEventId(id: string): boolean {
 export function isReorderableEventId(id: string): boolean {
   const prefixes = [effectEventSpecs.entrance.block.idPrefix, effectEventSpecs.exit.block.idPrefix, actionEventSpec.idPrefix, descriptorOf("list")?.events?.find((spec) => spec.key === "item")?.idPrefix ?? "list-item"];
   return prefixes.some((prefix) => id.startsWith(`${prefix}:`));
+}
+
+/** The short names `weft edit` knows events by (OwnEventSpec.cliAlias, and those of the Aufbau, the Abbau and the Aktionseffekte), each with how the id is made of
+ * what follows the name: `blockOf` gives the id of the block a name, an alias or an id stands for. */
+function eventAliases(): Map<string, (rest: string, blockOf: (ref: string) => string) => string> {
+  const aliases = new Map<string, (rest: string, blockOf: (ref: string) => string) => string>();
+  const specs: OwnEventSpec<Block>[] = describedKinds().flatMap((kind) => (descriptorOf(kind)?.events ?? []) as OwnEventSpec<Block>[]);
+  specs.push(...taskEventSpecs({ labels: {} as never, cliNames: {} as never }));
+  // (An event that follows another of the same item - the video going on after a time mark - is an event of items like it.)
+  for (const { spec, perItem } of specs.flatMap((candidate) => [candidate, ...(candidate.companions ?? [])].map((spec) => ({ spec, perItem: candidate.perItem })))) {
+    const alias = spec.cliAlias;
+    if (!alias || aliases.has(alias)) continue;
+    const suffix = spec.idSuffix ? `:${spec.idSuffix}` : "";
+    aliases.set(alias, (rest, blockOf) => {
+      if (!perItem) return `${spec.idPrefix}:${blockOf(rest)}${suffix}`;
+      const [block, item] = rest.split(":");
+      return `${spec.idPrefix}:${blockOf(block)}${item === undefined ? "" : `:${item}`}${suffix}`;
+    });
+  }
+  for (const phase of ["entrance", "exit"] as const) {
+    aliases.set(effectEventSpecs[phase].block.cliAlias, (rest, blockOf) => effectEventId("block", phase, blockOf(rest)));
+    aliases.set(effectEventSpecs[phase].group.cliAlias, (rest) => effectEventId("group", phase, rest));
+  }
+  aliases.set(actionEventSpec.cliAlias, (rest, blockOf) => {
+    const [block, effect] = rest.split(":");
+    return actionEventId(blockOf(block), effect);
+  });
+  return aliases;
+}
+
+/** The names `weft edit` knows events by, as the names before the colon (`entrance`, `click`, `quiz-correct`, ...). */
+export function eventAliasNames(): string[] {
+  return [...eventAliases().keys()];
+}
+
+/** The id of the event the short name `alias` and what follows it name (`entrance:<Block>`: alias "entrance", rest the block) - none if the name is not one
+ * of the events' (the caller then takes the whole as an id). */
+export function eventIdOfAlias(alias: string, rest: string, blockOf: (ref: string) => string): string | undefined {
+  return eventAliases().get(alias)?.(rest, blockOf);
 }
 
 /** The id of the node of an event of a kind of block that is its own: `key` names it among the events of the kind. */

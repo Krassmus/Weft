@@ -46,6 +46,7 @@ export const buttonBlock: BlockDescriptor<ButtonBlock> = {
       timelineType: "button-click",
       triggerable: false,
       lane: true,
+      cliAlias: "click",
       looks: { "button-click": { label: () => tr("ui.button_clicked"), hint: () => tr("ui.happens_as_soon_as_the_learner"), icon: "cursor", color: "violet", byLearner: true } },
       label: (block) => {
         const name = block.name?.trim();

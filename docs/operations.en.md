@@ -36,7 +36,9 @@ by id. Every operation may give what it creates a name with "as"; later operatio
 - fill_placeholder {page, placeholder?, text | html}  (the text of the slide for a placeholder of its layout, formatted like the placeholder; text: lines = paragraphs)
 - add_trigger {page, from, to, delayMs?, weiter?} (ADDS a trigger: an event can have several, the first one that happens triggers it - the Weiter chain every block with an entrance gets by itself stays too; to replace use set_trigger) · set_trigger {page, to, from|null|condition, delayMs?, weiter?} (replaces what triggered "to" - like "Triggered by" in the editor; without weiter: after delayMs, with weiter: at the next Weiter input after "from"; instead of "from" there can be "condition": a formula over the variables as in "Berechnet", for example "points >= 10 and level = 2" - "Triggered by: Variable": "to" is then "entrance:<block>", "exit:<block>" or "action:<block>:<action id>" (an action effect), and it happens when the formula turns from false to true and once when the slide is entered if it is true then) · remove_trigger {page, trigger}
   Events: "start", "end" (next slide), "entrance:<block>", "exit:<block>", "action:<block>:<action id>", "click:<button>", "quiz-fill:<quiz>", "quiz-submit:<quiz>",
-  "quiz-correct:<quiz>", "quiz-incorrect:<quiz>", "quiz-correct-end:<quiz>", "video-start:<video>", "video-end:<video>" or the real id from `weft inspect`.
+  "quiz-correct:<quiz>", "quiz-incorrect:<quiz>", "quiz-correct-end:<quiz>", "quiz-incorrect-end:<quiz>", "video-start:<video>", "video-end:<video>",
+  "video-stop:<video>:<time mark>", "video-resume:<video>:<time mark>" (the same for an audio), "revealer-open:<revealer>", "revealer-button:<revealer>", "list-item:<list>:<item>",
+  "group-entrance:<group>", "group-exit:<group>" or the real id from `weft inspect`.
 
 Note on structure: a jump slide leads to a slide, and the sequence then goes on behind THAT slide (as after a branch).
 For separate ways that meet again afterwards, use add_logic (a fork with branches). A button that jumps to a slide: add_block kind "button"

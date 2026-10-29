@@ -229,6 +229,9 @@ export interface OwnEventSpec<B = never> {
   label?(block: B, context: { name: string; index?: number; item?: Record<string, unknown> }): string | undefined;
   /** What else the node has, which depends on the page (a time mark: whether it stops the video, which blocks it makes appear). */
   node?(block: B, context: { page: Page; id: string; item?: Record<string, unknown> }): Partial<TimelineNode>;
+  /** The short name `weft edit` knows the event by (`click:<Button>` for `button-click:<id>`: the name, then the block - for an event of items `<block>:<item>`),
+   * where it is not just its id. Absent: only the id names it. The names are part of the command line's protocol: a script of operations uses them. */
+  cliAlias?: string;
   /** How the editor shows each type this event can be in (`timelineType` / `timelineTypes`): its standard title, what the panel says about it, its icon. */
   looks: Partial<Record<TimelineEventType, EventTypeLook>>;
 }

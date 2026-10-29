@@ -19,15 +19,6 @@ export function placeholderSources(block: Block): string[] {
     // Every language's wording, not just the default's - a placeholder is just as wrong in French.
     case "placeholder":
       return [block.html];
-    case "quiz":
-      return [
-        block.questionHtml,
-        ...block.options.map((o) => o.html),
-        ...Object.values(block.translations ?? {}).flatMap((t) => [
-          ...(t.questionHtml !== undefined ? [t.questionHtml] : []),
-          ...Object.values(t.options ?? {}),
-        ]),
-      ];
     case "matching":
       // The words of the cards (plain texts, escaped first), in every language.
       return [

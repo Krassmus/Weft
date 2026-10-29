@@ -166,7 +166,7 @@
 /* An answer has a border, which the cut would take away at the corners: it is drawn along the cuts as a line the width of the border
    (--slide-ui-line-width), in the colour of the border (--slide-option-line - set on the answer itself, which is why this is not a value
    of the stage like the others). */
-:is(.weft-stage, .weft-thumb)[data-weft-style="futuristic"] :is(.weft-quiz-option, .weft-edit-block-quiz-option, .weft-thumb-block-quiz-option) {
+:is(.weft-stage, .weft-thumb)[data-weft-style="futuristic"] :is(.weft-quiz-option, .weft-edit-block-quiz-option) {
   background-image:
     linear-gradient(
       135deg,

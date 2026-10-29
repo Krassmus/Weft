@@ -9,6 +9,7 @@ import { renderLanguage } from "../src/core/blocks/language/render.js";
 import { renderProgress } from "../src/core/blocks/progress/render.js";
 import { linkHref, renderLink } from "../src/core/blocks/link/render.js";
 import { renderList } from "../src/core/blocks/list/render.js";
+import { renderQuiz } from "../src/core/blocks/quiz/render.js";
 import { renderSolution } from "../src/core/blocks/solution/render.js";
 import { renderText, textBoxStyle } from "../src/core/blocks/text/render.js";
 
@@ -77,7 +78,7 @@ const ICONS = {
 };
 
 /** Every render.js there is must be run here: this is the list of what is run (a new one fails the test below until it is added). */
-const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text", "list", "cloze"];
+const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text", "list", "cloze", "quiz"];
 
 describe("the render functions", () => {
   it("are all tested here", () => {
@@ -94,7 +95,7 @@ describe("the render functions", () => {
     const inlined = source.replace(/^export /gm, "");
     expect(inlined).not.toMatch(/\bexport\b\s+(function|var|const|let|default)/);
     // The way the page has it: a script of its own that leaves the function there for the player after it.
-    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText", list: "renderList", cloze: "renderCloze" }[kind];
+    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText", list: "renderList", cloze: "renderCloze", quiz: "renderQuiz" }[kind];
     expect(new Function(`${inlined}; return typeof ${name};`)()).toBe("function");
   });
 });
@@ -993,6 +994,170 @@ describe.each(MODES)("a gap text drawn for %s", (mode) => {
       expect(ctx.fill).not.toHaveBeenCalled();
       expect(ctx.submit).not.toHaveBeenCalled();
       expect((find(root, ".weft-cloze") as HTMLElement).className).toBe("weft-cloze is-picture");
+    });
+  }
+});
+
+// ---- the quiz ---------------------------------------------------------------------------------------------------------------------------
+
+describe.each(MODES)("a quiz drawn for %s", (mode) => {
+  const props = {
+    id: "q1",
+    question: "<p>Welche sind <b>richtig</b>?</p>",
+    options: [
+      { id: "a", html: "<p>Eins</p>" },
+      { id: "b", html: "<p>Zwei</p>" },
+      { id: "c", html: "<p>Drei</p>" },
+    ],
+    correctOptionIds: ["a", "c"],
+    open: false,
+    explanation: "Weil\nso.",
+    marked: ["a", "c"],
+  };
+  const context = () => ({ mode, text, icons: ICONS, applyVariables: vi.fn(), fill: vi.fn(), submit: vi.fn(), announce: vi.fn() });
+  const boxes = (root: Element) => [...root.querySelectorAll(".weft-quiz-option-input")] as HTMLInputElement[];
+  const tick = (input: HTMLInputElement, on = true) => {
+    input.checked = on;
+    fire(input, "change");
+  };
+
+  it("is drawn with its question, an answer card with two boxes each, the button, can be drawn again, and goes away", () => {
+    const root = element();
+    const ctx = context();
+    const instance = renderQuiz(root, props, ctx);
+    expect(find(root, ".weft-quiz-question")?.innerHTML).toBe("<p>Welche sind <b>richtig</b>?</p>");
+    expect(find(root, ".weft-quiz-question")?.id).toBe("weft-question-q1");
+    expect(find(root, ".weft-quiz-options")?.getAttribute("aria-labelledby")).toBe("weft-question-q1");
+    expect([...root.querySelectorAll(".weft-quiz-option-text")].map((node) => node.textContent)).toEqual(["Eins", "Zwei", "Drei"]);
+    expect(boxes(root).map((box) => box.getAttribute("value"))).toEqual(["a", "b", "c"]);
+    expect(boxes(root).every((box) => box.getAttribute("name") === "opt-q1")).toBe(true);
+    expect(root.querySelectorAll(".weft-quiz-option-checkbox-icon-unchecked").length).toBe(3);
+    expect(find(root, ".weft-quiz-option-checkbox-icon-checked")?.innerHTML).toContain("checked");
+    expect(find(root, ".weft-quiz-submit")?.textContent).toBe("Abschicken");
+    expect((find(root, ".weft-quiz-feedback") as HTMLElement).hidden).toBe(true);
+    expect((find(root, ".weft-quiz-explanation") as HTMLElement).hidden).toBe(true);
+    expect(ctx.applyVariables).toHaveBeenCalledTimes(4);
+    instance.update({ ...props, question: "<p>Neu</p>", options: [{ id: "a", html: "<p>Nur</p>" }, ...props.options.slice(1)] });
+    expect(find(root, ".weft-quiz-question")?.textContent).toBe("Neu");
+    expect(root.querySelectorAll(".weft-quiz-option-text")[0].textContent).toBe("Nur");
+    instance.destroy();
+    expect(root.childNodes.length).toBe(0);
+  });
+
+  it("is drawn in a place that has no variables", () => {
+    const root = element();
+    renderQuiz(root, props, { mode, text, icons: ICONS, fill: vi.fn(), submit: vi.fn(), announce: vi.fn() });
+    expect(find(root, ".weft-quiz-question")?.textContent).toBe("Welche sind richtig?");
+  });
+
+  if (mode === "play") {
+    it("tells the first answer ticked once", () => {
+      const root = element();
+      const ctx = context();
+      renderQuiz(root, props, ctx);
+      tick(boxes(root)[0]);
+      tick(boxes(root)[1]);
+      expect(ctx.fill).toHaveBeenCalledTimes(1);
+    });
+
+    it("is right when exactly the right answers are ticked: the place is told what was ticked, the answers are locked, the feedback replaces the button", () => {
+      const root = element();
+      const ctx = context();
+      renderQuiz(root, props, ctx);
+      tick(boxes(root)[2]);
+      tick(boxes(root)[0]);
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      expect(ctx.submit).toHaveBeenCalledWith({ ticked: ["a", "c"], correct: true });
+      expect(boxes(root).every((box) => box.disabled)).toBe(true);
+      const feedback = find(root, ".weft-quiz-feedback") as HTMLElement;
+      expect(feedback.hidden).toBe(false);
+      expect(feedback.className).toBe("weft-quiz-feedback is-correct");
+      expect(find(root, ".weft-quiz-feedback-title")?.textContent).toBe("Richtig");
+      expect(find(root, ".weft-quiz-feedback-icon")?.innerHTML).toContain("ok");
+      expect((find(root, ".weft-quiz-submit") as HTMLButtonElement).hidden).toBe(true);
+      const explanation = find(root, ".weft-quiz-explanation") as HTMLElement;
+      expect(explanation.hidden).toBe(false);
+      expect(explanation.textContent).toBe("Weil\nso.");
+      expect(ctx.announce).toHaveBeenCalledWith("Richtig");
+    });
+
+    it("is wrong with a right answer missing, with one too many - and with nothing ticked", () => {
+      const submitted = (ticks: number[]) => {
+        const root = element();
+        const ctx = context();
+        renderQuiz(root, props, ctx);
+        ticks.forEach((index) => tick(boxes(root)[index]));
+        fire(find(root, ".weft-quiz-submit") as Element, "click");
+        return { ctx, root };
+      };
+      expect(submitted([0]).ctx.submit).toHaveBeenCalledWith({ ticked: ["a"], correct: false });
+      expect(submitted([0, 1, 2]).ctx.submit).toHaveBeenCalledWith({ ticked: ["a", "b", "c"], correct: false });
+      const none = submitted([]);
+      expect(none.ctx.submit).toHaveBeenCalledWith({ ticked: [], correct: false });
+      expect((find(none.root, ".weft-quiz-feedback") as HTMLElement).className).toBe("weft-quiz-feedback is-incorrect");
+      expect(find(none.root, ".weft-quiz-feedback-title")?.textContent).toBe("Falsch");
+    });
+
+    it("is thanked, not judged, when it is an open question - whatever is ticked", () => {
+      const root = element();
+      const ctx = context();
+      renderQuiz(root, { ...props, open: true, correctOptionIds: [] }, ctx);
+      tick(boxes(root)[1]);
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      expect(ctx.submit).toHaveBeenCalledWith({ ticked: ["b"], correct: true });
+      expect((find(root, ".weft-quiz-feedback") as HTMLElement).className).toBe("weft-quiz-feedback is-thanks");
+      expect(find(root, ".weft-quiz-feedback-title")?.textContent).toBe("Danke!");
+    });
+
+    it("shows no explanation where there is none", () => {
+      const root = element();
+      renderQuiz(root, { ...props, explanation: "" }, context());
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      expect((find(root, ".weft-quiz-explanation") as HTMLElement).hidden).toBe(true);
+    });
+
+    it("keeps what was ticked and submitted when the language changes - and tells the feedback and the explanation in the new one", () => {
+      const root = element();
+      const instance = renderQuiz(root, props, context());
+      tick(boxes(root)[0]);
+      tick(boxes(root)[2]);
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      WORDS.correct = "Correct";
+      instance.update({ ...props, question: "<p>English?</p>", explanation: "Because." });
+      expect(find(root, ".weft-quiz-feedback-title")?.textContent).toBe("Correct");
+      expect(find(root, ".weft-quiz-explanation")?.textContent).toBe("Because.");
+      expect(find(root, ".weft-quiz-question")?.textContent).toBe("English?");
+      expect(boxes(root).map((box) => !!box.checked)).toEqual([true, false, true]);
+      WORDS.correct = "Richtig";
+    });
+
+    it("is changed in the language before it is submitted: the words only", () => {
+      const root = element();
+      const instance = renderQuiz(root, props, context());
+      tick(boxes(root)[1]);
+      instance.update({ ...props, question: "<p>Anders</p>" });
+      expect((find(root, ".weft-quiz-explanation") as HTMLElement).hidden).toBe(true);
+      expect(boxes(root).map((box) => !!box.checked)).toEqual([false, true, false]);
+    });
+  } else {
+    it("is only a picture: the answers it was told stand ticked, nothing can be ticked or pressed", () => {
+      const root = element();
+      const ctx = context();
+      renderQuiz(root, props, ctx);
+      expect(boxes(root).map((box) => box.hasAttribute("checked"))).toEqual([true, false, true]);
+      expect(boxes(root).every((box) => box.getAttribute("tabindex") === "-1")).toBe(true);
+      const button = find(root, ".weft-quiz-submit") as HTMLButtonElement;
+      expect(button.getAttribute("tabindex")).toBe("-1");
+      fire(button, "click");
+      tick(boxes(root)[1]);
+      expect(ctx.fill).not.toHaveBeenCalled();
+      expect(ctx.submit).not.toHaveBeenCalled();
+    });
+
+    it("stands with no answer ticked where it was told none (a PDF does not give the answers away)", () => {
+      const root = element();
+      renderQuiz(root, { ...props, marked: [] }, context());
+      expect(boxes(root).some((box) => box.hasAttribute("checked"))).toBe(false);
     });
   }
 });

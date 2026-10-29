@@ -166,12 +166,7 @@ function placeholderProblems(html: string, names: ReadonlySet<string>): string[]
 
 function effectsOf(block: Block): { effects: VariableEffect[]; what: string }[] {
   const groups: { effects: VariableEffect[]; what: string }[] = [];
-  if (block.kind === "quiz") {
-    groups.push({ effects: block.onCorrect ?? [], what: "bei richtiger Antwort" }, { effects: block.onIncorrect ?? [], what: "bei falscher Antwort" });
-    for (const option of block.options ?? []) {
-      groups.push({ effects: option.onRight ?? [], what: "bei richtig behandelter Option" }, { effects: option.onWrong ?? [], what: "bei falsch behandelter Option" });
-    }
-  } else if (block.kind === "matching") {
+  if (block.kind === "matching") {
     groups.push({ effects: block.onEachCorrect ?? [], what: "bei jeder richtigen Zuordnung" }, { effects: block.onEachWrong ?? [], what: "bei jeder falschen Zuordnung" });
     groups.push({ effects: block.onCorrect ?? [], what: "wenn alles richtig ist" }, { effects: block.onIncorrect ?? [], what: "wenn nicht alles richtig ist" });
   } else if (block.kind === "sort") {
@@ -181,6 +176,14 @@ function effectsOf(block: Block): { effects: VariableEffect[]; what: string }[] 
     // (A block that describes itself - see core/blocks - says which of its fields are changes to variables, and when they happen.)
     for (const [name, spec] of fieldsOf(block)) {
       if (spec.type === "effects") groups.push({ effects: ((block as unknown as Record<string, VariableEffect[] | undefined>)[name]) ?? [], what: spec.cliWhat });
+      // (The lists of effects of the items of a list - what happens for a quiz's option: one list of each kind for every item.)
+      if (spec.type === "list") {
+        for (const item of ((block as unknown as Record<string, Record<string, unknown>[] | undefined>)[name]) ?? []) {
+          for (const [itemName, itemSpec] of Object.entries(spec.item)) {
+            if (itemSpec.type === "effects") groups.push({ effects: (item[itemName] as VariableEffect[] | undefined) ?? [], what: itemSpec.cliWhat });
+          }
+        }
+      }
       if (spec.type === "effectsMap") for (const effects of Object.values(((block as unknown as Record<string, Record<string, VariableEffect[]> | undefined>)[name]) ?? {})) groups.push({ effects, what: spec.cliWhat });
     }
   }
@@ -468,16 +471,6 @@ export function validate(loaded: LoadedWeft): Finding[] {
     // What a block that describes itself (see core/blocks) says is wrong with it.
     for (const problem of descriptorOf(block)?.validate?.(block as never, content) ?? []) add(problem.level, problem.code, problem.message, problem.hint ? { ...here, hint: problem.hint } : here);
 
-    // Quiz.
-    if (block.kind === "quiz") {
-      const ids = new Set(block.options.map((o) => o.id));
-      for (const id of block.correctOptionIds) {
-        if (!ids.has(id)) add("error", "quiz-correct-missing", "Das Quiz nennt eine richtige Option, die es nicht gibt.", { ...here, hint: "correctOptionIds auf vorhandene Option-Ids beschränken." });
-      }
-      if (!block.open && block.correctOptionIds.length === 0) add("warning", "quiz-no-correct", "Das Quiz hat keine richtige Option und ist nicht offen.", { ...here, hint: "Mindestens eine Option in correctOptionIds eintragen (oder open: true setzen)." });
-      if (block.options.length < 2 && !block.open) add("info", "quiz-few-options", "Das Quiz hat weniger als zwei Optionen.", here);
-    }
-
     // {{placeholders}}.
     const problems = [...new Set(placeholderSources(block).flatMap((html) => placeholderProblems(html, variableNames)))];
     for (const problem of problems) add("warning", "placeholder-variable", problem, here);
@@ -526,15 +519,8 @@ export function validate(loaded: LoadedWeft): Finding[] {
     };
     // (A block that describes itself: any of its texts has words.)
     if (languages.length > 1 && descriptorOf(block) && [...exportedTexts(block), ...exportedItemTexts(block)].some((text) => ("html" in text && text.html ? plainTextOfHtml(text.value) : text.value).trim() !== "")) markUntranslated();
-    if (languages.length > 1 && (block.kind === "matching" || block.kind === "sort" || block.kind === "quiz")) {
-      const hasWords =
-        block.kind === "quiz"
-          ? plainTextOfHtml(block.questionHtml).trim() !== ""
-          : block.kind === "sort"
-              ? block.items.some((item) => item.text.trim() !== "")
-            : block.kind === "matching"
-              ? [...block.sources, ...block.targets].some((item) => item.text.trim() !== "")
-              : plainTextOfHtml(block.html).trim() !== "";
+    if (languages.length > 1 && (block.kind === "matching" || block.kind === "sort")) {
+      const hasWords = block.kind === "sort" ? block.items.some((item) => item.text.trim() !== "") : [...block.sources, ...block.targets].some((item) => item.text.trim() !== "");
       // A text that stands for a placeholder of the layout is the page's own, and has its words in each language like any other.
       if (hasWords) markUntranslated();
     }

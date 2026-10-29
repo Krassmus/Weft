@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Block, ButtonBlock, CheckerBlock, ClozeBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ListBlock, ProgressBlock, SolutionBlock, TextBlock } from "../../../core/types";
+import type { Block, ButtonBlock, CheckerBlock, ClozeBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ListBlock, ProgressBlock, QuizBlock, SolutionBlock, TextBlock } from "../../../core/types";
 import { ButtonView } from "./ButtonView";
 import { CheckerCanvas } from "./CheckerCanvas";
 import { CheckerView } from "./CheckerView";
@@ -11,6 +11,7 @@ import { LanguageView } from "./LanguageView";
 import { LinkView } from "./LinkView";
 import { ListView } from "./ListView";
 import { ProgressView } from "./ProgressView";
+import { QuizView } from "./QuizView";
 import { SolutionView } from "./SolutionView";
 import { TextView } from "./TextView";
 
@@ -109,6 +110,13 @@ const clozeView: BlockViewSpec<ClozeBlock> = {
   freelyMovable: false,
 };
 
+const quizView: BlockViewSpec<QuizBlock> = {
+  View: ({ block, lang, defaultLang, mode, progress }) => <QuizView block={block} lang={lang} defaultLang={defaultLang} mode={mode} progress={progress} />,
+  // (The question and the answers are written in place on the canvas, and the right ones are marked there: the editor's own.)
+  ownCanvas: true,
+  freelyMovable: false,
+};
+
 const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   solution: solutionView as BlockViewSpec<never>,
   gallery: galleryView as BlockViewSpec<never>,
@@ -121,6 +129,7 @@ const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   text: textView as BlockViewSpec<never>,
   list: listView as BlockViewSpec<never>,
   cloze: clozeView as BlockViewSpec<never>,
+  quiz: quizView as BlockViewSpec<never>,
 };
 
 /** The editor's views of a kind, if it has them here. */

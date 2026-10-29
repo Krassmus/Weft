@@ -687,6 +687,7 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
     case "text":
     case "list":
     case "cloze":
+    case "quiz":
       // (A kind with a descriptor is made above - it has no case of its own.)
       throw new Error(`The kind "${kind}" has no descriptor.`);
     case "placeholder":
@@ -762,21 +763,6 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
         width: 0.8,
         startHead: false,
         endHead: true,
-      };
-    case "quiz":
-      return {
-        ...base,
-        kind,
-        // Tall enough for the question, two answers and the button (a quiz box of the usual 20% cuts the button in half).
-        position: { x: 10, y: 28, width: 80, height: 50 },
-        questionHtml: tr("ui.new_question"),
-        options: [
-          { id: createId(), html: tr("ui.option_a") },
-          { id: createId(), html: tr("ui.option_b") },
-        ],
-        correctOptionIds: [],
-        onCorrect: [],
-        onIncorrect: [],
       };
   }
 }

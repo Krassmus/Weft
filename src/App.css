@@ -635,17 +635,6 @@ img.weft-thumb-block {
   border-radius: 0;
 }
 
-/* The quiz as the player shows it before anything is answered: no frame around it, no tint on the answers. */
-.weft-pdf-export .weft-thumb-block-quiz {
-  box-shadow: none;
-  background: transparent;
-  padding: 0;
-}
-
-.weft-pdf-export .weft-thumb-block-quiz-option {
-  background: transparent;
-}
-
 /* A shape's shadow reaches past its box - in the thumbnails too (the box of the thumbnail itself clips it). */
 .weft-thumb-block-shape {
   overflow: visible;
@@ -707,92 +696,16 @@ img.weft-thumb-block {
   fill: currentColor;
 }
 
-/* Same card layout, em-for-em, as the editor canvas (App.css's .weft-edit-block-quiz*) and the
-   real player (player.runtime.css's .weft-quiz*) - see SlideThumbnail.tsx's own comment. No own
-   font-size override here either (there used to be one, 2cqw instead of the shared 1.7cqw base)
-   for the same reason as .weft-edit-block-quiz's: it has to match, or the same quiz content takes
-   up a visibly different proportion of the box than everywhere else this same block renders. */
-.weft-thumb-block-quiz {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6em;
-  overflow: hidden;
-}
-
-.weft-thumb-block-quiz-question {
-  font-size: 1.25em;
-}
-
-/* As in the player (.weft-quiz-question, .weft-quiz-option-text): the text's own first/last paragraph has no margin - without it the
-   question takes up much more room than in the player. */
-.weft-thumb-block-quiz-question > :first-child,
-.weft-thumb-block-quiz-option-text > :first-child {
-  margin-top: 0;
-}
-
-.weft-thumb-block-quiz-question > :last-child,
-.weft-thumb-block-quiz-option-text > :last-child {
-  margin-bottom: 0 !important;
-}
-
-.weft-thumb-block-quiz-options {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4em;
-}
-
-/* Sizes in em only (the player's 1px border at its 21.6px type size is 0.046em, its 6px radius 0.28em): a thumbnail is a few times
-   smaller than the player, where a px border would be several times as thick and make everything taller. */
-.weft-thumb-block-quiz-option {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  --slide-option-line: var(--slide-line);
-  --slide-ui-line-width: 0.046em;
-  font-family: var(--slide-ui-font);
-  font-size: calc(1em * var(--slide-ui-scale));
-  letter-spacing: var(--slide-ui-spacing);
-  padding: 0.4em var(--slide-ui-option-pad-x);
-  border: 0.046em solid var(--slide-option-line);
-  border-radius: var(--slide-ui-radius);
-  clip-path: var(--slide-ui-clip);
-  background-origin: border-box;
-  background-color: transparent;
-}
-
-.weft-thumb-block-quiz-option.is-correct {
-  --slide-option-line: var(--slide-accent-line);
-  background-color: var(--slide-accent-soft);
-}
-
-.weft-thumb-block-quiz-option-checkbox {
-  flex: 0 0 auto;
-  width: 1em;
-  height: 1em;
-  color: var(--slide-line-strong);
-}
-
-.weft-thumb-block-quiz-option.is-correct .weft-thumb-block-quiz-option-checkbox {
-  color: var(--slide-accent-ink);
-}
-
-.weft-thumb-block-quiz-option-checkbox svg,
+/* The submit button of the pictures of a matching and a sorting puzzle (a quiz, a gap text ... have the player's own, drawn by their render.js). */
 .weft-thumb-block-quiz-submit-icon svg {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-.weft-thumb-block-quiz-option-checkbox svg,
-.weft-thumb-block-quiz-option-checkbox svg [fill],
 .weft-thumb-block-quiz-submit-icon svg,
 .weft-thumb-block-quiz-submit-icon svg [fill] {
   fill: currentColor;
-}
-
-.weft-thumb-block-quiz-option-text {
-  flex: 1;
-  min-width: 0;
 }
 
 .weft-thumb-block-quiz-submit {

@@ -63,6 +63,8 @@ function sampleOf(name: string, spec: FieldSpec, ids: { asset: string; variable:
       return Math.max(spec.min ?? 0, 2);
     case "effects":
       return [{ variableId: ids.variable, op: "add", value: 1 }];
+    case "ids":
+      return [];
     case "effectsMap":
       return { [`Beispiel ${name}`]: [{ variableId: ids.variable, op: "add", value: 1 }] };
     case "asset":
@@ -73,6 +75,7 @@ function sampleOf(name: string, spec: FieldSpec, ids: { asset: string; variable:
         for (const [itemName, itemSpec] of Object.entries(spec.item)) {
           if (itemSpec.type === "text") made[itemName] = `Beispiel ${name} ${n}`;
           if (itemSpec.type === "html") made[itemName] = `<p>Beispiel ${name} ${n}</p>`;
+          if (itemSpec.type === "effects") made[itemName] = [{ variableId: ids.variable, op: "add", value: 1 }];
         }
         return made;
       };
@@ -338,7 +341,7 @@ describe.each(KINDS)("the texts of %s in `weft text export` and `weft text impor
     // Every text that has words is in the list, once - and the list has nothing else of this block.
     const expected = [
       ...exportedTexts(block).filter((text) => hasWords(text.value)).map((text) => `${block.id}#${text.part}`),
-      ...exportedItemTexts(block).filter((text) => hasWords(text.value)).map((text) => `${block.id}#item:${text.itemId}`),
+      ...exportedItemTexts(block).filter((text) => hasWords(text.value)).map((text) => `${block.id}#${text.part}:${text.itemId}`),
     ];
     expect(mine.map((item) => item.key).sort()).toEqual(expected.sort());
     expect(collectTexts(content).filter((entry) => entry.block.id === block.id).length).toBe(expected.length);
@@ -377,6 +380,7 @@ describe("what is known about each kind", () => {
     text: { pageOnly: false, task: false, translatable: ["html"], lists: [] },
     list: { pageOnly: false, task: false, translatable: [], lists: ["items"] },
     cloze: { pageOnly: true, task: true, translatable: ["html"], lists: [] },
+    quiz: { pageOnly: true, task: true, translatable: ["explanation", "questionHtml"], lists: ["options"] },
   };
 
   it("has an entry for every kind that describes itself - and for no other", () => {
@@ -423,7 +427,7 @@ describe("what `weft validate` says about a block that is wrong", () => {
 describe("a field of every type", () => {
   // The field types the stations are told about (blocks/types.ts): a type that is new has to be in a descriptor that is tested above, or it is
   // not tested at all.
-  const TYPES = ["text", "html", "choice", "number", "bool", "int", "effects", "effectsMap", "asset", "list"];
+  const TYPES = ["text", "html", "choice", "number", "bool", "int", "effects", "effectsMap", "ids", "asset", "list"];
 
   it("is in at least one descriptor, so that every station has been run with it", () => {
     const seen = new Set<string>();
@@ -667,5 +671,83 @@ describe("the gap text", () => {
     expect(allowedSlips(2, 1)).toBe(0);
     expect(clozeIsRight("Berlim", ["Berlin"], false, 1)).toBe(true);
     expect(clozeIsRight("berlin", ["Berlin"], true, 0)).toBe(false);
+  });
+});
+
+describe("the quiz", () => {
+  const stored = (m: ReturnType<typeof moduleWith>) => m.content.pages[m.pageId].blocks[m.blockId] as unknown as { options: { id: string; html: string }[]; correctOptionIds: string[]; open?: boolean; translations?: Record<string, Record<string, unknown>> };
+  const findings = (m: ReturnType<typeof moduleWith>) => validate({ path: "test.weft", json: { formatVersion: CURRENT_FORMAT_VERSION, content: m.content }, content: m.content, files: new Set(), archive: false });
+
+  it("has the changes to variables it makes: the quiz as a whole, and what each answer does when it is handled right or wrong", () => {
+    const m = moduleWith("quiz", false);
+    expect(fieldsOf(m.block).filter(([, spec]) => spec.type === "effects").map(([name]) => name)).toEqual(["onCorrect", "onIncorrect"]);
+    const options = fieldsOf(m.block).find(([name]) => name === "options")![1] as ListField;
+    expect(Object.entries(options.item).filter(([, spec]) => spec.type === "effects").map(([name]) => name)).toEqual(["onRight", "onWrong"]);
+  });
+
+  it("has the effects of its answers checked for variables that are not there - one list of each kind for every answer", () => {
+    const m = moduleWith("quiz", true);
+    const quiz = stored(m);
+    for (const option of quiz.options as unknown as Record<string, unknown>[]) {
+      option.onRight = [{ variableId: "gibtsnicht", op: "add", value: 1 }];
+      option.onWrong = [{ variableId: "gibtsnicht", op: "add", value: 1 }];
+    }
+    const missing = findings(m).filter((finding) => finding.code === "effect-variable-missing" && JSON.stringify(finding).includes(m.block.id));
+    expect(missing.map((finding) => finding.message).filter((message) => message.includes("richtig behandelter Option")).length).toBe(quiz.options.length);
+    expect(missing.map((finding) => finding.message).filter((message) => message.includes("falsch behandelter Option")).length).toBe(quiz.options.length);
+  });
+
+  it("is exported by the keys it always had - question, option:<id>, explanation - and what comes back is kept where a quiz keeps it", () => {
+    const m = moduleWith("quiz", true);
+    const file = exportTexts(m.content, { file: "test.weft", to: [EN] });
+    const mine = file.items.filter((item) => item.key.startsWith(`${m.block.id}#`));
+    const quiz = stored(m);
+    expect(mine.map((item) => item.key.split("#")[1]).sort()).toEqual(["explanation", "question", ...quiz.options.map((option) => `option:${option.id}`)].sort());
+    for (const item of mine) item.translations[EN] = `EN ${item.source}`;
+    expect(importTexts(m.content, file).applied).toBe(mine.length);
+    const translation = stored(m).translations![EN] as { questionHtml: string; options: Record<string, string>; explanation: string };
+    expect(Object.keys(translation).sort()).toEqual(["explanation", "options", "questionHtml"]);
+    expect(translation.questionHtml).toMatch(/^EN <p>/);
+    expect(Object.keys(translation.options).sort()).toEqual(quiz.options.map((option) => option.id).sort());
+    expect(translation.options[quiz.options[0].id]).toMatch(/^EN <p>/);
+    expect(translation.explanation).toMatch(/^EN /);
+    // The same texts again change nothing.
+    expect(importTexts(m.content, file).unchanged).toBe(mine.length);
+  });
+
+  it("is found translated only when its question, its explanation and its first answer are", () => {
+    const m = moduleWith("quiz", true);
+    const quiz = stored(m);
+    expect(isTranslated(quiz as never, EN, DE)).toBe(false);
+    quiz.translations = { [EN]: { questionHtml: "<p>Q</p>", options: { [quiz.options[0].id]: "<p>A</p>" } } };
+    expect(isTranslated(quiz as never, EN, DE)).toBe(false);
+    quiz.translations[EN].explanation = "Because";
+    expect(isTranslated(quiz as never, EN, DE)).toBe(true);
+  });
+
+  it("has the {{variables}} of its question and its answers found - in every language - and checked", () => {
+    const m = moduleWith("quiz", true);
+    const quiz = stored(m);
+    Object.assign(quiz, { questionHtml: "<p>{{punkte}} {{gibtesnicht}}</p>" });
+    quiz.options[0].html = "<p>{{punkte}}</p>";
+    quiz.translations = { [EN]: { questionHtml: "<p>{{ punkte }} en</p>", options: { [quiz.options[0].id]: "<p>{{punkte}} en</p>" } } };
+    expect(placeholderSources(m.block)).toEqual(expect.arrayContaining(["<p>{{punkte}} {{gibtesnicht}}</p>", "<p>{{punkte}}</p>", "<p>{{ punkte }} en</p>", "<p>{{punkte}} en</p>"]));
+    expect(findings(m).filter((finding) => finding.code === "placeholder-variable").map((finding) => finding.message)).toEqual(expect.arrayContaining([expect.stringContaining("gibtesnicht")]));
+  });
+
+  it("has what is wrong with it said: a right answer that is not there, no right answer, too few answers - and an open question is spared the last two", () => {
+    const m = moduleWith("quiz", true);
+    const quiz = stored(m);
+    quiz.open = false;
+    quiz.correctOptionIds = ["gibtsnicht"];
+    expect(findings(m).some((finding) => finding.code === "quiz-correct-missing" && finding.severity === "error")).toBe(true);
+    quiz.correctOptionIds = [];
+    expect(findings(m).some((finding) => finding.code === "quiz-no-correct" && finding.severity === "warning")).toBe(true);
+    quiz.options = quiz.options.slice(0, 1);
+    expect(findings(m).some((finding) => finding.code === "quiz-few-options" && finding.severity === "info")).toBe(true);
+    quiz.open = true;
+    const codes = findings(m).map((finding) => finding.code);
+    expect(codes).not.toContain("quiz-no-correct");
+    expect(codes).not.toContain("quiz-few-options");
   });
 });

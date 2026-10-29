@@ -83,8 +83,6 @@ function blockLines(block: Block): string[] {
       return [...block.sources, ...block.targets].map((item) => item.text).filter((text) => text.trim() !== "");
     case "sort":
       return [block.startLabel ?? "", ...block.items.map((item) => item.text), block.endLabel ?? ""].filter((text) => text.trim() !== "");
-    case "quiz":
-      return [...plainLinesOfHtml(block.questionHtml), ...block.options.flatMap((option) => plainLinesOfHtml(option.html))];
     case "revealer":
       return [block.title, block.body];
     case "code":

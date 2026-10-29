@@ -56,6 +56,8 @@ export interface HtmlField {
   type: "html";
   /** `[[answer]]` in it are the blanks of a gap text: a translation has to keep as many of them as the text has. */
   blanks?: boolean;
+  /** The key in a BlockTranslation, where it is not `html` (a quiz's question is kept as `questionHtml`). */
+  translationKey?: keyof BlockTranslation;
   translatable?: boolean;
   shown?: boolean;
   variables?: boolean;
@@ -73,6 +75,12 @@ export interface EffectsMapField {
   type: "effectsMap";
   /** What `weft validate` says it is for, in "… Effekt ohne Variable" (German). */
   cliWhat: string;
+}
+
+/** The ids of some of the items of a list of the block (a quiz's right options): each is the `id` of an item of the list `of`. */
+export interface IdsField {
+  type: "ids";
+  of: string;
 }
 
 /** A number that may have decimals (a distance, a size); absent when the author has not set it. */
@@ -124,7 +132,11 @@ export interface AssetField {
 export interface ListField {
   type: "list";
   /** The fields of one item, by name. */
-  item: { [name: string]: TextField | HtmlField | AssetField };
+  item: { [name: string]: TextField | HtmlField | AssetField | EffectsField };
+  /** The key in a BlockTranslation the words of the items are kept under (`items`; a quiz's options are `options`). */
+  translationKey?: "items" | "options";
+  /** `weft text export`: the part of the key of an item's words, `<block>#<cliPart>:<id>` (`item`; a quiz's are `option`). */
+  cliPart?: "item" | "option";
   /** The item that is made for a file that is added (`asset` is the id of the asset the file became). */
   newItem(asset: string): Record<string, unknown>;
   /** What the steps are called in the history (German): files added (one, several), the file of an item changed. */
@@ -148,7 +160,7 @@ export interface ListUi {
   remove: TranslationKey;
 }
 
-export type FieldSpec = TextField | HtmlField | BoolField | NumberField | ChoiceField | IntField | EffectsField | EffectsMapField | AssetField | ListField;
+export type FieldSpec = TextField | HtmlField | BoolField | NumberField | ChoiceField | IntField | EffectsField | EffectsMapField | IdsField | AssetField | ListField;
 
 /**
  * A block with a task, as a quiz has: the events "first answer", "submitted", and "submitted - right / wrong" in the page's graph, which what is to

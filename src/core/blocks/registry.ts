@@ -9,6 +9,7 @@ import { languageBlock } from "./language/descriptor";
 import { linkBlock } from "./link/descriptor";
 import { listBlock } from "./list/descriptor";
 import { progressBlock } from "./progress/descriptor";
+import { quizBlock } from "./quiz/descriptor";
 import { solutionBlock } from "./solution/descriptor";
 import { textBlock } from "./text/descriptor";
 
@@ -33,6 +34,7 @@ registerBlock(buttonBlock);
 registerBlock(textBlock);
 registerBlock(listBlock);
 registerBlock(clozeBlock);
+registerBlock(quizBlock);
 
 /** The descriptor of a kind, if it has one. */
 export function descriptorOf<B extends Block>(block: B): BlockDescriptor<B> | undefined;
@@ -52,8 +54,8 @@ export function fieldsOf(block: Block): [string, FieldSpec][] {
 }
 
 // The kinds that have not been moved to a descriptor yet and have the events of a quiz / cannot be in a layout.
-const TASK_KINDS_BY_HAND = new Set(["quiz", "matching", "sort"]);
-const PAGE_ONLY_KINDS_BY_HAND = new Set(["quiz", "matching", "sort", "script"]);
+const TASK_KINDS_BY_HAND = new Set(["matching", "sort"]);
+const PAGE_ONLY_KINDS_BY_HAND = new Set(["matching", "sort", "script"]);
 
 /** Whether the block has the events of a quiz in the page's graph: the first answer, submitted, and submitted right / wrong. */
 export function isTaskBlock(block: { kind: string }): boolean {
@@ -78,6 +80,11 @@ export function listFieldsOf(block: Block): [string, ListField][] {
 /** The name of the field of an item of a list that holds its words (the one translatable text), if it has one. */
 export function itemTextName(list: ListField): string | undefined {
   return Object.entries(list.item).find((entry): entry is [string, TextField | HtmlField] => (entry[1].type === "text" || entry[1].type === "html") && !!entry[1].translatable)?.[0];
+}
+
+/** The key of a BlockTranslation the words of the items of a list are kept under. */
+export function itemsKeyOf(list: ListField): "items" | "options" {
+  return list.translationKey ?? "items";
 }
 
 /** Whether the words of the items of any list of the block are HTML (formatted), not plain texts. */
@@ -140,9 +147,10 @@ function wordingsWith(block: Block, flag: Flag): Wording[] {
         wordings.push({ own: (record[name] as string | undefined) ?? "", translated: translations.flatMap((t) => (typeof t[key] === "string" ? [t[key] as string] : [])), html: false });
       }
     } else if (spec.type === "html" && spec[flag]) {
+      const key = spec.translationKey ?? "html";
       wordings.push({
         own: (record[name] as string | undefined) ?? "",
-        translated: translations.flatMap((t) => (typeof t.html === "string" ? [t.html] : [])),
+        translated: translations.flatMap((t) => (typeof t[key] === "string" ? [t[key] as string] : [])),
         html: true,
       });
     } else if (spec.type === "list") {
@@ -153,7 +161,7 @@ function wordingsWith(block: Block, flag: Flag): Wording[] {
         wordings.push({
           own: (item[textName] as string | undefined) ?? "",
           translated: translations.flatMap((t) => {
-            const words = (t.items as Record<string, string> | undefined)?.[item.id];
+            const words = (t[itemsKeyOf(spec)] as Record<string, string> | undefined)?.[item.id];
             return typeof words === "string" ? [words] : [];
           }),
           html,
@@ -187,7 +195,7 @@ export function exportedTexts(block: Block): { name: string; key: string; part: 
     // (A formatted text that is only HTML: its translation is `html` too.)
     if (spec.type === "html") {
       if (!spec.translatable || !spec.cli) return [];
-      return [{ name, key: "html", part: spec.cli.part, role: spec.cli.role, value: (record[name] as string | undefined) ?? "", html: true, formatted: undefined, blanks: spec.blanks }];
+      return [{ name, key: spec.translationKey ?? "html", part: spec.cli.part, role: spec.cli.role, value: (record[name] as string | undefined) ?? "", html: true, formatted: undefined, blanks: spec.blanks }];
     }
     if (spec.type !== "text" || !spec.translatable || !spec.cli) return [];
     const plain = (record[name] as string | undefined) ?? "";
@@ -197,12 +205,12 @@ export function exportedTexts(block: Block): { name: string; key: string; part: 
 }
 
 /** The texts of the items of a block's lists that `weft text export` lists: one for every item that has a caption-like text, with the number of the item. */
-export function exportedItemTexts(block: Block): { list: string; itemId: string; role: string; value: string; html: boolean }[] {
+export function exportedItemTexts(block: Block): { list: string; itemId: string; part: string; role: string; value: string; html: boolean }[] {
   const record = block as unknown as Record<string, unknown>;
   return listFieldsOf(block).flatMap(([name, spec]) => {
     const textName = itemTextName(spec);
     if (!textName || !spec.cliRole) return [];
     const items = (record[name] as (Items[number] & Record<string, unknown>)[] | undefined) ?? [];
-    return items.map((item, index) => ({ list: name, itemId: item.id, role: spec.cliRole!(index + 1), value: (item[textName] as string | undefined) ?? "", html: itemTextIsHtml(spec) }));
+    return items.map((item, index) => ({ list: name, itemId: item.id, part: spec.cliPart ?? "item", role: spec.cliRole!(index + 1), value: (item[textName] as string | undefined) ?? "", html: itemTextIsHtml(spec) }));
   });
 }

@@ -31,11 +31,6 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
   switch (block.kind) {
     case "placeholder":
       return `Platzhalter „${block.label}"`;
-    case "quiz": {
-      const options = block.options.length;
-      const correct = block.correctOptionIds.length;
-      return `${words(block.questionHtml, 80) || "(ohne Frage)"} [${options} Optionen${block.open ? ", offen" : `, ${correct} richtig`}]`;
-    }
     case "button":
       // (Described above.)
       return "";

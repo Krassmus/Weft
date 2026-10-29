@@ -5,10 +5,10 @@
    player.runtime.css. */
 
 /* Every size/spacing value below is kept in sync by hand, em-for-em, with BlockView.tsx's static
-   editor-canvas preview (.weft-edit-block-quiz* in App.css) and SlideThumbnail.tsx's own version
-   (.weft-thumb-block-quiz* in App.css) - all three share the same 1.7cqw block base font-size, so
-   matching the numbers here is what makes the same quiz content take up the same proportion of
-   the block's box in the editor, the thumbnail, and this, the real player/preview. */
+   editor-canvas preview (.weft-edit-block-quiz* in App.css) - both share the same 1.7cqw block base
+   font-size, so matching the numbers here is what makes the same quiz content take up the same
+   proportion of the block's box in the editor and in the real player/preview. (The thumbnails and the
+   PDF draw it with renderQuiz, blocks/quiz/render.js, and this stylesheet - as the player does.) */
 .weft-quiz {
   display: flex;
   flex-direction: column;

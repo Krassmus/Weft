@@ -12,9 +12,6 @@ import { ArrowSvg } from "./blocks/ArrowSvg";
 import { FilesView } from "./blocks/FilesView";
 import { ShapeSvg } from "./blocks/ShapeSvg";
 import { ImageSvg } from "./blocks/ImageSvg";
-import { quizOptionHtml, quizQuestionHtml } from "../../core/document/translations";
-import { withProgress } from "../../core/document/variablePlaceholders";
-import { playerStringsFor } from "../../core/i18n/playerStrings";
 import { useEditingLanguage } from "./useEditingLanguage";
 import { CodeView } from "./blocks/CodeView";
 import { TexView } from "./blocks/TexView";
@@ -22,9 +19,6 @@ import { TexView } from "./blocks/TexView";
 // visually consistent between the two views, per the same reasoning: it's not clickable here
 // either.
 import video2IconSvg from "../../../mockups/icons/video2.svg?raw";
-import checkboxCheckedSvg from "../../../mockups/icons/checkbox-checked.svg?raw";
-import checkboxUncheckedSvg from "../../../mockups/icons/checkbox-unchecked.svg?raw";
-import acceptSvg from "../../../mockups/icons/accept.svg?raw";
 import { MatchingView } from "./blocks/MatchingView";
 import { viewOf } from "./blocks/blockViews";
 import { SortView } from "./blocks/SortView";
@@ -168,9 +162,6 @@ function ThumbBlockBody({
     transform: block.position.rotation ? `rotate(${block.position.rotation}deg)` : undefined,
   };
 
-  // A {{progress}} in a text is its value on this page (the name is matched the way the player matches it).
-  const shown = (html: string) => withProgress(html, progress);
-
   if (block.kind === "placeholder") {
     return placeholderSlots ? (
       <div
@@ -298,37 +289,6 @@ function ThumbBlockBody({
     return (
       <div className="weft-thumb-block" style={style}>
         <SortView block={block} lang={lang} defaultLang={defaultLang} />
-      </div>
-    );
-  }
-  if (block.kind === "quiz") {
-    // Same card layout, em-for-em, as the editor canvas (BlockView.tsx's .weft-edit-block-quiz*)
-    // and the real player (player.runtime.js/.css's .weft-quiz*) - all three share the same
-    // 1.7cqw block base size, so keeping the numbers in sync here too is what makes a quiz take
-    // up the same proportion of its box everywhere, not just a smaller/blurrier version of a
-    // differently-laid-out preview.
-    return (
-      <div className="weft-thumb-block weft-thumb-block-quiz" style={style}>
-        <div className="weft-thumb-block-quiz-question" dangerouslySetInnerHTML={{ __html: shown(quizQuestionHtml(block, lang, defaultLang)) }} />
-        <div className="weft-thumb-block-quiz-options">
-          {block.options.map((opt) => {
-            // (A PDF does not give away the answers: nothing is marked there, as when a learner starts the quiz.)
-            const isCorrect = !exportPxPerCqw && !block.open && block.correctOptionIds.includes(opt.id);
-            return (
-              <div key={opt.id} className={"weft-thumb-block-quiz-option" + (isCorrect ? " is-correct" : "")}>
-                <span
-                  className="weft-thumb-block-quiz-option-checkbox"
-                  dangerouslySetInnerHTML={{ __html: isCorrect ? checkboxCheckedSvg : checkboxUncheckedSvg }}
-                />
-                <span className="weft-thumb-block-quiz-option-text" dangerouslySetInnerHTML={{ __html: shown(quizOptionHtml(block, opt.id, lang, defaultLang)) }} />
-              </div>
-            );
-          })}
-        </div>
-        <div className="weft-thumb-block-quiz-submit">
-          <span className="weft-thumb-block-quiz-submit-icon" dangerouslySetInnerHTML={{ __html: acceptSvg }} />
-          {playerStringsFor(lang).submit}
-        </div>
       </div>
     );
   }

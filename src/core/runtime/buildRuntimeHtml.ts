@@ -27,6 +27,7 @@ import listRenderSource from "../blocks/list/render.js?raw";
 import listCss from "../blocks/list/render.css?raw";
 import clozeRenderSource from "../blocks/cloze/render.js?raw";
 import clozeCss from "../blocks/cloze/render.css?raw";
+import quizRenderSource from "../blocks/quiz/render.js?raw";
 import playerRuntimeSource from "./player.runtime.js?raw";
 import quizCardCss from "./quizCard.css?raw";
 import playerRuntimeCss from "./player.runtime.css?raw";
@@ -149,6 +150,7 @@ ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` 
 <script>${textRenderSource.replace(/^export /gm, "")}</script>
 <script>${listRenderSource.replace(/^export /gm, "")}</script>
 <script>${clozeRenderSource.replace(/^export /gm, "")}</script>
+<script>${quizRenderSource.replace(/^export /gm, "")}</script>
 <script>${playerRuntimeSource}</script>
 </body>
 </html>

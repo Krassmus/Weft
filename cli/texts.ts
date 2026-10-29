@@ -2,7 +2,8 @@ import { orderedValues } from "../src/core/document/ordering";
 import { pageLabels } from "../src/core/document/pageLabels";
 import { branchPageIds, sequenceOf } from "../src/core/document/sequence";
 import { buildLanguageCatalog } from "../src/core/i18n/languages";
-import { descriptorOf, exportedItemTexts, exportedTexts, itemsAreHtml } from "../src/core/blocks/registry";
+import { descriptorOf, exportedItemTexts, exportedTexts, itemsKeyOf, itemTextIsHtml, listFieldsOf } from "../src/core/blocks/registry";
+import type { ListField } from "../src/core/blocks/types";
 import { plainTextOfHtml } from "../src/core/document/translations";
 import type { Block, WeftModule } from "../src/core/types";
 import { CliError } from "./load";
@@ -59,15 +60,6 @@ function hasWords(html: string | undefined): boolean {
 function textsOfBlock(block: Block): { key: string; source: string; role: string }[] {
   const id = block.id;
   switch (block.kind) {
-    case "quiz": {
-      const items: { key: string; source: string; role: string }[] = [];
-      if (hasWords(block.questionHtml)) items.push({ key: `${id}#question`, source: block.questionHtml, role: "Frage" });
-      block.options.forEach((option, index) => {
-        if (hasWords(option.html)) items.push({ key: `${id}#option:${option.id}`, source: option.html, role: `Antwort ${index + 1}` });
-      });
-      if (block.explanation?.trim()) items.push({ key: `${id}#explanation`, source: plainToHtml(block.explanation), role: "Erklärung nach dem Abschicken" });
-      return items;
-    }
     case "revealer": {
       const items: { key: string; source: string; role: string }[] = [];
       if (block.title.trim()) items.push({ key: `${id}#title`, source: plainToHtml(block.title), role: "Überschrift" });
@@ -102,7 +94,7 @@ function textsOfBlock(block: Block): { key: string; source: string; role: string
           exportedItemTexts(block)
             .filter(({ value }) => hasWords(value))
             // (The points of a list are formatted: HTML already.)
-            .map(({ itemId, role, value, html }) => ({ key: `${id}#item:${itemId}`, source: html ? value : value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role })),
+            .map(({ part, itemId, role, value, html }) => ({ key: `${id}#${part}:${itemId}`, source: html ? value : value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), role })),
         );
   }
 }
@@ -126,6 +118,12 @@ function htmlToPlain(html: string): string {
     .trim();
 }
 
+/** The list of a block that describes itself that a part of a text key (`item:<id>`, `option:<id>`) belongs to. */
+function listOfPart(block: Block, part: string): ListField | undefined {
+  const prefix = part.slice(0, part.indexOf(":"));
+  return listFieldsOf(block).find(([, spec]) => (spec.cliPart ?? "item") === prefix)?.[1];
+}
+
 const KIND_NAMES: Record<string, string> = { matching: "Matching", sort: "Sortierrätsel", checker: "Checker", link: "Link", text: "Text", cloze: "Lückentext", quiz: "Quiz", list: "Liste", button: "Button", revealer: "Info-Symbol" };
 
 /** The text a block has in `language`, if it has been translated (the block's own wording is not a translation). */
@@ -137,21 +135,27 @@ function existingTranslation(block: Block, key: string, language: string): strin
   const field = exportedTexts(block).find((text) => text.part === part);
   if (field) {
     const t = translation as Record<string, string | undefined>;
-    // (A formatted text: its translation's formatting, else its plain words escaped.)
-    if (field.html && t.html !== undefined) return t.html;
+    // (A formatted text: its translation's formatting - kept as `html`, or under a key of its own - else its plain words escaped.)
+    if (field.html) {
+      const htmlKey = field.formatted ? "html" : field.key;
+      if (t[htmlKey] !== undefined) return t[htmlKey]!;
+    }
     return (t[field.key] ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
   if (part === "html" || part === "label") return translation.html ?? (part === "label" ? (translation.text ?? "") : "");
-  if (part === "question") return translation.questionHtml ?? "";
-  if (part === "explanation") return translation.explanation ? plainToHtml(translation.explanation) : "";
+  // (The items of a list of a block that describes itself: plain texts, or formatted ones - a list's points, a quiz's options.)
+  const list = listOfPart(block, part);
+  if (list) {
+    const own = (translation as Record<string, Record<string, string> | undefined>)[itemsKeyOf(list)]?.[part.slice(part.indexOf(":") + 1)] ?? "";
+    return itemTextIsHtml(list) || !own ? own : plainToHtml(own);
+  }
   if (part === "title" || part === "body" || part === "alt") return translation[part] ? plainToHtml(translation[part] as string) : "";
   if (part === "button") return translation.text ? plainToHtml(translation.text) : "";
   if (part === "start" || part === "end") return translation[part === "start" ? "startLabel" : "endLabel"] ? plainToHtml(translation[part === "start" ? "startLabel" : "endLabel"] as string) : "";
-  if (part.startsWith("option:")) return translation.options?.[part.slice(7)] ?? "";
   if (part.startsWith("item:")) {
     const own = translation.items?.[part.slice(5)] ?? "";
-    // (The cards of a matching and the objects of a sorting puzzle are plain texts - so are the captions of a gallery's pictures, not the points of a list.)
-    return (block.kind === "matching" || block.kind === "sort" || (descriptorOf(block) && !itemsAreHtml(block))) && own ? plainToHtml(own) : own;
+    // (The cards of a matching and the objects of a sorting puzzle are plain texts.)
+    return (block.kind === "matching" || block.kind === "sort") && own ? plainToHtml(own) : own;
   }
   return "";
 }
@@ -370,24 +374,26 @@ export function importTexts(content: WeftModule, file: TextsFile): ImportReport 
       const translations = (block.translations ??= {});
       const target = (translations[language] ??= {});
       const described = exportedTexts(block).find((text) => text.part === part);
+      const list = listOfPart(block, part);
       if (described?.html) {
-        // A formatted text keeps its formatting; its plain words go with it.
-        target.html = translated;
-        // (A text that is only HTML has no plain words beside it: its key is `html`.)
-        if (described.key !== "html") (target as Record<string, string>)[described.key] = plainTextOfHtml(translated);
+        // A formatted text keeps its formatting; its plain words go with it - where it has any (a button's label: `html` and `text`).
+        (target as Record<string, string>)[described.formatted ? "html" : described.key] = translated;
+        if (described.formatted) (target as Record<string, string>)[described.key] = plainTextOfHtml(translated);
+      } else if (list) {
+        // (The items of a list of a block that describes itself: plain texts, or formatted ones.)
+        const itemsKey = itemsKeyOf(list);
+        const words = (target as Record<string, Record<string, string> | undefined>);
+        (words[itemsKey] ??= {})[part.slice(part.indexOf(":") + 1)] = itemTextIsHtml(list) ? translated : htmlToPlain(translated);
       } else if (described) (target as Record<string, string>)[described.key] = htmlToPlain(translated);
       else if (part === "html") target.html = translated;
       else if (part === "label") {
         target.html = translated;
         target.text = plainTextOfHtml(translated);
-      } else if (part === "question") target.questionHtml = translated;
-      else if (part === "explanation") target.explanation = htmlToPlain(translated);
-      else if (part === "title" || part === "body" || part === "alt") target[part] = htmlToPlain(translated);
+      } else if (part === "title" || part === "body" || part === "alt") target[part] = htmlToPlain(translated);
       else if (part === "button") target.text = htmlToPlain(translated);
       else if (part === "start") target.startLabel = htmlToPlain(translated);
       else if (part === "end") target.endLabel = htmlToPlain(translated);
-      else if (part.startsWith("option:")) (target.options ??= {})[part.slice(7)] = translated;
-      else if (part.startsWith("item:")) (target.items ??= {})[part.slice(5)] = block.kind === "matching" || block.kind === "sort" || (descriptorOf(block) && !itemsAreHtml(block)) ? htmlToPlain(translated) : translated;
+      else if (part.startsWith("item:")) (target.items ??= {})[part.slice(5)] = htmlToPlain(translated);
       report.applied++;
     }
   }

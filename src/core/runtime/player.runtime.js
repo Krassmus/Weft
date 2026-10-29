@@ -3126,153 +3126,59 @@
   var QUIZ_CHECKBOX_CHECKED_SVG =
     '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="geometricPrecision" fill="#28497c"><path d="M13.055 5.848 11.28 4.073 6.972 8.379 4.715 6.127 2.946 7.899l4.027 4.026z"/><path d="M14.5 1.5v13h-13v-13zM16 0H0v16h16z"/></svg>';
 
+  // What a quiz says, in the language the learner works in - what renderQuiz (blocks/quiz/render.js, inlined ahead of this file) draws it with.
+  function quizProps(block) {
+    return {
+      id: block.id,
+      question: quizQuestionHtml(block),
+      options: block.options.map(function (option) {
+        return { id: option.id, html: quizOptionHtml(block, option) };
+      }),
+      correctOptionIds: block.correctOptionIds,
+      open: block.open === true,
+      explanation: quizExplanationText(block),
+    };
+  }
+
   function renderQuizBlock(block) {
     var wrap = el("div", { class: "weft-block weft-block-quiz", "data-weft-block": block.id, style: positionStyle(block.position) });
     if (block.required) requiredPending[block.id] = true;
-    var form = el("form", { class: "weft-quiz" }, []);
-
-    var question = el("div", { class: "weft-quiz-question", id: "weft-question-" + block.id }, []);
-    var optionTexts = [];
-    var fillQuiz = function () {
-      question.innerHTML = quizQuestionHtml(block);
-      applyVariablesToNode(question);
-      optionTexts.forEach(function (entry) {
-        entry.element.innerHTML = quizOptionHtml(block, entry.option);
-        applyVariablesToNode(entry.element);
-      });
-    };
-    question.innerHTML = quizQuestionHtml(block);
-    applyVariablesToNode(question);
-    languageRefreshers.push(fillQuiz);
-    form.appendChild(question);
-
-    var optionsWrap = el("div", { class: "weft-quiz-options", role: "group", "aria-labelledby": "weft-question-" + block.id }, []);
-    block.options.forEach(function (opt) {
-      // The whole card is the <label> (not just a small checkbox) so clicking anywhere on an
-      // option selects it, and .weft-quiz-option:has(input:checked) in the stylesheet picks up
-      // both the card highlight and which of the two icons below shows - no separate "selected"
-      // class to keep in sync. The checkbox itself stays a real, focusable/keyboard-operable
-      // <input> - it's just visually hidden (opacity:0, sized/positioned exactly over the icon
-      // pair) rather than removed, so clicking or tabbing to it still works exactly like a native
-      // checkbox, it just never shows the OS's own checkbox chrome.
-      var optionLabel = el("label", { class: "weft-quiz-option" }, []);
-      var checkboxWrap = el("span", { class: "weft-quiz-option-checkbox" }, []);
-      var input = el("input", { type: "checkbox", name: "opt-" + block.id, value: opt.id, class: "weft-quiz-option-input" }, []);
-      var uncheckedIcon = el("span", { class: "weft-quiz-option-checkbox-icon weft-quiz-option-checkbox-icon-unchecked", "aria-hidden": "true" }, []);
-      uncheckedIcon.innerHTML = QUIZ_CHECKBOX_UNCHECKED_SVG;
-      var checkedIcon = el("span", { class: "weft-quiz-option-checkbox-icon weft-quiz-option-checkbox-icon-checked", "aria-hidden": "true" }, []);
-      checkedIcon.innerHTML = QUIZ_CHECKBOX_CHECKED_SVG;
-      checkboxWrap.appendChild(input);
-      checkboxWrap.appendChild(uncheckedIcon);
-      checkboxWrap.appendChild(checkedIcon);
-      var text = el("span", { class: "weft-quiz-option-text" }, []);
-      text.innerHTML = quizOptionHtml(block, opt);
-      applyVariablesToNode(text);
-      optionTexts.push({ element: text, option: opt });
-      optionLabel.appendChild(checkboxWrap);
-      optionLabel.appendChild(text);
-      optionsWrap.appendChild(optionLabel);
-    });
-    form.appendChild(optionsWrap);
-
-    // Fires once, the moment the learner picks a first option - matches "Ausfüllen" in the
-    // editor's own graph exactly (see quizFillNodeId in pageTimeline.ts), which is likewise about
-    // the first pick, not every subsequent one.
-    var hasFiredFill = false;
-    optionsWrap.addEventListener("change", function () {
-      if (hasFiredFill) return;
-      hasFiredFill = true;
-      happened(quizFillEventId(block.id));
-    });
-
-    // A plain button, not a form's submit: a module may run in an iframe without allow-forms (the editor's preview, a player
-    // file), where a form never fires "submit".
-    var submit = el("button", { type: "button", class: "weft-quiz-submit" }, []);
-    var submitIcon = el("span", { class: "weft-quiz-submit-icon", "aria-hidden": "true" }, []);
-    submitIcon.innerHTML = QUIZ_SUBMIT_ICON_SVG;
-    submit.appendChild(submitIcon);
-    var submitLabel = document.createTextNode(uiString("submit"));
-    submit.appendChild(submitLabel);
-    form.appendChild(submit);
-    // answered: null until the quiz was submitted, then whether it was right - so the feedback text
-    // follows a language change made afterwards, too.
-    var answered = null;
     var open = block.open === true; // an open question: nothing is right or wrong
-    var showFeedbackTitle = function () {
-      feedbackTitle.textContent = uiString(open ? "thanks" : answered ? "correct" : "incorrect");
-    };
-    languageRefreshers.push(function () {
-      submitLabel.nodeValue = uiString("submit");
-      if (answered !== null) showFeedbackTitle();
-    });
-
-    // Hidden until submitted, and takes the submit button's place rather than sitting next to it
-    // (see the submit handler) - there's nothing left to submit once it's showing.
-    var feedback = el("div", { class: "weft-quiz-feedback", hidden: "" }, []);
-    var feedbackIcon = el("span", { class: "weft-quiz-feedback-icon", "aria-hidden": "true" }, []);
-    var feedbackTitle = el("strong", { class: "weft-quiz-feedback-title" }, []);
-    feedback.appendChild(feedbackIcon);
-    feedback.appendChild(feedbackTitle);
-    form.appendChild(feedback);
-    // What is told about the answer, under the feedback (the text is there from the start, shown with the feedback).
-    var explanation = el("div", { class: "weft-quiz-explanation", hidden: "" }, []);
-    explanation.textContent = quizExplanationText(block);
-    form.appendChild(explanation);
-
-    form.addEventListener("submit", function (event) {
-      event.preventDefault();
-    });
-    submit.addEventListener("click", function () {
-      var checked = Array.prototype.slice
-        .call(form.querySelectorAll("input:checked"))
-        .map(function (input) {
-          return input.value;
+    var instance = renderQuiz(wrap, quizProps(block), {
+      mode: "play",
+      text: uiString,
+      icons: { submit: QUIZ_SUBMIT_ICON_SVG, correct: QUIZ_CORRECT_ICON_SVG, incorrect: QUIZ_INCORRECT_ICON_SVG, unchecked: QUIZ_CHECKBOX_UNCHECKED_SVG, checked: QUIZ_CHECKBOX_CHECKED_SVG },
+      applyVariables: applyVariablesToNode,
+      // Fires once, the moment the learner picks a first option - matches "Ausfüllen" in the editor's own graph exactly (see quizFillNodeId in
+      // pageTimeline.ts), which is likewise about the first pick, not every subsequent one.
+      fill: function () {
+        happened(quizFillEventId(block.id));
+      },
+      submit: function (result) {
+        var mark = scoreMark(block);
+        (result.correct ? block.onCorrect : block.onIncorrect).forEach(applyEffect);
+        // Each answer on its own: handled right (ticked if it is a correct one, left alone if it isn't) or wrong.
+        block.options.forEach(function (option) {
+          var ticked = result.ticked.indexOf(option.id) !== -1;
+          var right = open ? ticked : ticked === (block.correctOptionIds.indexOf(option.id) !== -1);
+          ((right ? option.onRight : option.onWrong) || []).forEach(applyEffect);
         });
-      var correct =
-        open ||
-        (checked.length === block.correctOptionIds.length &&
-        checked.every(function (id) {
-          return block.correctOptionIds.indexOf(id) !== -1;
-        }));
-      var mark = scoreMark(block);
-      (correct ? block.onCorrect : block.onIncorrect).forEach(applyEffect);
-      // Each answer on its own: handled right (ticked if it is a correct one, left alone if it isn't) or wrong.
-      block.options.forEach(function (option) {
-        var ticked = checked.indexOf(option.id) !== -1;
-        var right = open ? ticked : ticked === (block.correctOptionIds.indexOf(option.id) !== -1);
-        ((right ? option.onRight : option.onWrong) || []).forEach(applyEffect);
-      });
-      scoreRecord(block, mark, open ? "answered" : correct ? "right" : "wrong");
-      requiredDone(block.id);
-      // Fires both the plain, outcome-agnostic event (for a trigger configured against the
-      // generic "Quiz abgeschickt" node - see quizSubmitNodeId in pageTimeline.ts, built when
-      // neither advanceOnCorrect nor advanceOnIncorrect is on) AND the one matching this
-      // particular submission's own actual outcome (for a trigger configured against the
-      // "richtig"/"falsch"-specific node, built once that outcome has its own lane) - whichever
-      // of the two an author could actually have picked in the editor has a real listener here;
-      // the other is just an id nothing happens to be registered against, same as any other
-      // no-op happened() call. Going on to the next page after the feedback is a trigger of the graph (see
-      // core/eventGraph/buildEventGraph.ts) - nothing to do for it here.
-      happened(quizSubmitEventId(block.id));
-      happened(quizSubmitEventId(block.id, correct ? "richtig" : "falsch"));
-
-      // Replaces the submit button rather than joining it (see the feedback element above), and
-      // locks the options in place - both so a learner can't submit twice, and so the answer
-      // shown as "correct"/"incorrect" can't silently change after the fact by re-checking boxes.
-      submit.hidden = true;
-      Array.prototype.slice.call(form.querySelectorAll(".weft-quiz-option-input")).forEach(function (input) {
-        input.disabled = true;
-      });
-      feedbackIcon.innerHTML = correct ? QUIZ_CORRECT_ICON_SVG : QUIZ_INCORRECT_ICON_SVG;
-      answered = correct;
-      showFeedbackTitle();
-      feedback.className = "weft-quiz-feedback " + (open ? "is-thanks" : correct ? "is-correct" : "is-incorrect");
-      feedback.hidden = false;
-      explanation.hidden = !explanation.textContent;
-      announce(feedbackTitle.textContent);
+        scoreRecord(block, mark, open ? "answered" : result.correct ? "right" : "wrong");
+        requiredDone(block.id);
+        // Fires both the plain, outcome-agnostic event (for a trigger configured against the generic "Quiz abgeschickt" node - see quizSubmitNodeId in
+        // pageTimeline.ts, built when neither advanceOnCorrect nor advanceOnIncorrect is on) AND the one matching this particular submission's own
+        // actual outcome (for a trigger configured against the "richtig"/"falsch"-specific node, built once that outcome has its own lane) - whichever of
+        // the two an author could actually have picked in the editor has a real listener here; the other is just an id nothing happens to be registered
+        // against, same as any other no-op happened() call. Going on to the next page after the feedback is a trigger of the graph (see
+        // core/eventGraph/buildEventGraph.ts) - nothing to do for it here.
+        happened(quizSubmitEventId(block.id));
+        happened(quizSubmitEventId(block.id, result.correct ? "richtig" : "falsch"));
+      },
+      announce: announce,
     });
-
-    wrap.appendChild(form);
+    languageRefreshers.push(function () {
+      instance.update(quizProps(block));
+    });
     return wrap;
   }
 

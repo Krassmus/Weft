@@ -1489,13 +1489,23 @@
   }
 
   // getBlock(name) in a logic block's code: the block of this slide (the layout's too) that is called `name` in the editor - what a script can know of it and do
-  // with it. A quiz: its question and answers in the language that is shown (`options`: { id, index, text, correct }; `correctOptions`, `wrongOptions`),
+  // with it. A quiz: its question and answers in the language that is shown (`options`: { id, index, text, correct, hidden }; `correctOptions`, `wrongOptions`,
+  // `visibleOptions`: those a script has not taken away),
   // and `hideOptions(which)` / `showOptions()` to take answers away and bring them back (the 50:50 of a quiz game). `which` is a list of answers from
   // `options`, or their ids or their places. Any other block: its id, kind and name. null (and a note in the debug window) if there is no such block.
   function quizScriptView(view, block) {
     var handle = quizHandles[block.id];
     var options = block.options.map(function (option, index) {
-      return { id: option.id, index: index, text: plainTextOfHtml(quizOptionHtml(block, option)), correct: block.correctOptionIds.indexOf(option.id) !== -1 };
+      return {
+        id: option.id,
+        index: index,
+        text: plainTextOfHtml(quizOptionHtml(block, option)),
+        correct: block.correctOptionIds.indexOf(option.id) !== -1,
+        // Whether a script took it away (see hideOptions) - looked at when it is asked, so it follows hideOptions and showOptions.
+        get hidden() {
+          return !!handle && handle.hidden.indexOf(option.id) !== -1;
+        },
+      };
     });
     view.question = plainTextOfHtml(quizQuestionHtml(block));
     view.options = options;
@@ -1504,6 +1514,15 @@
     });
     view.wrongOptions = options.filter(function (option) {
       return block.open !== true && !option.correct;
+    });
+    // The answers that are still there (a getter: it follows hideOptions and showOptions).
+    Object.defineProperty(view, "visibleOptions", {
+      enumerable: true,
+      get: function () {
+        return options.filter(function (option) {
+          return !option.hidden;
+        });
+      },
     });
     view.hideOptions = function (which) {
       if (!handle) return 0;

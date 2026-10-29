@@ -223,6 +223,7 @@ function Home({ actions }: { actions: StartActions }) {
   const examples = useMemo(() => bundledModules("examples"), []);
   const tutorials = useMemo(() => bundledModules("tutorials"), []);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [examplesOpen, setExamplesOpen] = useState(false);
   const progress = useOpenProgress();
 
   async function play(module: BundledModule) {
@@ -271,10 +272,11 @@ function Home({ actions }: { actions: StartActions }) {
           icon="play"
           title={tr("ui.start_example_title")}
           text={tr("ui.start_example_text")}
-          button={tr("ui.start_example_button")}
+          // (With more than one example the button shows them all, as the templates are shown; with one it opens it.)
+          button={examples.length > 1 ? tr("ui.start_examples_button") : tr("ui.start_example_button")}
           disabled={examples.length === 0}
           hint={examples.length === 0 ? tr("ui.start_coming_soon") : undefined}
-          onClick={() => void use(examples[0])}
+          onClick={() => (examples.length > 1 ? setExamplesOpen(true) : void use(examples[0]))}
         />
       </section>
 
@@ -288,6 +290,16 @@ function Home({ actions }: { actions: StartActions }) {
           lang={lang}
           progress={progress}
           onClose={() => setTemplatesOpen(false)}
+          onUse={(module) => void use(module)}
+        />
+      )}
+      {examplesOpen && (
+        <TemplatesDialog
+          title={tr("ui.start_example_title")}
+          templates={examples}
+          lang={lang}
+          progress={progress}
+          onClose={() => setExamplesOpen(false)}
           onUse={(module) => void use(module)}
         />
       )}
@@ -507,12 +519,13 @@ function TutorialsSection({ tutorials, lang, progress, onPlay }: { tutorials: Bu
   );
 }
 
-function TemplatesDialog({ templates, lang, progress, onClose, onUse }: { templates: BundledModule[]; lang: "de" | "en"; progress: OpenProgress; onClose: () => void; onUse: (module: BundledModule) => void }) {
+/** The dialog that lists modules that come with Weft as cards to pick from - the templates, or (with `title`) the examples. */
+function TemplatesDialog({ title, templates, lang, progress, onClose, onUse }: { title?: string; templates: BundledModule[]; lang: "de" | "en"; progress: OpenProgress; onClose: () => void; onUse: (module: BundledModule) => void }) {
   const summaries = useBundledSummaries(templates);
   const firstRef = useRef<HTMLDivElement>(null);
   useEffect(() => firstRef.current?.focus(), []);
   return (
-    <DialogFrame title={tr("ui.start_template_title")} onClose={onClose} appear>
+    <DialogFrame title={title ?? tr("ui.start_template_title")} onClose={onClose} appear>
       {templates.length === 0 ? (
         <p className="weft-hint">{tr("ui.start_templates_empty")}</p>
       ) : (

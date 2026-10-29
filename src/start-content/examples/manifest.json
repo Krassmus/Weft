@@ -9,5 +9,16 @@
       "de": "Ein fertiges Lernmodul: Texte und Karten, die Schritt für Schritt erscheinen, Quiz und Lückentexte, eine Verzweigung, zwei Sprachen.",
       "en": "A finished learning module: texts and cards that appear step by step, quizzes and gap texts, a branch, two languages."
     }
+  },
+  {
+    "file": "quizspiel.weft",
+    "title": {
+      "de": "Wer wird nicht Millionär?",
+      "en": "Who Won't Be a Millionaire?"
+    },
+    "description": {
+      "de": "Ein Quizspiel mit 15 Fragen, drei Jokern (50:50, Publikum, Telefon), Sicherheitsstufen und Logikblöcken, die die Joker würfeln - in zwei Sprachen.",
+      "en": "A quiz game with 15 questions, three jokers (50:50, audience, phone), safe levels and logic blocks that roll the jokers - in two languages."
+    }
   }
 ]

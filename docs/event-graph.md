@@ -198,8 +198,8 @@ Im Skript stehen zur Verfügung:
   weiteren Felder (`durationMs`, `direction`, ...).
 - `VanillaLM`: die Bibliothek der Lernplattform.
 - `getBlock(name)`: der Block **dieser Folie** (auch des Layouts), der im Editor `name` heißt (Groß-/Kleinschreibung egal) - oder `null`, mit einem Hinweis im
-  Debug-Fenster. Er hat `id`, `kind` und `name`. Ein **Quiz** hat zusätzlich `question` (reiner Text), `options` (`{id, index, text, correct}` in der
-  gezeigten Sprache), `correctOptions` und `wrongOptions` (bei einer offenen Frage gilt alles als richtig) sowie `hideOptions(welche)` und `showOptions()`:
+  Debug-Fenster. Er hat `id`, `kind` und `name`. Ein **Quiz** hat zusätzlich `question` (reiner Text), `options` (`{id, index, text, correct, hidden}` in der
+  gezeigten Sprache; `hidden`: ein Skript hat sie ausgeblendet), `correctOptions` und `wrongOptions` (bei einer offenen Frage gilt alles als richtig), `visibleOptions` (was noch da ist) sowie `hideOptions(welche)` und `showOptions()`:
   `welche` ist eine Liste von Antworten aus `options`, ihren Ids oder ihren Plätzen. Eine ausgeblendete Antwort behält ihren Platz, zeigt nichts, ist
   nicht anwählbar und nicht angekreuzt - der 50:50-Joker eines Quizspiels. Das Ausblenden gilt, bis die Folie verlassen wird.
 

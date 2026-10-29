@@ -7,7 +7,7 @@ so a file only has to be dropped in next to its entry.
 | Folder       | Where it shows                                  | What happens on a click                              |
 | ------------ | ----------------------------------------------- | ---------------------------------------------------- |
 | `templates/` | "Mit Vorlage starten" (a dialog with all of them) | a new, unsaved module that is a copy of the file     |
-| `examples/`  | "Beispiel erkunden" (the first entry is opened)  | a new, unsaved module that is a copy of the file     |
+| `examples/`  | "Beispiel erkunden" (one entry: it is opened; several: a dialog with all of them) | a new, unsaved module that is a copy of the file     |
 | `tutorials/` | "Weft kennenlernen" (a row of cards)             | played in the player only - nothing can be edited    |
 
 Whichever way a module of these folders is opened, working on it never changes the file: it opens as a copy of its own (a new id, an

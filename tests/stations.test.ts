@@ -1965,7 +1965,7 @@ describe("the events of their own that a block gives its page (the descriptor's 
 
   it("have the short names `weft edit` knows them by (cliAlias): each one once, made into the id the specs give, written down in the docs of both languages", () => {
     const names = eventAliasNames().sort();
-    expect(names).toEqual(["action", "click", "entrance", "exit", "group-entrance", "group-exit", "list-item", "quiz-correct", "quiz-fill", "quiz-incorrect", "quiz-submit", "revealer-button", "revealer-open", "video-end", "video-resume", "video-start", "video-stop"]);
+    expect(names).toEqual(["action", "click", "entrance", "exit", "group-entrance", "group-exit", "list-item", "quiz-correct", "quiz-fill", "quiz-incorrect", "quiz-submit", "revealer-button", "revealer-open", "script-run", "video-end", "video-resume", "video-start", "video-stop"]);
     // (Every alias of a spec is its own: one name for one event.)
     const specs = describedKinds().flatMap((kind) => (descriptorOf(kind)?.events ?? []).flatMap((spec) => [spec, ...(spec.companions ?? [])]));
     const given = [...new Set(specs)].map((spec) => spec.cliAlias).filter(Boolean);
@@ -1991,7 +1991,7 @@ describe("the events of their own that a block gives its page (the descriptor's 
     expect(id("quiz-submit", "x")).toBe("quiz-submit:B(x)");
     expect(id("quiz-correct", "x")).toBe("quiz-submit:B(x):richtig");
     expect(id("quiz-incorrect", "x")).toBe("quiz-submit:B(x):falsch");
-    expect(id("script-run", "x")).toBeUndefined();
+    expect(id("script-run", "x")).toBe("script-run:B(x)");
     expect(id("gibt-es-nicht", "x")).toBeUndefined();
     // (The ids are the ones the editor's functions give.)
     expect(id("video-resume", "b:s1")).toBe(videoResumeNodeId("B(b)", "s1"));

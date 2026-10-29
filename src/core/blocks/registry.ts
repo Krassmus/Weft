@@ -17,6 +17,11 @@ import { quizBlock } from "./quiz/descriptor";
 import { revealerBlock } from "./revealer/descriptor";
 import { solutionBlock } from "./solution/descriptor";
 import { sortBlock } from "./sort/descriptor";
+import { arrowBlock } from "./arrow/descriptor";
+import { codeBlock } from "./code/descriptor";
+import { scriptBlock } from "./script/descriptor";
+import { shapeBlock } from "./shape/descriptor";
+import { texBlock } from "./tex/descriptor";
 import { textBlock } from "./text/descriptor";
 import { videoBlock } from "./video/descriptor";
 
@@ -49,6 +54,11 @@ registerBlock(imageBlock);
 registerBlock(videoBlock);
 registerBlock(audioBlock);
 registerBlock(filesBlock);
+registerBlock(shapeBlock);
+registerBlock(arrowBlock);
+registerBlock(codeBlock);
+registerBlock(texBlock);
+registerBlock(scriptBlock);
 
 /** The descriptor of a kind, if it has one. */
 export function descriptorOf<B extends Block>(block: B): BlockDescriptor<B> | undefined;
@@ -69,7 +79,7 @@ export function fieldsOf(block: Block): [string, FieldSpec][] {
 
 // The kinds that have not been moved to a descriptor yet and have the events of a quiz / cannot be in a layout.
 const TASK_KINDS_BY_HAND = new Set<string>();
-const PAGE_ONLY_KINDS_BY_HAND = new Set(["script"]);
+const PAGE_ONLY_KINDS_BY_HAND = new Set<string>();
 
 /** Whether the block has the events of a quiz in the page's graph: the first answer, submitted, and submitted right / wrong. */
 export function isTaskBlock(block: { kind: string }): boolean {

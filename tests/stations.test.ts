@@ -393,6 +393,11 @@ describe("what is known about each kind", () => {
     cloze: { pageOnly: true, task: true, translatable: ["html"], lists: [] },
     matching: { pageOnly: true, task: true, translatable: [], lists: ["sources", "targets"] },
     sort: { pageOnly: true, task: true, translatable: ["endLabel", "startLabel"], lists: ["items"] },
+    shape: { pageOnly: false, task: false, translatable: [], lists: [] },
+    arrow: { pageOnly: false, task: false, translatable: [], lists: [] },
+    code: { pageOnly: false, task: false, translatable: [], lists: [] },
+    tex: { pageOnly: false, task: false, translatable: [], lists: [] },
+    script: { pageOnly: true, task: false, translatable: [], lists: [] },
     image: { pageOnly: false, task: false, translatable: [], lists: [] },
     video: { pageOnly: false, task: false, translatable: [], lists: [] },
     audio: { pageOnly: false, task: false, translatable: [], lists: [] },
@@ -1184,6 +1189,67 @@ describe("the picture, the video, the sound and the box of files", () => {
       expect(check(), kind).toEqual([]);
       inArchive.delete(`assets/${asset.id}_${asset.fileName}`);
       expect(check()[0]?.severity, kind).toBe("error");
+    }
+  });
+});
+
+describe("the shape, the arrow, the code, the formula and the logic block", () => {
+  type Stored = Record<string, unknown>;
+  const stored = (m: ReturnType<typeof moduleWith>) => m.content.pages[m.pageId].blocks[m.blockId] as unknown as Stored;
+  const say = (m: ReturnType<typeof moduleWith>) => descriptorOf(m.block.kind)!.summary!(m.block as never, { labels: {} });
+
+  it("say in one line what they are (`weft inspect`)", () => {
+    const shape = moduleWith("shape", false);
+    expect(say(shape)).toBe("rectangle");
+    stored(shape).shapeKind = "star";
+    expect(say(shape)).toBe("star");
+    const arrow = moduleWith("arrow", false);
+    expect(say(arrow)).toBe("3 Punkte");
+    stored(arrow).points = [{ x: 0, y: 0 }, { x: 5, y: 5 }];
+    expect(say(arrow)).toBe("2 Punkte");
+    const code = moduleWith("code", false);
+    stored(code).code = "first line\nsecond";
+    expect(say(code)).toBe("javascript: first line");
+    stored(code).code = "x".repeat(80);
+    expect(say(code)).toBe("javascript: " + "x".repeat(50));
+    const tex = moduleWith("tex", false);
+    stored(tex).tex = "y".repeat(70);
+    expect(say(tex)).toBe("y".repeat(60));
+    const script = moduleWith("script", false);
+    stored(script).code = "// a comment\n\n  vars.a = 1;\nmore";
+    expect(say(script)).toBe("Logikblock: vars.a = 1;");
+    stored(script).code = "// only a comment";
+    expect(say(script)).toBe("Logikblock: ");
+    stored(script).code = "z".repeat(80);
+    expect(say(script)).toBe("Logikblock: " + "z".repeat(50));
+  });
+
+  it("are made as they always were: where on the slide and with what", () => {
+    const made = (kind: string) => moduleWith(kind, false).block as unknown as Record<string, unknown>;
+    expect(made("shape")).toMatchObject({ position: { x: 30, y: 30, width: 40, height: 40 }, shapeKind: "rectangle", sides: 6, starPoints: 5, starInnerRadius: 45, fill: { type: "solid" }, stroke: { enabled: false }, shadow: { enabled: false } });
+    expect(made("arrow")).toMatchObject({ position: { x: 20, y: 35, width: 60, height: 30 }, arrowStyle: "plain", width: 0.8, startHead: false, endHead: true });
+    expect(made("code")).toMatchObject({ position: { x: 10, y: 30, width: 80, height: 40 }, language: "javascript", theme: "atom-one-dark", fontSize: 13 });
+    expect(made("tex")).toMatchObject({ position: { x: 25, y: 35, width: 50, height: 30 }, color: "" });
+    expect(made("script")).toMatchObject({ position: { x: 44.5, y: 40.25, width: 11, height: 19.5 } });
+    expect(made("script").code).toMatch(/^\/\//);
+  });
+
+  it("have their text in the clipboard: the code with its empty lines, the formula as it is - and nothing for what is only drawn", () => {
+    const code = moduleWith("code", false);
+    stored(code).code = "a\n\nb\nc";
+    expect(clipboardEntryPlainText({ kind: "block", block: code.block } as never)).toBe("a\n\nb\nc");
+    const tex = moduleWith("tex", false);
+    stored(tex).tex = "x^2";
+    expect(clipboardEntryPlainText({ kind: "block", block: tex.block } as never)).toBe("x^2");
+    for (const kind of ["shape", "arrow", "script"]) expect(clipboardEntryPlainText({ kind: "block", block: moduleWith(kind, false).block } as never), kind).toBe("");
+  });
+
+  it("have no words to translate - what is in them is shown as it is - and only the logic block is kept off the layouts", () => {
+    for (const kind of ["shape", "arrow", "code", "tex", "script"]) {
+      const m = moduleWith(kind, true);
+      expect(exportedTexts(m.block), kind).toEqual([]);
+      expect(placeholderSources(m.block), kind).toEqual([]);
+      expect(isPageOnlyKind(kind), kind).toBe(kind === "script");
     }
   });
 });

@@ -43,16 +43,16 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
       // (Described above.)
       return "";
     case "code":
-      return `${block.language}: ${(block.code.split("\n")[0] ?? "").slice(0, 50)}`;
     case "tex":
-      return block.tex.slice(0, 60);
+      // (Described above.)
+      return "";
     case "iframe":
       // (Described above.)
       return "";
     case "shape":
-      return block.shapeKind;
     case "arrow":
-      return `${block.points.length} Punkte`;
+      // (Described above.)
+      return "";
     case "gallery":
       // (Described above.)
       return "";
@@ -72,6 +72,7 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
       // (Described above.)
       return "";
     case "script":
-      return `Logikblock: ${(block.code.split("\n").find((line) => line.trim() !== "" && !line.trim().startsWith("//")) ?? "").trim().slice(0, 50)}`;
+      // (Described above.)
+      return "";
   }
 }

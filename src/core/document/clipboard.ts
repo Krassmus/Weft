@@ -79,10 +79,6 @@ function blockLines(block: Block): string[] {
   switch (block.kind) {
     case "placeholder":
       return plainLinesOfHtml(block.html);
-    case "code":
-      return block.code.split("\n");
-    case "tex":
-      return [block.tex];
     default:
       // (A block that describes itself says which of its texts are seen.)
       return shownWordings(block)

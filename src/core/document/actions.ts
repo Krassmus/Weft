@@ -29,7 +29,6 @@ import type {
   WeftModule,
 } from "../types";
 import { isMediaBlock } from "../types";
-import { DEFAULT_CODE_THEME } from "../code/codeThemes";
 import { insertOrdered, moveOrdered, moveOrderedRun, orderedIdRecord, orderedKeys, orderedValues } from "./ordering";
 import { findChain, reorderedLinks } from "../eventGraph/chains";
 import { assignPatch, plain, removeWhere } from "./plain";
@@ -68,8 +67,6 @@ import {
   videoStartNodeId,
   videoStopNodeId,
 } from "./pageTimeline";
-import { defaultArrowColor } from "./arrow";
-import { defaultShapeCornerRadii, defaultShapeFill, defaultShapeShadow, defaultShapeStroke } from "./shapeDefaults";
 import type { BlockContainerRef } from "./store";
 import { useDocumentStore } from "./store";
 import { tr } from "../i18n/tr";
@@ -640,80 +637,9 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
   const base = { id: createId(), entranceEffect: defaultEntranceEffect(), exitEffect: defaultExitEffect() };
   const described = descriptorOf(kind);
   if (described) return { ...base, ...described.defaults(), kind, position: { ...described.placement.box } } as NewBlock;
-  switch (kind) {
-    case "solution":
-    case "gallery":
-    case "iframe":
-    case "link":
-    case "checker":
-    case "button":
-    case "text":
-    case "list":
-    case "cloze":
-    case "quiz":
-    case "revealer":
-    case "matching":
-    case "sort":
-      // (A kind with a descriptor is made above - it has no case of its own.)
-      throw new Error(`The kind "${kind}" has no descriptor.`);
-    case "placeholder":
-      return { ...base, kind, position, label: tr("ui.placeholder"), html: tr("ui.placeholder_text") };
-    case "language":
-    case "progress":
-      // (A kind with a descriptor is made above - it has no case of its own.)
-      throw new Error(`The kind "${kind}" has no descriptor.`);
-    case "script":
-      // A hexagon that is a square on the usual 16:9 slide (the percentages are of the slide's width and height).
-      return { ...base, kind, position: { x: 44.5, y: 40.25, width: 11, height: 19.5 }, code: tr("ui.script_default_code") };
-    case "code":
-      return {
-        ...base,
-        kind,
-        position: { x: 10, y: 30, width: 80, height: 40 },
-        code: 'function greet(name) {\n  return "Hello, " + name + "!";\n}\n\nconsole.log(greet("Weft"));',
-        language: "javascript",
-        theme: DEFAULT_CODE_THEME,
-        fontSize: 13,
-      };
-    case "tex":
-      return { ...base, kind, position: { x: 25, y: 35, width: 50, height: 30 }, tex: "\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2}", color: "" };
-    case "image":
-    case "video":
-    case "audio":
-    case "files":
-      // (A kind with a descriptor is made above - it has no case of its own.)
-      throw new Error(`The kind "${kind}" has no descriptor.`);
-    case "shape":
-      return {
-        ...base,
-        kind,
-        position: { x: 30, y: 30, width: 40, height: 40 },
-        shapeKind: "rectangle",
-        cornerRadii: defaultShapeCornerRadii(),
-        sides: 6,
-        starPoints: 5,
-        starInnerRadius: 45,
-        fill: defaultShapeFill(),
-        stroke: defaultShapeStroke(),
-        shadow: defaultShapeShadow(),
-      };
-    case "arrow":
-      return {
-        ...base,
-        kind,
-        position: { x: 20, y: 35, width: 60, height: 30 },
-        points: [
-          { x: 0, y: 80 },
-          { x: 45, y: 25 },
-          { x: 100, y: 50 },
-        ],
-        arrowStyle: "plain",
-        color: defaultArrowColor(),
-        width: 0.8,
-        startHead: false,
-        endHead: true,
-      };
-  }
+  // (Only the placeholder of a layout is still made by hand; every other kind has a descriptor and is made above.)
+  if (kind === "placeholder") return { ...base, kind, position, label: tr("ui.placeholder"), html: tr("ui.placeholder_text") };
+  throw new Error(`The kind "${kind}" has no descriptor.`);
 }
 
 export function addBlockToPage(pageId: string, kind: Block["kind"]) {

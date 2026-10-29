@@ -60,17 +60,6 @@ function hasWords(html: string | undefined): boolean {
 function textsOfBlock(block: Block): { key: string; source: string; role: string }[] {
   const id = block.id;
   switch (block.kind) {
-    case "sort": {
-      const plain = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      return [
-        ...(block.startLabel?.trim() ? [{ key: `${id}#start`, source: plain(block.startLabel), role: "Wort am Anfang der Linie" }] : []),
-        ...block.items
-          .map((item, index) => ({ item, role: `Objekt ${index + 1}` }))
-          .filter(({ item }) => hasWords(item.text))
-          .map(({ item, role }) => ({ key: `${id}#item:${item.id}`, source: plain(item.text), role: item.kind === "image" ? `${role} (Bildbeschreibung)` : role })),
-        ...(block.endLabel?.trim() ? [{ key: `${id}#end`, source: plain(block.endLabel), role: "Wort am Ende der Linie" }] : []),
-      ];
-    }
     default:
       // A block that describes itself (see core/blocks): its translatable texts are plain texts.
       return exportedTexts(block)
@@ -150,8 +139,7 @@ function existingTranslation(block: Block, key: string, language: string): strin
   if (part === "start" || part === "end") return escapePlain((translation[part === "start" ? "startLabel" : "endLabel"] as string | undefined) ?? "");
   if (part.startsWith("item:")) {
     const own = translation.items?.[part.slice(5)] ?? "";
-    // (The objects of a sorting puzzle are plain texts, exported escaped.)
-    return block.kind === "sort" ? escapePlain(own) : own;
+    return own;
   }
   return "";
 }

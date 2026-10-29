@@ -12,6 +12,7 @@ import { renderList } from "../src/core/blocks/list/render.js";
 import { renderMatching } from "../src/core/blocks/matching/render.js";
 import { renderQuiz } from "../src/core/blocks/quiz/render.js";
 import { renderRevealer } from "../src/core/blocks/revealer/render.js";
+import { renderSort, sortDropIndex, sortLayout, sortMistakes, sortShuffled } from "../src/core/blocks/sort/render.js";
 import { renderSolution } from "../src/core/blocks/solution/render.js";
 import { renderText, textBoxStyle } from "../src/core/blocks/text/render.js";
 
@@ -65,6 +66,8 @@ const WORDS: Record<string, string> = {
   thanks: "Danke!",
   next: "Weiter",
   noAddress: "(keine Adresse)",
+  sortPicked: "Aufgenommen",
+  sortMoved: "Verschoben: {n} von {total}",
   revealerOpen: "Öffnen",
   matchingPicked: "Aufgenommen",
   matchingAssigned: "Abgelegt",
@@ -84,7 +87,7 @@ const ICONS = {
 };
 
 /** Every render.js there is must be run here: this is the list of what is run (a new one fails the test below until it is added). */
-const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text", "list", "cloze", "quiz", "revealer", "matching"];
+const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text", "list", "cloze", "quiz", "revealer", "matching", "sort"];
 
 describe("the render functions", () => {
   it("are all tested here", () => {
@@ -101,7 +104,7 @@ describe("the render functions", () => {
     const inlined = source.replace(/^export /gm, "");
     expect(inlined).not.toMatch(/\bexport\b\s+(function|var|const|let|default)/);
     // The way the page has it: a script of its own that leaves the function there for the player after it.
-    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText", list: "renderList", cloze: "renderCloze", quiz: "renderQuiz", revealer: "renderRevealer", matching: "renderMatching" }[kind];
+    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText", list: "renderList", cloze: "renderCloze", quiz: "renderQuiz", revealer: "renderRevealer", matching: "renderMatching", sort: "renderSort" }[kind];
     expect(new Function(`${inlined}; return typeof ${name};`)()).toBe("function");
   });
 });
@@ -1704,6 +1707,333 @@ describe.each(MODES)("a matching drawn for %s", (mode) => {
       click(cardOf(root, "t0"));
       expect(cardOf(root, "s0").classList.contains("is-picked")).toBe(false);
       expect(cardOf(root, "s0").classList.contains("is-docked")).toBe(false);
+      const button = find(root, ".weft-quiz-submit") as HTMLButtonElement;
+      expect(button.getAttribute("tabindex")).toBe("-1");
+      fire(button, "click");
+      expect(ctx.submit).not.toHaveBeenCalled();
+      expect(ctx.fill).not.toHaveBeenCalled();
+    });
+  }
+});
+
+// ---- the sorting puzzle -----------------------------------------------------------------------------------------------------------------
+
+describe("what a sorting puzzle works out", () => {
+  it("shuffles the objects - all of them, and never into the right order", () => {
+    const ids = ["a", "b", "c", "d"];
+    for (let i = 0; i < 40; i++) {
+      const shuffled = sortShuffled(ids);
+      expect([...shuffled].sort()).toEqual(ids);
+      expect(shuffled).not.toEqual(ids);
+    }
+    expect(sortShuffled(["a"])).toEqual(["a"]);
+    expect(sortShuffled([])).toEqual([]);
+    // (Even when luck would give the right order back: it is moved.)
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.999999);
+    expect(sortShuffled(ids)).not.toEqual(ids);
+    random.mockRestore();
+  });
+
+  it("counts a mistake as the fewest moves that make the order right - and says which objects stay", () => {
+    expect(sortMistakes([0, 1, 2, 3])).toEqual({ moves: 0, stays: { 0: true, 1: true, 2: true, 3: true } });
+    expect(sortMistakes([1, 0, 2, 3]).moves).toBe(1);
+    expect(sortMistakes([3, 2, 1, 0]).moves).toBe(3);
+    expect(sortMistakes([1, 2, 3, 0]).moves).toBe(1);
+    expect(Object.keys(sortMistakes([1, 2, 3, 0]).stays)).toEqual(["0", "1", "2"]);
+    expect(sortMistakes([]).moves).toBe(0);
+  });
+
+  it("lays the objects out on one line while they fit at the size they were given, else on as many as it takes, filled evenly", () => {
+    const block = (count: number, along: number, orientation: "vertical" | "horizontal" = "vertical") => ({ orientation, itemSize: orientation === "vertical" ? { width: 50, height: along } : { width: along, height: 20 }, items: new Array(count).fill(0) });
+    expect(sortLayout(block(4, 20))).toEqual({ lines: 1, per: 4 });
+    expect(sortLayout(block(5, 20))).toEqual({ lines: 1, per: 5 });
+    expect(sortLayout(block(6, 20))).toEqual({ lines: 2, per: 3 });
+    expect(sortLayout(block(9, 25))).toEqual({ lines: 3, per: 3 });
+    expect(sortLayout(block(9, 20, "horizontal"))).toEqual({ lines: 2, per: 5 });
+    expect(sortLayout(block(0, 20))).toEqual({ lines: 1, per: 1 });
+    expect(sortLayout(block(3, 150))).toEqual({ lines: 3, per: 1 });
+  });
+
+  it("puts a dragged object after every other one whose middle the pointer has passed - on the line whose middle is nearest across", () => {
+    const column = [10, 30, 50].map((along) => ({ along, cross: 5 }));
+    expect(sortDropIndex(3, column, 0, 0, 5)).toBe(0);
+    expect(sortDropIndex(3, column, 0, 35, 5)).toBe(1);
+    expect(sortDropIndex(3, column, 0, 99, 5)).toBe(2);
+    expect(sortDropIndex(3, column, 2, 0, 5)).toBe(0);
+    // Two lines of two: the pointer is on the second one.
+    const lanes = [
+      { along: 10, cross: 5 },
+      { along: 30, cross: 5 },
+      { along: 10, cross: 25 },
+      { along: 30, cross: 25 },
+    ];
+    expect(sortDropIndex(2, lanes, 0, 0, 24)).toBe(1);
+    expect(sortDropIndex(2, lanes, 0, 20, 24)).toBe(2);
+    expect(sortDropIndex(2, lanes, 0, 99, 24)).toBe(3);
+  });
+});
+
+describe.each(MODES)("a sorting puzzle drawn for %s", (mode) => {
+  const item = (id: string, text: string, kind: "text" | "image" = "text", src = "") => ({ id, kind, text, src });
+  const props = (extra: Record<string, unknown> = {}) => ({
+    id: "p1",
+    items: [item("a", "Erstens"), item("b", "Zweitens"), item("c", "Drittens"), item("d", "Viertens")],
+    orientation: "vertical" as "vertical" | "horizontal",
+    itemSize: { width: 40, height: 16 },
+    startLabel: "Früh",
+    endLabel: "Spät",
+    ...extra,
+  });
+  const context = () => ({ mode, text, textWith, icons: ICONS, applyVariables: vi.fn(), reducedMotion: () => true, fill: vi.fn(), submit: vi.fn(), announce: vi.fn(), enlarge: vi.fn() });
+  const order = (root: Element) => [...root.querySelectorAll(".weft-sort-item:not(.is-ghost)")].map((card) => card.getAttribute("data-weft-item"));
+  const cardOf = (root: Element, id: string) => find(root, `[data-weft-item="${id}"]`) as HTMLElement;
+  const click = (el: Element, detail = 0) => el.dispatchEvent(Object.assign(new window.Event("click", { bubbles: true, cancelable: true }), { detail }));
+  const key = (el: Element, keyName: string) => el.dispatchEvent(Object.assign(new window.Event("keydown", { bubbles: true, cancelable: true }), { key: keyName }));
+  const setOrder = (root: Element, ids: string[]) => {
+    const list = find(root, ".weft-sort-list") as HTMLElement;
+    ids.forEach((id) => list.appendChild(cardOf(root, id)));
+  };
+
+  it("is drawn with its objects on a line, the words at its ends, the button; can be drawn again and goes away", () => {
+    const root = element();
+    const ctx = context();
+    const instance = renderSort(root, props(), ctx);
+    expect(find(root, ".weft-sort")?.className).toBe("weft-sort is-vertical has-start has-end");
+    expect(find(root, ".weft-sort")?.getAttribute("style")).toContain("--sort-lines:1");
+    expect(find(root, ".weft-sort")?.getAttribute("style")).toContain("--sort-per:4");
+    expect([...root.querySelectorAll(".weft-sort-text")].map((node) => node.textContent).sort()).toEqual(["Drittens", "Erstens", "Viertens", "Zweitens"]);
+    expect(find(root, ".weft-sort-end.is-start")?.textContent).toBe("Früh");
+    expect(find(root, ".weft-sort-end.is-end")?.textContent).toBe("Spät");
+    expect(find(root, ".weft-quiz-submit")?.textContent).toBe("Abschicken");
+    expect(cardOf(root, "a").getAttribute("style")).toContain("width:40%");
+    expect(cardOf(root, "a").getAttribute("style")).toContain("height:16%");
+    expect(ctx.applyVariables).toHaveBeenCalledTimes(6);
+    instance.update(props({ items: props().items.map((i) => ({ ...i, text: i.text + "!" })), startLabel: "", endLabel: "Ende" }));
+    expect(cardOf(root, "a").textContent).toBe("Erstens!");
+    expect((find(root, ".weft-sort-end.is-start") as HTMLElement).hidden).toBe(true);
+    expect(find(root, ".weft-sort")?.className).toBe("weft-sort is-vertical has-end");
+    instance.destroy();
+    expect(root.childNodes.length).toBe(0);
+  });
+
+  it("is drawn in a place that has no variables", () => {
+    const root = element();
+    renderSort(root, props(), { mode, text, textWith, icons: ICONS, fill: vi.fn(), submit: vi.fn(), announce: vi.fn(), enlarge: vi.fn() });
+    expect(cardOf(root, "c").textContent).toBe("Drittens");
+  });
+
+  it("has a line of its own for every row of a horizontal puzzle that does not fit on one - and room for the pictures", () => {
+    const root = element();
+    const many = Array.from({ length: 6 }, (_, i) => item("x" + i, "Teil " + i));
+    many[2] = item("x2", "Bild", "image", "data:image/png;base64,AAAA");
+    renderSort(root, props({ items: many, orientation: "horizontal", itemSize: { width: 40, height: 20 } }), context());
+    expect(find(root, ".weft-sort")?.className).toContain("is-horizontal is-multi");
+    expect(root.querySelectorAll(".weft-sort-lane").length).toBe(3);
+    expect(find(root, ".weft-sort")?.getAttribute("style")).toContain("--sort-lines:3");
+    expect(find(root, ".weft-sort")?.getAttribute("style")).toContain("--sort-per:2");
+    // (On several lines an object has the room of its place on the line; a picture on a horizontal line twice the height.)
+    expect(cardOf(root, "x0").getAttribute("style")).toContain("width:80%");
+    expect(cardOf(root, "x0").getAttribute("style")).toContain("height:20%");
+    expect(cardOf(root, "x2").getAttribute("style")).toContain("height:40%");
+    expect(cardOf(root, "x2").querySelector(".weft-matching-frame .weft-matching-image")?.getAttribute("src")).toBe("data:image/png;base64,AAAA");
+  });
+
+  if (mode === "play") {
+    it("starts with the objects mixed up - never in the right order", () => {
+      for (let i = 0; i < 10; i++) {
+        const root = element();
+        renderSort(root, props(), context());
+        expect([...order(root)].sort()).toEqual(["a", "b", "c", "d"]);
+        expect(order(root)).not.toEqual(["a", "b", "c", "d"]);
+        expect(cardOf(root, "a").tagName).toBe("BUTTON");
+      }
+    });
+
+    it("has an object picked up with a key and moved along the line with the arrow keys - and the first move told once", () => {
+      const root = element();
+      const ctx = context();
+      renderSort(root, props(), ctx);
+      setOrder(root, ["a", "b", "c", "d"]);
+      const a = cardOf(root, "a");
+      click(a);
+      expect(a.classList.contains("is-picked")).toBe(true);
+      expect(ctx.announce).toHaveBeenCalledWith("Aufgenommen");
+      // (A card that is not the picked one does not move.)
+      key(cardOf(root, "b"), "ArrowDown");
+      expect(order(root)).toEqual(["a", "b", "c", "d"]);
+      key(a, "ArrowDown");
+      expect(order(root)).toEqual(["b", "a", "c", "d"]);
+      expect(ctx.announce).toHaveBeenCalledWith("Verschoben: 2 von 4");
+      key(a, "ArrowRight");
+      key(a, "ArrowDown");
+      expect(order(root)).toEqual(["b", "c", "d", "a"]);
+      // (At the end it stays.)
+      key(a, "ArrowDown");
+      expect(order(root)).toEqual(["b", "c", "d", "a"]);
+      key(a, "ArrowUp");
+      key(a, "ArrowLeft");
+      expect(order(root)).toEqual(["b", "a", "c", "d"]);
+      expect(ctx.fill).toHaveBeenCalledTimes(1);
+      click(a);
+      expect(a.classList.contains("is-picked")).toBe(false);
+    });
+
+    it("has Escape put a picked object back where it was picked up", () => {
+      const root = element();
+      const ctx = context();
+      renderSort(root, props(), ctx);
+      setOrder(root, ["a", "b", "c", "d"]);
+      const b = cardOf(root, "b");
+      click(b);
+      key(b, "ArrowDown");
+      key(b, "ArrowDown");
+      expect(order(root)).toEqual(["a", "c", "d", "b"]);
+      key(b, "Escape");
+      expect(order(root)).toEqual(["a", "b", "c", "d"]);
+      expect(b.classList.contains("is-picked")).toBe(false);
+    });
+
+    it("moves a whole line across on several lines - and along it with the other arrow keys", () => {
+      const root = element();
+      const many = Array.from({ length: 6 }, (_, i) => item("x" + i, "Teil " + i));
+      renderSort(root, props({ items: many, itemSize: { width: 40, height: 30 } }), context());
+      setOrder(root, ["x0", "x1", "x2", "x3", "x4", "x5"]);
+      expect(find(root, ".weft-sort")?.getAttribute("style")).toContain("--sort-per:3");
+      const first = cardOf(root, "x0");
+      click(first);
+      // (Vertical lines: down is one along the line, right is a line further - three objects.)
+      key(first, "ArrowRight");
+      expect(order(root)).toEqual(["x1", "x2", "x3", "x0", "x4", "x5"]);
+      key(first, "ArrowDown");
+      expect(order(root)).toEqual(["x1", "x2", "x3", "x4", "x0", "x5"]);
+      key(first, "ArrowLeft");
+      expect(order(root)).toEqual(["x1", "x0", "x2", "x3", "x4", "x5"]);
+    });
+
+    it("has an object dragged to another place: the others make room, the first move is told, and a click after the drag is no pick", () => {
+      const root = element();
+      document.body.appendChild(root);
+      const ctx = context();
+      renderSort(root, props(), ctx);
+      setOrder(root, ["a", "b", "c", "d"]);
+      // (There is no layout here: the middle of every object is given.)
+      const place = () => order(root).forEach((id, index) => {
+        const card = cardOf(root, id);
+        Object.defineProperty(card, "offsetTop", { configurable: true, value: index * 20 });
+        Object.defineProperty(card, "offsetHeight", { configurable: true, value: 20 });
+        Object.defineProperty(card, "offsetLeft", { configurable: true, value: 0 });
+        Object.defineProperty(card, "offsetWidth", { configurable: true, value: 10 });
+      });
+      place();
+      const pointer = (type: string, x: number, y: number) => Object.assign(new window.Event(type, { bubbles: true, cancelable: true }), { clientX: x, clientY: y, button: 0 });
+      const a = cardOf(root, "a");
+      a.dispatchEvent(pointer("pointerdown", 5, 10));
+      window.dispatchEvent(pointer("pointermove", 6, 12));
+      expect(find(root, ".is-ghost")).toBeNull();
+      window.dispatchEvent(pointer("pointermove", 5, 55));
+      expect(find(root, ".is-ghost")).not.toBeNull();
+      expect(a.classList.contains("is-dragging")).toBe(true);
+      expect(order(root)).toEqual(["b", "c", "a", "d"]);
+      window.dispatchEvent(pointer("pointerup", 5, 55));
+      expect(find(root, ".is-ghost")).toBeNull();
+      expect(a.classList.contains("is-dragging")).toBe(false);
+      expect(ctx.fill).toHaveBeenCalledTimes(1);
+      click(a);
+      expect(a.classList.contains("is-picked")).toBe(false);
+      // (A pointer that is cancelled leaves the drag as it is, without a ghost.)
+      place();
+      a.dispatchEvent(pointer("pointerdown", 5, 50));
+      window.dispatchEvent(pointer("pointermove", 5, 80));
+      window.dispatchEvent(pointer("pointercancel", 5, 80));
+      expect(find(root, ".is-ghost")).toBeNull();
+      // Another button does not drag.
+      a.dispatchEvent(Object.assign(pointer("pointerdown", 5, 50), { button: 2 }));
+      window.dispatchEvent(pointer("pointermove", 5, 10));
+      expect(find(root, ".is-ghost")).toBeNull();
+      root.remove();
+    });
+
+    it("judges the order when it is submitted: the objects that need no move are right, the others wrong - and the place is told how many moves it takes", () => {
+      const root = element();
+      const ctx = context();
+      renderSort(root, props(), ctx);
+      setOrder(root, ["b", "a", "c", "d"]);
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      expect(ctx.submit).toHaveBeenCalledWith({ moves: 1, allRight: false });
+      expect(cardOf(root, "b").classList.contains("is-correct")).toBe(true);
+      expect(cardOf(root, "a").classList.contains("is-wrong")).toBe(true);
+      expect(cardOf(root, "c").classList.contains("is-correct")).toBe(true);
+      expect(cardOf(root, "a").querySelector(".weft-matching-mark")).not.toBeNull();
+      expect(find(root, ".weft-sort")?.classList.contains("is-locked")).toBe(true);
+      expect((find(root, ".weft-quiz-submit") as HTMLButtonElement).hidden).toBe(true);
+      expect(find(root, ".weft-quiz-feedback")?.className).toBe("weft-quiz-feedback is-incorrect");
+      expect(find(root, ".weft-quiz-feedback-title")?.textContent).toBe("Falsch");
+      expect(ctx.announce).toHaveBeenCalledWith("Falsch");
+      // (Once is enough, and nothing can be picked or moved any more.)
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      expect(ctx.submit).toHaveBeenCalledTimes(1);
+      click(cardOf(root, "a"));
+      expect(cardOf(root, "a").classList.contains("is-picked")).toBe(false);
+    });
+
+    it("is right in the right order, and a reversed one is as many moves wrong as it has objects but one", () => {
+      const right = element();
+      const ctx = context();
+      renderSort(right, props(), ctx);
+      setOrder(right, ["a", "b", "c", "d"]);
+      fire(find(right, ".weft-quiz-submit") as Element, "click");
+      expect(ctx.submit).toHaveBeenCalledWith({ moves: 0, allRight: true });
+      expect(find(right, ".weft-quiz-feedback")?.className).toBe("weft-quiz-feedback is-correct");
+      expect(find(right, ".weft-quiz-feedback-title")?.textContent).toBe("Richtig");
+      const reversed = element();
+      const ctx2 = context();
+      renderSort(reversed, props(), ctx2);
+      setOrder(reversed, ["d", "c", "b", "a"]);
+      fire(find(reversed, ".weft-quiz-submit") as Element, "click");
+      expect(ctx2.submit).toHaveBeenCalledWith({ moves: 3, allRight: false });
+    });
+
+    it("enlarges a picture with a click of the mouse (not a key) and with z", () => {
+      const root = element();
+      const ctx = context();
+      renderSort(root, props({ items: [item("a", "Ein Hund", "image", "data:image/png;base64,AAAA"), item("b", "Text")] }), ctx);
+      setOrder(root, ["a", "b"]);
+      click(cardOf(root, "a"), 0);
+      expect(ctx.enlarge).not.toHaveBeenCalled();
+      expect(cardOf(root, "a").classList.contains("is-picked")).toBe(true);
+      click(cardOf(root, "a"), 1);
+      expect(ctx.enlarge).toHaveBeenCalledWith("data:image/png;base64,AAAA", "Ein Hund");
+      key(cardOf(root, "a"), "z");
+      expect(ctx.enlarge).toHaveBeenCalledTimes(2);
+      key(cardOf(root, "b"), "z");
+      expect(ctx.enlarge).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps the order and what was submitted when the words change", () => {
+      const root = element();
+      const instance = renderSort(root, props(), context());
+      setOrder(root, ["c", "a", "d", "b"]);
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      WORDS.correct = "Correct";
+      instance.update(props({ items: props().items.map((i) => ({ ...i, text: "EN " + i.text })) }));
+      expect(order(root)).toEqual(["c", "a", "d", "b"]);
+      expect(cardOf(root, "c").textContent).toBe("EN Drittens");
+      expect(find(root, ".weft-quiz-feedback-title")?.textContent).toBe("Falsch");
+      WORDS.correct = "Richtig";
+    });
+  } else {
+    it("is only a picture: the objects stand in their right order whatever luck says, are not buttons, and nothing can be picked or pressed", () => {
+      const root = element();
+      const ctx = context();
+      const random = vi.spyOn(Math, "random").mockReturnValue(0.1);
+      renderSort(root, props(), ctx);
+      random.mockRestore();
+      expect(order(root)).toEqual(["a", "b", "c", "d"]);
+      expect(cardOf(root, "a").tagName).toBe("DIV");
+      click(cardOf(root, "a"));
+      key(cardOf(root, "a"), "ArrowDown");
+      expect(cardOf(root, "a").classList.contains("is-picked")).toBe(false);
+      expect(order(root)).toEqual(["a", "b", "c", "d"]);
       const button = find(root, ".weft-quiz-submit") as HTMLButtonElement;
       expect(button.getAttribute("tabindex")).toBe("-1");
       fire(button, "click");

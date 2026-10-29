@@ -22,7 +22,6 @@ function assetIdsOfPlain(block: Block | StaticBlock): string[] {
   if (block.kind === "files") return block.files.map((file) => file.id);
   // (A block that describes itself - see core/blocks - says which of its fields are files.)
   if (descriptorOf(block)) return assetIdsOfFields(block as Block);
-  if (block.kind === "sort") return block.items.flatMap((item) => (item.kind === "image" && item.assetId ? [item.assetId] : []));
   return (block.kind === "image" || block.kind === "video" || block.kind === "audio") && block.assetId ? [block.assetId] : [];
 }
 

@@ -20,7 +20,6 @@ const definitions = (schema as unknown as { definitions: Record<string, Node> })
 /** What each kind of block is for - the one thing the schema cannot say. */
 const BLOCK_KINDS_BY_HAND: Record<string, { definition: string; what: string }> = {
   placeholder: { definition: "PlaceholderBlock", what: "Nur im Layout: Ort und Formatierung für einen Text, den die Folien selbst eingeben." },
-  sort: { definition: "SortBlock", what: "Sortierrätsel: Texte oder Bilder (items, in der RICHTIGEN Reihenfolge), die die Lernperson per Drag & Drop in die richtige Reihenfolge bringt; senkrecht oder waagerecht auf einer dünnen Linie, Wörter an ihren Enden (startLabel / endLabel), Punkte beim Abschicken (onSubmit) und für jeden Fehler (onEachError, die kleinste Zahl an Verschiebungen), Ereignisse wie bei einem Quiz." },
   image: { definition: "ImageBlock", what: "Ein Bild (Datei aus `assets`), optional mit Maske und Effekt." },
   video: { definition: "VideoBlock", what: "Ein Video (Datei aus `assets`), mit Zeitmarken, an denen es anhalten kann." },
   audio: { definition: "AudioBlock", what: "Eine Audiodatei (aus `assets`): nicht sichtbar oder mit Player; wie ein Video mit Zeitmarken, an denen es anhalten kann." },

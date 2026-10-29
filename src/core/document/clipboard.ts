@@ -79,8 +79,6 @@ function blockLines(block: Block): string[] {
   switch (block.kind) {
     case "placeholder":
       return plainLinesOfHtml(block.html);
-    case "sort":
-      return [block.startLabel ?? "", ...block.items.map((item) => item.text), block.endLabel ?? ""].filter((text) => text.trim() !== "");
     case "code":
       return block.code.split("\n");
     case "tex":

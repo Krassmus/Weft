@@ -19,7 +19,6 @@ import { TexView } from "./blocks/TexView";
 // either.
 import video2IconSvg from "../../../mockups/icons/video2.svg?raw";
 import { viewOf } from "./blocks/blockViews";
-import { SortView } from "./blocks/SortView";
 import { ScriptHexagon } from "./blocks/ScriptHexagon";
 
 const THUMB_MAX_HEIGHT_PX = 150;
@@ -264,13 +263,6 @@ function ThumbBlockBody({
     return (
       <div className="weft-thumb-block" style={style}>
         <view.View block={block} lang={lang} defaultLang={defaultLang} selected={false} mode={exportPxPerCqw ? "print" : "thumbnail"} qrSvg={qrSvg} progress={progress} />
-      </div>
-    );
-  }
-  if (block.kind === "sort") {
-    return (
-      <div className="weft-thumb-block" style={style}>
-        <SortView block={block} lang={lang} defaultLang={defaultLang} />
       </div>
     );
   }

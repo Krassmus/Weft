@@ -19,13 +19,6 @@ export function placeholderSources(block: Block): string[] {
     // Every language's wording, not just the default's - a placeholder is just as wrong in French.
     case "placeholder":
       return [block.html];
-    case "sort":
-      // The words of the objects and the two ends of the line (plain texts, escaped first), in every language.
-      return [
-        ...block.items.filter((item) => item.kind === "text").map((item) => escapeText(item.text)),
-        ...[block.startLabel, block.endLabel].filter((t): t is string => !!t).map(escapeText),
-        ...Object.values(block.translations ?? {}).flatMap((t) => [...Object.values(t.items ?? {}), t.startLabel, t.endLabel].filter((x): x is string => !!x).map(escapeText)),
-      ];
     default:
       // (A block that describes itself says which of its texts are seen: plain texts, escaped first.)
       return variableWordings(block).flatMap(({ own, translated, html }) => [...(own ? [html ? own : escapeText(own)] : []), ...translated.map((words) => (html ? words : escapeText(words)))]);

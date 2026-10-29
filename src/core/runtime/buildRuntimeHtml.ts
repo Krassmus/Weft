@@ -32,6 +32,8 @@ import revealerRenderSource from "../blocks/revealer/render.js?raw";
 import revealerCss from "../blocks/revealer/render.css?raw";
 import matchingRenderSource from "../blocks/matching/render.js?raw";
 import matchingCss from "../blocks/matching/render.css?raw";
+import sortRenderSource from "../blocks/sort/render.js?raw";
+import sortCss from "../blocks/sort/render.css?raw";
 import playerRuntimeSource from "./player.runtime.js?raw";
 import quizCardCss from "./quizCard.css?raw";
 import playerRuntimeCss from "./player.runtime.css?raw";
@@ -123,6 +125,7 @@ export async function buildRuntimeHtml(
 <style>${clozeCss}</style>
 <style>${revealerCss}</style>
 <style>${matchingCss}</style>
+<style>${sortCss}</style>
 <style>${playerRuntimeCss}</style>
 <style>${fontFaceCss}</style>
 ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` : ""}${hasTex ? `<style>${buildKatexCss()}</style>\n` : ""}</head>
@@ -159,6 +162,7 @@ ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` 
 <script>${quizRenderSource.replace(/^export /gm, "")}</script>
 <script>${revealerRenderSource.replace(/^export /gm, "")}</script>
 <script>${matchingRenderSource.replace(/^export /gm, "")}</script>
+<script>${sortRenderSource.replace(/^export /gm, "")}</script>
 <script>${playerRuntimeSource}</script>
 </body>
 </html>

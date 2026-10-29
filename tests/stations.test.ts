@@ -392,6 +392,7 @@ describe("what is known about each kind", () => {
     list: { pageOnly: false, task: false, translatable: [], lists: ["items"] },
     cloze: { pageOnly: true, task: true, translatable: ["html"], lists: [] },
     matching: { pageOnly: true, task: true, translatable: [], lists: ["sources", "targets"] },
+    sort: { pageOnly: true, task: true, translatable: ["endLabel", "startLabel"], lists: ["items"] },
     revealer: { pageOnly: false, task: false, translatable: ["body", "imageAlt", "title"], lists: [] },
     quiz: { pageOnly: true, task: true, translatable: ["explanation", "questionHtml"], lists: ["options"] },
   };
@@ -973,5 +974,118 @@ describe("the matching", () => {
     expect(block.sources[0].text).toBe("Dog");
     expect(block.targets[0].text).toBe("Animal");
     expect((block.translations![DE].items as Record<string, string>)[block.sources[0].id]).toBe(own);
+  });
+});
+
+describe("the sorting puzzle", () => {
+  type Item = { id: string; kind: string; text: string; assetId?: string | null };
+  type Stored = { items: Item[]; startLabel?: string; endLabel?: string; orientation: string; required?: boolean; translations?: Record<string, Record<string, unknown>> };
+  const stored = (m: ReturnType<typeof moduleWith>) => m.content.pages[m.pageId].blocks[m.blockId] as unknown as Stored;
+  const findings = (m: ReturnType<typeof moduleWith>) => validate({ path: "test.weft", json: { formatVersion: CURRENT_FORMAT_VERSION, content: m.content }, content: m.content, files: new Set(), archive: false });
+  const codes = (m: ReturnType<typeof moduleWith>) => findings(m).filter((finding) => JSON.stringify(finding).includes(m.block.id)).map((finding) => finding.code);
+
+  it("has its objects in their right order as a list, a line, two words for its ends and four lists of changes to variables", () => {
+    const m = moduleWith("sort", false);
+    expect(fieldsOf(m.block).filter(([, spec]) => spec.type === "list").map(([name]) => name)).toEqual(["items"]);
+    expect(fieldsOf(m.block).filter(([, spec]) => spec.type === "effects").map(([name]) => name)).toEqual(["onEachError", "onSubmit", "onCorrect", "onIncorrect"]);
+    expect(fieldsOf(m.block).filter(([, spec]) => spec.type === "text").map(([name]) => name)).toEqual(["startLabel", "endLabel"]);
+  });
+
+  it("is made with a vertical line of the sample objects, in a box of its own, with the size of an object", () => {
+    const block = stored(moduleWith("sort", false));
+    expect(block.orientation).toBe("vertical");
+    expect(block.items.length).toBeGreaterThanOrEqual(3);
+    expect(block.items.every((item) => item.kind === "text" && item.text.trim() !== "")).toBe(true);
+    expect(new Set(block.items.map((item) => item.id)).size).toBe(block.items.length);
+  });
+
+  it("has the picture of an object kept only while the object is a picture", () => {
+    const m = moduleWith("sort", false);
+    const block = stored(m);
+    block.items[0].kind = "image";
+    block.items[0].assetId = "asset-1";
+    expect(new Set(usedAssetIds(m.content)).has("asset-1")).toBe(true);
+    block.items[0].kind = "text";
+    expect(new Set(usedAssetIds(m.content)).has("asset-1")).toBe(false);
+  });
+
+  it("is exported with a number for each object and the words at both ends of the line - a picture's words as its description", () => {
+    const m = moduleWith("sort", false);
+    const block = stored(m);
+    block.startLabel = "Früh";
+    block.endLabel = "Spät";
+    block.items[1].kind = "image";
+    block.items[1].assetId = "asset-1";
+    expect(exportedItemTexts(m.block).map((text) => text.role)).toEqual(block.items.map((_, i) => `Objekt ${i + 1}` + (i === 1 ? " (Bildbeschreibung)" : "")));
+    expect(exportedTexts(m.block).map((text) => text.role)).toEqual(["Wort am Anfang der Linie", "Wort am Ende der Linie"]);
+    const file = exportTexts(m.content, { file: "test.weft", to: [EN] });
+    const mine = file.items.filter((item) => item.key.startsWith(`${m.block.id}#`));
+    expect(mine.map((item) => item.key)).toEqual(expect.arrayContaining([`${m.block.id}#start`, `${m.block.id}#end`, `${m.block.id}#item:${block.items[0].id}`]));
+    for (const item of mine) item.translations[EN] = "EN " + item.source;
+    importTexts(m.content, file);
+    const translated = stored(m).translations![EN] as { startLabel: string; endLabel: string; items: Record<string, string> };
+    expect(translated.startLabel).toBe("EN Früh");
+    expect(translated.endLabel).toBe("EN Spät");
+    expect(translated.items[block.items[0].id]).toBe("EN " + block.items[0].text);
+  });
+
+  it("has the words of its objects and its ends found by the clipboard, and checked for placeholders", () => {
+    const m = moduleWith("sort", false);
+    const block = stored(m);
+    block.items[0].text = "{{gibtesnicht}} zuerst";
+    block.endLabel = "Ende {{auchnicht}}";
+    const plain = clipboardEntryPlainText({ kind: "block", block: m.block } as never);
+    expect(plain).toContain("{{gibtesnicht}} zuerst");
+    expect(plain).toContain("Ende {{auchnicht}}");
+    expect(plain.indexOf(block.items[0].text)).toBeLessThan(plain.indexOf(block.items[1].text));
+    const messages = findings(m).filter((finding) => finding.code === "placeholder-variable").map((finding) => finding.message);
+    expect(messages).toEqual(expect.arrayContaining([expect.stringContaining("gibtesnicht"), expect.stringContaining("auchnicht")]));
+  });
+
+  it("says in one line what it is (`weft inspect`): the right order, the words at the ends and its flags", () => {
+    const m = moduleWith("sort", false);
+    const block = stored(m);
+    block.startLabel = "Früh";
+    block.endLabel = "Spät";
+    block.orientation = "horizontal";
+    block.required = true;
+    const line = descriptorOf("sort")!.summary!(m.block as never, { labels: {} });
+    expect(line).toMatch(/^richtige Reihenfolge: .* → .*\(Früh … Spät\) \[waagerecht\] \[Pflicht\]$/);
+    block.items[0].kind = "image";
+    block.items[0].text = "";
+    expect(descriptorOf("sort")!.summary!(m.block as never, { labels: {} })).toContain("[Bild: ohne Beschreibung]");
+  });
+
+  it("has what is wrong with it said: one object, a picture without a picture or file or description, no points at all", () => {
+    const m = moduleWith("sort", false);
+    const block = stored(m);
+    block.items[0].kind = "image";
+    block.items[0].assetId = null;
+    expect(codes(m)).toContain("sort-no-image");
+    block.items[0].assetId = "gibtsnicht";
+    expect(findings(m).find((finding) => finding.code === "asset-missing")?.severity).toBe("error");
+    block.items[0].assetId = "asset-1";
+    block.items[0].text = " ";
+    expect(codes(m)).toContain("image-no-alt");
+    block.items = block.items.slice(0, 1);
+    expect(codes(m)).toContain("sort-too-few");
+    const none = moduleWith("sort", false);
+    const bare = none.content.pages[none.pageId].blocks[none.blockId] as unknown as Record<string, unknown[]>;
+    for (const name of ["onSubmit", "onEachError", "onCorrect", "onIncorrect"]) bare[name] = [];
+    expect(codes(none)).toContain("sort-no-effects");
+  });
+
+  it("is found translated when its first object is - and its objects and ends swap with the new default language", () => {
+    const m = moduleWith("sort", false);
+    const block = stored(m);
+    block.startLabel = "Früh";
+    expect(isTranslated(block as never, EN, DE)).toBe(false);
+    block.translations = { [EN]: { items: { [block.items[0].id]: "First" }, startLabel: "Early" } };
+    const own = block.items[0].text;
+    rotateDefaultLanguage(m.content, DE, EN);
+    expect(block.items[0].text).toBe("First");
+    expect(block.startLabel).toBe("Early");
+    expect((block.translations![DE].items as Record<string, string>)[block.items[0].id]).toBe(own);
+    expect(block.translations![DE].startLabel).toBe("Früh");
   });
 });

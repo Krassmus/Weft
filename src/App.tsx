@@ -23,6 +23,7 @@ import "./core/blocks/list/render.css";
 import "./core/blocks/cloze/render.css";
 import "./core/blocks/revealer/render.css";
 import "./core/blocks/matching/render.css";
+import "./core/blocks/sort/render.css";
 import "./App.css";
 
 /** The settings window (see src-tauri/src/lib.rs's "weft-settings" menu handler) loads this

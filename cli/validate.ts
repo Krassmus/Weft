@@ -166,10 +166,7 @@ function placeholderProblems(html: string, names: ReadonlySet<string>): string[]
 
 function effectsOf(block: Block): { effects: VariableEffect[]; what: string }[] {
   const groups: { effects: VariableEffect[]; what: string }[] = [];
-  if (block.kind === "sort") {
-    groups.push({ effects: block.onSubmit ?? [], what: "beim Abschicken" }, { effects: block.onEachError ?? [], what: "bei jedem Fehler" });
-    groups.push({ effects: block.onCorrect ?? [], what: "wenn die Reihenfolge stimmt" }, { effects: block.onIncorrect ?? [], what: "wenn die Reihenfolge nicht stimmt" });
-  } else if (descriptorOf(block)) {
+  if (descriptorOf(block)) {
     // (A block that describes itself - see core/blocks - says which of its fields are changes to variables, and when they happen.)
     for (const [name, spec] of fieldsOf(block)) {
       if (spec.type === "effects") groups.push({ effects: ((block as unknown as Record<string, VariableEffect[] | undefined>)[name]) ?? [], what: spec.cliWhat });
@@ -227,14 +224,6 @@ export function eventLabel(page: Page, node: TimelineNode, content: WeftModule, 
       "quiz-submit": "Matching abgeschickt",
       "quiz-submit-correct": "Matching abgeschickt (alles richtig)",
       "quiz-submit-incorrect": "Matching abgeschickt (nicht alles richtig)",
-    });
-  }
-  if (block?.kind === "sort") {
-    Object.assign(names, {
-      "quiz-fill-start": "Sortierrätsel: erste Verschiebung",
-      "quiz-submit": "Sortierrätsel abgeschickt",
-      "quiz-submit-correct": "Sortierrätsel abgeschickt (richtige Reihenfolge)",
-      "quiz-submit-incorrect": "Sortierrätsel abgeschickt (falsche Reihenfolge)",
     });
   }
   const cliNames = block ? descriptorOf(block)?.task?.cliNames : undefined;
@@ -419,19 +408,6 @@ export function validate(loaded: LoadedWeft): Finding[] {
       }
     }
 
-    // Sorting puzzle.
-    if (block.kind === "sort") {
-      const items = block.items ?? [];
-      if (items.length < 2) add("warning", "sort-too-few", "Das Sortierrätsel braucht mindestens zwei Objekte, sonst gibt es nichts zu sortieren.", here);
-      for (const item of items) {
-        if (item.kind !== "image") continue;
-        if (!item.assetId) add("warning", "sort-no-image", "Ein Objekt des Sortierrätsels ist ein Bild, hat aber noch keins.", here);
-        else if (!content.assets.some((a) => a.id === item.assetId)) add("error", "asset-missing", `Ein Objekt des Sortierrätsels verweist auf die Datei ${item.assetId}, die nicht in der Liste der Dateien steht.`, here);
-        else if (!item.text?.trim()) add("info", "image-no-alt", "Ein Bild des Sortierrätsels ohne Beschreibung (text).", here);
-      }
-      if (block.onEachError?.length === 0 && block.onSubmit?.length === 0 && block.onCorrect?.length === 0 && block.onIncorrect?.length === 0) add("info", "sort-no-effects", "Das Sortierrätsel vergibt keine Punkte (onSubmit / onEachError / onCorrect / onIncorrect sind leer).", here);
-    }
-
     // What a block that describes itself (see core/blocks) says is wrong with it.
     for (const problem of descriptorOf(block)?.validate?.(block as never, content) ?? []) add(problem.level, problem.code, problem.message, problem.hint ? { ...here, hint: problem.hint } : here);
     // (And a file such a block uses that is in the list of the module's files but not in the archive.)
@@ -490,11 +466,6 @@ export function validate(loaded: LoadedWeft): Finding[] {
     };
     // (A block that describes itself: any of its texts has words.)
     if (languages.length > 1 && descriptorOf(block) && [...exportedTexts(block), ...exportedItemTexts(block)].some((text) => ("html" in text && text.html ? plainTextOfHtml(text.value) : text.value).trim() !== "")) markUntranslated();
-    if (languages.length > 1 && block.kind === "sort") {
-      const hasWords = block.items.some((item) => item.text.trim() !== "");
-      // A text that stands for a placeholder of the layout is the page's own, and has its words in each language like any other.
-      if (hasWords) markUntranslated();
-    }
   };
 
   for (const [pageId, page] of pages) {

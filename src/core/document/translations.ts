@@ -239,7 +239,6 @@ export function isTranslated(block: Translatable, language: string | null, defau
     });
     return textsThere && itemsThere;
   }
-  if (block.kind === "sort") return block.items.length === 0 || translation?.items?.[block.items[0].id] !== undefined;
   return translation?.text !== undefined || translation?.html !== undefined;
 }
 
@@ -465,21 +464,5 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
       (block as Translatable).translations = translations;
       continue;
     }
-    if (block.kind !== "sort") continue;
-    const incoming = block.translations?.[newDefault];
-    const outgoing: BlockTranslation = {};
-    if (block.kind === "sort") {
-      outgoing.items = Object.fromEntries(block.items.map((item) => [item.id, item.text]));
-      for (const item of block.items) {
-        const translated = incoming?.items?.[item.id];
-        if (translated !== undefined) item.text = translated;
-      }
-      outgoing.startLabel = block.startLabel ?? "";
-      outgoing.endLabel = block.endLabel ?? "";
-      if (incoming?.startLabel !== undefined) block.startLabel = incoming.startLabel;
-      if (incoming?.endLabel !== undefined) block.endLabel = incoming.endLabel;
-    }
-    block.translations = { ...block.translations, [oldDefault]: outgoing };
-    delete block.translations[newDefault];
   }
 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Block, ButtonBlock, CheckerBlock, ClozeBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ListBlock, MatchingBlock, ProgressBlock, QuizBlock, RevealerBlock, SolutionBlock, TextBlock } from "../../../core/types";
+import type { Block, ButtonBlock, CheckerBlock, ClozeBlock, GalleryBlock, IframeBlock, LanguageBlock, LinkBlock, ListBlock, MatchingBlock, ProgressBlock, QuizBlock, RevealerBlock, SortBlock, SolutionBlock, TextBlock } from "../../../core/types";
 import { ButtonView } from "./ButtonView";
 import { CheckerCanvas } from "./CheckerCanvas";
 import { CheckerView } from "./CheckerView";
@@ -14,6 +14,7 @@ import { MatchingRenderView } from "./MatchingRenderView";
 import { ProgressView } from "./ProgressView";
 import { QuizView } from "./QuizView";
 import { RevealerView } from "./RevealerView";
+import { SortRenderView } from "./SortRenderView";
 import { SolutionView } from "./SolutionView";
 import { TextView } from "./TextView";
 
@@ -133,6 +134,13 @@ const matchingView: BlockViewSpec<MatchingBlock> = {
   freelyMovable: false,
 };
 
+const sortView: BlockViewSpec<SortBlock> = {
+  View: ({ block, lang, defaultLang, mode, progress }) => <SortRenderView block={block} lang={lang} defaultLang={defaultLang} mode={mode} progress={progress} />,
+  // (On the canvas the objects are put in order by dragging, their words written in place and their pictures changed: the editor's own, SortCanvas.)
+  ownCanvas: true,
+  freelyMovable: false,
+};
+
 const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   solution: solutionView as BlockViewSpec<never>,
   gallery: galleryView as BlockViewSpec<never>,
@@ -148,6 +156,7 @@ const VIEWS: Partial<Record<Block["kind"], BlockViewSpec<never>>> = {
   quiz: quizView as BlockViewSpec<never>,
   revealer: revealerView as BlockViewSpec<never>,
   matching: matchingView as BlockViewSpec<never>,
+  sort: sortView as BlockViewSpec<never>,
 };
 
 /** The editor's views of a kind, if it has them here. */

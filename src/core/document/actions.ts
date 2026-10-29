@@ -641,22 +641,6 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
   const described = descriptorOf(kind);
   if (described) return { ...base, ...described.defaults(), kind, position: { ...described.placement.box } } as NewBlock;
   switch (kind) {
-    case "sort": {
-      // Four objects in their right order; the learner sees them mixed up.
-      const items = tr("ui.sort_sample_items").split("|").map((text) => ({ id: createId(), kind: "text" as const, text }));
-      return {
-        ...base,
-        kind,
-        position: { x: 25, y: 8, width: 50, height: 84 },
-        items,
-        orientation: "vertical" as const,
-        itemSize: { width: 60, height: 14 },
-        onEachError: [],
-        onSubmit: [],
-        onCorrect: [],
-        onIncorrect: [],
-      };
-    }
     case "solution":
     case "gallery":
     case "iframe":
@@ -669,6 +653,7 @@ function defaultBlockFor(kind: Block["kind"]): NewBlock {
     case "quiz":
     case "revealer":
     case "matching":
+    case "sort":
       // (A kind with a descriptor is made above - it has no case of its own.)
       throw new Error(`The kind "${kind}" has no descriptor.`);
     case "placeholder":

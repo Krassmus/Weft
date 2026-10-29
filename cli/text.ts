@@ -61,11 +61,6 @@ function blockContent(block: Block, content: WeftModule, labels: Record<string, 
       return block.shapeKind;
     case "arrow":
       return `${block.points.length} Punkte`;
-    case "sort": {
-      const items = block.items.map((item) => (item.kind === "image" ? `[Bild: ${words(item.text, 20) || "ohne Beschreibung"}]` : words(item.text, 20))).join(" → ");
-      const ends = block.startLabel || block.endLabel ? ` (${block.startLabel ?? ""} … ${block.endLabel ?? ""})` : "";
-      return `richtige Reihenfolge: ${items}${ends}${block.orientation === "horizontal" ? " [waagerecht]" : ""}${block.required ? " [Pflicht]" : ""}`;
-    }
     case "gallery":
       // (Described above.)
       return "";

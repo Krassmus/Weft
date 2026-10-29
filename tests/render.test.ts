@@ -1325,3 +1325,36 @@ describe.each(MODES)("a revealer drawn for %s", (mode) => {
     });
   }
 });
+
+describe("the window of a revealer, which has to stay on the slide", () => {
+  const props = { id: "r2", size: 4.5, x: 20, iconSvg: "<svg></svg>", signColor: "#fff", color: "#3b82f6", title: "T", body: "B", imageSrc: null, imageAlt: "", windowStyle: "dark" as const, button: null, open: true };
+  const rect = (bottom: number) => () => ({ left: 0, top: 0, right: 0, width: 0, height: 0, x: 0, y: 0, bottom, toJSON: () => ({}) });
+
+  it("is moved up as far as it needs to when it would leave the slide at the bottom - on the canvas, where the slide is around the block", () => {
+    const stage = element();
+    stage.className = "weft-stage-edit";
+    document.body.appendChild(stage);
+    const root = element();
+    stage.appendChild(root);
+    stage.getBoundingClientRect = rect(100) as never;
+    const originalPanel = Object.getOwnPropertyDescriptor(window.HTMLElement.prototype, "getBoundingClientRect");
+    Object.defineProperty(window.HTMLElement.prototype, "getBoundingClientRect", { configurable: true, value: rect(139) });
+    stage.getBoundingClientRect = rect(100) as never;
+    renderRevealer(root, props, { mode: "edit", text, opened: vi.fn(), announce: vi.fn() });
+    expect((find(root, ".weft-revealer-panel") as HTMLElement).getAttribute("style")).toContain("top:calc(-1.4cqw - 39px)");
+    if (originalPanel) Object.defineProperty(window.HTMLElement.prototype, "getBoundingClientRect", originalPanel);
+    else delete (window.HTMLElement.prototype as unknown as Record<string, unknown>).getBoundingClientRect;
+    stage.remove();
+  });
+
+  it("stays where it is when it fits", () => {
+    const stage = element();
+    stage.className = "weft-stage-edit";
+    document.body.appendChild(stage);
+    const root = element();
+    stage.appendChild(root);
+    renderRevealer(root, props, { mode: "edit", text, opened: vi.fn(), announce: vi.fn() });
+    expect((find(root, ".weft-revealer-panel") as HTMLElement).getAttribute("style") ?? "").not.toContain("calc");
+    stage.remove();
+  });
+});

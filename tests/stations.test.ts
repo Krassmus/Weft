@@ -775,3 +775,88 @@ describe("the quiz", () => {
     expect(codes).not.toContain("quiz-few-options");
   });
 });
+
+describe("the revealer", () => {
+  type Stored = { title: string; body: string; imageAssetId: string | null; imageAlt: string; icon: string; windowStyle: string; button: { text: string; action: string; targetPageId?: string } | null };
+  const stored = (m: ReturnType<typeof moduleWith>) => m.content.pages[m.pageId].blocks[m.blockId] as unknown as Stored;
+  const findings = (m: ReturnType<typeof moduleWith>, extra: Partial<Parameters<typeof validate>[0]> = {}) => validate({ path: "test.weft", json: { formatVersion: CURRENT_FORMAT_VERSION, content: m.content }, content: m.content, files: new Set(), archive: false, ...extra });
+  const codes = (m: ReturnType<typeof moduleWith>) => findings(m).filter((finding) => JSON.stringify(finding).includes(m.block.id)).map((finding) => finding.code);
+
+  it("copies the heading and the text of its window - nothing else - and says what the learner is told", () => {
+    const m = moduleWith("revealer", true);
+    Object.assign(stored(m), { title: "Der Titel", body: "Erste\nZweite Zeile", imageAlt: "Beschreibung" });
+    expect(clipboardEntryPlainText({ kind: "block", block: m.block } as never)).toBe("Der Titel\nErste\nZweite Zeile");
+  });
+
+  it("is exported with the roles of the texts it has, translated under the keys a revealer keeps them under", () => {
+    const m = moduleWith("revealer", true);
+    expect(exportedTexts(m.block).map((text) => [text.part, text.role, text.key])).toEqual([
+      ["title", "Überschrift", "title"],
+      ["body", "Text des Fensters", "body"],
+      ["alt", "Bildbeschreibung", "alt"],
+    ]);
+    const file = exportTexts(m.content, { file: "test.weft", to: [EN] });
+    for (const item of file.items.filter((entry) => entry.key.startsWith(`${m.block.id}#`))) item.translations[EN] = `EN ${item.source}`;
+    importTexts(m.content, file);
+    const translation = (m.content.pages[m.pageId].blocks[m.blockId] as unknown as { translations: Record<string, Record<string, string>> }).translations[EN];
+    expect(Object.keys(translation).sort()).toEqual(["alt", "body", "text", "title"]);
+    expect(translation.text).toMatch(/^EN /);
+  });
+
+  it("has its picture counted as a file the module uses, whatever else it has", () => {
+    const m = moduleWith("revealer", true);
+    expect(stored(m).imageAssetId).toBe("asset-1");
+    expect(new Set(usedAssetIds(m.content)).has("asset-1")).toBe(true);
+    stored(m).imageAssetId = null;
+    expect(new Set(usedAssetIds(m.content)).has("asset-1")).toBe(false);
+  });
+
+  it("has an icon and a window style that are one of a few words", () => {
+    const m = moduleWith("revealer", false);
+    const fields = Object.fromEntries(fieldsOf(m.block));
+    expect(fields.icon).toEqual({ type: "choice", options: ["info", "warning", "exclamation", "question"] });
+    expect(fields.windowStyle).toEqual({ type: "choice", options: ["dark", "light"] });
+  });
+
+  it("says in one line what it is (`weft inspect`): the icon, its heading, what its window holds", () => {
+    const m = moduleWith("revealer", true);
+    Object.assign(stored(m), { icon: "warning", title: "Achtung", body: "Text", button: { text: "Los", action: "event" } });
+    expect(descriptorOf("revealer")!.summary!(m.block as never, { labels: {} })).toBe("warning: „Achtung\" + Text + Bild + Button „Los\"");
+    Object.assign(stored(m), { body: "", imageAssetId: null, button: null });
+    expect(descriptorOf("revealer")!.summary!(m.block as never, { labels: {} })).toBe("warning: „Achtung\"");
+  });
+
+  it("has what is wrong with it said: a picture that is not there (or has no description), no heading, a button that leads nowhere", () => {
+    const m = moduleWith("revealer", true);
+    stored(m).imageAssetId = "gibtsnicht";
+    expect(codes(m)).toContain("asset-missing");
+    stored(m).imageAssetId = "asset-1";
+    stored(m).imageAlt = "";
+    expect(codes(m)).toContain("image-no-alt");
+    stored(m).imageAlt = "Beschreibung";
+    expect(codes(m)).not.toContain("image-no-alt");
+    stored(m).title = "  ";
+    expect(codes(m)).toContain("revealer-no-title");
+    stored(m).button = { text: "Los", action: "goto" };
+    expect(codes(m)).toContain("button-target-empty");
+    stored(m).button = { text: "Los", action: "goto", targetPageId: "gibtsnicht" };
+    const missing = findings(m).find((finding) => finding.code === "button-target-missing");
+    expect(missing?.severity).toBe("error");
+    stored(m).button = { text: "Los", action: "goto", targetPageId: m.pageId };
+    expect(codes(m)).not.toContain("button-target-missing");
+    expect(codes(m)).not.toContain("button-target-empty");
+  });
+
+  it.each(["revealer", "gallery", "list"])("has a file it uses that is in the list of the module's files but not in the archive reported (%s)", (kind) => {
+    const m = moduleWith(kind, true);
+    const asset = m.content.assets[0];
+    const inArchive = new Set(m.content.assets.map((a) => `assets/${a.id}_${a.fileName}`));
+    expect(findings(m, { archive: true, files: inArchive }).some((finding) => finding.code === "asset-file-missing")).toBe(false);
+    inArchive.delete(`assets/${asset.id}_${asset.fileName}`);
+    const lost = findings(m, { archive: true, files: inArchive }).filter((finding) => finding.code === "asset-file-missing");
+    expect(lost.length).toBeGreaterThan(0);
+    expect(lost[0].severity).toBe("error");
+    // (A module that is not an archive has no files to look in.)
+    expect(findings(m, { archive: false, files: new Set() }).some((finding) => finding.code === "asset-file-missing")).toBe(false);
+  });
+});

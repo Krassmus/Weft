@@ -5,7 +5,7 @@ import type { ActionEffect, Block, BlockEffect, RevealerBlock, BlockGroup, Check
 import { isMediaBlock } from "../types";
 import type { MediaBlock } from "../types";
 import { tr } from "../i18n/tr";
-import { isTaskBlock, taskSpecOf } from "../blocks/registry";
+import { isInvisibleKind, isTaskBlock, taskSpecOf } from "../blocks/registry";
 
 /**
  * What every page's timeline starts out as (and what a page missing it is given on load, see io/unpack.ts): one trigger from the
@@ -244,7 +244,7 @@ export type ActionEffectProblem = "before-entrance" | "after-exit";
 /** The event of the Aufbau of `block` as the Aktionseffekte of the block have to wait for it - none where the block has none that is one
  * node (no Aufbau; a list whose items appear one by one; a logic block). */
 function entranceNodeIdOf(block: Block): string | null {
-  if (block.kind === "script" || block.entranceEffect.type === "off" || isListPerItem(block)) return null;
+  if (isInvisibleKind(block.kind) || block.entranceEffect.type === "off" || isListPerItem(block)) return null;
   return blockEffectNodeId(block.id, "entrance");
 }
 

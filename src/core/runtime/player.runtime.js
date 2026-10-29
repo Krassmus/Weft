@@ -38,6 +38,9 @@
   var codeHtml = codeHtmlEl ? JSON.parse(codeHtmlEl.textContent || "{}") : {};
   var texHtmlEl = document.getElementById("weft-tex-html");
   var texHtml = texHtmlEl ? JSON.parse(texHtmlEl.textContent || "{}") : {};
+  // The kinds of block nothing of which is seen (a logic block): their descriptors say (core/blocks/registry.ts isInvisibleKind).
+  var invisibleKindsEl = document.getElementById("weft-invisible-kinds");
+  var invisibleKinds = invisibleKindsEl ? JSON.parse(invisibleKindsEl.textContent || "[]") : [];
 
   // A picture of a page for somebody who does not play it (cli/render.ts: weft render, the MCP tool weft_render): { all: true } shows
   // the page with everything on it - no Aufbau/Abbau waits for its event - and keeps it from going on by itself.
@@ -3593,7 +3596,7 @@
    */
   function readingOrder(items) {
     var visible = items.filter(function (item) {
-      return item.block.kind !== "script" && item.block.position;
+      return invisibleKinds.indexOf(item.block.kind) === -1 && item.block.position;
     });
     var hidden = items.filter(function (item) {
       return visible.indexOf(item) === -1;

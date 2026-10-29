@@ -93,6 +93,11 @@ export function taskSpecOf(block: { kind: string }): TaskSpec | undefined {
   return descriptorOf(block.kind)?.task;
 }
 
+/** Whether nothing of a kind is seen or read when a slide is played (it has no Aufbau or Abbau, is not in the reading order or the cover's picture). */
+export function isInvisibleKind(kind: string): boolean {
+  return !!descriptorOf(kind)?.invisible;
+}
+
 /** Whether a kind cannot be in a layout (it holds a state, or needs an answer). */
 export function isPageOnlyKind(kind: string): boolean {
   return PAGE_ONLY_KINDS_BY_HAND.has(kind) || !!descriptorOf(kind)?.placement.pageOnly;

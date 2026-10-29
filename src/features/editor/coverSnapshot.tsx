@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { drawSlide } from "./exportCanvas";
 import { useAssetStore } from "../../core/assets/assetStore";
 import { aspectRatioNumeric } from "../../core/aspectRatio";
+import { isInvisibleKind } from "../../core/blocks/registry";
 import { eventTimes } from "../../core/document/readingOrder";
 import { blockEffectNodeId } from "../../core/document/pageTimeline";
 import { orderedValues } from "../../core/document/ordering";
@@ -26,7 +27,7 @@ export function blocksAtRest(content: WeftModule, pageId: string): Block[] {
   const times = eventTimes(page, layout);
   const byItself = (id: string) => times.get(id)?.[0] === 0;
   const pageBlocks = orderedValues(page.blocks).filter((block) => {
-    if (block.kind === "script") return false;
+    if (isInvisibleKind(block.kind)) return false;
     if (block.entranceEffect.type !== "off" && !byItself(blockEffectNodeId(block.id, "entrance"))) return false;
     if (block.exitEffect.type !== "off" && byItself(blockEffectNodeId(block.id, "exit"))) return false;
     return true;

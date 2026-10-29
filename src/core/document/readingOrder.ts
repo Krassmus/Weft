@@ -1,3 +1,4 @@
+import { isInvisibleKind } from "../blocks/registry";
 import { buildEventGraph } from "../eventGraph/buildEventGraph";
 import type { Layout, Page } from "../types";
 import { blockEffectNodeId } from "./pageTimeline";
@@ -31,7 +32,7 @@ export function eventTimes(page: Page, layout: Layout | null | undefined): Map<s
  * player.runtime.js, which orders what the player puts into the document - keep the two alike.
  */
 export function pageReadingOrder(page: Page, layout: Layout | null | undefined): string[] {
-  const blocks = orderedValues(page.blocks).filter((block) => block.kind !== "script");
+  const blocks = orderedValues(page.blocks).filter((block) => !isInvisibleKind(block.kind));
   const byTop = [...blocks].sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x);
   const rows: { top: number; bottom: number; items: typeof blocks }[] = [];
   for (const block of byTop) {

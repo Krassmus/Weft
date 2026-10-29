@@ -99,7 +99,7 @@ import { Collapsible } from "../Collapsible";
 import { EffectListEditor } from "./EffectListEditor";
 import { DEFAULT_VIEWPORT_WIDTH } from "../../../core/blocks/iframe/render.js";
 import { FieldsPanel } from "./FieldsPanel";
-import { descriptorOf } from "../../../core/blocks/registry";
+import { descriptorOf, isInvisibleKind } from "../../../core/blocks/registry";
 import { applyFontSize, applyFormat, removeTextColor, useFormatSnapshot } from "../blocks/richText";
 import type { TriState } from "../blocks/richText";
 import { listPageTriggerEvents, listTriggerableNodes, nodeLabel } from "../Timeline";
@@ -257,7 +257,7 @@ export function BlockPanel({ block, onUpdate, onSetImage, onSetVideo, onSetAudio
       {block.kind === "files" && <FilesEditor key={block.id} block={block} container={container} onUpdate={onUpdate} />}
       {block.kind === "script" && <ScriptEditor key={block.id} block={block} page={page} onUpdate={onUpdate} />}
       {/* (A logic block has no Aufbau/Abbau: it has an event of its own, in the graph.) */}
-      {page && block.kind !== "script" && (
+      {page && !isInvisibleKind(block.kind) && (
         <>
           <BlockEffectEditor
             key={block.id + "-entrance"}
@@ -1728,7 +1728,7 @@ function StopPointShows({ page, video, stopPoint }: { page: Page; video: MediaBl
   const { t } = useTranslation();
   const stopId = videoStopNodeId(video.id, stopPoint.id);
   const resumeId = videoResumeNodeId(video.id, stopPoint.id);
-  const candidates = orderedValues(page.blocks).filter((b) => b.id !== video.id && b.kind !== "script");
+  const candidates = orderedValues(page.blocks).filter((b) => b.id !== video.id && !isInvisibleKind(b.kind));
   if (candidates.length === 0) return null;
   const shows = (blockId: string) =>
     Object.values(page.timeline.triggers).some((trigger) => trigger.from === stopId && trigger.to === blockEffectNodeId(blockId, "entrance"));

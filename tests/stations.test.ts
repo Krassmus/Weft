@@ -6,7 +6,10 @@ import { runOperations } from "../cli/ops";
 import { setCurrentModule } from "../cli/storeStub";
 import { collectTexts, exportTexts, importTexts } from "../cli/texts";
 import { validate } from "../cli/validate";
-import { describedKinds, descriptorOf, exportedItemTexts, exportedTexts, fieldsOf, isPageOnlyKind, isTaskBlock, listFieldsOf, shownWordings, variableWordings } from "../src/core/blocks/registry";
+import { describedKinds, descriptorOf, exportedItemTexts, exportedTexts, fieldsOf, isInvisibleKind, isPageOnlyKind, isTaskBlock, listFieldsOf, shownWordings, variableWordings } from "../src/core/blocks/registry";
+import { buildRuntimeHtml } from "../src/core/runtime/buildRuntimeHtml";
+import { pageReadingOrder } from "../src/core/document/readingOrder";
+import { canTriggerActionEffectFrom } from "../src/core/document/pageTimeline";
 import type { BlockDescriptor, FieldSpec, ListField } from "../src/core/blocks/types";
 import { pasteBlockInto } from "../src/core/document/actions";
 import { clipboardEntryPlainText } from "../src/core/document/clipboard";
@@ -1298,5 +1301,47 @@ describe("the placeholder of a layout", () => {
     expect(placeholderSources(m.block)).toEqual(["<p>Wert {{gibtesnicht}}</p>"]);
     expect(findings(m).some((finding) => finding.code === "placeholder-variable")).toBe(true);
     expect(exportedTexts(m.block)).toEqual([]);
+  });
+});
+
+describe("what nothing is seen of when a slide is played (a logic block)", () => {
+  const withBlocks = () => {
+    const m = moduleWith("script", false);
+    const add = (kind: string, set: Record<string, unknown>) => runOperations(m.content, [{ op: "add_block", page: m.pageId, kind, set }]).results[0].result.block as string;
+    const upper = add("text", { position: { x: 10, y: 10, width: 30, height: 10 } });
+    const lower = add("text", { position: { x: 10, y: 40, width: 30, height: 10 } });
+    return { ...m, upper, lower };
+  };
+
+  it("is only said of the logic block - by its descriptor", () => {
+    expect(KINDS.filter((kind) => isInvisibleKind(kind))).toEqual(["script"]);
+    expect(isInvisibleKind("text")).toBe(false);
+    expect(isInvisibleKind("gibt-es-nicht")).toBe(false);
+  });
+
+  it("is not in the reading order of the slide, however high it stands", () => {
+    const m = withBlocks();
+    const script = m.content.pages[m.pageId].blocks[m.blockId];
+    script.position = { x: 0, y: 0, width: 10, height: 10 };
+    const order = pageReadingOrder(m.content.pages[m.pageId], null);
+    expect(order).toEqual([m.upper, m.lower]);
+    expect(order).not.toContain(m.blockId);
+  });
+
+  it("has no Aufbau for an Aktionseffekt to wait for, even where its block says it has one", () => {
+    const m = withBlocks();
+    const page = m.content.pages[m.pageId];
+    const fade = { type: "fade", durationMs: 400 } as never;
+    page.blocks[m.blockId].entranceEffect = fade;
+    page.blocks[m.lower].entranceEffect = fade;
+    // (What an effect may be triggered by: where there is an Aufbau only that and what comes after it - the start of the slide is too early.)
+    expect(canTriggerActionEffectFrom(page, page.blocks[m.lower], "e", "start")).toBe(false);
+    expect(canTriggerActionEffectFrom(page, page.blocks[m.blockId], "e", "start")).toBe(true);
+  });
+
+  it("is told to the player: the page it is run in knows the kinds nothing of which is seen", async () => {
+    const m = withBlocks();
+    const html = await buildRuntimeHtml(m.content);
+    expect(html).toContain('<script id="weft-invisible-kinds" type="application/json">["script"]</script>');
   });
 });

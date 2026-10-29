@@ -2,6 +2,7 @@ import QRCode from "qrcode";
 // The LMS client library (Stud.IP counterpart lives in its plugin) - embedded unchanged, ahead of the
 // player, which talks to it (see syncLms in player.runtime.js).
 import vanillaLmSource from "../../../mockups/VanillaLM.js?raw";
+import { describedKinds, isInvisibleKind } from "../blocks/registry";
 import arrowRenderSource from "../blocks/arrow/render.js?raw";
 import shapeRenderSource from "../blocks/shape/render.js?raw";
 import revealerGeometrySource from "./revealerGeometry.js?raw";
@@ -99,6 +100,8 @@ export async function buildRuntimeHtml(
   const texHtmlJson = JSON.stringify(texHtml).replace(/</g, "\\u003c");
   const codeHtmlJson = JSON.stringify(codeHtml).replace(/</g, "\\u003c");
   const computedJson = JSON.stringify(computedExpressions).replace(/</g, "\\u003c");
+  // The kinds of block nothing of which is seen when a page is played (a logic block): the descriptors say.
+  const invisibleKindsJson = JSON.stringify(describedKinds().filter(isInvisibleKind));
   const languageLabelsJson = JSON.stringify(Object.fromEntries(module.languages.map((l) => [l, autonymLabel(l)]))).replace(
     /</g,
     "\\u003c",
@@ -142,6 +145,7 @@ ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` 
 <script id="weft-asset-urls" type="application/json">${assetUrlsJson}</script>
 <script id="weft-qr-codes" type="application/json">${qrCodeSvgsJson}</script>
 <script id="weft-computed" type="application/json">${computedJson}</script>
+<script id="weft-invisible-kinds" type="application/json">${invisibleKindsJson}</script>
 <script id="weft-code-html" type="application/json">${codeHtmlJson}</script>
 <script id="weft-tex-html" type="application/json">${texHtmlJson}</script>
 <script id="weft-start-page" type="application/json">${startPageIdJson}</script>

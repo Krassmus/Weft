@@ -224,6 +224,9 @@ export interface BlockDescriptor<B extends Block = Block> {
   defaults(): Omit<B, "id" | "order" | "position" | "entranceEffect" | "exitEffect" | "actionEffects">;
   /** Present: the block has the events of a quiz. */
   task?: TaskSpec;
+  /** Nothing of the block is seen or read when a slide is played, and it has no Aufbau or Abbau (a logic block): it is not in the reading order, not in the
+   * picture the cover is made from, and cannot be made to appear by a video's time mark. The editor draws a mark where it stands. */
+  invisible?: boolean;
   /** What the panel in the sidebar shows, in what order. Absent: the block's panel is its own (panels/BlockPanel.tsx). */
   panel?: PanelSpec;
   /** What `weft inspect` says about the block, in one line (German). */

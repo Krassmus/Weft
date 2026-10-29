@@ -943,6 +943,14 @@ describe.each(MODES)("a gap text drawn for %s", (mode) => {
       expect(find(root, ".weft-quiz-feedback")?.textContent).toBe("Falsch");
     });
 
+    it("is not right without any blank - there is nothing that was answered", () => {
+      const root = element();
+      const ctx = context();
+      renderCloze(root, { ...props, html: "<p>Nichts</p>" }, ctx);
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      expect(ctx.submit).toHaveBeenCalledWith({ blanks: [], allRight: false });
+    });
+
     it("holds an empty answer wrong, and judges by the case and the tolerance it is given", () => {
       const strict = element();
       const ctx = context();
@@ -977,9 +985,9 @@ describe.each(MODES)("a gap text drawn for %s", (mode) => {
       const root = element();
       const ctx = context();
       renderCloze(root, props, ctx);
-      expect(inputs(root).every((input) => input.readOnly && input.tabIndex === -1)).toBe(true);
+      expect(inputs(root).every((input) => input.readOnly && input.getAttribute("tabindex") === "-1")).toBe(true);
       const button = find(root, ".weft-quiz-submit") as HTMLButtonElement;
-      expect(button.tabIndex).toBe(-1);
+      expect(button.getAttribute("tabindex")).toBe("-1");
       type(inputs(root)[0], "x");
       fire(button, "click");
       expect(ctx.fill).not.toHaveBeenCalled();

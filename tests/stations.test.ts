@@ -13,6 +13,7 @@ import { clipboardEntryPlainText } from "../src/core/document/clipboard";
 import { createEmptyDocument } from "../src/core/document/createEmptyDocument";
 import { quizFillNodeId, quizSubmitNodeId } from "../src/core/document/pageTimeline";
 import { fieldHtml, fieldHtmlPatch, fieldWording, fieldWordingPatch, isTranslated, itemWording, itemWordingPatch, rotateDefaultLanguage } from "../src/core/document/translations";
+import { allowedSlips, clozeIsRight, levenshtein } from "../src/core/document/cloze";
 import { usedAssetIds } from "../src/core/document/usedAssets";
 import { placeholderSources, withProgress } from "../src/core/document/variablePlaceholders";
 import { buildEventGraph } from "../src/core/eventGraph/buildEventGraph";
@@ -544,10 +545,11 @@ describe("the words of a text, which are only HTML (a field of the type html)", 
     expect(fieldHtml(m.now, "html", EN, DE)).toBe("<p>Plain</p>");
   });
 
-  it("has its {{variables}} found - in every language - and checked", () => {
-    const m = made();
-    Object.assign(m.content.pages[m.pageId].blocks[m.blockId], { html: "<p>{{punkte}} und {{gibtesnicht}}</p>" }, fieldHtmlPatch(m.now, "html", EN, DE, "<p>{{ punkte }} in English</p>"));
-    expect(placeholderSources(m.now)).toEqual(["<p>{{punkte}} und {{gibtesnicht}}</p>", "<p>{{ punkte }} in English</p>"]);
+  it.each(["text", "cloze"])("has its {{variables}} found - in every language - and checked (%s)", (kind) => {
+    const m = moduleWith(kind, true);
+    const stored = () => m.content.pages[m.pageId].blocks[m.blockId] as Block;
+    Object.assign(stored(), { html: "<p>{{punkte}} und {{gibtesnicht}}</p>" }, fieldHtmlPatch(stored(), "html", EN, DE, "<p>{{ punkte }} in English</p>"));
+    expect(placeholderSources(stored())).toEqual(["<p>{{punkte}} und {{gibtesnicht}}</p>", "<p>{{ punkte }} in English</p>"]);
     const findings = validate({ path: "test.weft", json: { formatVersion: CURRENT_FORMAT_VERSION, content: m.content }, content: m.content, files: new Set(), archive: false });
     expect(findings.filter((finding) => finding.code === "placeholder-variable").map((finding) => finding.message)).toEqual(expect.arrayContaining([expect.stringContaining("gibtesnicht")]));
   });
@@ -614,5 +616,56 @@ describe("the points of a list (formatted words of the items, a picture that is 
     const own = (m.content.pages[m.pageId].blocks[m.blockId] as unknown as { items: { id: string; html: string }[] }).items;
     const file = exportTexts(m.content, { file: "test.weft", to: [EN] });
     for (const item of own) expect(file.items.find((entry) => entry.key === `${m.block.id}#item:${item.id}`)?.source).toBe(item.html);
+  });
+});
+
+describe.each(KINDS)("the changes to variables of %s, which `weft validate` checks", (kind) => {
+  it("are found in every list of effects the descriptor has - in an answer map too - when a variable is missing", () => {
+    const m = moduleWith(kind, true);
+    const lists = fieldsOf(m.block).filter(([, spec]) => spec.type === "effects" || spec.type === "effectsMap");
+    if (lists.length === 0) return;
+    const block = m.content.pages[m.pageId].blocks[m.blockId] as unknown as Record<string, unknown>;
+    let expected = 0;
+    for (const [name, spec] of lists) {
+      const gone = [{ variableId: "gibtsnicht", op: "add", value: 1 }];
+      if (spec.type === "effects") block[name] = gone;
+      else block[name] = { eins: gone, zwei: gone };
+      expected += spec.type === "effects" ? 1 : 2;
+    }
+    const findings = validate({ path: "test.weft", json: { formatVersion: CURRENT_FORMAT_VERSION, content: m.content }, content: m.content, files: new Set(), archive: false });
+    expect(findings.filter((finding) => finding.code === "effect-variable-missing" && JSON.stringify(finding).includes(m.block.id)).length).toBe(expected);
+  });
+});
+
+describe("the gap text", () => {
+  it("has the blanks of its translations checked: one with fewer is refused, one with as many is taken - with its role in the list", () => {
+    const m = moduleWith("cloze", true);
+    const file = exportTexts(m.content, { file: "test.weft", to: [EN] });
+    const mine = file.items.find((item) => item.key === `${m.block.id}#html`);
+    expect(mine).toBeDefined();
+    expect(exportedTexts(m.block).map((text) => text.role)).toEqual(["Lückentext"]);
+    expect(mine!.source.match(/\[\[/g)?.length).toBe(2);
+    mine!.translations[EN] = "<p>Nur [[eine]] Lücke</p>";
+    const refused = importTexts(m.content, file);
+    expect(refused.skipped).toBe(1);
+    expect(refused.applied).toBe(0);
+    expect(refused.problems.map((problem) => problem.message).join(" ")).toContain("Lücken");
+    mine!.translations[EN] = "<p>Zwei [[one]] und [[two|deux]] Lücken</p>";
+    const taken = importTexts(m.content, file);
+    expect(taken.applied).toBe(1);
+  });
+
+  it("has the changes to variables the player makes: for every right blank, for a particular answer, for everything right, for something wrong", () => {
+    const m = moduleWith("cloze", false);
+    expect(fieldsOf(m.block).filter(([, spec]) => spec.type === "effects").map(([name]) => name)).toEqual(["onEachCorrect", "onCorrect", "onIncorrect"]);
+    expect(fieldsOf(m.block).filter(([, spec]) => spec.type === "effectsMap").map(([name]) => name)).toEqual(["answerEffects"]);
+  });
+
+  it("is judged by the editor as the player judges it", () => {
+    expect(levenshtein("kitten", "sitting")).toBe(3);
+    expect(allowedSlips(3, 1)).toBe(1);
+    expect(allowedSlips(2, 1)).toBe(0);
+    expect(clozeIsRight("Berlim", ["Berlin"], false, 1)).toBe(true);
+    expect(clozeIsRight("berlin", ["Berlin"], true, 0)).toBe(false);
   });
 });

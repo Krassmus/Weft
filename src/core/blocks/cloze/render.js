@@ -126,7 +126,6 @@ export function renderCloze(root, props, ctx) {
         input.setAttribute("style", "width:" + Math.min(longest + 2, 30) + "ch;");
         var index = blanks.length;
         if (kept[index] !== undefined) input.value = kept[index];
-        if (answered !== null) input.disabled = true;
         if (!live) {
           // A picture of the empty field: nothing can be written in it.
           input.readOnly = true;

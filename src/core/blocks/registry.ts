@@ -1,5 +1,5 @@
 import { tr } from "../i18n/tr";
-import { effectEventLooks } from "./effectEvents";
+import { pageEventLooks } from "./pageEvents";
 import type { Block, TimelineEventType } from "../types";
 import type { BlockDescriptor, EventTypeLook, FieldSpec, HtmlField, ListField, OwnEventSpec, TaskSpec, TextField } from "./types";
 import { audioBlock } from "./audio/descriptor";
@@ -216,8 +216,7 @@ export function triggerableOwnEventTypes(): TimelineEventType[] {
 }
 
 /** How the editor shows an event of a type that a kind of block gives its page (its standard title, what the panel says, its icon): from the descriptors, the
- * events of tasks included, and the Aufbau and Abbau of blocks and groups (effectEvents.ts). None for a type the editor gives itself (an Aktionseffekt, a
- * condition, "Nächste Folie"). */
+ * events of tasks included, and the events of the page (pageEvents.ts: Aufbau, Abbau, Aktionseffekte, the condition of a variable). None for what the editor draws itself ("Start der Folie", "Nächste Folie"). */
 export function eventLookOf(type: TimelineEventType): EventTypeLook | undefined {
   if (!eventLooks) {
     eventLooks = new Map();
@@ -225,7 +224,7 @@ export function eventLookOf(type: TimelineEventType): EventTypeLook | undefined 
     specs.push(...taskEventSpecs({ labels: {} as never, cliNames: {} as never }));
     for (const spec of specs) for (const each of [spec, ...(spec.companions ?? [])]) for (const [looked, look] of Object.entries(each.looks)) eventLooks.set(looked as TimelineEventType, look);
   }
-  return eventLooks.get(type) ?? effectEventLooks[type];
+  return eventLooks.get(type) ?? pageEventLooks[type];
 }
 /** Whether nothing of a kind is seen or read when a slide is played (it has no Aufbau or Abbau, is not in the reading order or the cover's picture). */
 export function isInvisibleKind(kind: string): boolean {

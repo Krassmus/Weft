@@ -1675,7 +1675,7 @@ describe("the events of their own that a block gives its page (the descriptor's 
     expect(blockNameOf(m.content.pages[m.pageId].blocks[m.blockId])).toBe("Mein Skript");
   });
 
-  it("have a look each in the editor: every type a spec can give has a title and an icon, and the types the editor makes itself (an Aktionseffekt, a condition) have none", () => {
+  it("have a look each in the editor: every type a spec can give has a title and an icon; so has every type of the timeline", () => {
     const specs = describedKinds().flatMap((kind) => descriptorOf(kind)?.events ?? []);
     const typesOf = (spec: (typeof specs)[number]): string[] => [
       ...(spec.timelineTypes ?? (typeof spec.timelineType === "string" ? [spec.timelineType] : [])),
@@ -1689,10 +1689,12 @@ describe("the events of their own that a block gives its page (the descriptor's 
       expect(look, type).toBeDefined();
       expect(look!.label(), type).not.toBe("");
     }
-    for (const type of ["block-action-move", "block-action-shake", "block-action-blink", "variable-condition"] as const) expect(eventLookOf(type), type).toBeUndefined();
+    // (And the events of the page: Aufbau, Abbau, the Aktionseffekte, the condition - see the next test - so that every type of the timeline has one.)
+    const all = ["quiz-fill-start", "quiz-submit", "quiz-submit-correct", "quiz-submit-incorrect", "video-start-auto", "video-start-manual", "video-stop-point", "video-resume", "video-end-loop", "video-end-stop", "block-entrance", "block-exit", "block-action-move", "block-action-shake", "block-action-blink", "button-click", "group-entrance", "group-exit", "list-item-entrance", "script-run", "revealer-open", "revealer-button", "variable-condition"];
+    for (const type of all) expect(eventLookOf(type as never)?.label(), type).toBeTruthy();
   });
 
-  it("show what they showed before the descriptors named them: title, hint and icon of every type (the 15 of the blocks and the 4 of Aufbau and Abbau)", () => {
+  it("show what they showed before the descriptors named them: title, hint and icon of every type (the 15 of the blocks and the 8 of the page)", () => {
     const expected: Record<string, [string, string | undefined, string]> = {
       "quiz-fill-start": ["ui.fill_in", "ui.happens_as_soon_as_the_learner_2", "cursor"],
       "quiz-submit": ["ui.quiz_submitted", "ui.happens_as_soon_as_the_quiz", "accept"],
@@ -1709,11 +1711,15 @@ describe("the events of their own that a block gives its page (the descriptor's 
       "revealer-button": ["ui.revealer_button_clicked", "ui.revealer_button_hint", "hand"],
       "list-item-entrance": ["ui.list_item_3", undefined, "animation"],
       "script-run": ["ui.script_block", undefined, "gear"],
-      // (Aufbau and Abbau of a block and of a group: effectEvents.ts.)
+      // (The events of the page - Aufbau, Abbau, the Aktionseffekte, the condition: pageEvents.ts.)
       "block-entrance": ["ui.appears", undefined, "animation"],
       "block-exit": ["ui.disappears", undefined, "dashing-away"],
       "group-entrance": ["ui.group_appears", undefined, "animation"],
       "group-exit": ["ui.group_disappears", undefined, "dashing-away"],
+      "block-action-move": ["ui.action_move_event", undefined, "action-move"],
+      "block-action-shake": ["ui.action_shake_event", undefined, "action-shake"],
+      "block-action-blink": ["ui.action_blink_event", undefined, "action-blink"],
+      "variable-condition": ["ui.condition_event_label", undefined, "condition"],
     };
     for (const [type, [label, hint, icon]] of Object.entries(expected)) {
       const look = eventLookOf(type as never);

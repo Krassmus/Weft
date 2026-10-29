@@ -27,7 +27,7 @@ import type { EventColor, GraphNodeModel } from "./eventGraph/model";
 import { layoutGraph } from "./eventGraph/layout";
 import type { EdgeRoute } from "./eventGraph/layout";
 import { TRANSITION_LABELS } from "../../core/document/transitions";
-import type { Page, TimelineEventType, TimelineNode } from "../../core/types";
+import type { Page, TimelineNode } from "../../core/types";
 import { tr } from "../../core/i18n/tr";
 
 
@@ -54,21 +54,13 @@ const shakeActionIconSvg =
 const blinkActionIconSvg =
   '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#28497c" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="2.2" fill="#28497c" stroke="none"/><path d="M8 1.5 V3.5 M8 12.5 V14.5 M1.5 8 H3.5 M12.5 8 H14.5 M3.4 3.4 L4.8 4.8 M11.2 11.2 L12.6 12.6 M12.6 3.4 L11.2 4.8 M4.8 11.2 L3.4 12.6"/></svg>';
 
-// The titles of the events the editor itself gives the page (the others are the descriptors' and the effects': eventLookOf in core/blocks/registry.ts).
-const EVENT_LABELS: Partial<Record<TimelineEventType, string>> = {
-  get "variable-condition"() { return tr("ui.condition_event_label"); },
-  get "block-action-move"() { return tr("ui.action_move_event"); },
-  get "block-action-shake"() { return tr("ui.action_shake_event"); },
-  get "block-action-blink"() { return tr("ui.action_blink_event"); },
-};
-
 // The cursor (cursor.svg) has its colour fixed in the file; the graph colours its icons itself (currentColor, see App.css). It is cut to its
 // drawing (the file has a margin around it) and drawn larger than the other icons (.weft-cursor-icon in App.css): at their size it is too small to read.
 const cursorIconSvg = cursorIconRaw
   .replace(/fill:rgb\([^)]*\);/, "")
   .replace('viewBox="0 0 50 50"', 'viewBox="5.7 2 35 46" class="weft-cursor-icon"');
 
-// The icons by the name the descriptors give them (EventIconName in core/blocks/types.ts).
+// The icons by the name the descriptors (and the page's events) give them (EventIconName in core/blocks/types.ts).
 const ICONS: Record<EventIconName, string> = {
   cursor: cursorIconSvg,
   accept: acceptIconSvg,
@@ -85,15 +77,11 @@ const ICONS: Record<EventIconName, string> = {
   gear: gearIconSvg,
   animation: animationIconSvg,
   "dashing-away": dashingAwayIconSvg,
-};
-
-// The icons of the events the editor itself gives the page (Aufbau and Abbau have theirs in ICONS: the animation and the dashing away).
-const EVENT_ICONS: Partial<Record<TimelineEventType, string>> = {
-  // A condition of a variable that came true: lines and a tick.
-  "variable-condition": conditionIconSvg,
-  "block-action-move": moveActionIconSvg,
-  "block-action-shake": shakeActionIconSvg,
-  "block-action-blink": blinkActionIconSvg,
+  // The three Aktionseffekte and the condition of a variable that came true: lines and a tick.
+  "action-move": moveActionIconSvg,
+  "action-shake": shakeActionIconSvg,
+  "action-blink": blinkActionIconSvg,
+  condition: conditionIconSvg,
 };
 
 /** Exported for BlockEffectEditor in panels/BlockPanel.tsx, which lists these same nodes (minus
@@ -108,7 +96,7 @@ export function nodeLabel(node: TimelineNode): string {
   if (node.label) return node.label;
   if (node.kind === "start") return tr("ui.start_of_the_slide");
   if (node.kind === "end") return tr("ui.next_slide");
-  if (node.kind === "event" && node.eventType) return EVENT_LABELS[node.eventType] ?? eventLookOf(node.eventType)?.label() ?? "";
+  if (node.kind === "event" && node.eventType) return eventLookOf(node.eventType)?.label() ?? "";
   return "";
 }
 
@@ -793,7 +781,7 @@ function TimelineNodeIcon({
       : node.eventType === "video-stop-point"
         ? stopPointIconSvg(node.stopsVideo !== false, node.shownKinds ?? [])
         : node.kind === "event" && node.eventType
-          ? (EVENT_ICONS[node.eventType] ?? ICONS[eventLookOf(node.eventType)?.icon ?? "play"])
+          ? ICONS[eventLookOf(node.eventType)?.icon ?? "play"]
           : playIconSvg;
   const className = "weft-timeline-node-icon is-" + color + (isSelected ? " is-selected" : "") + (isHot ? " is-hot" : "");
   return (

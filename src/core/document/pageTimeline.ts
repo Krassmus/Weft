@@ -5,7 +5,8 @@ import type { ActionEffect, Block, BlockEffect, BlockGroup, CheckerBlock, Soluti
 import { isMediaBlock } from "../types";
 import type { MediaBlock } from "../types";
 import { tr } from "../i18n/tr";
-import { describedKinds, isInvisibleKind, isTaskBlock, ownEventId, ownEventsOf, replacesEntrance, taskEventId, taskSpecOf, triggerableOwnEventTypes } from "../blocks/registry";
+import { describedKinds, effectEventId, effectEventsOf, groupEffectEventsOf, isInvisibleKind, isTaskBlock, ownEventId, ownEventsOf, replacesEntrance, taskEventId, taskSpecOf, triggerableEffectEventTypes, triggerableOwnEventTypes } from "../blocks/registry";
+import { effectEventSpecs } from "../blocks/pageEvents";
 import type { OwnEvent } from "../blocks/registry";
 
 /**
@@ -219,16 +220,17 @@ export function blockNameOf(block: Block): string {
 /** Kept in sync by hand with player.runtime.js's own blockEffectEventId - see that file's header
  * for why it can't just import this. */
 export function blockEffectNodeId(blockId: string, phase: "entrance" | "exit"): string {
-  return `block-${phase}:${blockId}`;
+  return effectEventId("block", phase, blockId);
 }
 
 function makeBlockEffectNode(block: Block, phase: "entrance" | "exit"): TimelineNode {
+  const spec = effectEventSpecs[phase].block;
   return {
     id: blockEffectNodeId(block.id, phase),
     kind: "event",
     sourceBlockId: block.id,
-    eventType: phase === "entrance" ? "block-entrance" : "block-exit",
-    label: `${blockNameOf(block)} ${phase === "entrance" ? "erscheint" : "verschwindet"}`,
+    eventType: spec.timelineType,
+    label: spec.label?.(blockNameOf(block)),
   };
 }
 
@@ -245,8 +247,8 @@ export type ActionEffectProblem = "before-entrance" | "after-exit";
 /** The event of the Aufbau of `block` as the Aktionseffekte of the block have to wait for it - none where the block has none that is one
  * node (no Aufbau; a list whose items appear one by one; a logic block). */
 function entranceNodeIdOf(block: Block): string | null {
-  if (isInvisibleKind(block.kind) || block.entranceEffect.type === "off" || replacesEntrance(block, ON_PAGE)) return null;
-  return blockEffectNodeId(block.id, "entrance");
+  if (isInvisibleKind(block.kind)) return null;
+  return effectEventsOf(block, ON_PAGE).find((event) => event.phase === "entrance")?.id ?? null;
 }
 
 /**
@@ -369,7 +371,7 @@ function makeConditionNode(id: string, formula: string): TimelineNode {
 /** A group's own Aufbau/Abbau event (see BlockGroup.entranceEffect). Kept in sync by hand with player.runtime.js - the player never
  * needs it (it has no action of its own), only the graph does. */
 export function groupEffectNodeId(groupId: string, phase: "entrance" | "exit"): string {
-  return `group-${phase}:${groupId}`;
+  return effectEventId("group", phase, groupId);
 }
 
 /** The event of a revealer's window opening - by a click on its icon or by a trigger, so it is triggerable like a video's start. */
@@ -387,7 +389,7 @@ function makeGroupEffectNode(group: BlockGroup, phase: "entrance" | "exit"): Tim
     id: groupEffectNodeId(group.id, phase),
     kind: "event",
     sourceGroupId: group.id,
-    eventType: phase === "entrance" ? "group-entrance" : "group-exit",
+    eventType: effectEventSpecs[phase].group.timelineType,
   };
 }
 
@@ -403,13 +405,11 @@ function makeGroupEffectNode(group: BlockGroup, phase: "entrance" | "exit"): Tim
  * that, however useful it might look in the abstract. Expect this set to grow as more block kinds
  * gain their own scriptable events - see the module doc comment on syncPageTimelineEvents below. */
 export const TRIGGERABLE_EVENT_TYPES: ReadonlySet<TimelineEventType> = new Set<TimelineEventType>([
-  "block-entrance",
-  "block-exit",
   "block-action-move",
   "block-action-shake",
   "block-action-blink",
-  "group-entrance",
-  "group-exit",
+  // (The Aufbau and the Abbau of blocks and of groups: see effectEventSpecs.)
+  ...triggerableEffectEventTypes(),
   // (The events of their own that a kind of block says a trigger can make happen: a video's or a sound's start, a revealer's opening, a list's items, a
   // logic block's script.)
   ...triggerableOwnEventTypes(),
@@ -703,7 +703,7 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
       if (block.kind !== kind) continue;
       const nodes = ownEventsOf(block, ON_PAGE).filter((event) => event.spec.lane).map((event) => makeOwnEventNode(block, event));
       if (nodes.length === 0) continue;
-      if (block.entranceEffect.type !== "off") nodes.unshift(makeBlockEffectNode(block, "entrance"));
+      if (effectEventsOf(block, ON_PAGE).some((event) => event.phase === "entrance")) nodes.unshift(makeBlockEffectNode(block, "entrance"));
       lanes.push({ nodes, edges: nodes.slice(1).map((node, index) => ({ from: nodes[index].id, to: node.id, kind: "unknown" as const })) });
     }
   }
@@ -728,7 +728,8 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
       const edge = findTriggerEdge(page.timeline, event.id);
       effectTargets.push({ node: makeOwnEventNode(block, event), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
     }
-    if (!replacesEntrance(block, ON_PAGE) && block.entranceEffect.type !== "off") {
+    const blockEffects = effectEventsOf(block, ON_PAGE);
+    if (blockEffects.some((event) => event.phase === "entrance")) {
       effectTargets.push({ node: makeBlockEffectNode(block, "entrance"), trigger: getBlockEntranceTrigger(page, block) });
     }
     // The Aktionseffekte lie between the Aufbau and the Abbau (only on a page: a layout block has none of its own per page).
@@ -738,14 +739,12 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
         effectTargets.push({ node: makeBlockActionNode(page, block, effect), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
       }
     }
-    if (block.exitEffect.type !== "off") effectTargets.push({ node: makeBlockEffectNode(block, "exit"), trigger: getBlockExitTrigger(page, block) });
+    if (blockEffects.some((event) => event.phase === "exit")) effectTargets.push({ node: makeBlockEffectNode(block, "exit"), trigger: getBlockExitTrigger(page, block) });
   }
   for (const group of page.groups) {
-    for (const phase of ["entrance", "exit"] as const) {
-      const effect = phase === "entrance" ? group.entranceEffect : group.exitEffect;
-      if (!effect || effect.type === "off") continue;
-      const edge = findTriggerEdge(page.timeline, groupEffectNodeId(group.id, phase));
-      effectTargets.push({ node: makeGroupEffectNode(group, phase), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
+    for (const event of groupEffectEventsOf(group)) {
+      const edge = findTriggerEdge(page.timeline, event.id);
+      effectTargets.push({ node: makeGroupEffectNode(group, event.phase), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
     }
   }
   for (const { node } of effectTargets) nodesById.set(node.id, node);
@@ -925,14 +924,10 @@ function blockEventIds(page: Page): Set<string> {
   for (const block of orderedValues(page.blocks)) {
     const own = ownEventsOf(block, ON_PAGE);
     for (const event of own) ids.add(event.id);
-    if (!replacesEntrance(block, ON_PAGE) && block.entranceEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "entrance"));
+    for (const event of effectEventsOf(block, ON_PAGE)) ids.add(event.id);
     for (const effect of block.actionEffects ?? []) ids.add(blockActionNodeId(block.id, effect.id));
-    if (block.exitEffect.type !== "off") ids.add(blockEffectNodeId(block.id, "exit"));
   }
-  for (const group of page.groups) {
-    if (group.entranceEffect && group.entranceEffect.type !== "off") ids.add(groupEffectNodeId(group.id, "entrance"));
-    if (group.exitEffect && group.exitEffect.type !== "off") ids.add(groupEffectNodeId(group.id, "exit"));
-  }
+  for (const group of page.groups) for (const event of groupEffectEventsOf(group)) ids.add(event.id);
   for (const id of Object.keys(page.timeline.conditions ?? {})) ids.add(id);
   return ids;
 }
@@ -1092,8 +1087,7 @@ export function ensureEffectTriggers(page: Page, blockIds: string[]): void {
     if (!block) continue;
     const wanted: string[] = [];
     for (const event of ownEventsOf(block, ON_PAGE)) if (event.spec.inChain) wanted.push(event.id);
-    if (!replacesEntrance(block, ON_PAGE) && block.entranceEffect.type !== "off") wanted.push(blockEffectNodeId(blockId, "entrance"));
-    if (block.exitEffect.type !== "off") wanted.push(blockEffectNodeId(blockId, "exit"));
+    for (const event of effectEventsOf(block, ON_PAGE)) wanted.push(event.id);
     for (const nodeId of wanted) {
       if (hasIncoming(nodeId)) continue;
       const actionIds = (block.actionEffects ?? []).map((e) => blockActionNodeId(blockId, e.id)).filter(hasIncoming);

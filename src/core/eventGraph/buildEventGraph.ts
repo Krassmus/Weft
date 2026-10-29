@@ -1,13 +1,8 @@
 import { parseExpression } from "../document/expressions";
 import { orderedValues } from "../document/ordering";
-import {
-  blockActionNodeId,
-  blockEffectNodeId,
-  endNodeIds,
-  groupEffectNodeId,
-} from "../document/pageTimeline";
+import { blockActionNodeId, endNodeIds } from "../document/pageTimeline";
 import type { Block, Layout, Page } from "../types";
-import { ownEventsOf, replacesEntrance } from "../blocks/registry";
+import { effectEventsOf, groupEffectEventsOf, ownEventsOf } from "../blocks/registry";
 import type { GraphEvent, GraphTrigger, PageGraph } from "./types";
 
 /**
@@ -29,15 +24,15 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
     const where = { onPage: pageBlockIds.has(block.id) };
     const own = ownEventsOf(block, where);
     for (const event of own) if (event.spec.replacesEntrance) events.push({ id: event.id, kind: event.spec.graphKind });
-    if (replacesEntrance(block, where)) {
-      // (The block has no Aufbau of its own.)
-    } else if (block.entranceEffect.type !== "off") {
-      const id = blockEffectNodeId(block.id, "entrance");
-      events.push({ id, kind: "entrance" });
-      if (!pageBlockIds.has(block.id)) triggers.push({ id: `layout:${id}`, from: "start", to: id, delayMs: 0, weiter: false });
+    // (The block's Aufbau and Abbau - none where its own events stand in for the Aufbau: see effectEventsOf. The Aktionseffekte lie between them.)
+    const effects = effectEventsOf(block, where);
+    for (const effect of effects) {
+      if (effect.phase !== "entrance") continue;
+      events.push({ id: effect.id, kind: effect.spec.graphKind });
+      if (!pageBlockIds.has(block.id)) triggers.push({ id: `layout:${effect.id}`, from: "start", to: effect.id, delayMs: 0, weiter: false });
     }
     if (pageBlockIds.has(block.id)) for (const effect of block.actionEffects ?? []) events.push({ id: blockActionNodeId(block.id, effect.id), kind: "action" });
-    if (block.exitEffect.type !== "off") events.push({ id: blockEffectNodeId(block.id, "exit"), kind: "exit" });
+    for (const effect of effects) if (effect.phase === "exit") events.push({ id: effect.id, kind: effect.spec.graphKind });
 
     // The other events of its own: a revealer's opening and its button, a button's click, a video's start, its stop points (and the video going on after the
     // ones that stop it - the learner presses play again) and its end, the first answer to a task, its being submitted and being submitted right or wrong.
@@ -52,8 +47,7 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
   }
 
   for (const group of page.groups) {
-    if (group.entranceEffect && group.entranceEffect.type !== "off") events.push({ id: groupEffectNodeId(group.id, "entrance"), kind: "group-entrance" });
-    if (group.exitEffect && group.exitEffect.type !== "off") events.push({ id: groupEffectNodeId(group.id, "exit"), kind: "group-exit" });
+    for (const effect of groupEffectEventsOf(group)) events.push({ id: effect.id, kind: effect.spec.graphKind });
   }
 
   for (const endId of endNodeIds(page)) events.push({ id: endId, kind: "end", transition: page.timeline.ends[endId].transition });

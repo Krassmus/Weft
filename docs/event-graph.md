@@ -223,8 +223,13 @@ und die Zeilen der Ausgänge mit „Nächste Folie“) sind von Hand gebaut, aus
 Aktionseffekte, die Bedingung einer Variablen - stehen in `src/core/blocks/pageEvents.ts` (`pageEventLooks`, dieselbe Form wie `looks`;
 `eventLookOf` kennt sie). Auch die Farbe jeder Art (`color`; `triggeredColor`, wo sie anders ist, sobald ein Trigger zu ihr führt: der Start eines Videos ist
 das Drücken von Play, violett, bis etwas ihn auslöst) und ob sie der Lernende macht (`byLearner`: ein Klick, eine Antwort - davon geht die
-Erreichbarkeit im Graphen aus) steht dort; `buildGraphModel` (`eventGraph/model.ts`) liest beides aus `eventLookOf`. Nicht beschrieben ist das
-Verhalten von Aufbau, Abbau, Aktionen, Gruppen und Bedingungen im Graphen.
+Erreichbarkeit im Graphen aus) steht dort; `buildGraphModel` (`eventGraph/model.ts`) liest beides aus `eventLookOf`. Auch Aufbau und Abbau selbst - die Ids
+(`block-entrance:<Block>`, `block-exit:<Block>`, `group-entrance:<Gruppe>`, `group-exit:<Gruppe>`), was sie im Graphen des Players und in der
+Zeitleiste sind, die Worte ihres Knotens (`EffectEventSpec`, `effectEventSpecs` in `pageEvents.ts`) und wann ein Block oder eine Gruppe sie hat
+(`effectEventsOf`, `groupEffectEventsOf` in der Registry: nicht, wo der Effekt „aus“ ist, und der Aufbau eines Blocks nicht, wo ein eigenes Ereignis
+des Blocks an seiner Stelle steht) - stehen an einer Stelle; `buildEventGraph` und `pageTimeline.ts` (die Knoten, `blockEventIds`,
+`ensureEffectTriggers`, `TRIGGERABLE_EVENT_TYPES`) fragen sie. Was Aufbau und Abbau **tun**, steht nur im Player (`blockEffectEventId` bildet dieselben Ids
+wie der Editor). Nicht beschrieben ist das Verhalten der Aktionen und der Bedingungen im Graphen.
 
 ## 6. Layout
 

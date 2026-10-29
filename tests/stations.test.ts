@@ -6,14 +6,15 @@ import { runOperations } from "../cli/ops";
 import { setCurrentModule } from "../cli/storeStub";
 import { collectTexts, exportTexts, importTexts } from "../cli/texts";
 import { validate } from "../cli/validate";
-import { describedKinds, descriptorOf, eventLookOf, exportedItemTexts, exportedTexts, fieldsOf, isInvisibleKind, isPageOnlyKind, isTaskBlock, listFieldsOf, ownEventId, ownEventsOf, replacesEntrance, shownWordings, taskEventId, triggerableOwnEventTypes, variableWordings } from "../src/core/blocks/registry";
+import { describedKinds, descriptorOf, effectEventId, effectEventsOf, eventLookOf, exportedItemTexts, exportedTexts, fieldsOf, isInvisibleKind, isPageOnlyKind, isTaskBlock, listFieldsOf, ownEventId, ownEventsOf, groupEffectEventsOf, replacesEntrance, shownWordings, taskEventId, triggerableEffectEventTypes, triggerableOwnEventTypes, variableWordings } from "../src/core/blocks/registry";
 import { buildRuntimeHtml } from "../src/core/runtime/buildRuntimeHtml";
 import { pageReadingOrder } from "../src/core/document/readingOrder";
-import { TRIGGERABLE_EVENT_TYPES, blockNameOf, buttonClickNodeId, canTriggerActionEffectFrom, ensureEffectTriggers, getPageLanes, isListPerItem, listItemNodeId, quizFillNodeId, quizSubmitNodeId, revealerButtonNodeId, revealerOpenNodeId, scriptRunNodeId, syncPageTimelineEvents, videoEndNodeId, videoResumeNodeId, videoStartNodeId, videoStopNodeId } from "../src/core/document/pageTimeline";
+import { TRIGGERABLE_EVENT_TYPES, blockEffectNodeId, blockNameOf, buttonClickNodeId, canTriggerActionEffectFrom, ensureEffectTriggers, getPageLanes, isListPerItem, listAllNodes, listItemNodeId, quizFillNodeId, groupEffectNodeId, quizSubmitNodeId, revealerButtonNodeId, revealerOpenNodeId, scriptRunNodeId, syncPageTimelineEvents, videoEndNodeId, videoResumeNodeId, videoStartNodeId, videoStopNodeId } from "../src/core/document/pageTimeline";
 import { buildEventGraph } from "../src/core/eventGraph/buildEventGraph";
 import { buildGraphModel } from "../src/features/editor/eventGraph/model";
 import { readFileSync } from "node:fs";
 import type { BlockDescriptor, FieldSpec, ListField } from "../src/core/blocks/types";
+import { effectEventSpecs } from "../src/core/blocks/pageEvents";
 import { pasteBlockInto } from "../src/core/document/actions";
 import { clipboardEntryPlainText } from "../src/core/document/clipboard";
 import { createEmptyDocument } from "../src/core/document/createEmptyDocument";
@@ -1535,6 +1536,46 @@ describe("the events of their own that a block gives its page (the descriptor's 
     expect(order.indexOf(`revealer-open:${revealer}`)).toBeLessThan(order.indexOf(`revealer-button:${revealer}`));
   });
 
+  it("have in the page's graph the Aufbau and the Abbau of a block (the Aufbau first, the Aktionseffekte between), the layout's Aufbau at the start, and those of a group", () => {
+    const m = make("text");
+    const add = (set: Record<string, unknown>, layout = false) => runOperations(m.content, [{ op: "add_block", ...(layout ? { layout: Object.keys(m.content.layouts)[0] } : { page: m.pageId }), kind: "text", set }]).results[0].result.block as string;
+    const off = { type: "off", durationMs: 400 };
+    const both = add({ entranceEffect: fade, exitEffect: fade });
+    const onlyExit = add({ entranceEffect: off, exitEffect: fade });
+    const fromLayout = add({ entranceEffect: fade, exitEffect: fade }, true);
+    const page = m.content.pages[m.pageId];
+    page.blocks[both].actionEffects = [{ id: "a1", type: "move" } as never];
+    page.groups = [{ id: "g1", blockIds: [both], entranceEffect: fade, exitEffect: off } as never, { id: "g2", blockIds: [both], exitEffect: fade } as never];
+    const graph = buildEventGraph(page, m.content.layouts[Object.keys(m.content.layouts)[0]]);
+    const order = graph.events.map((event) => event.id);
+    const kinds = Object.fromEntries(graph.events.map((event) => [event.id, event.kind]));
+    expect(kinds[`block-entrance:${both}`]).toBe("entrance");
+    expect(kinds[`block-exit:${both}`]).toBe("exit");
+    expect(kinds[`block-action:${both}:a1`]).toBe("action");
+    expect(order.indexOf(`block-entrance:${both}`)).toBeLessThan(order.indexOf(`block-action:${both}:a1`));
+    expect(order.indexOf(`block-action:${both}:a1`)).toBeLessThan(order.indexOf(`block-exit:${both}`));
+    expect(kinds[`block-entrance:${onlyExit}`]).toBeUndefined();
+    expect(kinds[`block-exit:${onlyExit}`]).toBe("exit");
+    // (The layout's: it happens at the start of the page, with no trigger of the page's own - and no Aktionseffekte.)
+    expect(kinds[`block-entrance:${fromLayout}`]).toBe("entrance");
+    expect(kinds[`block-exit:${fromLayout}`]).toBe("exit");
+    const layoutTriggers = graph.triggers.filter((trigger) => trigger.id.startsWith("layout:block-entrance:"));
+    expect(layoutTriggers.map((trigger) => [trigger.id, trigger.from, trigger.to])).toEqual([[`layout:block-entrance:${fromLayout}`, "start", `block-entrance:${fromLayout}`]]);
+    // (A group's: each effect it has that is not "off".)
+    expect(kinds["group-entrance:g1"]).toBe("group-entrance");
+    expect(kinds["group-exit:g1"]).toBeUndefined();
+    expect(kinds["group-exit:g2"]).toBe("group-exit");
+    expect(kinds["group-entrance:g2"]).toBeUndefined();
+    // The words of the nodes in the timeline: the block's name, then what happens.
+    syncPageTimelineEvents(page);
+    const nodes = listAllNodes(page);
+    const labelOf = (id: string) => nodes.find((node) => node.id === id)?.label;
+    expect(labelOf(`block-entrance:${both}`)).toBe(`${blockNameOf(page.blocks[both])} erscheint`);
+    expect(labelOf(`block-exit:${both}`)).toBe(`${blockNameOf(page.blocks[both])} verschwindet`);
+    expect(nodes.find((node) => node.id === "group-entrance:g1")?.eventType).toBe("group-entrance");
+    expect(nodes.find((node) => node.id === "group-exit:g2")?.eventType).toBe("group-exit");
+  });
+
   describe("in the page's timeline", () => {
     const setup = () => {
       const m = make("script");
@@ -1703,6 +1744,44 @@ describe("the events of their own that a block gives its page (the descriptor's 
     expect(bare?.nodes.map((node) => node.id)).toEqual([`button-click:${plain}`]);
     expect(bare?.edges).toEqual([]);
     expect(blockNameOf(m.content.pages[m.pageId].blocks[m.blockId])).toBe("Mein Skript");
+  });
+
+  it("have, for every block and every group, the Aufbau and the Abbau (pageEvents.ts): the ids, where the Aufbau is none, what a trigger can make happen", () => {
+    const player = readFileSync("src/core/runtime/player.runtime.js", "utf8");
+    // (The player makes the ids of a block's: "block-" and the phase.)
+    expect(player).toContain('return "block-" + phase + ":" + blockId;');
+    expect(effectEventId("block", "entrance", "b1")).toBe("block-entrance:b1");
+    expect(effectEventId("block", "exit", "b1")).toBe("block-exit:b1");
+    expect(effectEventId("group", "entrance", "g1")).toBe("group-entrance:g1");
+    expect(effectEventId("group", "exit", "g1")).toBe("group-exit:g1");
+    expect(blockEffectNodeId("b1", "entrance")).toBe("block-entrance:b1");
+    expect(groupEffectNodeId("g1", "exit")).toBe("group-exit:g1");
+    // (No prefix of theirs is a kind's own event.)
+    const ownPrefixes = new Set(describedKinds().flatMap((kind) => (descriptorOf(kind)?.events ?? []).flatMap((spec) => [spec, ...(spec.companions ?? [])]).map((spec) => spec.idPrefix)));
+    for (const phase of ["entrance", "exit"] as const) for (const of of ["block", "group"] as const) expect(ownPrefixes.has(effectEventSpecs[phase][of].idPrefix)).toBe(false);
+    expect(triggerableEffectEventTypes().sort()).toEqual(["block-entrance", "block-exit", "group-entrance", "group-exit"]);
+    for (const type of triggerableEffectEventTypes()) expect(TRIGGERABLE_EVENT_TYPES.has(type), type).toBe(true);
+
+    const phases = (events: { phase: string }[]) => events.map((event) => event.phase);
+    const off = { type: "off", durationMs: 400 };
+    const text = make("text", { entranceEffect: fade, exitEffect: fade }).block;
+    expect(effectEventsOf(text, ON).map((event) => event.id)).toEqual([`block-entrance:${text.id}`, `block-exit:${text.id}`]);
+    Object.assign(text, { entranceEffect: off });
+    expect(phases(effectEventsOf(text, ON))).toEqual(["exit"]);
+    Object.assign(text, { entranceEffect: fade, exitEffect: off });
+    expect(phases(effectEventsOf(text, ON))).toEqual(["entrance"]);
+    // (Where an event of the block's own stands in for the Aufbau, it has none: a logic block's script, the items of a list - on a page.)
+    const script = make("script", { entranceEffect: fade, exitEffect: fade }).block;
+    expect(phases(effectEventsOf(script, ON))).toEqual(["exit"]);
+    const list = make("list", { items: [{ id: "a", html: "<p>1</p>" }], entranceEffect: fade, exitEffect: off, itemEntrance: true }).block;
+    expect(effectEventsOf(list, ON)).toEqual([]);
+    expect(phases(effectEventsOf(list, OFF))).toEqual(["entrance"]);
+    // (A group: each effect it has that is not "off".)
+    expect(groupEffectEventsOf({ id: "g", entranceEffect: fade, exitEffect: fade }).map((event) => event.id)).toEqual(["group-entrance:g", "group-exit:g"]);
+    expect(groupEffectEventsOf({ id: "g", entranceEffect: off, exitEffect: fade }).map((event) => event.id)).toEqual(["group-exit:g"]);
+    expect(groupEffectEventsOf({ id: "g", entranceEffect: fade, exitEffect: off }).map((event) => event.id)).toEqual(["group-entrance:g"]);
+    expect(groupEffectEventsOf({ id: "g" })).toEqual([]);
+    expect(groupEffectEventsOf({ id: "g", entranceEffect: null, exitEffect: undefined })).toEqual([]);
   });
 
   it("have a look each in the editor: every type a spec can give has a title and an icon; so has every type of the timeline", () => {

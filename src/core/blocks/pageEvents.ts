@@ -1,4 +1,5 @@
 import { tr } from "../i18n/tr";
+import type { GraphEventKind } from "../eventGraph/types";
 import type { TimelineEventType } from "../types";
 import type { EventTypeLook } from "./types";
 
@@ -16,4 +17,32 @@ export const pageEventLooks: Partial<Record<TimelineEventType, EventTypeLook>> =
   "block-action-shake": { label: () => tr("ui.action_shake_event"), icon: "action-shake", color: "yellow" },
   "block-action-blink": { label: () => tr("ui.action_blink_event"), icon: "action-blink", color: "yellow" },
   "variable-condition": { label: () => tr("ui.condition_event_label"), icon: "condition", color: "green" },
+};
+
+/** Aufbau and Abbau: the two phases of the effects every block (`entranceEffect`, `exitEffect`) and every group has. */
+export type EffectPhase = "entrance" | "exit";
+
+/**
+ * An event that every block or every group has, as the descriptors describe the events of a kind (OwnEventSpec): the id (`${idPrefix}:${id of the block or the
+ * group}`), what it is in the graph the player runs (`graphKind`) and in the editor's timeline (`timelineType`), and the words of the node. A trigger can
+ * make it happen. It is there as long as the effect is not "off" - and, for the Aufbau of a block, where nothing stands in for it (see `replacesEntrance`).
+ * Kept in sync by hand with the player: it makes the ids of a block's (`blockEffectEventId`), not a group's (nothing happens for them there).
+ */
+export interface EffectEventSpec {
+  idPrefix: string;
+  graphKind: GraphEventKind;
+  timelineType: TimelineEventType;
+  /** The words of the node where the author gave none (`name`: what the block is called in the graph). Absent: the look of the type. */
+  label?(name: string): string;
+}
+
+export const effectEventSpecs: Record<EffectPhase, { block: EffectEventSpec; group: EffectEventSpec }> = {
+  entrance: {
+    block: { idPrefix: "block-entrance", graphKind: "entrance", timelineType: "block-entrance", label: (name) => `${name} erscheint` },
+    group: { idPrefix: "group-entrance", graphKind: "group-entrance", timelineType: "group-entrance" },
+  },
+  exit: {
+    block: { idPrefix: "block-exit", graphKind: "exit", timelineType: "block-exit", label: (name) => `${name} verschwindet` },
+    group: { idPrefix: "group-exit", graphKind: "group-exit", timelineType: "group-exit" },
+  },
 };

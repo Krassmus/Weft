@@ -1,5 +1,6 @@
 import { tr } from "../i18n/tr";
-import { pageEventLooks } from "./pageEvents";
+import { effectEventSpecs, pageEventLooks } from "./pageEvents";
+import type { EffectEventSpec, EffectPhase } from "./pageEvents";
 import type { Block, TimelineEventType } from "../types";
 import type { BlockDescriptor, EventTypeLook, FieldSpec, HtmlField, ListField, OwnEventSpec, TaskSpec, TextField } from "./types";
 import { audioBlock } from "./audio/descriptor";
@@ -193,6 +194,40 @@ export function ownEventsOf(block: Block, where: Where): OwnEvent[] {
   for (const spec of (descriptor?.events ?? []) as OwnEventSpec<Block>[]) expandOwnEvents(spec, block, where, events);
   if (descriptor?.task) for (const spec of taskEventSpecs(descriptor.task)) expandOwnEvents(spec, block, where, events);
   return events;
+}
+
+/** An Aufbau or an Abbau, of a block or of a group, that is there now (see EffectEventSpec). */
+export interface EffectEvent {
+  phase: EffectPhase;
+  id: string;
+  spec: EffectEventSpec;
+}
+
+/** The id of the Aufbau or the Abbau of a block (`of: "block"`) or of a group. */
+export function effectEventId(of: "block" | "group", phase: EffectPhase, id: string): string {
+  return `${effectEventSpecs[phase][of].idPrefix}:${id}`;
+}
+
+/** The Aufbau and the Abbau a block has now, in this order: each unless its effect is "off" - the Aufbau also not where an event of the block's own stands in for
+ * it (see replacesEntrance). */
+export function effectEventsOf(block: Block, where: Where): EffectEvent[] {
+  const events: EffectEvent[] = [];
+  if (block.entranceEffect.type !== "off" && !replacesEntrance(block, where)) events.push({ phase: "entrance", id: effectEventId("block", "entrance", block.id), spec: effectEventSpecs.entrance.block });
+  if (block.exitEffect.type !== "off") events.push({ phase: "exit", id: effectEventId("block", "exit", block.id), spec: effectEventSpecs.exit.block });
+  return events;
+}
+
+/** The Aufbau and the Abbau a group has now (an effect it does not have, or has "off", gives no event). */
+export function groupEffectEventsOf(group: { id: string; entranceEffect?: { type: string } | null; exitEffect?: { type: string } | null }): EffectEvent[] {
+  const events: EffectEvent[] = [];
+  if (group.entranceEffect && group.entranceEffect.type !== "off") events.push({ phase: "entrance", id: effectEventId("group", "entrance", group.id), spec: effectEventSpecs.entrance.group });
+  if (group.exitEffect && group.exitEffect.type !== "off") events.push({ phase: "exit", id: effectEventId("group", "exit", group.id), spec: effectEventSpecs.exit.group });
+  return events;
+}
+
+/** What the timeline calls the Aufbau and the Abbau of blocks and of groups (a trigger can make each happen). */
+export function triggerableEffectEventTypes(): TimelineEventType[] {
+  return (["entrance", "exit"] as const).flatMap((phase) => [effectEventSpecs[phase].block.timelineType, effectEventSpecs[phase].group.timelineType]);
 }
 
 /** The id of the node of an event of a kind of block that is its own: `key` names it among the events of the kind. */

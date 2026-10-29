@@ -1501,9 +1501,23 @@ describe("the events of their own that a block gives its page (the descriptor's 
     const list = add("list", { items: [{ id: "a", html: "<p>1</p>" }], entranceEffect: fade, itemEntrance: true });
     const layoutList = add("list", { items: [{ id: "z", html: "<p>1</p>" }], entranceEffect: fade, itemEntrance: true }, true);
     const layoutButton = add("button", { action: "event" }, true);
+    const video = add("video", { stopPoints: [{ id: "s1", timeSeconds: 3, stopsVideo: true }, { id: "s2", timeSeconds: 5, stopsVideo: false }] });
+    const quiz = add("quiz", {});
+    const checker = add("checker", {});
     const page = m.content.pages[m.pageId];
     const graph = buildEventGraph(page, m.content.layouts[Object.keys(m.content.layouts)[0]]);
     const kinds = Object.fromEntries(graph.events.map((event) => [event.id, event.kind]));
+    // (A video's: start, each time mark, the video going on after one that stops it, the end. A task's: the first answer and submitted - plain, right, wrong.)
+    expect(kinds[`video-start:${video}`]).toBe("video-start");
+    expect(kinds[`video-stop:${video}:s1`]).toBe("video-stop");
+    expect(kinds[`video-stop:${video}:s2`]).toBe("video-stop");
+    expect(kinds[`video-resume:${video}:s1`]).toBe("video-resume");
+    expect(kinds[`video-resume:${video}:s2`]).toBeUndefined();
+    expect(kinds[`video-end:${video}`]).toBe("video-end");
+    for (const task of [quiz, checker]) {
+      expect(kinds[`quiz-fill:${task}`]).toBe("quiz-fill");
+      for (const id of [`quiz-submit:${task}`, `quiz-submit:${task}:richtig`, `quiz-submit:${task}:falsch`]) expect(kinds[id], id).toBe("quiz-submit");
+    }
     expect(kinds[`script-run:${m.blockId}`]).toBe("script-run");
     expect(kinds[`revealer-open:${revealer}`]).toBe("revealer-open");
     expect(kinds[`revealer-button:${revealer}`]).toBe("revealer-button");

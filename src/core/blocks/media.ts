@@ -58,7 +58,6 @@ export const mediaEvents: OwnEventSpec<VideoBlock | AudioBlock>[] = [
     idPrefix: "video-end",
     graphKind: "video-end",
     timelineType: (block) => (block.loop ? "video-end-loop" : "video-end-stop"),
-    timelineTypes: ["video-end-loop", "video-end-stop"],
     triggerable: false,
   },
 ];

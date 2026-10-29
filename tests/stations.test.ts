@@ -9,7 +9,7 @@ import { validate } from "../cli/validate";
 import { describedKinds, descriptorOf, exportedItemTexts, exportedTexts, fieldsOf, isInvisibleKind, isPageOnlyKind, isTaskBlock, listFieldsOf, ownEventId, ownEventsOf, replacesEntrance, shownWordings, triggerableOwnEventTypes, variableWordings } from "../src/core/blocks/registry";
 import { buildRuntimeHtml } from "../src/core/runtime/buildRuntimeHtml";
 import { pageReadingOrder } from "../src/core/document/readingOrder";
-import { TRIGGERABLE_EVENT_TYPES, blockNameOf, buttonClickNodeId, canTriggerActionEffectFrom, getPageLanes, listItemNodeId, revealerButtonNodeId, revealerOpenNodeId, scriptRunNodeId } from "../src/core/document/pageTimeline";
+import { TRIGGERABLE_EVENT_TYPES, blockNameOf, buttonClickNodeId, canTriggerActionEffectFrom, ensureEffectTriggers, getPageLanes, isListPerItem, listItemNodeId, revealerButtonNodeId, revealerOpenNodeId, scriptRunNodeId, syncPageTimelineEvents } from "../src/core/document/pageTimeline";
 import { buildEventGraph } from "../src/core/eventGraph/buildEventGraph";
 import { readFileSync } from "node:fs";
 import type { BlockDescriptor, FieldSpec, ListField } from "../src/core/blocks/types";
@@ -24,7 +24,7 @@ import { placeholderSources, withProgress } from "../src/core/document/variableP
 import { translations } from "../src/core/i18n/translations";
 import { tr } from "../src/core/i18n/tr";
 import { CURRENT_FORMAT_VERSION } from "../src/core/io/unpack";
-import type { Block, WeftModule } from "../src/core/types";
+import type { Block, Page, WeftModule } from "../src/core/types";
 
 /**
  * The stations (core/blocks): every kind of block that describes itself (core/blocks/registry.ts) is run through every place that treats all blocks alike -
@@ -1459,6 +1459,119 @@ describe("the events of their own that a block gives its page (the descriptor's 
     // The order of the events: the ones that stand in for an Aufbau where the Aufbau would be, the others after the Abbau.
     const order = graph.events.map((event) => event.id);
     expect(order.indexOf(`revealer-open:${revealer}`)).toBeLessThan(order.indexOf(`revealer-button:${revealer}`));
+  });
+
+  describe("in the page's timeline", () => {
+    const setup = () => {
+      const m = make("script");
+      const page = m.content.pages[m.pageId];
+      const add = (kind: string, set: Record<string, unknown> = {}) => runOperations(m.content, [{ op: "add_block", page: m.pageId, kind, set }]).results[0].result.block as string;
+      return { m, page, add };
+    };
+    const lanesWith = (page: Page, id: string) => getPageLanes(page).filter((lane) => lane.nodes.some((node) => node.id === id));
+    const triggersTo = (page: Page, id: string) => Object.values(page.timeline.triggers).filter((trigger) => trigger.to === id);
+
+    it("have each their one place on a lane - one that is in the chain is a row of its own only where nothing leads to it, the others are in the lane the descriptor draws", () => {
+      const { m, page, add } = setup();
+      const list = add("list", { items: [{ id: "a", html: "<p>1</p>" }, { id: "b", html: "<p>2</p>" }], entranceEffect: fade, itemEntrance: true });
+      const button = add("button");
+      const revealer = add("revealer", { button: { text: "ok", action: "none" } });
+      const own = [`script-run:${m.blockId}`, `list-item:${list}:a`, `list-item:${list}:b`, `button-click:${button}`, `revealer-open:${revealer}`, `revealer-button:${revealer}`];
+      for (const id of own) expect(lanesWith(page, id).length, id).toBe(1);
+      // (Where nothing leads to a list's items, each is a row of its own.)
+      page.timeline.triggers = {};
+      for (const id of own) expect(lanesWith(page, id).length, id).toBe(1);
+      expect(lanesWith(page, `list-item:${list}:a`)[0].nodes.length).toBe(1);
+      // (The lanes the descriptors draw hold their events one after the other: a button's click alone, a revealer's opening and its button.)
+      expect(lanesWith(page, `button-click:${button}`)[0].nodes.map((node) => node.id)).toEqual([`button-click:${button}`]);
+      expect(lanesWith(page, `revealer-open:${revealer}`)[0].nodes.map((node) => node.id)).toEqual([`revealer-open:${revealer}`, `revealer-button:${revealer}`]);
+    });
+
+    it("are drawn button by button before revealer by revealer, whichever block came first", () => {
+      const { page, add } = setup();
+      const revealer = add("revealer");
+      const button = add("button");
+      const lanes = getPageLanes(page);
+      const place = (id: string) => lanes.findIndex((lane) => lane.nodes.some((node) => node.id === id));
+      expect(place(`button-click:${button}`)).toBeGreaterThan(-1);
+      expect(place(`button-click:${button}`)).toBeLessThan(place(`revealer-open:${revealer}`));
+    });
+
+    it("are the nodes of what the descriptor says they are", () => {
+      const { m, page, add } = setup();
+      const list = add("list", { items: [{ id: "a", html: "<p>1</p>" }], entranceEffect: fade, itemEntrance: true });
+      const button = add("button");
+      const revealer = add("revealer", { button: { text: "ok", action: "none" } });
+      const nodes = getPageLanes(page).flatMap((lane) => lane.nodes);
+      const type = (id: string) => nodes.find((node) => node.id === id)?.eventType;
+      expect(type(`script-run:${m.blockId}`)).toBe("script-run");
+      expect(type(`list-item:${list}:a`)).toBe("list-item-entrance");
+      expect(type(`button-click:${button}`)).toBe("button-click");
+      expect(type(`revealer-open:${revealer}`)).toBe("revealer-open");
+      expect(type(`revealer-button:${revealer}`)).toBe("revealer-button");
+      expect(nodes.find((node) => node.id === `script-run:${m.blockId}`)?.sourceBlockId).toBe(m.blockId);
+    });
+
+    it("leave the block without an Aufbau of its own where they stand in for it: no node for it, no id for it, no place in the chain for it", () => {
+      const { m, page, add } = setup();
+      const list = add("list", { items: [{ id: "a", html: "<p>1</p>" }], entranceEffect: fade, itemEntrance: true });
+      const script = m.content.pages[m.pageId].blocks[m.blockId];
+      script.entranceEffect = fade as never;
+      const whole = add("list", { items: [{ id: "w", html: "<p>1</p>" }], entranceEffect: fade });
+      for (const id of [`block-entrance:${m.blockId}`, `block-entrance:${list}`]) expect(lanesWith(page, id), id).toEqual([]);
+      expect(lanesWith(page, `block-entrance:${whole}`).length).toBe(1);
+      // (An id that no event has is not kept as the source or the target of a trigger.)
+      for (const id of [`block-entrance:${m.blockId}`, `block-entrance:${list}`]) page.timeline.triggers[`t:${id}`] = { from: "start", to: id, delayMs: 0, weiter: true };
+      syncPageTimelineEvents(page);
+      for (const id of [`block-entrance:${m.blockId}`, `block-entrance:${list}`]) expect(triggersTo(page, id), id).toEqual([]);
+      // (The Aufbau of a list that has one as a whole is, and keeps its trigger.)
+      expect(triggersTo(page, `block-entrance:${whole}`).length).toBe(1);
+      // (Nor does the chain wait for it.)
+      page.timeline.triggers = {};
+      ensureEffectTriggers(page, [m.blockId, list, whole]);
+      expect(triggersTo(page, `block-entrance:${m.blockId}`)).toEqual([]);
+      expect(triggersTo(page, `block-entrance:${list}`)).toEqual([]);
+      expect(triggersTo(page, `block-entrance:${whole}`).length).toBe(1);
+    });
+
+    it("take their place in the chain of Weiter when the block is made, or asked for - the items of a list in the order of the list", () => {
+      const { m, page, add } = setup();
+      // (A logic block made by add_block - addBlockToPage - has its trigger at once.)
+      expect(triggersTo(page, `script-run:${m.blockId}`).length).toBe(1);
+      const list = add("list", { items: [{ id: "a", html: "<p>1</p>" }, { id: "b", html: "<p>2</p>" }], entranceEffect: fade, itemEntrance: true });
+      page.timeline.triggers = {};
+      ensureEffectTriggers(page, [list, m.blockId]);
+      expect(triggersTo(page, `list-item:${list}:a`).length).toBe(1);
+      expect(triggersTo(page, `list-item:${list}:b`).length).toBe(1);
+      expect(triggersTo(page, `script-run:${m.blockId}`).length).toBe(1);
+      // (A button's click is the learner's: nothing puts it in the chain.)
+      const button = add("button", { entranceEffect: fade });
+      ensureEffectTriggers(page, [button]);
+      expect(triggersTo(page, `button-click:${button}`)).toEqual([]);
+      expect(triggersTo(page, `block-entrance:${button}`).length).toBe(1);
+    });
+
+    it("say which blocks have the Aufbau made by their items: lists with an Aufbau for each item", () => {
+      const { m, add } = setup();
+      const content = m.content;
+      const block = (id: string) => content.pages[m.pageId].blocks[id];
+      const per = add("list", { entranceEffect: fade, itemEntrance: true });
+      const whole = add("list", { entranceEffect: fade });
+      const noEffect = add("list", { itemEntrance: true });
+      expect(isListPerItem(block(per))).toBe(true);
+      expect(isListPerItem(block(whole))).toBe(false);
+      expect(isListPerItem(block(noEffect))).toBe(false);
+      expect(isListPerItem(block(m.blockId))).toBe(false);
+      expect(isListPerItem(block(add("text")))).toBe(false);
+    });
+
+    it("leave an Aktionseffekt of a list with an Aufbau for each item no Aufbau to wait for - one of a list with an Aufbau as a whole has it", () => {
+      const { page, add } = setup();
+      const per = add("list", { entranceEffect: fade, itemEntrance: true });
+      const whole = add("list", { entranceEffect: fade });
+      expect(canTriggerActionEffectFrom(page, page.blocks[per], "e", "start")).toBe(true);
+      expect(canTriggerActionEffectFrom(page, page.blocks[whole], "e", "start")).toBe(false);
+    });
   });
 
   it("show in the lanes of the timeline with the words the descriptor gives them", () => {

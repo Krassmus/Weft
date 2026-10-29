@@ -1123,6 +1123,8 @@ describe("the picture, the video, the sound and the box of files", () => {
     expect(say(image)).toBe("(kein Bild)");
     const video = moduleWith("video", true);
     expect(say(video)).toBe("eins.png");
+    stored(video).stopPoints = [{ id: "a", timeSeconds: 2, stopsVideo: true }];
+    expect(say(video)).toBe("eins.png, 1 Zeitmarken");
     stored(video).stopPoints = [{ id: "a", timeSeconds: 2, stopsVideo: true }, { id: "b", timeSeconds: 5, stopsVideo: false }];
     expect(say(video)).toBe("eins.png, 2 Zeitmarken");
     stored(video).assetId = null;
@@ -1139,6 +1141,18 @@ describe("the picture, the video, the sound and the box of files", () => {
     stored(files).files = [{ id: "asset-2", name: "x.pdf", mimeType: "application/pdf", size: 1 }];
     stored(files).protection = { salt: "a", iterations: 1, verifier: "b" };
     expect(say(files)).toBe("1 Dateien, geschützt");
+  });
+
+  it("have one thing said about their file at a time - and only a picture is asked for a description", () => {
+    const codes = (m: ReturnType<typeof moduleWith>) => descriptorOf(m.block.kind)!.validate!(m.block as never, m.content).map((problem) => problem.code);
+    for (const kind of ["image", "video", "audio"]) {
+      const m = moduleWith(kind, true);
+      stored(m).assetId = null;
+      expect(codes(m), kind).toEqual(["media-empty"]);
+      stored(m).assetId = "gibt-es-nicht";
+      expect(codes(m), kind).toEqual(["asset-missing"]);
+    }
+    for (const kind of ["video", "audio"]) expect(codes(moduleWith(kind, true)), kind).toEqual([]);
   });
 
   it("are made as they always were: where on the slide, what is set, nothing chosen yet", () => {

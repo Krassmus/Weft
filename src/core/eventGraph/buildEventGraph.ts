@@ -1,8 +1,9 @@
 import { parseExpression } from "../document/expressions";
 import { orderedValues } from "../document/ordering";
-import { blockActionNodeId, endNodeIds } from "../document/pageTimeline";
+import { endNodeIds } from "../document/pageTimeline";
 import type { Block, Layout, Page } from "../types";
-import { effectEventsOf, groupEffectEventsOf, ownEventsOf } from "../blocks/registry";
+import { actionEventsOf, effectEventsOf, groupEffectEventsOf, ownEventsOf } from "../blocks/registry";
+import { actionEventSpec, conditionEventSpec } from "../blocks/pageEvents";
 import type { GraphEvent, GraphTrigger, PageGraph } from "./types";
 
 /**
@@ -31,7 +32,7 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
       events.push({ id: effect.id, kind: effect.spec.graphKind });
       if (!pageBlockIds.has(block.id)) triggers.push({ id: `layout:${effect.id}`, from: "start", to: effect.id, delayMs: 0, weiter: false });
     }
-    if (pageBlockIds.has(block.id)) for (const effect of block.actionEffects ?? []) events.push({ id: blockActionNodeId(block.id, effect.id), kind: "action" });
+    for (const action of actionEventsOf(block, where)) events.push({ id: action.id, kind: actionEventSpec.graphKind });
     for (const effect of effects) if (effect.phase === "exit") events.push({ id: effect.id, kind: effect.spec.graphKind });
 
     // The other events of its own: a revealer's opening and its button, a button's click, a video's start, its stop points (and the video going on after the
@@ -55,7 +56,7 @@ export function buildEventGraph(page: Page, layout: Layout | null | undefined): 
   // The conditions ("Ausgelöst durch: Variable"): an event each, which the player makes happen when the formula turns true.
   for (const [id, formula] of Object.entries(page.timeline.conditions ?? {})) {
     const parsed = parseExpression(formula);
-    events.push({ id, kind: "condition", expr: parsed.ok ? parsed.expr : null });
+    events.push({ id, kind: conditionEventSpec.graphKind, expr: parsed.ok ? parsed.expr : null });
   }
 
   // The titles the author gave the events (a script finds an event to trigger by its title).

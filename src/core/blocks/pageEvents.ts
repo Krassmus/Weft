@@ -1,6 +1,6 @@
 import { tr } from "../i18n/tr";
 import type { GraphEventKind } from "../eventGraph/types";
-import type { TimelineEventType } from "../types";
+import type { ActionEffect, TimelineEventType } from "../types";
 import type { EventTypeLook } from "./types";
 
 /**
@@ -44,5 +44,37 @@ export const effectEventSpecs: Record<EffectPhase, { block: EffectEventSpec; gro
   exit: {
     block: { idPrefix: "block-exit", graphKind: "exit", timelineType: "block-exit", label: (name) => `${name} verschwindet` },
     group: { idPrefix: "group-exit", graphKind: "group-exit", timelineType: "group-exit" },
+  },
+};
+
+/**
+ * The Aktionseffekte of a block (`actionEffects`: move, shake, blink): an event each (`${idPrefix}:${block}:${effect}`), only on a page - a layout block has none of
+ * its own per page. What the timeline calls it depends on the effect (`timelineTypes`); the graph of the player has one kind for all (`graphKind`). A trigger
+ * can make each happen; where in the chain it stands (between the Aufbau and the Abbau of its block) is for pageTimeline.ts. Kept in sync by hand with the
+ * player (`blockActionEventId`).
+ */
+export const actionEventSpec = {
+  idPrefix: "block-action",
+  graphKind: "action" as GraphEventKind,
+  timelineTypes: { move: "block-action-move", shake: "block-action-shake", blink: "block-action-blink" } as const satisfies Record<ActionEffect["type"], TimelineEventType>,
+  /** The words of the node: what the block does (`name`: what it is called in the graph). */
+  label(type: ActionEffect["type"], name: string): string {
+    return tr(type === "move" ? "ui.action_moves" : type === "shake" ? "ui.action_shakes" : "ui.action_blinks", { n0: name });
+  },
+};
+
+/**
+ * The condition of an "Ausgelöst durch: Variable" (`PageTimeline.conditions`, by the id of the event it triggers): an event of its own that the player makes
+ * happen when the formula turns true - a node to start from, like a button's click. The id is `${idPrefix}:${id of the event it triggers}`. Nothing triggers it
+ * (its formula is what makes it happen), so it is no target of a trigger.
+ */
+export const conditionEventSpec = {
+  idPrefix: "condition",
+  graphKind: "condition" as GraphEventKind,
+  timelineType: "variable-condition" as TimelineEventType,
+  /** The words of the node: the formula, shortened. */
+  label(formula: string): string {
+    const text = formula.replace(/\s+/g, " ").trim();
+    return tr("ui.condition_event", { n0: text.length > 28 ? `${text.slice(0, 27)}…` : text });
   },
 };

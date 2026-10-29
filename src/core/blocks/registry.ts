@@ -1,7 +1,7 @@
 import { tr } from "../i18n/tr";
-import { effectEventSpecs, pageEventLooks } from "./pageEvents";
+import { actionEventSpec, conditionEventSpec, effectEventSpecs, pageEventLooks } from "./pageEvents";
 import type { EffectEventSpec, EffectPhase } from "./pageEvents";
-import type { Block, TimelineEventType } from "../types";
+import type { ActionEffect, Block, TimelineEventType } from "../types";
 import type { BlockDescriptor, EventTypeLook, FieldSpec, HtmlField, ListField, OwnEventSpec, TaskSpec, TextField } from "./types";
 import { audioBlock } from "./audio/descriptor";
 import { buttonBlock } from "./button/descriptor";
@@ -228,6 +228,43 @@ export function groupEffectEventsOf(group: { id: string; entranceEffect?: { type
 /** What the timeline calls the Aufbau and the Abbau of blocks and of groups (a trigger can make each happen). */
 export function triggerableEffectEventTypes(): TimelineEventType[] {
   return (["entrance", "exit"] as const).flatMap((phase) => [effectEventSpecs[phase].block.timelineType, effectEventSpecs[phase].group.timelineType]);
+}
+
+/** The id of an Aktionseffekt of a block. */
+export function actionEventId(blockId: string, effectId: string): string {
+  return `${actionEventSpec.idPrefix}:${blockId}:${effectId}`;
+}
+
+/** The block and the effect an id of an Aktionseffekt names (none: it is another event's). */
+export function parseActionEventId(id: string): { blockId: string; effectId: string } | null {
+  const match = new RegExp(`^${actionEventSpec.idPrefix}:([^:]+):([^:]+)$`).exec(id);
+  return match ? { blockId: match[1], effectId: match[2] } : null;
+}
+
+/** The Aktionseffekte a block has now, each as the event it is: only a block of a page has them. */
+export function actionEventsOf(block: Block, where: Where): { id: string; effect: ActionEffect; timelineType: TimelineEventType }[] {
+  if (!where.onPage) return [];
+  return (block.actionEffects ?? []).map((effect) => ({ id: actionEventId(block.id, effect.id), effect, timelineType: actionEventSpec.timelineTypes[effect.type] }));
+}
+
+/** What the timeline calls the Aktionseffekte (a trigger can make each happen). */
+export function triggerableActionEventTypes(): TimelineEventType[] {
+  return Object.values(actionEventSpec.timelineTypes);
+}
+
+/** The id of the condition that triggers the event `targetId` (see PageTimeline.conditions). */
+export function conditionEventId(targetId: string): string {
+  return `${conditionEventSpec.idPrefix}:${targetId}`;
+}
+
+export function isConditionEventId(id: string): boolean {
+  return id.startsWith(`${conditionEventSpec.idPrefix}:`);
+}
+
+/** Whether an event is one that stands in the chain of Weiter a drag in the graph can reorder: an Aufbau or an Abbau of a block, an Aktionseffekt, an item of a list. */
+export function isReorderableEventId(id: string): boolean {
+  const prefixes = [effectEventSpecs.entrance.block.idPrefix, effectEventSpecs.exit.block.idPrefix, actionEventSpec.idPrefix, descriptorOf("list")?.events?.find((spec) => spec.key === "item")?.idPrefix ?? "list-item"];
+  return prefixes.some((prefix) => id.startsWith(`${prefix}:`));
 }
 
 /** The id of the node of an event of a kind of block that is its own: `key` names it among the events of the kind. */

@@ -229,7 +229,12 @@ Zeitleiste sind, die Worte ihres Knotens (`EffectEventSpec`, `effectEventSpecs` 
 (`effectEventsOf`, `groupEffectEventsOf` in der Registry: nicht, wo der Effekt „aus“ ist, und der Aufbau eines Blocks nicht, wo ein eigenes Ereignis
 des Blocks an seiner Stelle steht) - stehen an einer Stelle; `buildEventGraph` und `pageTimeline.ts` (die Knoten, `blockEventIds`,
 `ensureEffectTriggers`, `TRIGGERABLE_EVENT_TYPES`) fragen sie. Was Aufbau und Abbau **tun**, steht nur im Player (`blockEffectEventId` bildet dieselben Ids
-wie der Editor). Nicht beschrieben ist das Verhalten der Aktionen und der Bedingungen im Graphen.
+wie der Editor). Ebenso die Aktionseffekte eines Blocks
+(`actionEventSpec`: `block-action:<Block>:<Effekt>`, nur auf einer Folie, die Art in der Zeitleiste je nach Effekt, in der Registry `actionEventsOf`) und die
+Bedingungen einer Folie (`conditionEventSpec`: `condition:<Ereignis, das sie auslöst>`, ein Ereignis, das der Player eintreten lässt, wenn die Formel wahr
+wird; kein Trigger kann es auslösen). Die Ereignisse, die ein Ziehen im Graphen umordnen kann, nennt `isReorderableEventId`. Was die Aktionen **tun** (der Block
+bewegt, schüttelt, blinkt) und wie der Player eine Bedingung prüft, steht nur im Player; wo ein Aktionseffekt in der Kette steht (zwischen Aufbau und Abbau
+seines Blocks), regelt `pageTimeline.ts`.
 
 ## 6. Layout
 

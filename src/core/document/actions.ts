@@ -70,7 +70,7 @@ import {
 import type { BlockContainerRef } from "./store";
 import { useDocumentStore } from "./store";
 import { tr } from "../i18n/tr";
-import { descriptorOf, isLayoutOnlyKind, isPageOnlyKind, isTaskBlock } from "../blocks/registry";
+import { descriptorOf, isLayoutOnlyKind, isPageOnlyKind, isReorderableEventId, isTaskBlock } from "../blocks/registry";
 
 function edit(label: string, recipe: (draft: WeftModule) => void) {
   useDocumentStore.getState().edit(label, recipe);
@@ -889,7 +889,7 @@ export function reorderChain(pageId: string, order: string[]) {
   edit("Reihenfolge ändern", (m) => {
     const page = m.pages[pageId];
     if (!page || order.length < 2) return;
-    const chain = findChain(page.timeline, order[0], (id) => id.startsWith("block-entrance:") || id.startsWith("block-exit:") || id.startsWith("block-action:") || id.startsWith("list-item:"));
+    const chain = findChain(page.timeline, order[0], isReorderableEventId);
     if (!isChainOrderAllowed(order)) return;
     if (!chain || chain.nodeIds.length !== order.length || !order.every((id) => chain.nodeIds.includes(id))) return;
     const lastOut = chain.triggerIds.length > chain.nodeIds.length ? page.timeline.triggers[chain.triggerIds[chain.nodeIds.length]]?.to : null;

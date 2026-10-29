@@ -6,10 +6,10 @@ import { runOperations } from "../cli/ops";
 import { setCurrentModule } from "../cli/storeStub";
 import { collectTexts, exportTexts, importTexts } from "../cli/texts";
 import { validate } from "../cli/validate";
-import { describedKinds, descriptorOf, effectEventId, effectEventsOf, eventLookOf, exportedItemTexts, exportedTexts, fieldsOf, isInvisibleKind, isPageOnlyKind, isTaskBlock, listFieldsOf, ownEventId, ownEventsOf, groupEffectEventsOf, replacesEntrance, shownWordings, taskEventId, triggerableEffectEventTypes, triggerableOwnEventTypes, variableWordings } from "../src/core/blocks/registry";
+import { actionEventId, actionEventsOf, conditionEventId, describedKinds, descriptorOf, effectEventId, effectEventsOf, eventLookOf, exportedItemTexts, exportedTexts, fieldsOf, isInvisibleKind, isPageOnlyKind, isTaskBlock, listFieldsOf, ownEventId, ownEventsOf, groupEffectEventsOf, isConditionEventId, isReorderableEventId, parseActionEventId, replacesEntrance, shownWordings, taskEventId, triggerableActionEventTypes, triggerableEffectEventTypes, triggerableOwnEventTypes, variableWordings } from "../src/core/blocks/registry";
 import { buildRuntimeHtml } from "../src/core/runtime/buildRuntimeHtml";
 import { pageReadingOrder } from "../src/core/document/readingOrder";
-import { TRIGGERABLE_EVENT_TYPES, blockEffectNodeId, blockNameOf, buttonClickNodeId, canTriggerActionEffectFrom, ensureEffectTriggers, getPageLanes, isListPerItem, listAllNodes, listItemNodeId, quizFillNodeId, groupEffectNodeId, quizSubmitNodeId, revealerButtonNodeId, revealerOpenNodeId, scriptRunNodeId, syncPageTimelineEvents, videoEndNodeId, videoResumeNodeId, videoStartNodeId, videoStopNodeId } from "../src/core/document/pageTimeline";
+import { TRIGGERABLE_EVENT_TYPES, isChainOrderAllowed, blockActionNodeId, blockEffectNodeId, conditionNodeId, blockNameOf, buttonClickNodeId, canTriggerActionEffectFrom, ensureEffectTriggers, getPageLanes, isListPerItem, listAllNodes, listItemNodeId, quizFillNodeId, groupEffectNodeId, quizSubmitNodeId, revealerButtonNodeId, revealerOpenNodeId, scriptRunNodeId, syncPageTimelineEvents, videoEndNodeId, videoResumeNodeId, videoStartNodeId, videoStopNodeId } from "../src/core/document/pageTimeline";
 import { buildEventGraph } from "../src/core/eventGraph/buildEventGraph";
 import { buildGraphModel } from "../src/features/editor/eventGraph/model";
 import { readFileSync } from "node:fs";
@@ -1574,6 +1574,81 @@ describe("the events of their own that a block gives its page (the descriptor's 
     expect(labelOf(`block-exit:${both}`)).toBe(`${blockNameOf(page.blocks[both])} verschwindet`);
     expect(nodes.find((node) => node.id === "group-entrance:g1")?.eventType).toBe("group-entrance");
     expect(nodes.find((node) => node.id === "group-exit:g2")?.eventType).toBe("group-exit");
+  });
+
+  it("have, for the Aktionseffekte of a block and the conditions of a page (pageEvents.ts): the ids, the types, the place in the graph and in the timeline", () => {
+    const player = readFileSync("src/core/runtime/player.runtime.js", "utf8");
+    expect(player).toContain('return "block-action:" + blockId + ":" + effectId;');
+    expect(actionEventId("b1", "e1")).toBe("block-action:b1:e1");
+    expect(blockActionNodeId("b1", "e1")).toBe("block-action:b1:e1");
+    expect(parseActionEventId("block-action:b1:e1")).toEqual({ blockId: "b1", effectId: "e1" });
+    for (const id of ["block-entrance:b1", "block-action:b1", "block-action:b1:e1:x", "x-block-action:b1:e1"]) expect(parseActionEventId(id), id).toBeNull();
+    expect(conditionEventId("block-entrance:b1")).toBe("condition:block-entrance:b1");
+    expect(conditionNodeId("t")).toBe("condition:t");
+    expect(isConditionEventId("condition:t")).toBe(true);
+    expect(isConditionEventId("block-entrance:b1")).toBe(false);
+    expect(triggerableActionEventTypes().sort()).toEqual(["block-action-blink", "block-action-move", "block-action-shake"]);
+    for (const type of triggerableActionEventTypes()) expect(TRIGGERABLE_EVENT_TYPES.has(type), type).toBe(true);
+    expect(TRIGGERABLE_EVENT_TYPES.has("variable-condition")).toBe(false);
+    // The events a drag in the graph can reorder: Aufbau, Abbau, Aktionseffekt, the item of a list - nothing else.
+    for (const id of ["block-entrance:b", "block-exit:b", "block-action:b:e", "list-item:b:i"]) expect(isReorderableEventId(id), id).toBe(true);
+    for (const id of ["group-entrance:g", "script-run:b", "button-click:b", "condition:x", "video-start:b", "start", "end"]) expect(isReorderableEventId(id), id).toBe(false);
+
+    const m = make("text");
+    const add = (set: Record<string, unknown>, layout = false) => runOperations(m.content, [{ op: "add_block", ...(layout ? { layout: Object.keys(m.content.layouts)[0] } : { page: m.pageId }), kind: "text", set }]).results[0].result.block as string;
+    const actions = [{ id: "a1", type: "move", durationMs: 500 }, { id: "a2", type: "shake", durationMs: 300 }, { id: "a3", type: "blink", durationMs: 300 }];
+    const block = add({ entranceEffect: fade, actionEffects: actions });
+    const layoutBlock = add({ entranceEffect: fade, actionEffects: actions }, true);
+    const page = m.content.pages[m.pageId];
+    expect(actionEventsOf(page.blocks[block], ON).map((event) => [event.id, event.timelineType])).toEqual([
+      [`block-action:${block}:a1`, "block-action-move"],
+      [`block-action:${block}:a2`, "block-action-shake"],
+      [`block-action:${block}:a3`, "block-action-blink"],
+    ]);
+    expect(actionEventsOf(page.blocks[block], OFF)).toEqual([]);
+    expect(actionEventsOf(make("text").block, ON)).toEqual([]);
+    // In the graph: one kind for all of them, between the block's Aufbau and Abbau - and none for a block of the layout.
+    const condition = `condition:block-action:${block}:a1`;
+    page.timeline.conditions = { [condition]: "punkte >= 10" };
+    page.timeline.triggers["t:c"] = { from: condition, to: `block-action:${block}:a1`, delayMs: 0, weiter: false };
+    const graph = buildEventGraph(page, m.content.layouts[Object.keys(m.content.layouts)[0]]);
+    const kinds = Object.fromEntries(graph.events.map((event) => [event.id, event.kind]));
+    for (const id of ["a1", "a2", "a3"]) expect(kinds[`block-action:${block}:${id}`], id).toBe("action");
+    expect(Object.keys(kinds).filter((id) => id.includes(layoutBlock) && id.startsWith("block-action:"))).toEqual([]);
+    expect(kinds[condition]).toBe("condition");
+    const conditionEvent = graph.events.find((event) => event.id === condition) as { expr?: unknown } | undefined;
+    expect(conditionEvent?.expr).not.toBeNull();
+    // In the timeline: the nodes with the words the specs give, as what the specs call them.
+    syncPageTimelineEvents(page);
+    const nodes = listAllNodes(page);
+    const name = blockNameOf(page.blocks[block]);
+    const labels = ["a1", "a2", "a3"].map((id) => nodes.find((node) => node.id === `block-action:${block}:${id}`)?.label);
+    expect(labels).toEqual([tr("ui.action_moves", { n0: name }), tr("ui.action_shakes", { n0: name }), tr("ui.action_blinks", { n0: name })]);
+    expect(nodes.find((node) => node.id === `block-action:${block}:a2`)?.eventType).toBe("block-action-shake");
+    const node = nodes.find((candidate) => candidate.id === condition);
+    expect(node?.eventType).toBe("variable-condition");
+    expect(node?.label).toBe(tr("ui.condition_event", { n0: "punkte >= 10" }));
+    // (No node for an effect of a layout's block.)
+    expect(nodes.filter((candidate) => candidate.id.startsWith("block-action:") && candidate.id.includes(layoutBlock))).toEqual([]);
+    // (Lines and blanks of the formula are one blank.)
+    page.timeline.conditions = { [condition]: "  punkte\n >=   10 " };
+    syncPageTimelineEvents(page);
+    expect(listAllNodes(page).find((candidate) => candidate.id === condition)?.label).toBe(tr("ui.condition_event", { n0: "punkte >= 10" }));
+    // An Aktionseffekt stays between the Aufbau and the Abbau of its block when the chain is reordered - for those of the block that are in it.
+    expect(isChainOrderAllowed([`block-entrance:${block}`, `block-action:${block}:a1`, `block-exit:${block}`])).toBe(true);
+    expect(isChainOrderAllowed([`block-action:${block}:a1`, `block-entrance:${block}`])).toBe(false);
+    expect(isChainOrderAllowed([`block-exit:${block}`, `block-action:${block}:a1`])).toBe(false);
+    expect(isChainOrderAllowed([`block-action:${block}:a1`, `block-exit:other`, `block-entrance:other`])).toBe(true);
+    expect(isChainOrderAllowed([`block-exit:other`, `block-entrance:other`])).toBe(true);
+    // The Aufbau that comes back to a block with Aktionseffekte goes before the first of them.
+    page.timeline.triggers = { "t:a": { from: "start", to: `block-action:${block}:a1`, delayMs: 0, weiter: true } };
+    ensureEffectTriggers(page, [block]);
+    expect(page.timeline.triggers[`t:block-entrance:${block}`]).toEqual({ from: "start", to: `block-entrance:${block}`, delayMs: 0, weiter: true });
+    expect(page.timeline.triggers["t:a"].from).toBe(`block-entrance:${block}`);
+    page.timeline.conditions = { [condition]: "eine_sehr_lange_formel_die_gekuerzt_wird > 100000" };
+    page.timeline.triggers["t:c"] = { from: condition, to: `block-action:${block}:a1`, delayMs: 0, weiter: false };
+    syncPageTimelineEvents(page);
+    expect(listAllNodes(page).find((candidate) => candidate.id === condition)?.label).toBe(tr("ui.condition_event", { n0: "eine_sehr_lange_formel_die_…" }));
   });
 
   describe("in the page's timeline", () => {

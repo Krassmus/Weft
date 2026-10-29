@@ -5,8 +5,8 @@ import type { ActionEffect, Block, BlockEffect, BlockGroup, CheckerBlock, Soluti
 import { isMediaBlock } from "../types";
 import type { MediaBlock } from "../types";
 import { tr } from "../i18n/tr";
-import { describedKinds, effectEventId, effectEventsOf, groupEffectEventsOf, isInvisibleKind, isTaskBlock, ownEventId, ownEventsOf, replacesEntrance, taskEventId, taskSpecOf, triggerableEffectEventTypes, triggerableOwnEventTypes } from "../blocks/registry";
-import { effectEventSpecs } from "../blocks/pageEvents";
+import { actionEventId, actionEventsOf, conditionEventId, describedKinds, effectEventId, effectEventsOf, groupEffectEventsOf, isConditionEventId, isInvisibleKind, isTaskBlock, ownEventId, ownEventsOf, parseActionEventId, replacesEntrance, taskEventId, taskSpecOf, triggerableActionEventTypes, triggerableEffectEventTypes, triggerableOwnEventTypes } from "../blocks/registry";
+import { actionEventSpec, conditionEventSpec, effectEventSpecs } from "../blocks/pageEvents";
 import type { OwnEvent } from "../blocks/registry";
 
 /**
@@ -236,10 +236,8 @@ function makeBlockEffectNode(block: Block, phase: "entrance" | "exit"): Timeline
 
 /** One Aktionseffekt of a block (see ActionEffect). Kept in sync by hand with player.runtime.js. */
 export function blockActionNodeId(blockId: string, effectId: string): string {
-  return `block-action:${blockId}:${effectId}`;
+  return actionEventId(blockId, effectId);
 }
-
-const ACTION_EVENT_TYPES = { move: "block-action-move", shake: "block-action-shake", blink: "block-action-blink" } as const satisfies Record<ActionEffect["type"], TimelineEventType>;
 
 /** What the author is told about an Aktionseffekt that cannot work (see actionEffectProblem). */
 export type ActionEffectProblem = "before-entrance" | "after-exit";
@@ -282,10 +280,10 @@ export function canTriggerActionEffectFrom(page: Page, block: Block, effectId: s
 export function isChainOrderAllowed(order: string[]): boolean {
   const placeOf = (id: string) => order.indexOf(id);
   for (const id of order) {
-    const match = /^block-action:([^:]+):[^:]+$/.exec(id);
-    if (!match) continue;
-    const entrance = placeOf(`block-entrance:${match[1]}`);
-    const exit = placeOf(`block-exit:${match[1]}`);
+    const action = parseActionEventId(id);
+    if (!action) continue;
+    const entrance = placeOf(effectEventId("block", "entrance", action.blockId));
+    const exit = placeOf(effectEventId("block", "exit", action.blockId));
     const here = placeOf(id);
     if ((entrance >= 0 && entrance > here) || (exit >= 0 && exit < here)) return false;
   }
@@ -313,8 +311,8 @@ function makeBlockActionNode(page: Page, block: Block, effect: ActionEffect): Ti
     id: blockActionNodeId(block.id, effect.id),
     kind: "event",
     sourceBlockId: block.id,
-    eventType: ACTION_EVENT_TYPES[effect.type],
-    label: tr(effect.type === "move" ? "ui.action_moves" : effect.type === "shake" ? "ui.action_shakes" : "ui.action_blinks", { n0: blockNameOf(block) }),
+    eventType: actionEventSpec.timelineTypes[effect.type],
+    label: actionEventSpec.label(effect.type, blockNameOf(block)),
     ...(problem ? { problem } : {}),
   };
 }
@@ -351,21 +349,15 @@ export function buttonClickNodeId(blockId: string): string {
 
 /** The event of the condition ("Ausgelöst durch: Variable") that triggers the event `targetId` - see PageTimeline.conditions. */
 export function conditionNodeId(targetId: string): string {
-  return `condition:${targetId}`;
+  return conditionEventId(targetId);
 }
 
 export function isConditionNodeId(id: string): boolean {
-  return id.startsWith("condition:");
-}
-
-/** The words an event of a condition shows in the graph: the formula, shortened. */
-function conditionLabel(formula: string): string {
-  const text = formula.replace(/\s+/g, " ").trim();
-  return tr("ui.condition_event", { n0: text.length > 28 ? `${text.slice(0, 27)}…` : text });
+  return isConditionEventId(id);
 }
 
 function makeConditionNode(id: string, formula: string): TimelineNode {
-  return { id, kind: "event", eventType: "variable-condition", label: conditionLabel(formula) };
+  return { id, kind: "event", eventType: conditionEventSpec.timelineType, label: conditionEventSpec.label(formula) };
 }
 
 /** A group's own Aufbau/Abbau event (see BlockGroup.entranceEffect). Kept in sync by hand with player.runtime.js - the player never
@@ -405,10 +397,8 @@ function makeGroupEffectNode(group: BlockGroup, phase: "entrance" | "exit"): Tim
  * that, however useful it might look in the abstract. Expect this set to grow as more block kinds
  * gain their own scriptable events - see the module doc comment on syncPageTimelineEvents below. */
 export const TRIGGERABLE_EVENT_TYPES: ReadonlySet<TimelineEventType> = new Set<TimelineEventType>([
-  "block-action-move",
-  "block-action-shake",
-  "block-action-blink",
-  // (The Aufbau and the Abbau of blocks and of groups: see effectEventSpecs.)
+  // (The Aktionseffekte, and the Aufbau and the Abbau of blocks and of groups: see actionEventSpec and effectEventSpecs.)
+  ...triggerableActionEventTypes(),
   ...triggerableEffectEventTypes(),
   // (The events of their own that a kind of block says a trigger can make happen: a video's or a sound's start, a revealer's opening, a list's items, a
   // logic block's script.)
@@ -733,11 +723,9 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
       effectTargets.push({ node: makeBlockEffectNode(block, "entrance"), trigger: getBlockEntranceTrigger(page, block) });
     }
     // The Aktionseffekte lie between the Aufbau and the Abbau (only on a page: a layout block has none of its own per page).
-    if (block.id in page.blocks) {
-      for (const effect of block.actionEffects ?? []) {
-        const edge = findTriggerEdge(page.timeline, blockActionNodeId(block.id, effect.id));
-        effectTargets.push({ node: makeBlockActionNode(page, block, effect), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
-      }
+    for (const action of actionEventsOf(block, ON_PAGE)) {
+      const edge = findTriggerEdge(page.timeline, action.id);
+      effectTargets.push({ node: makeBlockActionNode(page, block, action.effect), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
     }
     if (blockEffects.some((event) => event.phase === "exit")) effectTargets.push({ node: makeBlockEffectNode(block, "exit"), trigger: getBlockExitTrigger(page, block) });
   }
@@ -925,7 +913,7 @@ function blockEventIds(page: Page): Set<string> {
     const own = ownEventsOf(block, ON_PAGE);
     for (const event of own) ids.add(event.id);
     for (const event of effectEventsOf(block, ON_PAGE)) ids.add(event.id);
-    for (const effect of block.actionEffects ?? []) ids.add(blockActionNodeId(block.id, effect.id));
+    for (const action of actionEventsOf(block, ON_PAGE)) ids.add(action.id);
   }
   for (const group of page.groups) for (const event of groupEffectEventsOf(group)) ids.add(event.id);
   for (const id of Object.keys(page.timeline.conditions ?? {})) ids.add(id);
@@ -1090,7 +1078,7 @@ export function ensureEffectTriggers(page: Page, blockIds: string[]): void {
     for (const event of effectEventsOf(block, ON_PAGE)) wanted.push(event.id);
     for (const nodeId of wanted) {
       if (hasIncoming(nodeId)) continue;
-      const actionIds = (block.actionEffects ?? []).map((e) => blockActionNodeId(blockId, e.id)).filter(hasIncoming);
+      const actionIds = actionEventsOf(block, ON_PAGE).map((action) => action.id).filter(hasIncoming);
       if (nodeId === blockEffectNodeId(blockId, "entrance") && actionIds.length > 0) {
         // The Aufbau comes back to a block that has Aktionseffekte: it goes before the first of them, where it belongs.
         const first = incomingTriggers(timeline, actionIds[0])[0];

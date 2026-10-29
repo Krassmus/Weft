@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { parseActionEventId } from "../../core/blocks/registry";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import { updateActionEffect } from "../../core/document/actions";
 import { aspectRatioNumeric } from "../../core/aspectRatio";
@@ -17,8 +18,7 @@ function useEditedEffect(page: Page): { blockId: string; effectId: string } | nu
   const selection = useDocumentStore((s) => s.selection);
   const edited = useActionEdit();
   if (selection?.type === "event" && selection.pageId === page.id) {
-    const match = /^block-action:([^:]+):([^:]+)$/.exec(selection.nodeId);
-    return match ? { blockId: match[1], effectId: match[2] } : null;
+    return parseActionEventId(selection.nodeId);
   }
   if (selection?.type === "block" && selection.container.kind === "page" && selection.container.pageId === page.id && edited.blockId === selection.blockId && edited.effectId) {
     return { blockId: edited.blockId, effectId: edited.effectId };

@@ -17,7 +17,7 @@ import animationIconSvgRaw from "../../../mockups/icons/animation.svg?raw";
 import dashingAwayIconSvgRaw from "../../../mockups/icons/dashing-away.svg?raw";
 import { reorderChain } from "../../core/document/actions";
 import { isChainOrderAllowed, isTriggerableNode, listAllNodes } from "../../core/document/pageTimeline";
-import { eventLookOf } from "../../core/blocks/registry";
+import { eventLookOf, isReorderableEventId } from "../../core/blocks/registry";
 import type { EventIconName } from "../../core/blocks/types";
 import { findChain } from "../../core/eventGraph/chains";
 import { useDocumentStore } from "../../core/document/store";
@@ -484,7 +484,7 @@ function TimelineGraph({ page }: { page: Page }) {
 
   // The chain an event can be moved in: events that follow each other one by one, in one row.
   function chainOf(nodeId: string): string[] | null {
-    const chain = findChain(page.timeline, nodeId, (id) => id.startsWith("block-entrance:") || id.startsWith("block-exit:") || id.startsWith("block-action:") || id.startsWith("list-item:"));
+    const chain = findChain(page.timeline, nodeId, isReorderableEventId);
     if (!chain) return null;
     const row = layout.row.get(nodeId);
     if (!chain.nodeIds.every((id) => layout.row.get(id) === row)) return null;

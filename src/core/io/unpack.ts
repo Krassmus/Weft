@@ -141,7 +141,7 @@ function migrateBlockEffectTriggers(doc: WeftDocument) {
 // Saves from before a "rectangle" ShapeBlock's corners could be set independently (even ones from
 // earlier the same day this was built - not just old "legacy" files) carry a single `cornerRadius`
 // number rather than today's `cornerRadii` object. Without this, rendering that block (see
-// ShapeSvg.tsx's roundedRectPath, which reads cornerRadii.topLeft etc.) throws on `undefined`
+// blocks/shape/render.js's shapeRoundedRectPath, which reads cornerRadii.topLeft etc.) throws on `undefined`
 // partway through - and since that happens *during render*, with no error boundary catching it,
 // it unmounts the whole app, not just that one block. Combined with the last-opened document
 // reloading itself automatically on launch (see EditorShell.tsx), a single old save with a shape

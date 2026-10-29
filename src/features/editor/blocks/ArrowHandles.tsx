@@ -1,8 +1,8 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { fitArrowBox } from "../../../core/document/arrow";
-import { arrowSegmentMiddles } from "../../../core/runtime/arrowGeometry.js";
+import { arrowSegmentMiddles } from "../../../core/blocks/arrow/render.js";
 import type { ArrowBlock, ArrowPoint } from "../../../core/types";
-import { useArrowBoxAspect } from "./ArrowSvg";
+import { useArrowBoxAspect } from "./ArrowRenderView";
 import { unrotateDelta } from "./resizeMath";
 import { tr } from "../../../core/i18n/tr";
 

@@ -2971,7 +2971,7 @@ function ShapeGradientEditor({ gradient, onChange }: { gradient: ShapeGradient; 
 
   function removeStop(id: string) {
     // A gradient needs at least two stops to be a gradient at all - the last two can't be removed
-    // down to one, which would leave ShapeSvg.tsx rendering a solid-looking fill under a "Verlauf"
+    // down to one, which would leave blocks/shape/render.js rendering a solid-looking fill under a "Verlauf"
     // label that no longer has anything to interpolate between.
     if (gradient.stops.length <= 2) return;
     onChange({ ...gradient, stops: gradient.stops.filter((s) => s.id !== id) });

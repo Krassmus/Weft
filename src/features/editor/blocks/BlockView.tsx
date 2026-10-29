@@ -46,7 +46,7 @@ import { useTranslation } from "../../../core/i18n/useTranslation";
 import type { ContextMenuItem } from "../ContextMenu";
 import { registerActiveEditable, registerWholeRegion, resolveInlineAssets, saveSelection, storeableHtml } from "./richText";
 import { ArrowHandles } from "./ArrowHandles";
-import { ArrowSvg } from "./ArrowSvg";
+import { ArrowRenderView } from "./ArrowRenderView";
 import { useImageEdit } from "./imageEditStore";
 import { usePendingEdit } from "./pendingEditStore";
 import { ImageSvg } from "./ImageSvg";
@@ -55,7 +55,7 @@ import { MatchingCanvas } from "./MatchingCanvas";
 import { viewOf } from "./blockViews";
 import { SortCanvas } from "./SortCanvas";
 import { FilesView } from "./FilesView";
-import { ShapeSvg } from "./ShapeSvg";
+import { ShapeRenderView } from "./ShapeRenderView";
 import { CodeView } from "./CodeView";
 import { TexView } from "./TexView";
 import { useTexDialog } from "./texDialogStore";
@@ -925,9 +925,9 @@ function BlockContent({
     case "list":
       return <ListBlockCanvas block={block} selected={selected} editing={editing} onUpdate={onUpdate} onDelete={onDelete} onBringToFront={onBringToFront} onSendToBack={onSendToBack} />;
     case "shape":
-      return <ShapeSvg block={block} />;
+      return <ShapeRenderView block={block} mode="edit" />;
     case "arrow":
-      return <ArrowSvg block={block} />;
+      return <ArrowRenderView block={block} mode="edit" />;
     case "files":
       return <FilesView block={block} />;
   }

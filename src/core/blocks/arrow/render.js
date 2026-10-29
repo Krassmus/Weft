@@ -1,17 +1,22 @@
-// The drawing of an ArrowBlock (core/types.ts): a line through any number of waypoints, smoothed into one
-// curve, with an arrowhead at either end, in one of three styles ("plain", "sketch" = hand-drawn, "ornate" =
-// Art Nouveau).
+// How an ArrowBlock (core/types.ts) is drawn - for the player, the editor's canvas, the thumbnails and the PDF alike: a line through any number of
+// waypoints, smoothed into one curve, with an arrowhead at either end, in one of three styles ("plain", "sketch" = hand-drawn, "ornate" = Art Nouveau).
 //
-// ONE source for the editor and the player: the editor imports it like any module (see arrowGeometry.d.ts);
-// the exported player (which can't import anything, see player.runtime.js) gets this very file embedded -
-// buildRuntimeHtml.ts strips the `export`s and wraps it. So: plain top-level function declarations only, no
-// imports, no syntax newer than the player's own.
+//   renderArrow(root, props, ctx) draws into `root` (an empty element that has the block's size) and returns { update(props), destroy() }.
 //
-// Everything is worked out in a space that is as true to the slide as the block's own box: the box is 100
-// units wide and 100 / boxAspect high (boxAspect = the box's real width : height on the slide), so a circle
-// stays a circle and an arrowhead keeps its angles however the box is stretched; the SVG is then stretched to
-// the box evenly. Line thickness arrives in cqw (percent of the slide's width, like every size in a module)
-// and is converted: the box is `block.position.width` cqw wide.
+//   props   { block, boxAspect } - the arrow (id, position, points, arrowStyle, color, width, startHead, endHead) and the block's real width : height on
+//           the slide.
+//   ctx     { mode } - "play" | "edit" | "thumbnail" | "print": an arrow is only a picture in all of them, and the same in all (its lengths are in the
+//           units of its own viewBox, so it needs nothing from the place it is drawn in - not even in the PDF, where it is drawn on its own).
+//
+// ONE source for the editor and the player: the editor imports it like any module (see render.d.ts); the exported player (which can't import anything,
+// see player.runtime.js) gets this very file embedded - buildRuntimeHtml.ts strips the `export`s and wraps it. So: plain top-level function declarations
+// only, no imports, no syntax newer than the player's own. The functions the editor's handles use (arrowSegmentMiddles, arrowEvenPoints,
+// arrowCurveMiddles) are here too: they work out the same curve.
+//
+// Everything is worked out in a space that is as true to the slide as the block's own box: the box is 100 units wide and 100 / boxAspect high
+// (boxAspect = the box's real width : height on the slide), so a circle stays a circle and an arrowhead keeps its angles however the box is stretched;
+// the SVG is then stretched to the box evenly. Line thickness arrives in cqw (percent of the slide's width, like every size in a module) and is
+// converted: the box is `block.position.width` cqw wide.
 
 function arrowNumber(value) {
   return (Math.round(value * 100) / 100).toString();
@@ -386,4 +391,18 @@ export function arrowSegmentMiddles(block, boxAspect) {
     var middle = arrowBezierAt(segment, 0.5);
     return { x: middle.x, y: (middle.y * 100) / height };
   });
+}
+
+// The arrow as a picture. It is the block's own (the line and its head may reach past the box): the element it is drawn into must not clip.
+export function renderArrow(root, props) {
+  function draw(data) {
+    root.innerHTML = arrowSvgMarkup(data.block, data.boxAspect);
+  }
+  draw(props);
+  return {
+    update: draw,
+    destroy: function () {
+      root.innerHTML = "";
+    },
+  };
 }

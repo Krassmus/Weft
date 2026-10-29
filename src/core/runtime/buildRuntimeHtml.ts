@@ -2,7 +2,8 @@ import QRCode from "qrcode";
 // The LMS client library (Stud.IP counterpart lives in its plugin) - embedded unchanged, ahead of the
 // player, which talks to it (see syncLms in player.runtime.js).
 import vanillaLmSource from "../../../mockups/VanillaLM.js?raw";
-import arrowGeometrySource from "./arrowGeometry.js?raw";
+import arrowRenderSource from "../blocks/arrow/render.js?raw";
+import shapeRenderSource from "../blocks/shape/render.js?raw";
 import revealerGeometrySource from "./revealerGeometry.js?raw";
 import accentContrastSource from "./accentContrast.js?raw";
 import linkIconsSource from "./linkIcons.js?raw";
@@ -143,7 +144,8 @@ ${codeThemeIds.size > 0 ? `<style>${buildCodeThemeCss(codeThemeIds)}</style>\n` 
 <script id="weft-start-language" type="application/json">${startLanguageJson}</script>
 <script id="weft-save-via-host" type="application/json">${savesViaHost ? "true" : "false"}</script>
 <script>${vanillaLmSource.replace(/<\/script/gi, "<\\/script")}</script>
-<script>${arrowGeometrySource.replace(/^export /gm, "")}</script>
+<script>${arrowRenderSource.replace(/^export /gm, "")}</script>
+<script>${shapeRenderSource.replace(/^export /gm, "")}</script>
 <script>${revealerGeometrySource.replace(/^export /gm, "")}</script>
 <script>${accentContrastSource.replace(/^export /gm, "")}</script>
 <script>${linkIconsSource.replace(/^export /gm, "")}</script>

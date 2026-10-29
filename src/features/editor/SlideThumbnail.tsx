@@ -7,9 +7,9 @@ import { useAssetStore } from "../../core/assets/assetStore";
 import { useDocumentStore } from "../../core/document/store";
 import { useStageTheme } from "./stageTheme";
 import type { Block } from "../../core/types";
-import { ArrowSvg } from "./blocks/ArrowSvg";
+import { ArrowRenderView } from "./blocks/ArrowRenderView";
 import { FilesView } from "./blocks/FilesView";
-import { ShapeSvg } from "./blocks/ShapeSvg";
+import { ShapeRenderView } from "./blocks/ShapeRenderView";
 import { ImageSvg } from "./blocks/ImageSvg";
 import { useEditingLanguage } from "./useEditingLanguage";
 import { CodeView } from "./blocks/CodeView";
@@ -221,7 +221,7 @@ function ThumbBlockBody({
   }
   if (block.kind === "shape") {
     if (exportPxPerCqw && block.shadow.enabled) {
-      // For the PDF: the shadow is drawn into a larger picture around the shape (see ShapeSvg's exportPxPerCqw).
+      // For the PDF: the shadow is drawn into a larger picture around the shape (see exportPxPerCqw in blocks/shape/render.js).
       const bleed = block.shadow.blur + Math.max(Math.abs(block.shadow.offsetX), Math.abs(block.shadow.offsetY)) + 0.5;
       const bleedY = bleed * slideAspect;
       const bigStyle = {
@@ -233,13 +233,13 @@ function ThumbBlockBody({
       };
       return (
         <div className="weft-thumb-block weft-thumb-block-shape" style={bigStyle}>
-          <ShapeSvg block={block} exportPxPerCqw={exportPxPerCqw} bleedCqw={bleed} />
+          <ShapeRenderView block={block} mode="print" exportPxPerCqw={exportPxPerCqw} bleedCqw={bleed} />
         </div>
       );
     }
     return (
       <div className="weft-thumb-block weft-thumb-block-shape" style={style}>
-        <ShapeSvg block={block} exportPxPerCqw={exportPxPerCqw} />
+        <ShapeRenderView block={block} mode={exportPxPerCqw ? "print" : "thumbnail"} exportPxPerCqw={exportPxPerCqw} />
       </div>
     );
   }
@@ -253,7 +253,7 @@ function ThumbBlockBody({
   if (block.kind === "arrow") {
     return (
       <div className="weft-thumb-block weft-thumb-block-shape" style={style}>
-        <ArrowSvg block={block} exportPxPerCqw={exportPxPerCqw} />
+        <ArrowRenderView block={block} mode={exportPxPerCqw ? "print" : "thumbnail"} />
       </div>
     );
   }

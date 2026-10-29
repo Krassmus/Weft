@@ -811,7 +811,7 @@ export interface ShapeShadow {
 /** One rounding value per corner of a "rectangle" ShapeBlock - each 0 (sharp) to 50 (fully
  * rounded/pill-shaped at that corner), as a percent of the block's own shorter *true* on-slide
  * side (its actual rendered width vs height, accounting for both the slide's own aspect ratio and
- * the block's own on-slide width/height - see ShapeSvg.tsx's roundedRectPath) - not of the
+ * the block's own on-slide width/height - see shapeRoundedRectPath in blocks/shape/render.js) - not of the
  * abstract 0-100 square every shape is drawn in before being stretched to the block's own shape.
  * That distinction is what keeps a corner a true circular arc rather than turning elliptical the
  * moment the block itself isn't square, matching what "rounded rectangle" means in PowerPoint/
@@ -856,7 +856,7 @@ export interface ArrowPoint {
 /** An arrow: a curve through its waypoints (two or more; the first and last are its ends), with an arrowhead
  * at either end if wanted. The block's box is the box around the waypoints (the editor keeps them
  * in step - see core/document/arrow.ts), so moving, rotating, scaling and the entrance/exit effects work
- * on it like on any other block. Drawn by runtime/arrowGeometry.js, the same code in the editor and the
+ * on it like on any other block. Drawn by blocks/arrow/render.js, the same code in the editor and the
  * player. */
 export interface ArrowBlock extends BaseBlock {
   kind: "arrow";

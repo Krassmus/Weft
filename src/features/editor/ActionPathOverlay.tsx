@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import { updateActionEffect } from "../../core/document/actions";
 import { aspectRatioNumeric } from "../../core/aspectRatio";
-import { arrowCurveMiddles, arrowEvenPoints } from "../../core/runtime/arrowGeometry.js";
+import { arrowCurveMiddles, arrowEvenPoints } from "../../core/blocks/arrow/render.js";
 import { tr } from "../../core/i18n/tr";
 import type { ArrowPoint, Page } from "../../core/types";
 import { useDocumentStore } from "../../core/document/store";

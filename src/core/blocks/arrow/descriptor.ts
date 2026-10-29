@@ -4,7 +4,8 @@ import type { BlockDescriptor } from "../types";
 
 /**
  * An arrow: a curve through its waypoints (`points`, in percent of the block's own box - dragged on the canvas, not fields), plain, as if drawn by hand
- * or in the curls of Art Nouveau (`arrowStyle`), with a head at either end if wanted. Drawn by BlockView, SlideThumbnail and the player's renderArrowBlock.
+ * or in the curls of Art Nouveau (`arrowStyle`), with a head at either end if wanted. One function draws it for the player, the canvas, the thumbnails
+ * and the PDF (blocks/arrow/render.js), which also works out the curve the editor's handles sit on.
  */
 export const arrowBlock: BlockDescriptor<ArrowBlock> = {
   kind: "arrow",

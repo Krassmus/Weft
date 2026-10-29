@@ -4,7 +4,7 @@ import { useDocumentStore } from "../../../core/document/store";
 import type { ImageBlock } from "../../../core/types";
 import { imageSvgMarkup } from "../../../core/runtime/imageGeometry.js";
 
-/** The block's real width : height on the slide (see imageGeometry.js) - the same figure ShapeSvg works out. */
+/** The block's real width : height on the slide (see imageGeometry.js) - the same figure the shape's view works out. */
 export function useImageBoxAspect(block: Pick<ImageBlock, "position">): number {
   const slideAspect = useDocumentStore((s) => aspectRatioNumeric(s.doc.content.aspectRatio));
   return block.position.height > 0 ? (block.position.width / block.position.height) * slideAspect : 1;

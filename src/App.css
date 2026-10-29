@@ -1481,7 +1481,7 @@ button.weft-timeline-node-icon:hover {
   border-radius: 2px;
 }
 
-/* A shape's own drop-shadow (see ShapeSvg.tsx) can extend past its bounding box, same as its
+/* A shape's own drop-shadow (see blocks/shape/render.js) can extend past its bounding box, same as its
    stroke's own outer half can once it's thick enough - .weft-edit-block-inner's overflow:hidden
    above (there to keep an image/video's own object-fit overflow, e.g. a corner peeking out during
    a resize drag, from bleeding onto neighboring blocks) would clip both instead of drawing them,
@@ -6892,6 +6892,11 @@ h2.weft-inspector-header {
    it - the canvas, the thumbnails, the PDF - so the pointer goes to the block (to be selected and dragged), not into it. Its size is that of the block's
    box, and its type size the block base of the player (.weft-block: 1.7cqw), em for em; what it looks like is core/runtime/quizCard.css and the others
    the player has. */
+/* A picture that reaches past its box (the shadow of a shape, the head of an arrow): the host must not clip it. */
+.weft-render-host.is-overflowing {
+  overflow: visible;
+}
+
 .weft-render-host {
   width: 100%;
   height: 100%;

@@ -1714,7 +1714,7 @@
   }
 
   // Numeric width/height - same value core/aspectRatio.ts's aspectRatioNumeric gives, used by
-  // shapeSvgMarkup below to correct a rounded rectangle's corners (see roundedRectPath).
+  // renderShape to correct a rounded rectangle's corners (see shapeRoundedRectPath in blocks/shape/render.js).
   function slideAspectNumeric() {
     var ratio = parseAspectRatio();
     return ratio[0] / ratio[1];
@@ -2289,178 +2289,6 @@
     );
   }
 
-  // ---- ShapeBlock rendering - hand-duplicated from features/editor/blocks/shapeGeometry.ts and
-  // ShapeSvg.tsx (this file can't import from there, see the file header) - keep both in sync by
-  // hand for any change here. ----
-
-  // Degrees, clockwise from straight up - see shapeGeometry.ts's own comment for why (so a
-  // polygon/star's first point always lands at the top, matching how they're conventionally
-  // drawn).
-  function pointOnCircle(angleDeg, radius) {
-    var rad = (angleDeg * Math.PI) / 180;
-    return [50 + radius * Math.sin(rad), 50 - radius * Math.cos(rad)];
-  }
-
-  function regularPolygonPoints(sides) {
-    var n = Math.max(3, Math.round(sides));
-    var points = [];
-    for (var i = 0; i < n; i++) points.push(pointOnCircle((360 / n) * i, 50));
-    return points;
-  }
-
-  function starOutlinePoints(points, innerRadiusPercent) {
-    var n = Math.max(3, Math.round(points));
-    var innerRadius = (50 * Math.max(0, Math.min(100, innerRadiusPercent))) / 100;
-    var result = [];
-    for (var i = 0; i < n * 2; i++) {
-      result.push(pointOnCircle((360 / (n * 2)) * i, i % 2 === 0 ? 50 : innerRadius));
-    }
-    return result;
-  }
-
-  function pointsAttr(points) {
-    return points
-      .map(function (p) {
-        return p[0] + "," + p[1];
-      })
-      .join(" ");
-  }
-
-  // Corrects one corner's radius (0-50, percent of the block's own shorter *true* side - see
-  // ShapeCornerRadii's own doc comment in core/types.ts) into the (rx, ry) pair the 0-100 square
-  // needs so that, once stretched by `boxAspect` (the block's true on-slide width:height ratio)
-  // to the block's actual shape, the corner traces a true circular arc rather than an elliptical
-  // one - see shapeGeometry.ts's own correctedCornerRadius.
-  function correctedCornerRadius(radius, boxAspect) {
-    var r = Math.min(50, Math.max(0, radius));
-    return boxAspect <= 1 ? [r, r * boxAspect] : [r / boxAspect, r];
-  }
-
-  // See shapeGeometry.ts's own roundedRectPath.
-  function roundedRectPath(radii, boxAspect) {
-    var tl = correctedCornerRadius(radii.topLeft, boxAspect);
-    var tr = correctedCornerRadius(radii.topRight, boxAspect);
-    var br = correctedCornerRadius(radii.bottomRight, boxAspect);
-    var bl = correctedCornerRadius(radii.bottomLeft, boxAspect);
-    return (
-      "M " + tl[0] + " 0 " +
-      "L " + (100 - tr[0]) + " 0 " +
-      "A " + tr[0] + " " + tr[1] + " 0 0 1 100 " + tr[1] + " " +
-      "L 100 " + (100 - br[1]) + " " +
-      "A " + br[0] + " " + br[1] + " 0 0 1 " + (100 - br[0]) + " 100 " +
-      "L " + bl[0] + " 100 " +
-      "A " + bl[0] + " " + bl[1] + " 0 0 1 0 " + (100 - bl[1]) + " " +
-      "L 0 " + tl[1] + " " +
-      "A " + tl[0] + " " + tl[1] + " 0 0 1 " + tl[0] + " 0 " +
-      "Z"
-    );
-  }
-
-  function hexToRgba(hex, opacity) {
-    var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    if (!m) return hex;
-    return "rgba(" + parseInt(m[1], 16) + ", " + parseInt(m[2], 16) + ", " + parseInt(m[3], 16) + ", " + opacity + ")";
-  }
-
-  function shapeGradientId(blockId) {
-    return "weft-shape-fill-" + blockId;
-  }
-
-  // "dashed"/"dotted" scale with the stroke's own width (cqw), same reasoning as ShapeSvg.tsx's
-  // strokeDashStyle: a thicker stroke gets proportionally longer dashes/gaps.
-  function strokeDashStyle(style, widthCqw) {
-    if (style === "dashed") return "stroke-dasharray:" + widthCqw * 2.5 + "cqw " + widthCqw * 1.5 + "cqw;stroke-linecap:butt;";
-    if (style === "dotted") return "stroke-dasharray:0.01cqw " + widthCqw * 2 + "cqw;stroke-linecap:round;";
-    return "";
-  }
-
-  function shapeSvgMarkup(block) {
-    var fill = block.fill;
-    var stroke = block.stroke;
-    var shadow = block.shadow;
-    var gradientId = shapeGradientId(block.id);
-
-    var fillValue = fill.type === "none" ? "none" : fill.type === "gradient" ? "url(#" + gradientId + ")" : fill.color;
-    var fillOpacityAttr = fill.type === "solid" ? ' fill-opacity="' + fill.opacity + '"' : "";
-
-    var strokeAttrs = "";
-    if (stroke.enabled) {
-      strokeAttrs =
-        ' stroke="' +
-        stroke.color +
-        '" stroke-opacity="' +
-        stroke.opacity +
-        '" style="stroke-width:' +
-        stroke.width +
-        "cqw;vector-effect:non-scaling-stroke;" +
-        strokeDashStyle(stroke.style, stroke.width) +
-        '"';
-    }
-
-    var shapeMarkup;
-    if (block.shapeKind === "rectangle") {
-      // The block's own TRUE on-slide width:height ratio - see roundedRectPath's own comment for
-      // why a rounded rectangle's corners need this to stay circular instead of elliptical.
-      var boxAspect = block.position.height > 0 ? (block.position.width / block.position.height) * slideAspectNumeric() : 1;
-      shapeMarkup = '<path d="' + roundedRectPath(block.cornerRadii, boxAspect) + '" fill="' + fillValue + '"' + fillOpacityAttr + strokeAttrs + "/>";
-    } else if (block.shapeKind === "ellipse") {
-      shapeMarkup = '<ellipse cx="50" cy="50" rx="50" ry="50" fill="' + fillValue + '"' + fillOpacityAttr + strokeAttrs + "/>";
-    } else if (block.shapeKind === "polygon") {
-      shapeMarkup =
-        '<polygon points="' + pointsAttr(regularPolygonPoints(block.sides)) + '" fill="' + fillValue + '"' + fillOpacityAttr + strokeAttrs + "/>";
-    } else {
-      shapeMarkup =
-        '<polygon points="' +
-        pointsAttr(starOutlinePoints(block.starPoints, block.starInnerRadius)) +
-        '" fill="' +
-        fillValue +
-        '"' +
-        fillOpacityAttr +
-        strokeAttrs +
-        "/>";
-    }
-
-    var defsMarkup = "";
-    if (fill.type === "gradient") {
-      var stops = fill.gradient.stops
-        .map(function (s) {
-          return '<stop offset="' + s.offset + '%" stop-color="' + s.color + '" stop-opacity="' + s.opacity + '"/>';
-        })
-        .join("");
-      defsMarkup =
-        fill.gradient.kind === "radial"
-          ? '<defs><radialGradient id="' + gradientId + '" cx="50%" cy="50%" r="50%">' + stops + "</radialGradient></defs>"
-          : '<defs><linearGradient id="' +
-            gradientId +
-            '" x1="0%" y1="0%" x2="100%" y2="0%" gradientTransform="rotate(' +
-            fill.gradient.angle +
-            ' 0.5 0.5)">' +
-            stops +
-            "</linearGradient></defs>";
-    }
-
-    var filterStyle = shadow.enabled
-      ? "filter:drop-shadow(" +
-        shadow.offsetX +
-        "cqw " +
-        shadow.offsetY +
-        "cqw " +
-        shadow.blur +
-        "cqw " +
-        hexToRgba(shadow.color, shadow.opacity) +
-        ");"
-      : "";
-
-    return (
-      '<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" style="width:100%;height:100%;display:block;overflow:visible;' +
-      filterStyle +
-      '">' +
-      defsMarkup +
-      shapeMarkup +
-      "</svg>"
-    );
-  }
-
   // What an embedded page says, as renderIframe (blocks/iframe/render.js, inlined ahead of this file) draws it. `heightOverWidth` is the block's shape
   // on the slide, from which the height of the frame the page sees is derived (see renderIframe).
   function iframeProps(block) {
@@ -2677,7 +2505,8 @@
         iframeInstance.update(iframeProps(block));
       });
     } else if (block.kind === "shape") {
-      wrap.innerHTML = shapeSvgMarkup(block);
+      // renderShape (blocks/shape/render.js, inlined ahead of this file) draws the shape: the very code the editor draws it with.
+      renderShape(wrap, { block: block, slideAspect: slideAspectNumeric() }, { mode: "play" });
       if (block.blurBehind && (block.shapeKind === "rectangle" || block.shapeKind === "ellipse")) {
         // On the block itself (not a child of it): a fade-in of the block then does not cut off what is behind it.
         wrap.style.cssText += backdropBlurStyle() + "border-radius:" + shapeBlurCorners(block) + ";";
@@ -2685,10 +2514,10 @@
     } else if (block.kind === "files") {
       wrap.appendChild(filesBoxElement(block));
     } else if (block.kind === "arrow") {
-      // arrowSvgMarkup is core/runtime/arrowGeometry.js, embedded ahead of this script (buildRuntimeHtml.ts) -
-      // the very code the editor draws the arrow with. boxAspect: the block's real width : height on the slide.
+      // renderArrow (blocks/arrow/render.js, inlined ahead of this file) draws the arrow: the very code the editor draws it with. boxAspect: the block's
+      // real width : height on the slide.
       var arrowBoxAspect = block.position.height > 0 ? (block.position.width / block.position.height) * slideAspectNumeric() : 1;
-      wrap.innerHTML = arrowSvgMarkup(block, arrowBoxAspect);
+      renderArrow(wrap, { block: block, boxAspect: arrowBoxAspect }, { mode: "play" });
     }
     return wrap;
   }

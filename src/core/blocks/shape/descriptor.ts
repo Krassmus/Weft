@@ -5,7 +5,8 @@ import type { BlockDescriptor } from "../types";
 /**
  * A shape: a rectangle, an ellipse, a polygon or a star, with a fill, an outline and a shadow - the plain background of a slide as much as a frosted
  * pane (`blurBehind`). Only the things that are one value each are fields: the corners (`cornerRadii`), the fill (colour, gradient), the outline and
- * the shadow are objects the panel (ShapeEditor in panels/BlockPanel.tsx) edits and BlockView, SlideThumbnail and the player's renderShapeBlock draw.
+ * the shadow are objects the panel (ShapeEditor in panels/BlockPanel.tsx) edits. One function draws it for the player, the canvas, the thumbnails and the
+ * PDF (blocks/shape/render.js); only the blur of what is behind it (`blurBehind`) is the block's own CSS or a pane of glass under it (backdropBlur.ts).
  */
 export const shapeBlock: BlockDescriptor<ShapeBlock> = {
   kind: "shape",

@@ -12,7 +12,9 @@ import { renderList } from "../src/core/blocks/list/render.js";
 import { renderMatching } from "../src/core/blocks/matching/render.js";
 import { renderQuiz } from "../src/core/blocks/quiz/render.js";
 import { renderRevealer } from "../src/core/blocks/revealer/render.js";
+import { arrowCurveMiddles, arrowEvenPoints, arrowSegmentMiddles, arrowSvgMarkup, renderArrow } from "../src/core/blocks/arrow/render.js";
 import { renderSort, sortDropIndex, sortLayout, sortMistakes, sortShuffled } from "../src/core/blocks/sort/render.js";
+import { renderShape, shapeGradientId, shapePolygonPoints, shapeRoundedRectPath, shapeStarPoints, shapeSvgMarkup } from "../src/core/blocks/shape/render.js";
 import { renderSolution } from "../src/core/blocks/solution/render.js";
 import { renderText, textBoxStyle } from "../src/core/blocks/text/render.js";
 
@@ -87,7 +89,7 @@ const ICONS = {
 };
 
 /** Every render.js there is must be run here: this is the list of what is run (a new one fails the test below until it is added). */
-const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text", "list", "cloze", "quiz", "revealer", "matching", "sort"];
+const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text", "list", "cloze", "quiz", "revealer", "matching", "sort", "shape", "arrow"];
 
 describe("the render functions", () => {
   it("are all tested here", () => {
@@ -104,7 +106,7 @@ describe("the render functions", () => {
     const inlined = source.replace(/^export /gm, "");
     expect(inlined).not.toMatch(/\bexport\b\s+(function|var|const|let|default)/);
     // The way the page has it: a script of its own that leaves the function there for the player after it.
-    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText", list: "renderList", cloze: "renderCloze", quiz: "renderQuiz", revealer: "renderRevealer", matching: "renderMatching", sort: "renderSort" }[kind];
+    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText", list: "renderList", cloze: "renderCloze", quiz: "renderQuiz", revealer: "renderRevealer", matching: "renderMatching", sort: "renderSort", shape: "renderShape", arrow: "renderArrow" }[kind];
     expect(new Function(`${inlined}; return typeof ${name};`)()).toBe("function");
   });
 });
@@ -2090,4 +2092,243 @@ describe.each(MODES)("a sorting puzzle drawn for %s", (mode) => {
       expect(ctx.fill).not.toHaveBeenCalled();
     });
   }
+});
+
+
+// ---- the shape ------------------------------------------------------------------------------------------------------------------------
+
+describe("what a shape works out", () => {
+  const round = (points: [number, number][]) => points.map(([x, y]) => [Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000]);
+
+  it("puts the first point of a polygon at the top and the others clockwise on the circle - at least three", () => {
+    expect(round(shapePolygonPoints(4))).toEqual([[50, 0], [100, 50], [50, 100], [0, 50]]);
+    expect(shapePolygonPoints(3).length).toBe(3);
+    expect(shapePolygonPoints(2).length).toBe(3);
+    expect(shapePolygonPoints(0).length).toBe(3);
+    expect(shapePolygonPoints(5.6).length).toBe(6);
+    expect(shapePolygonPoints(20).length).toBe(20);
+  });
+
+  it("makes a star from twice as many points as it has tips, the inner ones at a share of the radius (held between none and all)", () => {
+    expect(round(shapeStarPoints(4, 50))).toEqual([[50, 0], [67.678, 32.322], [100, 50], [67.678, 67.678], [50, 100], [32.322, 67.678], [0, 50], [32.322, 32.322]]);
+    expect(shapeStarPoints(2, 50).length).toBe(6);
+    expect(round(shapeStarPoints(3, 0)).filter((_, i) => i % 2 === 1)).toEqual([[50, 50], [50, 50], [50, 50]]);
+    expect(round(shapeStarPoints(3, -20)).filter((_, i) => i % 2 === 1)).toEqual([[50, 50], [50, 50], [50, 50]]);
+    expect(round(shapeStarPoints(3, 100)).filter((_, i) => i % 2 === 1)[0]).toEqual([93.301, 25]);
+    expect(round(shapeStarPoints(3, 250)).filter((_, i) => i % 2 === 1)[0]).toEqual([93.301, 25]);
+  });
+
+  it("draws the corners of a rectangle as circles however the box is stretched: the axis that is the shorter side keeps the radius", () => {
+    const radii = (r: number) => ({ topLeft: r, topRight: r, bottomRight: r, bottomLeft: r });
+    expect(shapeRoundedRectPath(radii(10), 1)).toBe("M 10 0 L 90 0 A 10 10 0 0 1 100 10 L 100 90 A 10 10 0 0 1 90 100 L 10 100 A 10 10 0 0 1 0 90 L 0 10 A 10 10 0 0 1 10 0 Z");
+    // (Twice as wide as high: along the width the corner takes half the units.)
+    expect(shapeRoundedRectPath(radii(10), 2)).toBe("M 5 0 L 95 0 A 5 10 0 0 1 100 10 L 100 90 A 5 10 0 0 1 95 100 L 5 100 A 5 10 0 0 1 0 90 L 0 10 A 5 10 0 0 1 5 0 Z");
+    // (Twice as high as wide: along the height.)
+    expect(shapeRoundedRectPath(radii(10), 0.5)).toBe("M 10 0 L 90 0 A 10 5 0 0 1 100 5 L 100 95 A 10 5 0 0 1 90 100 L 10 100 A 10 5 0 0 1 0 95 L 0 5 A 10 5 0 0 1 10 0 Z");
+    // (Every corner has its own, between none and half.)
+    expect(shapeRoundedRectPath({ topLeft: 0, topRight: 80, bottomRight: -5, bottomLeft: 30 }, 1)).toBe("M 0 0 L 50 0 A 50 50 0 0 1 100 50 L 100 100 A 0 0 0 0 1 100 100 L 30 100 A 30 30 0 0 1 0 70 L 0 0 A 0 0 0 0 1 0 0 Z");
+  });
+
+  it("gives a gradient an id of its own for each block", () => {
+    expect(shapeGradientId("abc")).toBe("weft-shape-fill-abc");
+  });
+});
+
+describe("the markup of a shape", () => {
+  const shape = (extra: Record<string, unknown> = {}) => ({
+    id: "s1",
+    shapeKind: "rectangle",
+    cornerRadii: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+    sides: 6,
+    starPoints: 5,
+    starInnerRadius: 45,
+    fill: { type: "solid", color: "#4f8cff", opacity: 1 },
+    stroke: { enabled: false, color: "#18181b", width: 0.3, style: "solid", opacity: 1 },
+    shadow: { enabled: false, color: "#000000", opacity: 0.35, blur: 1.5, offsetX: 0, offsetY: 0.8 },
+    position: { width: 40, height: 40 },
+    ...extra,
+  });
+  const gradient = (kind: string) => ({ type: "gradient", color: "#ff0000", opacity: 1, gradient: { kind, angle: 45, stops: [{ id: "a", offset: 0, color: "#ff0000", opacity: 1 }, { id: "b", offset: 100, color: "#0000ff", opacity: 0.5 }] } });
+  const SVG = '<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" style="width:100%;height:100%;display:block;overflow:visible;">';
+  const markup = (block: object, aspect = 1, px?: number, bleed?: number) => shapeSvgMarkup(block as never, aspect, px, bleed);
+
+  it("is one svg of a fixed square, stretched to the box and not clipped, with the shape in it", () => {
+    expect(markup(shape())).toBe(`${SVG}<path d="${shapeRoundedRectPath({ topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 }, 1)}" fill="#4f8cff" fill-opacity="1"/></svg>`);
+    expect(markup(shape({ shapeKind: "ellipse" }))).toBe(`${SVG}<ellipse cx="50" cy="50" rx="50" ry="50" fill="#4f8cff" fill-opacity="1"/></svg>`);
+    expect(markup(shape({ shapeKind: "polygon", sides: 3 }))).toBe(`${SVG}<polygon points="${shapePolygonPoints(3).map((p) => p.join(",")).join(" ")}" fill="#4f8cff" fill-opacity="1"/></svg>`);
+    expect(markup(shape({ shapeKind: "star", starPoints: 4, starInnerRadius: 50 }))).toBe(`${SVG}<polygon points="${shapeStarPoints(4, 50).map((p) => p.join(",")).join(" ")}" fill="#4f8cff" fill-opacity="1"/></svg>`);
+  });
+
+  it("works out the corners of a rectangle from the true shape of its box: its percent of the slide's width and of its height", () => {
+    const wide = markup(shape({ position: { width: 40, height: 20 }, cornerRadii: { topLeft: 10, topRight: 10, bottomRight: 10, bottomLeft: 10 } }), 1);
+    expect(wide).toContain(shapeRoundedRectPath({ topLeft: 10, topRight: 10, bottomRight: 10, bottomLeft: 10 }, 2));
+    const slide = markup(shape({ position: { width: 40, height: 40 }, cornerRadii: { topLeft: 10, topRight: 10, bottomRight: 10, bottomLeft: 10 } }), 16 / 9);
+    expect(slide).toContain(shapeRoundedRectPath({ topLeft: 10, topRight: 10, bottomRight: 10, bottomLeft: 10 }, 16 / 9));
+    // (A box without a height is square.)
+    expect(markup(shape({ position: { width: 40, height: 0 }, cornerRadii: { topLeft: 10, topRight: 10, bottomRight: 10, bottomLeft: 10 } }), 2)).toContain(shapeRoundedRectPath({ topLeft: 10, topRight: 10, bottomRight: 10, bottomLeft: 10 }, 1));
+  });
+
+  it("fills with nothing, a colour (its opacity) or a gradient: linear (turned around the middle) or radial", () => {
+    expect(markup(shape({ fill: { type: "none" } }))).toContain('fill="none"/>');
+    expect(markup(shape({ fill: { type: "none" } }))).not.toContain("fill-opacity");
+    expect(markup(shape({ fill: { type: "solid", color: "#112233", opacity: 0.4 } }))).toContain('fill="#112233" fill-opacity="0.4"/>');
+    const linear = markup(shape({ fill: gradient("linear") }));
+    expect(linear).toContain('fill="url(#weft-shape-fill-s1)"/>');
+    expect(linear).not.toContain("fill-opacity");
+    expect(linear).toContain('<defs><linearGradient id="weft-shape-fill-s1" x1="0%" y1="0%" x2="100%" y2="0%" gradientTransform="rotate(45 0.5 0.5)"><stop offset="0%" stop-color="#ff0000" stop-opacity="1"/><stop offset="100%" stop-color="#0000ff" stop-opacity="0.5"/></linearGradient></defs>');
+    expect(markup(shape({ fill: gradient("radial") }))).toContain('<defs><radialGradient id="weft-shape-fill-s1" cx="50%" cy="50%" r="50%"><stop offset="0%"');
+    expect(markup(shape())).not.toContain("<defs>");
+  });
+
+  it("outlines with the stroke's colour, opacity and width (in cqw, not scaling with the shape): solid, dashed or dotted - by the stroke's own width", () => {
+    const stroked = (style: string, width = 0.5) => markup(shape({ stroke: { enabled: true, color: "#abcdef", width, style, opacity: 0.7 } }));
+    expect(stroked("solid")).toContain(' stroke="#abcdef" stroke-opacity="0.7" style="stroke-width:0.5cqw;vector-effect:non-scaling-stroke;"/>');
+    expect(stroked("dashed")).toContain('style="stroke-width:0.5cqw;vector-effect:non-scaling-stroke;stroke-dasharray:1.25cqw 0.75cqw;stroke-linecap:butt;"/>');
+    expect(stroked("dotted")).toContain('style="stroke-width:0.5cqw;vector-effect:non-scaling-stroke;stroke-dasharray:0.01cqw 1cqw;stroke-linecap:round;"/>');
+    expect(stroked("dashed", 1)).toContain("stroke-dasharray:2.5cqw 1.5cqw;");
+    expect(markup(shape())).not.toContain("stroke");
+  });
+
+  it("casts a shadow with a CSS filter on the svg (offsets, blur in cqw, the colour with its opacity) - and none when it is off", () => {
+    const shadowed = markup(shape({ shadow: { enabled: true, color: "#ff8000", opacity: 0.5, blur: 2, offsetX: -1, offsetY: 0.5 } }));
+    expect(shadowed).toContain("overflow:visible;filter:drop-shadow(-1cqw 0.5cqw 2cqw rgba(255, 128, 0, 0.5));");
+    expect(shadowed).not.toContain("<filter");
+    // (A colour that is not six hex digits is written as it is.)
+    expect(markup(shape({ shadow: { enabled: true, color: "red", opacity: 0.5, blur: 2, offsetX: 0, offsetY: 0 } }))).toContain("drop-shadow(0cqw 0cqw 2cqw red)");
+    expect(markup(shape())).not.toContain("filter");
+  });
+
+  it("is drawn on its own for the PDF: lengths in px, the shadow an SVG filter, and room around the shape for it", () => {
+    const block = shape({ stroke: { enabled: true, color: "#000000", width: 0.4, style: "dashed", opacity: 1 }, shadow: { enabled: true, color: "#000000", opacity: 0.4, blur: 2, offsetX: 1, offsetY: 0.5 }, position: { width: 40, height: 20 } });
+    const print = markup(block, 2, 10, 3);
+    expect(print).toContain('style="stroke-width:4px;vector-effect:non-scaling-stroke;stroke-dasharray:10px 6px;stroke-linecap:butt;"');
+    expect(print).not.toContain("cqw");
+    expect(print).not.toContain("drop-shadow");
+    // (The block is 40 cqw wide and 10 cqw high: 3 cqw of room is 7.5 units across and 30 down.)
+    expect(print).toContain('viewBox="-7.5 -30 115 160"');
+    expect(print).toContain(' filter="url(#weft-shape-shadow-s1)"/>');
+    expect(print).toContain('<defs><filter id="weft-shape-shadow-s1" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB"><feDropShadow dx="2.5" dy="5" stdDeviation="2.5 10" flood-color="#000000" flood-opacity="0.4"/></filter></defs>');
+    // (A shadow that is off needs no room, and a block that is not drawn on its own is not drawn like this.)
+    const flat = markup(shape(), 1, 10, 3);
+    expect(flat).toContain('viewBox="0 0 100 100"');
+    expect(flat).not.toContain("<filter");
+    expect(markup(block, 2)).not.toContain("<filter");
+    expect(markup(block, 2, 10)).toContain('viewBox="0 0 100 100"');
+    // (Both a gradient and a shadow share the one defs.)
+    const both = markup({ ...block, fill: gradient("linear") } as never, 2, 10, 3);
+    expect(both.match(/<defs>/g)?.length).toBe(1);
+    expect(both).toContain("</linearGradient><filter");
+  });
+});
+
+// (What a DOM makes of markup: its own spelling of it.)
+const parsed = (markup: string) => {
+  const reference = element();
+  reference.innerHTML = markup;
+  return reference.innerHTML;
+};
+
+describe.each(MODES)("a shape drawn for %s", (mode) => {
+  const block = {
+    id: "s1",
+    shapeKind: "ellipse",
+    cornerRadii: { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 },
+    sides: 6,
+    starPoints: 5,
+    starInnerRadius: 45,
+    fill: { type: "solid", color: "#336699", opacity: 1 },
+    stroke: { enabled: false, color: "#000000", width: 0.3, style: "solid", opacity: 1 },
+    shadow: { enabled: false, color: "#000000", opacity: 0.35, blur: 1.5, offsetX: 0, offsetY: 0.8 },
+    position: { width: 30, height: 30 },
+  };
+
+  it("is drawn the same way wherever it is, can be drawn again and goes away", () => {
+    const root = element();
+    const instance = renderShape(root, { block: block as never, slideAspect: 16 / 9 }, { mode });
+    expect(root.innerHTML).toBe(parsed(shapeSvgMarkup(block as never, 16 / 9)));
+    expect(find(root, "svg ellipse")?.getAttribute("fill")).toBe("#336699");
+    instance.update({ block: { ...block, shapeKind: "polygon", fill: { type: "solid", color: "#ff0000", opacity: 1 } } as never, slideAspect: 16 / 9 });
+    expect(find(root, "svg ellipse")).toBeNull();
+    expect(find(root, "svg polygon")?.getAttribute("fill")).toBe("#ff0000");
+    instance.destroy();
+    expect(root.childNodes.length).toBe(0);
+  });
+
+  it("is drawn on its own when the place says how long a cqw is", () => {
+    const root = element();
+    const shadowed = { ...block, shadow: { ...block.shadow, enabled: true } };
+    renderShape(root, { block: shadowed as never, slideAspect: 2 }, { mode, pxPerCqw: 12, bleedCqw: 2 });
+    expect(root.innerHTML).toBe(parsed(shapeSvgMarkup(shadowed as never, 2, 12, 2)));
+    expect(root.innerHTML).toContain("<filter");
+  });
+});
+
+// ---- the arrow ------------------------------------------------------------------------------------------------------------------------
+
+describe("what an arrow works out", () => {
+  const arrow = (extra: Record<string, unknown> = {}) => ({
+    id: "a1",
+    position: { x: 10, y: 10, width: 40, height: 20 },
+    points: [{ x: 0, y: 50 }, { x: 100, y: 50 }],
+    arrowStyle: "plain",
+    color: "#112233",
+    width: 0.8,
+    startHead: false,
+    endHead: true,
+    ...extra,
+  });
+
+  it("draws one svg that is not clipped, in the colour of the arrow - the head only where there is one", () => {
+    const withHead = arrowSvgMarkup(arrow() as never, 2);
+    expect(withHead.startsWith("<svg")).toBe(true);
+    expect(withHead.endsWith("</svg>")).toBe(true);
+    expect(withHead).toContain("#112233");
+    const without = arrowSvgMarkup(arrow({ endHead: false }) as never, 2);
+    expect(without).not.toBe(withHead);
+    expect(without.length).toBeLessThan(withHead.length);
+    expect(arrowSvgMarkup(arrow({ endHead: true, startHead: true }) as never, 2).length).toBeGreaterThan(withHead.length);
+    // (A colour that is not a hex colour is the default's.)
+    expect(arrowSvgMarkup(arrow({ color: "javascript:red" }) as never, 2)).toContain("#18181b");
+    expect(arrowSvgMarkup(arrow({ color: "javascript:red" }) as never, 2)).not.toContain("javascript");
+  });
+
+  it("is drawn in each of its three styles, and the hand-drawn one the same every time for the same block - another for another block", () => {
+    const plain = arrowSvgMarkup(arrow() as never, 2);
+    const sketch = arrowSvgMarkup(arrow({ arrowStyle: "sketch" }) as never, 2);
+    const ornate = arrowSvgMarkup(arrow({ arrowStyle: "ornate" }) as never, 2);
+    expect(new Set([plain, sketch, ornate]).size).toBe(3);
+    expect(arrowSvgMarkup(arrow({ arrowStyle: "sketch" }) as never, 2)).toBe(sketch);
+    expect(arrowSvgMarkup(arrow({ arrowStyle: "sketch", id: "a2" }) as never, 2)).not.toBe(sketch);
+    expect(arrowSvgMarkup(arrow({ id: "a2" }) as never, 2)).toBe(plain);
+  });
+
+  it("keeps the middle of a straight line halfway - and finds as many middles as there are segments", () => {
+    expect(arrowCurveMiddles([{ x: 0, y: 0 }, { x: 100, y: 0 }]).map((p) => [Math.round(p.x), Math.round(p.y)])).toEqual([[50, 0]]);
+    expect(arrowCurveMiddles([{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 100, y: 0 }]).length).toBe(2);
+    expect(arrowSegmentMiddles(arrow({ points: [{ x: 0, y: 50 }, { x: 100, y: 50 }] }) as never, 2).map((p) => [Math.round(p.x), Math.round(p.y)])).toEqual([[50, 50]]);
+    expect(arrowSegmentMiddles(arrow({ points: [{ x: 0, y: 0 }, { x: 50, y: 50 }, { x: 100, y: 0 }] }) as never, 2).length).toBe(2);
+  });
+
+  it("finds points that are evenly spaced along the curve: a count and one more of them, from end to end", () => {
+    const even = arrowEvenPoints([{ x: 0, y: 0 }, { x: 100, y: 0 }], 4);
+    expect(even.length).toBe(5);
+    expect(even.map((p) => Math.round(p.x))).toEqual([0, 25, 50, 75, 100]);
+    expect(even.every((p) => Math.round(p.y) === 0)).toBe(true);
+  });
+});
+
+describe.each(MODES)("an arrow drawn for %s", (mode) => {
+  const block = { id: "a1", position: { x: 10, y: 10, width: 40, height: 20 }, points: [{ x: 0, y: 80 }, { x: 45, y: 25 }, { x: 100, y: 50 }], arrowStyle: "plain", color: "#18181b", width: 0.8, startHead: false, endHead: true };
+
+  it("is drawn the same way wherever it is, can be drawn again and goes away", () => {
+    const root = element();
+    const instance = renderArrow(root, { block: block as never, boxAspect: 2 }, { mode });
+    expect(root.innerHTML).toBe(parsed(arrowSvgMarkup(block as never, 2)));
+    expect(find(root, "svg")).not.toBeNull();
+    instance.update({ block: { ...block, color: "#ff0000" } as never, boxAspect: 2 });
+    expect(root.innerHTML).toContain("#ff0000");
+    expect(root.innerHTML).not.toContain("#18181b");
+    instance.destroy();
+    expect(root.childNodes.length).toBe(0);
+  });
 });

@@ -2208,6 +2208,15 @@ describe("the markup of a shape", () => {
     expect(print).toContain('viewBox="-7.5 -30 115 160"');
     expect(print).toContain(' filter="url(#weft-shape-shadow-s1)"/>');
     expect(print).toContain('<defs><filter id="weft-shape-shadow-s1" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB"><feDropShadow dx="2.5" dy="5" stdDeviation="2.5 10" flood-color="#000000" flood-opacity="0.4"/></filter></defs>');
+    // (A cqw is not always a whole number of px: it is rounded to a thousandth.)
+    const fine = markup(block, 2, 12.5, 3);
+    expect(fine).toContain("stroke-width:5px;");
+    expect(fine).toContain("stroke-dasharray:12.5px 7.5px;");
+    expect(markup(shape({ stroke: { enabled: true, color: "#000000", width: 0.3333, style: "solid", opacity: 1 } }), 1, 7.77)).toContain("stroke-width:2.59px;");
+    // (A block without a width or height cannot be divided by: the room is worked out without it.)
+    const flat0 = markup({ ...block, position: { width: 0, height: 0 } }, 2, 10, 3);
+    expect(flat0).not.toMatch(/Infinity|NaN/);
+    expect(flat0).toContain('viewBox="-30000 -30000 60100 60100"');
     // (A shadow that is off needs no room, and a block that is not drawn on its own is not drawn like this.)
     const flat = markup(shape(), 1, 10, 3);
     expect(flat).toContain('viewBox="0 0 100 100"');

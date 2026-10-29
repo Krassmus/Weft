@@ -1057,6 +1057,68 @@ describe.each(MODES)("a quiz drawn for %s", (mode) => {
     expect(root.childNodes.length).toBe(0);
   });
 
+  it("has round buttons of one group where only one answer can be picked - but not for an open question", () => {
+    const types = (extra: object) => {
+      const root = element();
+      renderQuiz(root, { ...props, ...extra }, context());
+      return boxes(root).map((box) => box.getAttribute("type"));
+    };
+    expect(types({})).toEqual(["checkbox", "checkbox", "checkbox"]);
+    expect(types({ single: false })).toEqual(["checkbox", "checkbox", "checkbox"]);
+    expect(types({ single: true })).toEqual(["radio", "radio", "radio"]);
+    expect(types({ single: true, open: true })).toEqual(["checkbox", "checkbox", "checkbox"]);
+    const root = element();
+    renderQuiz(root, { ...props, single: true }, context());
+    expect(boxes(root).every((box) => box.getAttribute("name") === "opt-q1")).toBe(true);
+  });
+
+  it("has round icons where only one answer can be picked - when the place gives them, else the boxes'", () => {
+    const icons = { ...ICONS, radioUnchecked: "radio-off", radioChecked: "radio-on" };
+    const iconsOf = (extra: object, set: typeof icons | typeof ICONS) => {
+      const root = element();
+      renderQuiz(root, { ...props, ...extra }, { ...context(), icons: set });
+      return [[...root.querySelectorAll(".weft-quiz-option-checkbox-icon-unchecked")], [...root.querySelectorAll(".weft-quiz-option-checkbox-icon-checked")]].map((nodes) => [...new Set(nodes.map((node) => node.innerHTML.replace(/<svg id=["']([a-z-]+)["'][^>]*>(<\/svg>)?/, "$1")))]);
+    };
+    expect(iconsOf({ single: true }, icons)).toEqual([["radio-off"], ["radio-on"]]);
+    expect(iconsOf({}, icons)).toEqual([["unchecked"], ["checked"]]);
+    expect(iconsOf({ single: true }, ICONS)).toEqual([["unchecked"], ["checked"]]);
+    expect(iconsOf({ single: true, open: true }, icons)).toEqual([["unchecked"], ["checked"]]);
+  });
+
+  it("keeps the place of an answer a script took away, empty and not to be picked - and gives it back", () => {
+    const root = element();
+    const instance = renderQuiz(root, { ...props, hiddenOptionIds: ["b"] }, context());
+    const labels = () => [...root.querySelectorAll(".weft-quiz-option")] as HTMLElement[];
+    expect(labels().map((label) => label.style.visibility)).toEqual(["", "hidden", ""]);
+    expect(labels().map((label) => label.getAttribute("aria-hidden"))).toEqual([null, "true", null]);
+    expect(boxes(root).map((box) => box.disabled)).toEqual([false, true, false]);
+    expect(labels().length).toBe(3);
+    instance.update({ ...props, hiddenOptionIds: ["a", "c"] });
+    expect(labels().map((label) => label.style.visibility)).toEqual(["hidden", "", "hidden"]);
+    expect(boxes(root).map((box) => box.disabled)).toEqual([true, false, true]);
+    instance.update({ ...props, hiddenOptionIds: [] });
+    expect(labels().map((label) => label.style.visibility)).toEqual(["", "", ""]);
+    expect(labels().map((label) => label.getAttribute("aria-hidden"))).toEqual([null, null, null]);
+    expect(boxes(root).every((box) => !box.disabled)).toBe(true);
+  });
+
+  if (mode === "play") {
+    it("takes an answer back that is ticked when a script takes it away, and does not count it", () => {
+      const root = element();
+      const ctx = context();
+      const instance = renderQuiz(root, props, ctx);
+      tick(boxes(root)[0]);
+      tick(boxes(root)[2]);
+      instance.update({ ...props, hiddenOptionIds: ["c"] });
+      expect(boxes(root).map((box) => !!box.checked)).toEqual([true, false, false]);
+      fire(find(root, ".weft-quiz-submit") as Element, "click");
+      expect(ctx.submit).toHaveBeenCalledWith({ ticked: ["a"], correct: false });
+      // (An answer taken away after the submit stays locked; one given back stays locked too.)
+      instance.update({ ...props, hiddenOptionIds: [] });
+      expect(boxes(root).every((box) => box.disabled)).toBe(true);
+    });
+  }
+
   it("is drawn in a place that has no variables", () => {
     const root = element();
     renderQuiz(root, props, { mode, text, icons: ICONS, fill: vi.fn(), submit: vi.fn(), announce: vi.fn() });

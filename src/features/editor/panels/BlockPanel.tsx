@@ -3198,8 +3198,11 @@ function QuizOptionRow({
             title={tr("ui.correct")}
             checked={block.correctOptionIds.includes(option.id)}
             onChange={(e) => {
+              // (Where only one answer can be picked, a right answer is the only one.)
               const correctOptionIds = e.target.checked
-                ? [...block.correctOptionIds, option.id]
+                ? block.single
+                  ? [option.id]
+                  : [...block.correctOptionIds, option.id]
                 : block.correctOptionIds.filter((id) => id !== option.id);
               onUpdate({ correctOptionIds });
             }}
@@ -3609,6 +3612,18 @@ function QuizEditor({ block, page, onUpdate }: { block: QuizBlock; page?: Page; 
             <option value="open">{tr("ui.open_question_nothing_is_wrong")}</option>
           </select>
         </label>
+        {!block.open && (
+          <label className="weft-field weft-field-inline">
+            <input
+              type="checkbox"
+              checked={block.single === true}
+              // (Only one answer can be right then: the first of those marked stays.)
+              onChange={(e) => onUpdate(e.target.checked ? { single: true, correctOptionIds: block.correctOptionIds.slice(0, 1) } : { single: undefined })}
+            />
+            <span>{tr("ui.quiz_single")}</span>
+          </label>
+        )}
+        {block.single && !block.open && <p className="weft-hint">{tr("ui.quiz_single_hint")}</p>}
         <LanguageSelect block={block} />
         <p className="weft-hint">{tr("ui.type_the_question_and_answers_directly")}</p>
 

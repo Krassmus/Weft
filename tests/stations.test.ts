@@ -778,8 +778,11 @@ describe("the quiz", () => {
     const m = moduleWith("quiz", true);
     const quiz = stored(m);
     quiz.open = false;
+    quiz.single = false;
     quiz.correctOptionIds = [quiz.options[0].id];
     expect(descriptorOf("quiz")!.summary!(m.block as never, { labels: {} })).toMatch(/\[2 Optionen, 1 richtig\]$/);
+    quiz.single = true;
+    expect(descriptorOf("quiz")!.summary!(m.block as never, { labels: {} })).toMatch(/\[2 Optionen, 1 richtig, eine Antwort wählbar\]$/);
     quiz.open = true;
     expect(descriptorOf("quiz")!.summary!(m.block as never, { labels: {} })).toMatch(/\[2 Optionen, offen\]$/);
   });
@@ -818,6 +821,22 @@ describe("the quiz", () => {
     const codes = findings(m).map((finding) => finding.code);
     expect(codes).not.toContain("quiz-no-correct");
     expect(codes).not.toContain("quiz-few-options");
+  });
+
+  it("says when only one answer can be picked but several are right - and not for one right answer, or an open question", () => {
+    const m = moduleWith("quiz", true);
+    const quiz = stored(m) as unknown as { single?: boolean; open?: boolean; options: { id: string }[]; correctOptionIds: string[] };
+    quiz.open = false;
+    quiz.correctOptionIds = quiz.options.map((option) => option.id);
+    quiz.single = false;
+    expect(findings(m).map((finding) => finding.code)).not.toContain("quiz-single-many-correct");
+    quiz.single = true;
+    expect(findings(m).some((finding) => finding.code === "quiz-single-many-correct" && finding.severity === "warning")).toBe(true);
+    quiz.correctOptionIds = [quiz.options[0].id];
+    expect(findings(m).map((finding) => finding.code)).not.toContain("quiz-single-many-correct");
+    quiz.correctOptionIds = quiz.options.map((option) => option.id);
+    quiz.open = true;
+    expect(findings(m).map((finding) => finding.code)).not.toContain("quiz-single-many-correct");
   });
 });
 

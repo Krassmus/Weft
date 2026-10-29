@@ -28,7 +28,7 @@ const BLOCK_KINDS_BY_HAND: Record<string, { definition: string; what: string }> 
   shape: { definition: "ShapeBlock", what: "Eine Form: Rechteck, Ellipse, Vieleck, Stern." },
   arrow: { definition: "ArrowBlock", what: "Ein Pfeil durch mehrere Punkte." },
   files: { definition: "FilesBlock", what: "Dateien zum Herunterladen, optional mit Passwort." },
-  script: { definition: "ScriptBlock", what: "Logikblock: JavaScript (`code`), das läuft, wenn sein Ereignis erreicht wird (nur auf Folien). Im Code: vars, debug(), trigger(), jump(), VanillaLM." },
+  script: { definition: "ScriptBlock", what: "Logikblock: JavaScript (`code`), das läuft, wenn sein Ereignis erreicht wird (nur auf Folien). Im Code: vars, debug(), trigger(), jump(), VanillaLM, getBlock()." },
 };
 
 /** The kinds of block and what they are: the ones that describe themselves (see core/blocks) say it in their descriptor. */

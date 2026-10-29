@@ -256,7 +256,8 @@ export interface ListBlock extends BaseBlock {
  * scriptRunNodeId in document/pageTimeline.ts) - a green event that, like the Aufbau of any block, is triggered by Weiter by default and
  * can be triggered by anything else. In the editor it is a hexagon with a gear on the slide; the player shows nothing. The code has `vars`
  * (read and write the module's variables by name), `debug(...)`, `trigger(name)` (an event of the page, by its title), `jump(slide,
- * transition, options)` and `VanillaLM`; whoever writes it has to know what they do (see runScript in player.runtime.js). A page's
+ * transition, options)`, `VanillaLM` and `getBlock(name)` (a block of the slide by its name: a quiz's question and answers, and `hideOptions` / `showOptions`);
+ * whoever writes it has to know what they do (see runScript and scriptBlock in player.runtime.js). A page's
  * block only - there are no events on a layout. What the module's script libraries (WeftModule.scriptLibraries) define is there too.
  */
 export interface ScriptBlock extends BaseBlock {
@@ -474,6 +475,9 @@ export interface QuizBlock extends BaseBlock {
    * and onIncorrect are ignored, onCorrect is what happens on submitting (and it counts as "richtig" for the page's graph), and an
    * answer's own effects are by whether it is ticked (onRight) or not (onWrong). Optional: a module saved before this is a test. */
   open?: boolean;
+  /** Only one answer can be picked (round buttons instead of boxes: picking another one takes the first back). A test of this kind has one right answer:
+   * `weft validate` says so when it has not. Ignored for an open question. Absent: any number of answers can be ticked. */
+  single?: boolean;
   /** A required task ("Pflichtangabe"): a Weiter that would leave the page - the Weiter button, Space, the arrow, a tap - is held back until
    * it has been submitted, and a button whose action is "Weiter" is greyed out meanwhile (see weiter in player.runtime.js). Absent: not required. */
   required?: boolean;

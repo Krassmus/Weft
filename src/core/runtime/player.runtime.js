@@ -436,6 +436,9 @@
   // Functions that refill the texts of the blocks on the page being shown, and the language
   // switches on it - both reset with every page (see renderStage), like every other page-scoped list.
   var languageRefreshers = [];
+  // The blocks of the slide on show (the layout's and the page's), for getBlock in a logic block's code; and, by the id of a quiz, what a script can do with it.
+  var stageBlocks = [];
+  var quizHandles = {};
   var languageSwitches = [];
 
   // What a language switch says (renderLanguage, blocks/language/render.js, inlined ahead of this file): the module's languages, their names, the one in use.
@@ -1353,8 +1356,8 @@
 
   // ---- logic blocks (see ScriptBlock in core/types.ts) ----
   // A logic block's event (`script-run:<blockId>`) runs its JavaScript when it is reached, and has happened once the script is done.
-  // The code gets `vars` (the module's variables by name: read, and write), `debug(...)`, `trigger(name)`, `jump(slide, type, options)`
-  // and `VanillaLM` - what it does with them is up to its author: nothing here checks it.
+  // The code gets `vars` (the module's variables by name: read, and write), `debug(...)`, `trigger(name)`, `jump(slide, type, options)`,
+  // `VanillaLM` and `getBlock(name)` (a block of the slide: see scriptBlock) - what it does with them is up to its author: nothing here checks it.
   var SCRIPT_DEFAULT_TRANSITION_MS = { none: 500, fade: 500, move: 500, iris: 900, cube: 900, blur: 1200, wheel: 1600, horror: 2000 };
   var debugBox = null;
   var debugList = null;
@@ -1478,6 +1481,66 @@
     });
   }
 
+  // The words of some html, as plain text (what getBlock tells a script).
+  function plainTextOfHtml(html) {
+    var box = document.createElement("div");
+    box.innerHTML = html || "";
+    return (box.textContent || "").replace(/\s+/g, " ").trim();
+  }
+
+  // getBlock(name) in a logic block's code: the block of this slide (the layout's too) that is called `name` in the editor - what a script can know of it and do
+  // with it. A quiz: its question and answers in the language that is shown (`options`: { id, index, text, correct }; `correctOptions`, `wrongOptions`),
+  // and `hideOptions(which)` / `showOptions()` to take answers away and bring them back (the 50:50 of a quiz game). `which` is a list of answers from
+  // `options`, or their ids or their places. Any other block: its id, kind and name. null (and a note in the debug window) if there is no such block.
+  function quizScriptView(view, block) {
+    var handle = quizHandles[block.id];
+    var options = block.options.map(function (option, index) {
+      return { id: option.id, index: index, text: plainTextOfHtml(quizOptionHtml(block, option)), correct: block.correctOptionIds.indexOf(option.id) !== -1 };
+    });
+    view.question = plainTextOfHtml(quizQuestionHtml(block));
+    view.options = options;
+    view.correctOptions = options.filter(function (option) {
+      return block.open === true || option.correct;
+    });
+    view.wrongOptions = options.filter(function (option) {
+      return block.open !== true && !option.correct;
+    });
+    view.hideOptions = function (which) {
+      if (!handle) return 0;
+      (Array.isArray(which) ? which : [which]).forEach(function (item) {
+        var id = typeof item === "number" ? (options[item] || {}).id : item && typeof item === "object" ? item.id : item;
+        var known = options.some(function (option) {
+          return option.id === id;
+        });
+        if (known && handle.hidden.indexOf(id) === -1) handle.hidden.push(id);
+      });
+      handle.refresh();
+      return handle.hidden.length;
+    };
+    view.showOptions = function () {
+      if (handle) {
+        handle.hidden.length = 0;
+        handle.refresh();
+      }
+      return 0;
+    };
+  }
+
+  function scriptBlock(name) {
+    var wanted = String(name).trim().toLowerCase();
+    var block = null;
+    stageBlocks.forEach(function (candidate) {
+      if (!block && candidate.name && String(candidate.name).trim().toLowerCase() === wanted) block = candidate;
+    });
+    if (!block) {
+      debugShow(["getBlock: this slide has no block called", name]);
+      return null;
+    }
+    var view = { id: block.id, kind: block.kind, name: block.name };
+    if (block.kind === "quiz") quizScriptView(view, block);
+    return view;
+  }
+
   function runScript(block) {
     var generation = graphGeneration;
     // What was asked for happens right after the script, not in the middle of it - and not at all if the page is gone by then.
@@ -1513,8 +1576,8 @@
       return true;
     };
     try {
-      var run = new Function("vars", "debug", "trigger", "jump", "VanillaLM", block.code || "");
-      run(scriptVariables(), debug, trigger, jump, window.VanillaLM);
+      var run = new Function("vars", "debug", "trigger", "jump", "VanillaLM", "getBlock", block.code || "");
+      run(scriptVariables(), debug, trigger, jump, window.VanillaLM, scriptBlock);
     } catch (error) {
       debugShow(["Logic block:", error && error.message ? error.message : String(error)]);
     }
@@ -2865,6 +2928,12 @@
   var QUIZ_CHECKBOX_CHECKED_SVG =
     '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="geometricPrecision" fill="#28497c"><path d="M13.055 5.848 11.28 4.073 6.972 8.379 4.715 6.127 2.946 7.899l4.027 4.026z"/><path d="M14.5 1.5v13h-13v-13zM16 0H0v16h16z"/></svg>';
 
+  // The round buttons of a quiz where only one answer can be picked (see QuizBlock.single).
+  var QUIZ_RADIO_UNCHECKED_SVG =
+    '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="geometricPrecision" fill="#28497c"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0m0 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13z"/></svg>';
+  var QUIZ_RADIO_CHECKED_SVG =
+    '<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="geometricPrecision" fill="#28497c"><path d="M8 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z"/><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0m0 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13z"/></svg>';
+
   // What a quiz says, in the language the learner works in - what renderQuiz (blocks/quiz/render.js, inlined ahead of this file) draws it with.
   function quizProps(block) {
     return {
@@ -2875,6 +2944,8 @@
       }),
       correctOptionIds: block.correctOptionIds,
       open: block.open === true,
+      single: block.single === true,
+      hiddenOptionIds: quizHandles[block.id] ? quizHandles[block.id].hidden : [],
       explanation: quizExplanationText(block),
     };
   }
@@ -2883,10 +2954,20 @@
     var wrap = el("div", { class: "weft-block weft-block-quiz", "data-weft-block": block.id, style: positionStyle(block.position) });
     if (block.required) requiredPending[block.id] = true;
     var open = block.open === true; // an open question: nothing is right or wrong
+    // What a script can do with the quiz (getBlock in a logic block's code): take answers away - see quizScriptView.
+    var handle = (quizHandles[block.id] = { hidden: [], refresh: function () {} });
     var instance = renderQuiz(wrap, quizProps(block), {
       mode: "play",
       text: uiString,
-      icons: { submit: QUIZ_SUBMIT_ICON_SVG, correct: QUIZ_CORRECT_ICON_SVG, incorrect: QUIZ_INCORRECT_ICON_SVG, unchecked: QUIZ_CHECKBOX_UNCHECKED_SVG, checked: QUIZ_CHECKBOX_CHECKED_SVG },
+      icons: {
+        submit: QUIZ_SUBMIT_ICON_SVG,
+        correct: QUIZ_CORRECT_ICON_SVG,
+        incorrect: QUIZ_INCORRECT_ICON_SVG,
+        unchecked: QUIZ_CHECKBOX_UNCHECKED_SVG,
+        checked: QUIZ_CHECKBOX_CHECKED_SVG,
+        radioUnchecked: QUIZ_RADIO_UNCHECKED_SVG,
+        radioChecked: QUIZ_RADIO_CHECKED_SVG,
+      },
       applyVariables: applyVariablesToNode,
       // Fires once, the moment the learner picks a first option - matches "Ausfüllen" in the editor's own graph exactly (see quizFillNodeId in
       // pageTimeline.ts), which is likewise about the first pick, not every subsequent one.
@@ -2915,9 +2996,10 @@
       },
       announce: announce,
     });
-    languageRefreshers.push(function () {
+    handle.refresh = function () {
       instance.update(quizProps(block));
-    });
+    };
+    languageRefreshers.push(handle.refresh);
     return wrap;
   }
 
@@ -3643,6 +3725,8 @@
     // particular every page's own Weiter-build progress restarts from the top on a fresh render of it - including navigating
     // back to a page you'd already stepped through once.
     languageRefreshers = [];
+    stageBlocks = [];
+    quizHandles = {};
     languageSwitches = [];
     progressBars = [];
     requiredPending = {};
@@ -3660,12 +3744,14 @@
       layout.blocks.forEach(function (b) {
         // A placeholder (see PlaceholderBlock) is only a place and a style for the page's own text: nothing to show.
         if (b.kind === "placeholder") return;
+        stageBlocks.push(b);
         var layoutBlock = renderBlock(b, page);
         layoutBlock.classList.add("weft-block-from-layout");
         stageItems.push({ block: b, wrap: layoutBlock, stack: stageItems.length, fromLayout: true });
       });
     }
     page.blocks.forEach(function (b) {
+      stageBlocks.push(b);
       stageItems.push({ block: b, wrap: renderBlock(b, page), stack: stageItems.length, fromLayout: false });
     });
     readingOrder(stageItems).forEach(function (item) {

@@ -197,6 +197,11 @@ Im Skript stehen zur Verfügung:
   `"2.a.3"`), `übergang` ein Übergangstyp (`"fade"`, `"move"`, `"wheel"` ... – ohne Angabe ein harter Schnitt), `optionen` seine
   weiteren Felder (`durationMs`, `direction`, ...).
 - `VanillaLM`: die Bibliothek der Lernplattform.
+- `getBlock(name)`: der Block **dieser Folie** (auch des Layouts), der im Editor `name` heißt (Groß-/Kleinschreibung egal) - oder `null`, mit einem Hinweis im
+  Debug-Fenster. Er hat `id`, `kind` und `name`. Ein **Quiz** hat zusätzlich `question` (reiner Text), `options` (`{id, index, text, correct}` in der
+  gezeigten Sprache), `correctOptions` und `wrongOptions` (bei einer offenen Frage gilt alles als richtig) sowie `hideOptions(welche)` und `showOptions()`:
+  `welche` ist eine Liste von Antworten aus `options`, ihren Ids oder ihren Plätzen. Eine ausgeblendete Antwort behält ihren Platz, zeigt nichts, ist
+  nicht anwählbar und nicht angekreuzt - der 50:50-Joker eines Quizspiels. Das Ausblenden gilt, bis die Folie verlassen wird.
 
 Das Skript läuft ohne Schutz (`new Function`): wer es schreibt, muss wissen, was er tut. Ein Fehler erscheint im Debug-Fenster, das
 Modul läuft weiter. Ein `jump` im Skript lässt das Event ohne Ausgangstrigger enden (die Folie ist ja nicht mehr da).

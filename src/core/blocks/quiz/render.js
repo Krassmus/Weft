@@ -5,14 +5,17 @@
 //
 //   renderQuiz(root, props, ctx) draws into `root` (an empty element that has the block's size) and returns { update(props), destroy() }.
 //
-//   props   what the block says, in the language that is shown: { id, question, options: [{ id, html }], correctOptionIds, open, explanation, marked } -
-//           the question and the answers as HTML, which answers are the right ones (a test: the quiz is right when exactly those are ticked), whether it
-//           is an open question (nothing is right or wrong: it is thanked), what is told after the submit (plain text, its lines kept), and - for a
-//           picture - the answers that stand ticked in it (the thumbnails show the right ones, a PDF none: it does not give the answers away).
+//   props   what the block says, in the language that is shown: { id, question, options: [{ id, html }], correctOptionIds, open, single, hiddenOptionIds,
+//           explanation, marked } - the question and the answers as HTML, which answers are the right ones (a test: the quiz is right when exactly those are
+//           ticked), whether it is an open question (nothing is right or wrong: it is thanked), whether only one answer can be picked (round buttons: picking
+//           another takes the first back), which answers are taken away (a script did: their place stays empty and they cannot be picked), what is told
+//           after the submit (plain text, its lines kept), and - for a picture - the answers that stand ticked in it (the thumbnails show the right ones, a
+//           PDF none: it does not give the answers away).
 //   ctx     what the place it is drawn in provides:
 //     mode        "play" (the learner uses it) | "edit" | "thumbnail" | "print" - outside "play" it is only a picture, nothing in it can be used.
 //     text(key)   the player's own words in the language that is shown ("submit", "correct", "incorrect", "thanks").
-//     icons       { submit, correct, incorrect, unchecked, checked }: the SVG of the button's tick, of the feedback and of the boxes.
+//     icons       { submit, correct, incorrect, unchecked, checked, radioUnchecked?, radioChecked? }: the SVG of the button's tick, of the feedback and of the
+//                 boxes - and of the round buttons where only one answer can be picked (the boxes' where they are absent).
 //     applyVariables(node)   puts the values of variables in for the placeholders (only the player has them: absent in the editor).
 //     fill()      the first answer was ticked.
 //     submit({ ticked, correct })   it was submitted: the ids of the ticked answers, and whether that was right - what follows from it (the changes to
@@ -38,7 +41,9 @@ export function renderQuiz(root, props, ctx) {
   optionsWrap.setAttribute("role", "group");
   optionsWrap.setAttribute("aria-labelledby", "weft-question-" + data.id);
   var optionTexts = []; // { element, id }
+  var optionLabels = [];
   var inputs = [];
+  var single = data.single === true && data.open !== true;
   data.options.forEach(function (opt) {
     // The whole card is the <label> (not just a small checkbox) so clicking anywhere on an option selects it, and .weft-quiz-option:has(input:checked)
     // in the stylesheet picks up both the card highlight and which of the two icons below shows - no separate "selected" class to keep in sync. The
@@ -49,18 +54,18 @@ export function renderQuiz(root, props, ctx) {
     var checkboxWrap = document.createElement("span");
     checkboxWrap.className = "weft-quiz-option-checkbox";
     var input = document.createElement("input");
-    input.setAttribute("type", "checkbox");
+    input.setAttribute("type", single ? "radio" : "checkbox");
     input.setAttribute("name", "opt-" + data.id);
     input.setAttribute("value", opt.id);
     input.className = "weft-quiz-option-input";
     var uncheckedIcon = document.createElement("span");
     uncheckedIcon.className = "weft-quiz-option-checkbox-icon weft-quiz-option-checkbox-icon-unchecked";
     uncheckedIcon.setAttribute("aria-hidden", "true");
-    uncheckedIcon.innerHTML = ctx.icons.unchecked;
+    uncheckedIcon.innerHTML = single && ctx.icons.radioUnchecked ? ctx.icons.radioUnchecked : ctx.icons.unchecked;
     var checkedIcon = document.createElement("span");
     checkedIcon.className = "weft-quiz-option-checkbox-icon weft-quiz-option-checkbox-icon-checked";
     checkedIcon.setAttribute("aria-hidden", "true");
-    checkedIcon.innerHTML = ctx.icons.checked;
+    checkedIcon.innerHTML = single && ctx.icons.radioChecked ? ctx.icons.radioChecked : ctx.icons.checked;
     checkboxWrap.appendChild(input);
     checkboxWrap.appendChild(uncheckedIcon);
     checkboxWrap.appendChild(checkedIcon);
@@ -70,6 +75,7 @@ export function renderQuiz(root, props, ctx) {
     optionLabel.appendChild(text);
     optionsWrap.appendChild(optionLabel);
     optionTexts.push({ element: text, id: opt.id });
+    optionLabels.push(optionLabel);
     inputs.push(input);
     if (!live) {
       // A picture: nothing can be ticked; the answers that stand ticked in it are the ones it was told.
@@ -93,6 +99,22 @@ export function renderQuiz(root, props, ctx) {
   };
   fillTexts();
 
+  // answered: null until the quiz was submitted, then whether it was right - so the feedback text follows a language change made afterwards, too.
+  var answered = null;
+  // The answers a script took away keep their place (the others do not move) but show nothing, cannot be picked and are not ticked.
+  var showHidden = function () {
+    var hidden = data.hiddenOptionIds || [];
+    optionLabels.forEach(function (optionLabel, index) {
+      var gone = hidden.indexOf(optionTexts[index].id) !== -1;
+      optionLabel.style.visibility = gone ? "hidden" : "";
+      if (gone) optionLabel.setAttribute("aria-hidden", "true");
+      else optionLabel.removeAttribute("aria-hidden");
+      if (gone) inputs[index].checked = false;
+      inputs[index].disabled = gone || answered !== null;
+    });
+  };
+  showHidden();
+
   // A plain button, not a form's submit: a module may run in an iframe without allow-forms (the editor's preview, a player file), where a form never
   // fires "submit".
   var submit = document.createElement("button");
@@ -107,8 +129,6 @@ export function renderQuiz(root, props, ctx) {
   submit.appendChild(submitLabel);
   form.appendChild(submit);
 
-  // answered: null until the quiz was submitted, then whether it was right - so the feedback text follows a language change made afterwards, too.
-  var answered = null;
   var showFeedbackTitle = function () {
     feedbackTitle.textContent = ctx.text(data.open ? "thanks" : answered ? "correct" : "incorrect");
   };
@@ -188,6 +208,7 @@ export function renderQuiz(root, props, ctx) {
     update: function (next) {
       data = next;
       fillTexts();
+      showHidden();
       submitLabel.nodeValue = ctx.text("submit");
       explanation.textContent = data.explanation || "";
       if (answered !== null) {

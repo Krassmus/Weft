@@ -52,6 +52,7 @@ export const quizBlock: BlockDescriptor<QuizBlock> = {
     },
     correctOptionIds: { type: "ids", of: "options" },
     open: { type: "bool" },
+    single: { type: "bool" },
     required: { type: "bool" },
     onCorrect: { type: "effects", firesOn: "richtig", cliWhat: "bei richtiger Antwort" },
     onIncorrect: { type: "effects", firesOn: "falsch", cliWhat: "bei falscher Antwort" },
@@ -78,7 +79,7 @@ export const quizBlock: BlockDescriptor<QuizBlock> = {
       incorrect: "Quiz falsch abgeschickt",
     },
   },
-  summary: (block) => `${clip(block.questionHtml, 80) || "(ohne Frage)"} [${block.options.length} Optionen${block.open ? ", offen" : `, ${block.correctOptionIds.length} richtig`}]`,
+  summary: (block) => `${clip(block.questionHtml, 80) || "(ohne Frage)"} [${block.options.length} Optionen${block.open ? ", offen" : `, ${block.correctOptionIds.length} richtig${block.single ? ", eine Antwort wählbar" : ""}`}]`,
   validate: (block) => {
     const problems: ReturnType<NonNullable<typeof quizBlock.validate>> = [];
     const ids = new Set(block.options.map((option) => option.id));
@@ -87,6 +88,9 @@ export const quizBlock: BlockDescriptor<QuizBlock> = {
     }
     if (!block.open && block.correctOptionIds.length === 0) {
       problems.push({ level: "warning", code: "quiz-no-correct", message: "Das Quiz hat keine richtige Option und ist nicht offen.", hint: "Mindestens eine Option in correctOptionIds eintragen (oder open: true setzen)." });
+    }
+    if (block.single && !block.open && block.correctOptionIds.length > 1) {
+      problems.push({ level: "warning", code: "quiz-single-many-correct", message: "Beim Quiz kann nur eine Antwort gewählt werden, aber mehrere gelten als richtig - es kann nie richtig beantwortet werden.", hint: "Genau eine Option in correctOptionIds eintragen (oder single weglassen)." });
     }
     if (block.options.length < 2 && !block.open) problems.push({ level: "info", code: "quiz-few-options", message: "Das Quiz hat weniger als zwei Optionen." });
     return problems;

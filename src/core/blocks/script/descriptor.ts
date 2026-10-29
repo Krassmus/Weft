@@ -12,7 +12,7 @@ export const scriptBlock: BlockDescriptor<ScriptBlock> = {
   version: 1,
   cliName: "Logikblock",
   schemaDefinition: "ScriptBlock",
-  description: "Ein Logikblock: JavaScript (`code`), das läuft, wenn sein Ereignis im Graphen der Folie erreicht wird - es liest und schreibt Variablen (`vars.name`), startet Ereignisse der Folie (`trigger(\"Titel\")`) und springt (`jump(\"2.a.1\")`). Unsichtbar; nur auf Folien.",
+  description: "Ein Logikblock: JavaScript (`code`), das läuft, wenn sein Ereignis im Graphen der Folie erreicht wird - es liest und schreibt Variablen (`vars.name`), startet Ereignisse der Folie (`trigger(\"Titel\")`) und springt (`jump(\"2.a.1\")`) und kennt die Blöcke der Folie (`getBlock(\"Name\")`: bei einem Quiz die Antworten, die richtigen und falschen, und `hideOptions` / `showOptions`). Unsichtbar; nur auf Folien.",
   // A hexagon that is a square on the usual 16:9 slide (the percentages are of the slide's width and height).
   invisible: true,
   placement: { pageOnly: true, box: { x: 44.5, y: 40.25, width: 11, height: 19.5 } },

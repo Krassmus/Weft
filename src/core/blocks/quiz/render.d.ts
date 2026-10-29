@@ -9,6 +9,10 @@ export interface QuizRenderProps {
   correctOptionIds: string[];
   /** An open question: nothing is right or wrong. */
   open?: boolean;
+  /** Only one answer can be picked (round buttons; ignored for an open question). */
+  single?: boolean;
+  /** The answers a script took away: their place stays empty and they cannot be picked. */
+  hiddenOptionIds?: string[];
   /** What is told after the submit (plain text). */
   explanation?: string;
   /** For a picture: the answers that stand ticked in it. */
@@ -19,7 +23,7 @@ export interface QuizRenderProps {
 export interface QuizRenderContext {
   mode: "play" | "edit" | "thumbnail" | "print";
   text(key: string): string;
-  icons: { submit: string; correct: string; incorrect: string; unchecked: string; checked: string };
+  icons: { submit: string; correct: string; incorrect: string; unchecked: string; checked: string; radioUnchecked?: string; radioChecked?: string };
   /** Puts the values of variables in for the placeholders in the node (only the player has them). */
   applyVariables?: (node: HTMLElement) => void;
   fill(): void;

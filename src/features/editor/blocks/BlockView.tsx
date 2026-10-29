@@ -9,6 +9,7 @@ import type { CSSProperties, MutableRefObject, PointerEvent as ReactPointerEvent
 // see player.runtime.js/.css for the real, playable preview/export instead.
 import video2IconSvg from "../../../../mockups/icons/video2.svg?raw";
 import checkboxCheckedSvg from "../../../../mockups/icons/checkbox-checked.svg?raw";
+import { RADIO_CHECKED_SVG, RADIO_UNCHECKED_SVG } from "./QuizView";
 import checkboxUncheckedSvg from "../../../../mockups/icons/checkbox-unchecked.svg?raw";
 import acceptSvg from "../../../../mockups/icons/accept.svg?raw";
 import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
@@ -1027,12 +1028,15 @@ function QuizBlockCanvas({
                 disabled={block.open}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
+                  // (Where only one answer can be picked, a right answer is the only one.)
                   const correctOptionIds = isCorrect
                     ? block.correctOptionIds.filter((id) => id !== opt.id)
-                    : [...block.correctOptionIds, opt.id];
+                    : block.single
+                      ? [opt.id]
+                      : [...block.correctOptionIds, opt.id];
                   onUpdate?.({ correctOptionIds });
                 }}
-                dangerouslySetInnerHTML={{ __html: isCorrect ? checkboxCheckedSvg : checkboxUncheckedSvg }}
+                dangerouslySetInnerHTML={{ __html: block.single ? (isCorrect ? RADIO_CHECKED_SVG : RADIO_UNCHECKED_SVG) : isCorrect ? checkboxCheckedSvg : checkboxUncheckedSvg }}
               />
               <EditableRichText
                 className="weft-edit-block-quiz-option-text"

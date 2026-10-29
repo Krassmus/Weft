@@ -1,11 +1,11 @@
 import { isSnapshot } from "../collab/mutationScope";
-import { formatTimeMMSS } from "../formatTime";
 import { orderedValues } from "./ordering";
 import type { ActionEffect, Block, BlockEffect, BlockGroup, CheckerBlock, SolutionBlock, ClozeBlock, MatchingBlock, SortBlock, Page, PageTimeline, PageTrigger, QuizBlock, TimelineEdge, TimelineEdgeKind, TimelineEventType, TimelineLane, TimelineNode } from "../types";
 import { isMediaBlock } from "../types";
 import type { MediaBlock } from "../types";
 import { tr } from "../i18n/tr";
 import { actionEventId, actionEventsOf, conditionEventId, describedKinds, effectEventId, effectEventsOf, groupEffectEventsOf, isConditionEventId, isInvisibleKind, isTaskBlock, ownEventId, ownEventsOf, parseActionEventId, replacesEntrance, taskEventId, taskSpecOf, triggerableActionEventTypes, triggerableEffectEventTypes, triggerableOwnEventTypes } from "../blocks/registry";
+import { stopPointShownKinds } from "../blocks/media";
 import { actionEventSpec, conditionEventSpec, effectEventSpecs } from "../blocks/pageEvents";
 import type { OwnEvent } from "../blocks/registry";
 
@@ -38,8 +38,6 @@ export function quizSubmitNodeId(quizBlockId: string, outcome?: "richtig" | "fal
   return taskEventId(outcome === "richtig" ? "correct" : outcome === "falsch" ? "incorrect" : "submit", quizBlockId);
 }
 
-const QUIZ_OUTCOME_EVENT_TYPES = { richtig: "quiz-submit-correct", falsch: "quiz-submit-incorrect" } as const;
-
 /** A quiz outcome's own "Nächste Folie" - distinct per quiz *and* per outcome (see buildQuizLane's
  * own doc comment for why), even though every "end" node, this one included, still shows the same
  * generic "Nächste Folie" label/icon today (see nodeLabel/EVENT_ICONS in Timeline.tsx) - nothing
@@ -61,33 +59,22 @@ export function quizEndNodeId(quizId: string, outcome: "richtig" | "falsch"): st
  * node, not two different-looking nodes that happen to share one id and so always select together).
  */
 function buildQuizLane(
+  page: Page,
   quiz: QuizBlock | ClozeBlock | CheckerBlock | SolutionBlock | MatchingBlock | SortBlock,
   final?: { endId: string; kind: TimelineEdgeKind; delayMs?: number },
   outcome?: "richtig" | "falsch",
 ): TimelineLane {
-  const fillId = quizFillNodeId(quiz.id);
-  const submitId = quizSubmitNodeId(quiz.id, outcome);
-  // (A block that describes itself - see blocks/registry.ts - names its events itself.)
-  const task = taskSpecOf(quiz);
-  const nodes: TimelineNode[] = [
-    { id: fillId, kind: "event", sourceBlockId: quiz.id, eventType: "quiz-fill-start", ...(task ? { label: tr(task.labels.fill) } : {}) },
-    {
-      id: submitId,
-      kind: "event",
-      sourceBlockId: quiz.id,
-      eventType: outcome ? QUIZ_OUTCOME_EVENT_TYPES[outcome] : "quiz-submit",
-      // (A block that describes itself - a gap text, a checker - has the events of a quiz under its own names; a checker's "richtig" is a ticked box.)
-      ...(task
-        ? { label: tr(outcome === "richtig" ? task.labels.correct : outcome === "falsch" ? task.labels.incorrect : task.labels.submit) }
-        : outcome
-          ? { label: tr("ui.submitted", { n0: tr("ui.quiz"), outcome: tr(outcome === "richtig" ? "ui.outcome_correct" : "ui.outcome_incorrect") }) }
-          : {}),
-    },
-  ];
-  const edges: TimelineLane["edges"] = [{ from: fillId, to: submitId, kind: "unknown" }];
+  // (A block that describes itself - see blocks/registry.ts - names its events itself: a gap text, a checker have the events of a quiz under their own names;
+  // a checker's "richtig" is a ticked box.)
+  const events = ownEventsOf(quiz, ON_PAGE);
+  const submitKey = outcome === "richtig" ? "correct" : outcome === "falsch" ? "incorrect" : "submit";
+  const fill = events.find((event) => event.spec.key === "fill")!;
+  const submit = events.find((event) => event.spec.key === submitKey)!;
+  const nodes: TimelineNode[] = [makeOwnEventNode(page, quiz, fill), makeOwnEventNode(page, quiz, submit)];
+  const edges: TimelineLane["edges"] = [{ from: fill.id, to: submit.id, kind: "unknown" }];
   if (final) {
     nodes.push({ id: final.endId, kind: "end" });
-    edges.push({ from: submitId, to: final.endId, kind: final.kind, ...(final.delayMs !== undefined ? { delayMs: final.delayMs } : {}) });
+    edges.push({ from: submit.id, to: final.endId, kind: final.kind, ...(final.delayMs !== undefined ? { delayMs: final.delayMs } : {}) });
   }
   return { nodes, edges };
 }
@@ -124,63 +111,22 @@ export function videoStopNodeId(videoBlockId: string, stopPointId: string): stri
  * VideoBlock.autoplay tying it to "start" - see TRIGGERABLE_EVENT_TYPES).
  */
 function buildVideoLane(video: MediaBlock, page: Page): TimelineLane {
-  // (A sound has the same events - only they are called after it.)
-  const audio = video.kind === "audio";
-  const startId = videoStartNodeId(video.id);
-  const endId = videoEndNodeId(video.id);
-
-  const nodes: TimelineNode[] = [
-    {
-      id: startId,
-      kind: "event",
-      sourceBlockId: video.id,
-      eventType: video.autoplay ? "video-start-auto" : "video-start-manual",
-      ...(audio ? { label: tr("ui.start_of_the_audio") } : {}),
-    },
-  ];
+  // (A video's and a sound's events - the start, each time mark and the video going on after one that stops it, the end - are the descriptor's: in the lane in the
+  // order it gives them; a sound has its own words.)
+  const events = ownEventsOf(video, ON_PAGE).filter((event) => event.spec.lane === "own");
+  const nodes = events.map((event) => makeOwnEventNode(page, video, event));
   const edges: TimelineLane["edges"] = [];
-
-  let previousId = startId;
   let previousTimeSeconds = 0;
-  for (const stopPoint of video.stopPoints) {
-    const stopId = videoStopNodeId(video.id, stopPoint.id);
-    nodes.push({
-      id: stopId,
-      kind: "event",
-      sourceBlockId: video.id,
-      eventType: "video-stop-point",
-      stopsVideo: stopPoint.stopsVideo,
-      shownKinds: stopPointShownKinds(page, stopId),
-      label: tr("ui.time_mark", { n0: formatTimeMMSS(stopPoint.timeSeconds) }),
-    });
-    edges.push({ from: previousId, to: stopId, kind: "timed", delayMs: Math.max(0, (stopPoint.timeSeconds - previousTimeSeconds) * 1000) });
-    previousId = stopId;
-    previousTimeSeconds = stopPoint.timeSeconds;
-    // A stop point that stops the video has the video going on as an event of its own - the learner presses play. The graph shows
-    // it in the same node as the time mark as long as nothing else leads from it (see foldCompanions in the editor's model.ts).
-    if (stopPoint.stopsVideo) {
-      const resumeId = videoResumeNodeId(video.id, stopPoint.id);
-      nodes.push({
-        id: resumeId,
-        kind: "event",
-        sourceBlockId: video.id,
-        eventType: "video-resume",
-        label: tr(audio ? "ui.audio_continues" : "ui.video_continues", { n0: formatTimeMMSS(stopPoint.timeSeconds) }),
-      });
-      edges.push({ from: stopId, to: resumeId, kind: "unknown" });
-      previousId = resumeId;
-    }
-  }
-
-  nodes.push({
-    id: endId,
-    kind: "event",
-    sourceBlockId: video.id,
-    eventType: video.loop ? "video-end-loop" : "video-end-stop",
-    ...(audio ? { label: tr("ui.end_of_the_audio") } : {}),
+  events.forEach((event, index) => {
+    if (index === 0) return;
+    const from = events[index - 1].id;
+    const timeField = event.spec.timeField;
+    if (timeField && event.item) {
+      const timeSeconds = event.item[timeField] as number;
+      edges.push({ from, to: event.id, kind: "timed", delayMs: Math.max(0, (timeSeconds - previousTimeSeconds) * 1000) });
+      previousTimeSeconds = timeSeconds;
+    } else edges.push({ from, to: event.id, kind: "unknown" });
   });
-  edges.push({ from: previousId, to: endId, kind: "unknown" });
-
   return { nodes, edges };
 }
 
@@ -332,9 +278,10 @@ export function isListPerItem(block: Block): boolean {
 const ON_PAGE = { onPage: true } as const;
 
 /** The node of an event of a block that is its own (see OwnEventSpec in blocks/types.ts): its id, what it is, and the words it shows in the graph. */
-function makeOwnEventNode(block: Block, event: OwnEvent): TimelineNode {
-  const label = event.spec.label?.(block as never, { name: blockNameOf(block), index: event.index });
-  return { id: event.id, kind: "event", sourceBlockId: block.id, eventType: event.timelineType, ...(label !== undefined ? { label } : {}) };
+function makeOwnEventNode(page: Page, block: Block, event: OwnEvent): TimelineNode {
+  const label = event.spec.label?.(block as never, { name: blockNameOf(block), index: event.index, item: event.item });
+  const more = event.spec.node?.(block as never, { page, id: event.id, item: event.item });
+  return { id: event.id, kind: "event", sourceBlockId: block.id, eventType: event.timelineType, ...more, ...(label !== undefined ? { label } : {}) };
 }
 
 /** The event of a logic block: its script runs (a green event that is triggered like an Aufbau). Kept in sync by hand with player.runtime.js. */
@@ -676,11 +623,11 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
       // not in the graph cannot be picked as a trigger.
       if (!trigger && !taskSpecOf(quiz)?.outcomesAlwaysShown) continue;
       outcomeLanes++;
-      lanes.push(buildQuizLane(quiz, trigger ? { endId: trigger.to, kind: trigger.weiter ? "advance" : "timed", delayMs: trigger.delayMs } : undefined, outcome));
+      lanes.push(buildQuizLane(page, quiz, trigger ? { endId: trigger.to, kind: trigger.weiter ? "advance" : "timed", delayMs: trigger.delayMs } : undefined, outcome));
     }
     // (The plain "submitted" of a solution word is only there when something hangs on it.)
     const plainSubmitId = quizSubmitNodeId(quiz.id);
-    if (outcomeLanes === 0 || (taskSpecOf(quiz)?.outcomesAlwaysShown && Object.values(page.timeline.triggers).some((t) => t.from === plainSubmitId))) lanes.push(buildQuizLane(quiz));
+    if (outcomeLanes === 0 || (taskSpecOf(quiz)?.outcomesAlwaysShown && Object.values(page.timeline.triggers).some((t) => t.from === plainSubmitId))) lanes.push(buildQuizLane(page, quiz));
   }
   const videoLanes = videos.map((video) => ({ video, lane: buildVideoLane(video, page) }));
   for (const { lane } of videoLanes) lanes.push(lane);
@@ -691,7 +638,7 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
   for (const kind of describedKinds()) {
     for (const block of blocks) {
       if (block.kind !== kind) continue;
-      const nodes = ownEventsOf(block, ON_PAGE).filter((event) => event.spec.lane).map((event) => makeOwnEventNode(block, event));
+      const nodes = ownEventsOf(block, ON_PAGE).filter((event) => event.spec.lane === true).map((event) => makeOwnEventNode(page, block, event));
       if (nodes.length === 0) continue;
       if (effectEventsOf(block, ON_PAGE).some((event) => event.phase === "entrance")) nodes.unshift(makeBlockEffectNode(block, "entrance"));
       lanes.push({ nodes, edges: nodes.slice(1).map((node, index) => ({ from: nodes[index].id, to: node.id, kind: "unknown" as const })) });
@@ -716,7 +663,7 @@ function buildPageLanes(page: Page): { lanes: TimelineLane[]; nodesById: Map<str
     for (const event of ownEventsOf(block, ON_PAGE)) {
       if (!event.spec.inChain) continue;
       const edge = findTriggerEdge(page.timeline, event.id);
-      effectTargets.push({ node: makeOwnEventNode(block, event), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
+      effectTargets.push({ node: makeOwnEventNode(page, block, event), trigger: edge ? resolvedTriggerFromEdge(edge) : null });
     }
     const blockEffects = effectEventsOf(block, ON_PAGE);
     if (blockEffects.some((event) => event.phase === "entrance")) {
@@ -1010,15 +957,7 @@ export function disappearsOnResume(page: Page, blockId: string, resumeId: string
  */
 /** The kinds of the elements the time mark `stopId` ("video-stop:<video>:<mark>") makes appear (the Aufbau of a block is triggered by it),
  * each kind once - empty if it makes nothing appear. */
-export function stopPointShownKinds(page: Page, stopId: string): Block["kind"][] {
-  const kinds = new Set<Block["kind"]>();
-  for (const trigger of Object.values(page.timeline.triggers)) {
-    if (trigger.from !== stopId || !trigger.to.startsWith("block-entrance:")) continue;
-    const block = page.blocks[trigger.to.slice("block-entrance:".length)];
-    if (block) kinds.add(block.kind);
-  }
-  return [...kinds];
-}
+export { stopPointShownKinds };
 
 /** What "Lässt erscheinen" makes of an Aufbau/Abbau that is off: a fade (the better default - a sudden appearing is rarely wanted). */
 export const SHOWN_BY_TIME_MARK_EFFECT: BlockEffect = { type: "fade", durationMs: 500 };

@@ -1,5 +1,7 @@
+import { formatTimeMMSS } from "../formatTime";
 import { tr } from "../i18n/tr";
-import type { AudioBlock, VideoBlock } from "../types";
+import { effectEventSpecs } from "./pageEvents";
+import type { AudioBlock, Block, Page, VideoBlock } from "../types";
 import type { BlockProblem, OwnEventSpec } from "./types";
 
 /** The words of "the kind of block" in what `weft validate` says about a file: `image-Block hat noch keine Datei.` */
@@ -27,6 +29,18 @@ export function fileNameOf(assetId: string | null, assets: { id: string; fileNam
  * are drawn in a lane of the editor's own (buildVideoLane in document/pageTimeline.ts: the time marks in playback order, the times between them) - the
  * words of the nodes are made there as well, a sound has its own.
  */
+/** The kinds of the blocks that a time mark of a video makes appear - those whose Aufbau it triggers (shown in the icon of the time mark). */
+export function stopPointShownKinds(page: Page, stopId: string): Block["kind"][] {
+  const kinds = new Set<Block["kind"]>();
+  const prefix = `${effectEventSpecs.entrance.block.idPrefix}:`;
+  for (const trigger of Object.values(page.timeline.triggers)) {
+    if (trigger.from !== stopId || !trigger.to.startsWith(prefix)) continue;
+    const block = page.blocks[trigger.to.slice(prefix.length)];
+    if (block) kinds.add(block.kind);
+  }
+  return [...kinds];
+}
+
 export const mediaEvents: OwnEventSpec<VideoBlock | AudioBlock>[] = [
   {
     key: "start",
@@ -35,6 +49,8 @@ export const mediaEvents: OwnEventSpec<VideoBlock | AudioBlock>[] = [
     timelineType: (block) => (block.autoplay ? "video-start-auto" : "video-start-manual"),
     timelineTypes: ["video-start-auto", "video-start-manual"],
     triggerable: true,
+    lane: "own",
+    label: (block) => (block.kind === "audio" ? tr("ui.start_of_the_audio") : undefined),
     looks: {
       "video-start-auto": { label: () => tr("ui.start_of_the_video"), icon: "video", color: "violet", triggeredColor: "blue" },
       "video-start-manual": { label: () => tr("ui.start_of_the_video"), icon: "play", color: "violet", triggeredColor: "blue" },
@@ -47,6 +63,10 @@ export const mediaEvents: OwnEventSpec<VideoBlock | AudioBlock>[] = [
     timelineType: "video-stop-point",
     perItem: "stopPoints",
     triggerable: false,
+    lane: "own",
+    timeField: "timeSeconds",
+    label: (_block, context) => tr("ui.time_mark", { n0: formatTimeMMSS(context.item?.timeSeconds as number) }),
+    node: (_block, context) => ({ stopsVideo: context.item?.stopsVideo as boolean, shownKinds: stopPointShownKinds(context.page, context.id) }),
     looks: { "video-stop-point": { label: () => tr("ui.time_mark_2"), hint: () => tr("ui.happens_as_soon_as_playback_reaches"), icon: "stop-point", color: "blue" } },
     companions: [
       {
@@ -56,6 +76,8 @@ export const mediaEvents: OwnEventSpec<VideoBlock | AudioBlock>[] = [
         timelineType: "video-resume",
         exists: (_block, _where, item) => item?.stopsVideo === true,
         triggerable: false,
+        lane: "own",
+        label: (block, context) => tr(block.kind === "audio" ? "ui.audio_continues" : "ui.video_continues", { n0: formatTimeMMSS(context.item?.timeSeconds as number) }),
         looks: { "video-resume": { label: () => tr("ui.video_continues_2"), hint: () => tr("ui.happens_as_soon_as_the_learner_3"), icon: "play", color: "violet" } },
       },
     ],
@@ -66,6 +88,8 @@ export const mediaEvents: OwnEventSpec<VideoBlock | AudioBlock>[] = [
     graphKind: "video-end",
     timelineType: (block) => (block.loop ? "video-end-loop" : "video-end-stop"),
     triggerable: false,
+    lane: "own",
+    label: (block) => (block.kind === "audio" ? tr("ui.end_of_the_audio") : undefined),
     looks: {
       "video-end-loop": { label: () => tr("ui.end_of_the_video"), hint: () => tr("ui.never_happens_the_video_runs_in"), icon: "infinity", color: "blue" },
       "video-end-stop": { label: () => tr("ui.end_of_the_video"), hint: () => tr("ui.happens_as_soon_as_the_video"), icon: "stop", color: "blue" },

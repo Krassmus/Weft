@@ -1,5 +1,5 @@
 import type { GraphEventKind } from "../eventGraph/types";
-import type { Block, BlockTranslation, TimelineEventType } from "../types";
+import type { Block, BlockTranslation, Page, TimelineEventType, TimelineNode } from "../types";
 import type { TranslationKey } from "../i18n/translations";
 
 /**
@@ -218,10 +218,17 @@ export interface OwnEventSpec<B = never> {
   triggerable: boolean;
   /** It takes its place in the chain of Weiter when it is made, like an Aufbau, and is shown on a row of its own where nothing triggers it. */
   inChain?: boolean;
-  /** Drawn in a lane of its own, after the block's Aufbau if it has one, joined to the block's other lane events by dashed lines (the learner does them). */
-  lane?: boolean;
+  /** Drawn in a lane of its own, joined to the block's other events of the lane by dashed lines (the learner does them) - `true`: after the block's Aufbau if it
+   * has one (a button's click, a revealer's opening); `"own"`: the block's events alone, in the order the block gives them (a video's: the start, the time marks,
+   * the end - the event that leads to the start is put before it by the graph). */
+  lane?: boolean | "own";
+  /** For an event of items in a lane: the name of the field of the item that holds its time in seconds. The line into the event is then timed (it takes the seconds
+   * between the item before and this one, as played), not dashed. */
+  timeField?: string;
   /** The words of the node in the graph (editor language): `index` is the place of the item. Absent or undefined: it has none of its own. */
-  label?(block: B, context: { name: string; index?: number }): string | undefined;
+  label?(block: B, context: { name: string; index?: number; item?: Record<string, unknown> }): string | undefined;
+  /** What else the node has, which depends on the page (a time mark: whether it stops the video, which blocks it makes appear). */
+  node?(block: B, context: { page: Page; id: string; item?: Record<string, unknown> }): Partial<TimelineNode>;
   /** How the editor shows each type this event can be in (`timelineType` / `timelineTypes`): its standard title, what the panel says about it, its icon. */
   looks: Partial<Record<TimelineEventType, EventTypeLook>>;
 }

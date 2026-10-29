@@ -218,8 +218,12 @@ der Standardtitel, der Hinweis der Seitenleiste für ein Ereignis, das nichts au
 der Zeitleiste in `pageTimeline.ts`, `ensureEffectTriggers`, die Prüfung, welche Ereignisse es gibt), fragt die Registry (`ownEventsOf`,
 `replacesEntrance`), nicht die Art. Was ein Ereignis **tut** (ein Skript ausführen, einen Punkt zeigen), steht nur im Player - er hat für jede
 `graphKind` eine eigene Behandlung -, und die Ids sind Teil der Datei: der Player bildet dieselben (ein Test sucht die Präfixe in ihm). Auch die
-Zeilen von Video und Aufgabe in der Zeitleiste (`buildVideoLane`: die Zeitmarken in Abspielreihenfolge mit den Zeiten dazwischen, `buildQuizLane`
-und die Zeilen der Ausgänge mit „Nächste Folie“) sind von Hand gebaut, aus den Knoten, die der Deskriptor nennt. Titel und Symbol der Ereignisse, die zur Folie gehören und zu keiner Art - Aufbau und Abbau (eines Blocks und einer Gruppe), die drei
+Zeilen von Video, Audio und Aufgabe in der Zeitleiste kommen aus den Ereignissen des Deskriptors: ein Eintrag mit `lane: "own"` steht in der Zeile seines
+Blocks (Start, Zeitmarken mit dem Weiterlaufen danach, Ende - in der Reihenfolge, in der der Block sie gibt), `timeField` nennt das Feld der Zeitmarke, aus dem
+die Zeit zur vorigen wird (die Linie ist dann „timed“, sonst gestrichelt), `label` die Worte des Knotens (bei einem Eintrag mit Punkten mit `item`) und `node`
+was der Knoten sonst noch hat (die Zeitmarke: hält sie das Video an, welche Blöcke lässt sie erscheinen: `stopPointShownKinds`). Die Zeile einer Aufgabe
+(`buildQuizLane`) nimmt die Ereignisse „erste Antwort“ und „abgeschickt“ (oder „richtig“ / „falsch“) der Registry; welche Zeilen es gibt - je Ausgang eine, wenn er
+zu „Nächste Folie“ führt, sonst die eine schlichte - entscheidet `buildPageLanes` aus den Triggern der Folie. Titel und Symbol der Ereignisse, die zur Folie gehören und zu keiner Art - Aufbau und Abbau (eines Blocks und einer Gruppe), die drei
 Aktionseffekte, die Bedingung einer Variablen - stehen in `src/core/blocks/pageEvents.ts` (`pageEventLooks`, dieselbe Form wie `looks`;
 `eventLookOf` kennt sie). Auch die Farbe jeder Art (`color`; `triggeredColor`, wo sie anders ist, sobald ein Trigger zu ihr führt: der Start eines Videos ist
 das Drücken von Play, violett, bis etwas ihn auslöst) und ob sie der Lernende macht (`byLearner`: ein Klick, eine Antwort - davon geht die

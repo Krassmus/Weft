@@ -9,6 +9,7 @@ import { validate } from "../cli/validate";
 import { actionEventId, actionEventsOf, conditionEventId, describedKinds, descriptorOf, effectEventId, effectEventsOf, eventLookOf, exportedItemTexts, exportedTexts, fieldsOf, isInvisibleKind, isPageOnlyKind, isTaskBlock, listFieldsOf, ownEventId, ownEventsOf, groupEffectEventsOf, isConditionEventId, isReorderableEventId, parseActionEventId, replacesEntrance, shownWordings, taskEventId, triggerableActionEventTypes, triggerableEffectEventTypes, triggerableOwnEventTypes, variableWordings } from "../src/core/blocks/registry";
 import { buildRuntimeHtml } from "../src/core/runtime/buildRuntimeHtml";
 import { pageReadingOrder } from "../src/core/document/readingOrder";
+import { formatTimeMMSS } from "../src/core/formatTime";
 import { TRIGGERABLE_EVENT_TYPES, isChainOrderAllowed, blockActionNodeId, blockEffectNodeId, conditionNodeId, blockNameOf, buttonClickNodeId, canTriggerActionEffectFrom, ensureEffectTriggers, getPageLanes, isListPerItem, listAllNodes, listItemNodeId, quizFillNodeId, groupEffectNodeId, quizSubmitNodeId, revealerButtonNodeId, revealerOpenNodeId, scriptRunNodeId, syncPageTimelineEvents, videoEndNodeId, videoResumeNodeId, videoStartNodeId, videoStopNodeId } from "../src/core/document/pageTimeline";
 import { buildEventGraph } from "../src/core/eventGraph/buildEventGraph";
 import { buildGraphModel } from "../src/features/editor/eventGraph/model";
@@ -1660,6 +1661,90 @@ describe("the events of their own that a block gives its page (the descriptor's 
     };
     const lanesWith = (page: Page, id: string) => getPageLanes(page).filter((lane) => lane.nodes.some((node) => node.id === id));
     const triggersTo = (page: Page, id: string) => Object.values(page.timeline.triggers).filter((trigger) => trigger.to === id);
+
+    it("draw the lane of a video or a sound from the descriptor's events: in the order they are given, a time mark timed from the one before, the words of a sound its own", () => {
+      const { page, add } = setup();
+      const text = add("text", { entranceEffect: fade });
+      const video = add("video", { autoplay: false, loop: false, stopPoints: [{ id: "s1", timeSeconds: 3, stopsVideo: true }, { id: "s2", timeSeconds: 7.5, stopsVideo: false }, { id: "s3", timeSeconds: 12, stopsVideo: true }] });
+      const looping = add("video", { autoplay: false, loop: true, stopPoints: [] });
+      const sound = add("audio", { autoplay: false, loop: false, stopPoints: [{ id: "t1", timeSeconds: 65, stopsVideo: true }, { id: "t2", timeSeconds: 5, stopsVideo: false }] });
+      page.timeline.triggers["t:x"] = { from: `video-stop:${video}:s1`, to: `block-entrance:${text}`, delayMs: 0, weiter: false };
+      syncPageTimelineEvents(page);
+      const laneOf = (id: string) => lanesWith(page, `video-start:${id}`).find((lane) => lane.nodes.some((node) => node.id === `video-end:${id}`))!;
+      const lane = laneOf(video);
+      expect(lane.nodes.map((node) => node.id)).toEqual([
+        `video-start:${video}`, `video-stop:${video}:s1`, `video-resume:${video}:s1`, `video-stop:${video}:s2`, `video-stop:${video}:s3`, `video-resume:${video}:s3`, `video-end:${video}`,
+      ]);
+      expect(lane.nodes.map((node) => node.eventType)).toEqual(["video-start-manual", "video-stop-point", "video-resume", "video-stop-point", "video-stop-point", "video-resume", "video-end-stop"]);
+      expect(lane.edges).toEqual([
+        { from: `video-start:${video}`, to: `video-stop:${video}:s1`, kind: "timed", delayMs: 3000 },
+        { from: `video-stop:${video}:s1`, to: `video-resume:${video}:s1`, kind: "unknown" },
+        { from: `video-resume:${video}:s1`, to: `video-stop:${video}:s2`, kind: "timed", delayMs: 4500 },
+        { from: `video-stop:${video}:s2`, to: `video-stop:${video}:s3`, kind: "timed", delayMs: 4500 },
+        { from: `video-stop:${video}:s3`, to: `video-resume:${video}:s3`, kind: "unknown" },
+        { from: `video-resume:${video}:s3`, to: `video-end:${video}`, kind: "unknown" },
+      ]);
+      // (A time mark: whether it stops the video and which blocks it makes appear; the words: its time.)
+      const stops = lane.nodes.filter((node) => node.eventType === "video-stop-point");
+      expect(stops.map((node) => node.stopsVideo)).toEqual([true, false, true]);
+      expect(stops.map((node) => node.shownKinds)).toEqual([["text"], [], []]);
+      expect(stops.map((node) => node.label)).toEqual([tr("ui.time_mark", { n0: formatTimeMMSS(3) }), tr("ui.time_mark", { n0: formatTimeMMSS(7.5) }), tr("ui.time_mark", { n0: formatTimeMMSS(12) })]);
+      expect(lane.nodes.filter((node) => node.eventType === "video-resume").map((node) => node.label)).toEqual([tr("ui.video_continues", { n0: formatTimeMMSS(3) }), tr("ui.video_continues", { n0: formatTimeMMSS(12) })]);
+      // (A video has no words of its own for its start and its end; the node of a time mark and every other carry the block they are of.)
+      expect(lane.nodes[0].label).toBeUndefined();
+      expect(lane.nodes[lane.nodes.length - 1].label).toBeUndefined();
+      expect(lane.nodes.every((node) => node.sourceBlockId === video)).toBe(true);
+      // A video that loops and starts by the learner: no marks, the start leads to the end.
+      const bare = laneOf(looping);
+      expect(bare.nodes.map((node) => node.eventType)).toEqual(["video-start-manual", "video-end-loop"]);
+      expect(bare.edges).toEqual([{ from: `video-start:${looping}`, to: `video-end:${looping}`, kind: "unknown" }]);
+      // A sound: the marks in the order they stand (a time that lies before the one before is no wait), the words of a sound.
+      const audioLane = laneOf(sound);
+      expect(audioLane.nodes.map((node) => node.id)).toEqual([`video-start:${sound}`, `video-stop:${sound}:t1`, `video-resume:${sound}:t1`, `video-stop:${sound}:t2`, `video-end:${sound}`]);
+      expect(audioLane.edges.map((edge) => [edge.kind, edge.kind === "timed" ? edge.delayMs : undefined])).toEqual([["timed", 65000], ["unknown", undefined], ["timed", 0], ["unknown", undefined]]);
+      expect(audioLane.nodes[0].label).toBe(tr("ui.start_of_the_audio"));
+      expect(audioLane.nodes[audioLane.nodes.length - 1].label).toBe(tr("ui.end_of_the_audio"));
+      expect(audioLane.nodes[2].label).toBe(tr("ui.audio_continues", { n0: formatTimeMMSS(65) }));
+      // (The lanes come in this order: the page's own, the tasks', the videos' and sounds' in the order of the blocks, then the lanes of the other kinds.)
+      const order = getPageLanes(page).map((candidate) => candidate.nodes[0].id);
+      expect(order.indexOf(`video-start:${video}`)).toBeLessThan(order.indexOf(`video-start:${looping}`));
+      expect(order.indexOf(`video-start:${looping}`)).toBeLessThan(order.indexOf(`video-start:${sound}`));
+    });
+
+    it("draw the lane of a task from the descriptor's events: the first answer and submitted (plain, or right or wrong where an outcome goes on), in the task's words", () => {
+      const { page, add } = setup();
+      const quiz = add("quiz");
+      const cloze = add("cloze");
+      const word = add("solution");
+      const taskLanes = (id: string) => getPageLanes(page).filter((lane) => lane.nodes.some((node) => node.id === `quiz-fill:${id}`));
+      syncPageTimelineEvents(page);
+      // Nothing goes on after it: one lane, the first answer leads to submitted.
+      expect(taskLanes(quiz).map((lane) => lane.nodes.map((node) => node.id))).toEqual([[`quiz-fill:${quiz}`, `quiz-submit:${quiz}`]]);
+      expect(taskLanes(quiz)[0].edges).toEqual([{ from: `quiz-fill:${quiz}`, to: `quiz-submit:${quiz}`, kind: "unknown" }]);
+      expect(taskLanes(quiz)[0].nodes.map((node) => node.eventType)).toEqual(["quiz-fill-start", "quiz-submit"]);
+      // The outcomes that go on to a "Nächste Folie" have a lane each, to that end (after a delay, or by Weiter).
+      page.timeline.triggers["t:r"] = { from: `quiz-submit:${quiz}:richtig`, to: "end", delayMs: 250, weiter: false };
+      page.timeline.triggers["t:f"] = { from: `quiz-submit:${quiz}:falsch`, to: "end", delayMs: 0, weiter: true };
+      syncPageTimelineEvents(page);
+      const lanes = taskLanes(quiz);
+      expect(lanes.map((lane) => lane.nodes.map((node) => node.id))).toEqual([
+        [`quiz-fill:${quiz}`, `quiz-submit:${quiz}:richtig`, "end"],
+        [`quiz-fill:${quiz}`, `quiz-submit:${quiz}:falsch`, "end"],
+      ]);
+      expect(lanes.map((lane) => lane.nodes[1].eventType)).toEqual(["quiz-submit-correct", "quiz-submit-incorrect"]);
+      expect(lanes[0].edges).toEqual([{ from: `quiz-fill:${quiz}`, to: `quiz-submit:${quiz}:richtig`, kind: "unknown" }, { from: `quiz-submit:${quiz}:richtig`, to: "end", kind: "timed", delayMs: 250 }]);
+      expect(lanes[1].edges[1]).toEqual({ from: `quiz-submit:${quiz}:falsch`, to: "end", kind: "advance", delayMs: 0 });
+      // (The words are the task's: a gap text has its own, and so has a solution word, which has both outcomes always.)
+      for (const [id, kind] of [[quiz, "quiz"], [cloze, "cloze"], [word, "solution"]] as const) {
+        const labels = (descriptorOf(kind) as BlockDescriptor).task!.labels;
+        const nodes = getPageLanes(page).flatMap((lane) => lane.nodes);
+        expect(nodes.find((node) => node.id === `quiz-fill:${id}`)?.label, kind).toBe(tr(labels.fill));
+        expect(nodes.find((node) => node.id === `quiz-submit:${id}`)?.label ?? tr(labels.submit), kind).toBe(tr(labels.submit));
+      }
+      const wordLanes = taskLanes(word).map((lane) => lane.nodes.map((node) => node.eventType));
+      expect(wordLanes).toEqual([["quiz-fill-start", "quiz-submit-correct"], ["quiz-fill-start", "quiz-submit-incorrect"]]);
+      expect(taskLanes(word).map((lane) => lane.nodes[1].label)).toEqual([tr((descriptorOf("solution") as BlockDescriptor).task!.labels.correct), tr((descriptorOf("solution") as BlockDescriptor).task!.labels.incorrect)]);
+    });
 
     it("have each their one place on a lane - one that is in the chain is a row of its own only where nothing leads to it, the others are in the lane the descriptor draws", () => {
       const { m, page, add } = setup();

@@ -108,6 +108,8 @@ export interface OwnEvent {
   itemId?: string;
   /** The place of the item in its list. */
   index?: number;
+  /** The item itself. */
+  item?: Record<string, unknown>;
 }
 
 /** Whether the block is on a page (its events are the page's) or in a layout (a block of the layout has no events of its own per page). */
@@ -176,11 +178,11 @@ function expandOwnEvents(spec: OwnEventSpec<Block>, block: Block, where: Where, 
     const items = ((block as unknown as Record<string, (Record<string, unknown> & { id: string })[] | undefined>)[spec.perItem]) ?? [];
     items.forEach((item, index) => {
       if (spec.exists && !spec.exists(block, where, item)) return;
-      events.push({ spec: spec as unknown as OwnEventSpec, id: idOf(item.id), timelineType: typeOf(), itemId: item.id, index });
+      events.push({ spec: spec as unknown as OwnEventSpec, id: idOf(item.id), timelineType: typeOf(), itemId: item.id, index, item });
       for (const companion of spec.companions ?? []) {
         if (companion.exists && !companion.exists(block, where, item)) continue;
         const own = `${companion.idPrefix}:${block.id}:${item.id}${companion.idSuffix ? `:${companion.idSuffix}` : ""}`;
-        events.push({ spec: companion as unknown as OwnEventSpec, id: own, timelineType: typeof companion.timelineType === "function" ? companion.timelineType(block) : companion.timelineType, itemId: item.id, index });
+        events.push({ spec: companion as unknown as OwnEventSpec, id: own, timelineType: typeof companion.timelineType === "function" ? companion.timelineType(block) : companion.timelineType, itemId: item.id, index, item });
       }
     });
   } else if (!spec.exists || spec.exists(block, where)) events.push({ spec: spec as unknown as OwnEventSpec, id: idOf(), timelineType: typeOf() });

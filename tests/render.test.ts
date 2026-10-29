@@ -1515,8 +1515,84 @@ describe.each(MODES)("a matching drawn for %s", (mode) => {
       window.dispatchEvent(pointer("pointermove", 60, 60));
       window.dispatchEvent(pointer("pointerup", 60, 60));
       expect(s0.classList.contains("is-docked")).toBe(false);
+      // (The click that follows this drag is not a pick either - the card stands in the area, where a click would pick it up.)
+      click(s0);
+      expect(s0.classList.contains("is-picked")).toBe(false);
       (document as unknown as { elementFromPoint: unknown }).elementFromPoint = original;
       root.remove();
+    });
+
+    it("gives the frame of a picture the shape of the picture once it has loaded - the dashed place it leaves too", () => {
+      const root = element();
+      const p = props();
+      p.sources[0] = card("s0", "Ein Hund", 3, 4, "image", "data:image/png;base64,AAAA");
+      renderMatching(root, p, context());
+      const image = cardOf(root, "s0").querySelector(".weft-matching-image") as HTMLElement;
+      Object.defineProperty(image, "naturalWidth", { value: 80 });
+      Object.defineProperty(image, "naturalHeight", { value: 50 });
+      fire(image, "load");
+      const frames = [...root.querySelectorAll(".weft-matching-frame")] as HTMLElement[];
+      expect(frames.length).toBe(2);
+      expect(frames.every((frame) => (frame.getAttribute("style") ?? "").includes("--ratio:1.6"))).toBe(true);
+    });
+
+    it("enlarges a picture on a target only for a click of the mouse - a key (Enter) drops what was picked instead", () => {
+      const root = element();
+      const ctx = context();
+      const p = props();
+      p.targets[1] = card("t1", "Ein Haus", 55, 44, "image", "data:image/png;base64,BBBB");
+      renderMatching(root, p, ctx);
+      click(cardOf(root, "t1"), 0);
+      expect(ctx.enlarge).not.toHaveBeenCalled();
+      click(cardOf(root, "t1"), 1);
+      expect(ctx.enlarge).toHaveBeenCalledWith("data:image/png;base64,BBBB", "Ein Haus");
+    });
+
+    it("has a pointer that is not the main one (or that is taken away) not move anything: no drag from another button, nothing put where a drag is cancelled", () => {
+      const root = element();
+      document.body.appendChild(root);
+      const ctx = context();
+      renderMatching(root, props(), ctx);
+      const pointer = (type: string, x: number, y: number, button = 0) => Object.assign(new window.Event(type, { bubbles: true, cancelable: true }), { clientX: x, clientY: y, button });
+      const original = document.elementFromPoint;
+      (document as unknown as { elementFromPoint: unknown }).elementFromPoint = () => cardOf(root, "t0");
+      const s0 = cardOf(root, "s0");
+      s0.dispatchEvent(pointer("pointerdown", 10, 10, 2));
+      window.dispatchEvent(pointer("pointermove", 50, 50));
+      expect(find(root, ".is-ghost")).toBeNull();
+      s0.dispatchEvent(pointer("pointerdown", 10, 10));
+      window.dispatchEvent(pointer("pointermove", 50, 50));
+      expect(find(root, ".is-ghost")).not.toBeNull();
+      window.dispatchEvent(pointer("pointercancel", 50, 50));
+      expect(find(root, ".is-ghost")).toBeNull();
+      expect(s0.classList.contains("is-docked")).toBe(false);
+      expect(ctx.fill).not.toHaveBeenCalled();
+      (document as unknown as { elementFromPoint: unknown }).elementFromPoint = original;
+      root.remove();
+    });
+
+    it("is wrong with a card that has a partner on another target - and with no pairs at all everything is a decoy", () => {
+      const wrong = element();
+      const ctx = context();
+      renderMatching(wrong, props(), ctx);
+      click(cardOf(wrong, "s0"));
+      click(cardOf(wrong, "t1"));
+      click(cardOf(wrong, "s1"));
+      click(cardOf(wrong, "t1"));
+      fire(find(wrong, ".weft-quiz-submit") as Element, "click");
+      expect(ctx.submit).toHaveBeenCalledWith({
+        results: [
+          { id: "s0", status: "wrong", rightId: "t0" },
+          { id: "s1", status: "correct", rightId: "t1" },
+          { id: "s2", status: "ok", rightId: undefined },
+        ],
+        allRight: false,
+      });
+      const bare = element();
+      const ctx2 = context();
+      renderMatching(bare, { ...props(), pairs: undefined }, ctx2);
+      fire(find(bare, ".weft-quiz-submit") as Element, "click");
+      expect(ctx2.submit).toHaveBeenCalledWith({ results: ["s0", "s1", "s2"].map((id) => ({ id, status: "ok", rightId: undefined })), allRight: true });
     });
 
     it("judges every card when it is submitted: right on its target, wrong on another (or a decoy anywhere), missed, or a decoy left alone", () => {

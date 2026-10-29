@@ -4,8 +4,9 @@ import type { BlockDescriptor } from "../types";
 
 /**
  * A piece of program code, highlighted (highlight.js): the code, the language it is in (or "auto"), the colours (`theme`) and the size of the type. The
- * words of it are not translated and nothing is put in for a {{placeholder}}: it is shown as it is. Drawn by BlockView, SlideThumbnail and the player's
- * renderCodeBlock (which the exported page needs the highlighter and the theme's CSS for: buildRuntimeHtml.ts).
+ * words of it are not translated and nothing is put in for a {{placeholder}}: it is shown as it is. The player, the thumbnails and the PDF draw it
+ * with one function (blocks/code/render.js) from the code highlighted ahead of time (buildRuntimeHtml.ts, which also embeds the theme's CSS); on the
+ * canvas it is typed straight into the block (CodeView), over the highlighted copy.
  */
 export const codeBlock: BlockDescriptor<CodeBlock> = {
   kind: "code",

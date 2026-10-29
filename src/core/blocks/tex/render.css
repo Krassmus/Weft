@@ -1,0 +1,21 @@
+/* TeX blocks: typeset once at a natural size and only transformed to fit the block's box (see renderTex in render.js). Hidden until fitted. The player and
+   the editor (the canvas, the thumbnails, the PDF) have the same rules - this file. */
+.weft-tex {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.weft-tex-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  white-space: nowrap;
+  font-size: 40px;
+  visibility: hidden;
+}
+
+.weft-tex-inner .katex-display {
+  margin: 0;
+}

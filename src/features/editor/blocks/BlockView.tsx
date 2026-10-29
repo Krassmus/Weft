@@ -57,7 +57,7 @@ import { SortCanvas } from "./SortCanvas";
 import { FilesView } from "./FilesView";
 import { ShapeRenderView } from "./ShapeRenderView";
 import { CodeView } from "./CodeView";
-import { TexView } from "./TexView";
+import { TexRenderView } from "./TexRenderView";
 import { useTexDialog } from "./texDialogStore";
 import { usePlaceholderProblems } from "./usePlaceholderProblems";
 import type { CornerHandleId, HandleId } from "./resizeMath";
@@ -815,7 +815,7 @@ function BlockContent({
     case "code":
       return <CodeView block={block} editable={selected} onCommit={(code) => onUpdate?.({ code })} />;
     case "tex":
-      return <TexView tex={block.tex} color={block.color} />;
+      return <TexRenderView block={block} mode="edit" />;
     case "image":
       if (block.assetId && (block.mask || block.effect)) {
         return <ImageSvg block={block} src={getObjectUrl(block.assetId) ?? ""} ghost={maskEditing} />;

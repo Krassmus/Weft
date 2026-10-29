@@ -2306,30 +2306,6 @@
     };
   }
 
-  // Scales the once-typeset formula to fit (contain, centered) its box - mirrors TexView.tsx. The
-  // observer's first callback runs as soon as the box is attached and laid out, and again whenever
-  // the stage is resized.
-  function fitTexBlock(box, inner) {
-    function fit() {
-      var boxWidth = box.clientWidth;
-      var boxHeight = box.clientHeight;
-      var width = inner.offsetWidth;
-      var height = inner.offsetHeight;
-      if (!width || !height || !boxWidth || !boxHeight) return;
-      var scale = Math.min(boxWidth / width, boxHeight / height);
-      var x = (boxWidth - width * scale) / 2;
-      var y = (boxHeight - height * scale) / 2;
-      inner.style.transform = "translate(" + x + "px, " + y + "px) scale(" + scale + ")";
-      inner.style.visibility = "inherit";
-    }
-    if (typeof ResizeObserver === "function") {
-      var observer = new ResizeObserver(fit);
-      observer.observe(box);
-      // KaTeX's fonts load lazily and change the formula's natural size once they arrive.
-      observer.observe(inner);
-    } else window.addEventListener("resize", fit);
-  }
-
   function renderStaticBlock(block, page) {
     var wrap = el("div", { class: "weft-block weft-block-" + block.kind, "data-weft-block": block.id, style: positionStyle(block.position) });
     if (block.kind === "text") {
@@ -2364,23 +2340,12 @@
     } else if (block.kind === "language") {
       languageSwitches.push(renderLanguage(wrap, languageProps(), { mode: "play", text: uiString, setLanguage: setLanguage }));
     } else if (block.kind === "code") {
-      // Same markup and font-size math as the editor's CodeView.tsx.
-      var codeBox = el("div", {
-        class: "weft-code weft-code-theme-" + block.theme + (block.transparentBackground ? " weft-code-transparent" : ""),
-        style: "font-size:" + Math.round((block.fontSize / 9.6) * 1000) / 1000 + "cqw;",
-      }, []);
-      var codePre = el("pre", { class: "weft-code-pre" }, []);
-      codePre.innerHTML = codeHtml[block.id] || "";
-      codeBox.appendChild(codePre);
-      wrap.appendChild(codeBox);
+      // The box and the highlighted text (the page is built with the HTML of every code block) are what renderCode (blocks/code/render.js, inlined ahead of
+      // this file) draws: the very code the editor draws it with.
+      renderCode(wrap, { html: codeHtml[block.id] || "", theme: block.theme, fontSize: block.fontSize, transparentBackground: !!block.transparentBackground }, { mode: "play" });
     } else if (block.kind === "tex") {
-      var texBox = el("div", { class: "weft-tex" }, []);
-      var texInner = el("div", { class: "weft-tex-inner" }, []);
-      texInner.innerHTML = texHtml[block.id] || "";
-      texBox.appendChild(texInner);
-      wrap.appendChild(texBox);
-      if (block.color) wrap.style.color = block.color;
-      fitTexBlock(texBox, texInner);
+      // The formula (typeset when the page is built) scaled to its box, and its colour: renderTex (blocks/tex/render.js, inlined ahead of this file).
+      renderTex(wrap, { html: texHtml[block.id] || "", color: block.color || "" }, { mode: "play" });
     } else if (block.kind === "image") {
       if (block.mask || block.effect) {
         // imageSvgMarkup is core/runtime/imageGeometry.js, embedded ahead of this script (buildRuntimeHtml.ts) - the very code

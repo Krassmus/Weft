@@ -14,7 +14,7 @@ const COMMIT_DELAY_MS = 500;
 
 /** The editor shows blocks of any theme side by side (canvas, thumbnails, sidebar), so every theme's
  * scoped CSS is simply present once, from the first code block on. */
-function ensureThemeStyles() {
+export function ensureThemeStyles() {
   if (document.getElementById(THEME_STYLE_ID)) return;
   const style = document.createElement("style");
   style.id = THEME_STYLE_ID;

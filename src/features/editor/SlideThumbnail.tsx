@@ -12,8 +12,8 @@ import { FilesView } from "./blocks/FilesView";
 import { ShapeRenderView } from "./blocks/ShapeRenderView";
 import { ImageSvg } from "./blocks/ImageSvg";
 import { useEditingLanguage } from "./useEditingLanguage";
-import { CodeView } from "./blocks/CodeView";
-import { TexView } from "./blocks/TexView";
+import { CodeRenderView } from "./blocks/CodeRenderView";
+import { TexRenderView } from "./blocks/TexRenderView";
 // Same "this is a video, not a button" watermark as the editor canvas (see BlockView.tsx) - kept
 // visually consistent between the two views, per the same reasoning: it's not clickable here
 // either.
@@ -178,14 +178,14 @@ function ThumbBlockBody({
   if (block.kind === "code") {
     return (
       <div className="weft-thumb-block weft-thumb-block-code" style={style}>
-        <CodeView block={block} editable={false} />
+        <CodeRenderView block={block} mode={exportPxPerCqw ? "print" : "thumbnail"} />
       </div>
     );
   }
   if (block.kind === "tex") {
     return (
       <div className="weft-thumb-block weft-thumb-block-tex" style={style}>
-        <TexView tex={block.tex} color={block.color} />
+        <TexRenderView block={block} mode={exportPxPerCqw ? "print" : "thumbnail"} />
       </div>
     );
   }

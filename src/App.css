@@ -3204,31 +3204,9 @@ button.weft-timeline-node-icon:hover {
   user-select: text;
 }
 
-/* ---- TeX block (blocks/TexView.tsx, panels/TexEditor.tsx) ---- */
+/* ---- TeX block (blocks/TexRenderView.tsx, panels/TexEditor.tsx) ---- */
 
-/* The formula is typeset once at this natural size and only ever transformed to fit its box (see
-   TexView) - hidden until the first fit so it never flashes at its unscaled size. The same three
-   rules live in player.runtime.css for the exported player. */
-.weft-tex {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.weft-tex-inner {
-  position: absolute;
-  left: 0;
-  top: 0;
-  transform-origin: 0 0;
-  white-space: nowrap;
-  font-size: 40px;
-  visibility: hidden;
-}
-
-.weft-tex-inner .katex-display {
-  margin: 0;
-}
+/* The formula itself (.weft-tex, .weft-tex-inner) is blocks/tex/render.css, the same as the player's. */
 
 .weft-thumb-block-tex {
   overflow: hidden;
@@ -3368,18 +3346,7 @@ button.weft-timeline-node-icon:hover {
   font-size: 12px;
 }
 
-/* ---- Code block (blocks/CodeView.tsx; the same rules live in player.runtime.css) ---- */
-
-.weft-code {
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  overflow: auto;
-  padding: 0.7em 0.9em;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  line-height: 1.5;
-  tab-size: 2;
-}
+/* ---- Code block (blocks/CodeView.tsx: the textarea over the text; the box and the text are blocks/code/render.css, the same as the player's) ---- */
 
 /* One box the size of the highlighted text; the textarea (editing only) lies exactly over it. */
 .weft-code-stack {
@@ -3387,12 +3354,6 @@ button.weft-timeline-node-icon:hover {
   min-width: 100%;
   width: max-content;
   min-height: 100%;
-}
-
-.weft-code-pre {
-  margin: 0;
-  font: inherit;
-  white-space: pre;
 }
 
 /* Its own text is invisible (-webkit-text-fill-color keeps `color` - and with it the caret - intact)
@@ -3433,12 +3394,6 @@ button.weft-timeline-node-icon:hover {
   top: 0;
   opacity: 0.45;
   pointer-events: none;
-}
-
-/* "Transparenter Hintergrund": beats the theme's own single-class background rule on specificity,
-   whichever theme it is. */
-.weft-code.weft-code-transparent {
-  background: transparent;
 }
 
 /* ---- Iris-Blende's opening point (Canvas.tsx's IrisCenterHandle) ---- */

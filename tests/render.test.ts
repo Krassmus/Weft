@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { buttonLookStyle, renderButton } from "../src/core/blocks/button/render.js";
 import { renderChecker } from "../src/core/blocks/checker/render.js";
 import { clozeIsRight, renderCloze } from "../src/core/blocks/cloze/render.js";
+import { renderCode } from "../src/core/blocks/code/render.js";
 import { renderIframe } from "../src/core/blocks/iframe/render.js";
 import { renderLanguage } from "../src/core/blocks/language/render.js";
 import { renderProgress } from "../src/core/blocks/progress/render.js";
@@ -17,6 +18,7 @@ import { renderSort, sortDropIndex, sortLayout, sortMistakes, sortShuffled } fro
 import { renderShape, shapeGradientId, shapePolygonPoints, shapeRoundedRectPath, shapeStarPoints, shapeSvgMarkup } from "../src/core/blocks/shape/render.js";
 import { renderSolution } from "../src/core/blocks/solution/render.js";
 import { renderText, textBoxStyle } from "../src/core/blocks/text/render.js";
+import { renderTex } from "../src/core/blocks/tex/render.js";
 
 /**
  * What a block looks like (core/blocks/<kind>/render.js): one function for the player, the canvas, the thumbnails and the PDF, told where it draws
@@ -89,7 +91,7 @@ const ICONS = {
 };
 
 /** Every render.js there is must be run here: this is the list of what is run (a new one fails the test below until it is added). */
-const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text", "list", "cloze", "quiz", "revealer", "matching", "sort", "shape", "arrow"];
+const RENDERERS = ["solution", "iframe", "link", "progress", "language", "checker", "button", "text", "list", "cloze", "quiz", "revealer", "matching", "sort", "shape", "arrow", "code", "tex"];
 
 describe("the render functions", () => {
   it("are all tested here", () => {
@@ -106,7 +108,7 @@ describe("the render functions", () => {
     const inlined = source.replace(/^export /gm, "");
     expect(inlined).not.toMatch(/\bexport\b\s+(function|var|const|let|default)/);
     // The way the page has it: a script of its own that leaves the function there for the player after it.
-    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText", list: "renderList", cloze: "renderCloze", quiz: "renderQuiz", revealer: "renderRevealer", matching: "renderMatching", sort: "renderSort", shape: "renderShape", arrow: "renderArrow" }[kind];
+    const name = { solution: "renderSolution", iframe: "renderIframe", link: "renderLink", progress: "renderProgress", language: "renderLanguage", checker: "renderChecker", button: "renderButton", text: "renderText", list: "renderList", cloze: "renderCloze", quiz: "renderQuiz", revealer: "renderRevealer", matching: "renderMatching", sort: "renderSort", shape: "renderShape", arrow: "renderArrow", code: "renderCode", tex: "renderTex" }[kind];
     expect(new Function(`${inlined}; return typeof ${name};`)()).toBe("function");
   });
 });
@@ -2339,5 +2341,247 @@ describe.each(MODES)("an arrow drawn for %s", (mode) => {
     expect(root.innerHTML).not.toContain("#18181b");
     instance.destroy();
     expect(root.childNodes.length).toBe(0);
+  });
+});
+
+
+// ---- the code -------------------------------------------------------------------------------------------------------------------------
+
+describe.each(MODES)("a code block drawn for %s", (mode) => {
+  const props = (extra: Record<string, unknown> = {}) => ({ html: '<span class="hljs-keyword">let</span> x = 1;', theme: "monokai", fontSize: 13, transparentBackground: false, ...extra });
+  const context = () => ({ mode, text: (key: string) => (key === "enterCode" ? "Code eingeben" : "") });
+
+  it("is a box of the theme's colours with the highlighted text in a pre - at a size that scales with the slide", () => {
+    const root = element();
+    renderCode(root, props(), context());
+    const box = find(root, ".weft-code") as HTMLElement;
+    expect(box.getAttribute("class")).toBe("weft-code weft-code-theme-monokai");
+    expect(box.getAttribute("style")).toBe("font-size:1.354cqw;");
+    expect(find(root, ".weft-code > .weft-code-pre")?.innerHTML).toBe('<span class="hljs-keyword">let</span> x = 1;');
+    expect(root.childNodes.length).toBe(1);
+  });
+
+  it("works the size out from px on a slide 960 wide, rounded to a thousandth", () => {
+    for (const [px, cqw] of [[9.6, "1cqw"], [10, "1.042cqw"], [20, "2.083cqw"], [16, "1.667cqw"], [0, "0cqw"]] as [number, string][]) {
+      const root = element();
+      renderCode(root, props({ fontSize: px }), context());
+      expect(find(root, ".weft-code")?.getAttribute("style"), String(px)).toBe(`font-size:${cqw};`);
+    }
+  });
+
+  it("can have no background of its own", () => {
+    const root = element();
+    renderCode(root, props({ transparentBackground: true }), context());
+    expect(find(root, ".weft-code")?.getAttribute("class")).toBe("weft-code weft-code-theme-monokai weft-code-transparent");
+  });
+
+  it("is drawn again with other code, another theme and size - and goes away", () => {
+    const root = element();
+    const instance = renderCode(root, props(), context());
+    instance.update(props({ html: "<b>y</b>", theme: "nord", fontSize: 19.2, transparentBackground: true }));
+    expect(find(root, ".weft-code")?.getAttribute("class")).toBe("weft-code weft-code-theme-nord weft-code-transparent");
+    expect(find(root, ".weft-code")?.getAttribute("style")).toBe("font-size:2cqw;");
+    expect(find(root, ".weft-code-pre")?.innerHTML).toBe("<b>y</b>");
+    expect(root.querySelectorAll(".weft-code").length).toBe(1);
+    instance.destroy();
+    expect(root.childNodes.length).toBe(0);
+  });
+
+  it(mode === "play" ? "shows nothing for a block without code" : "says what an empty block is for - and no more once it has code", () => {
+    const root = element();
+    const instance = renderCode(root, props({ html: "" }), context());
+    if (mode === "play") {
+      expect(find(root, ".weft-code-pre")?.innerHTML).toBe("");
+      expect(find(root, ".weft-code-empty")).toBeNull();
+    } else {
+      expect(find(root, ".weft-code-pre > .weft-code-empty")?.textContent).toBe("Code eingeben");
+      instance.update(props());
+      expect(find(root, ".weft-code-empty")).toBeNull();
+      instance.update(props({ html: "" }));
+      expect(root.querySelectorAll(".weft-code-empty").length).toBe(1);
+    }
+  });
+
+  it("is drawn in a place that has no words of its own", () => {
+    const root = element();
+    renderCode(root, props({ html: "" }), { mode });
+    expect(find(root, ".weft-code-empty")).toBeNull();
+    expect(find(root, ".weft-code-pre")?.innerHTML).toBe("");
+  });
+});
+
+// ---- the formula ----------------------------------------------------------------------------------------------------------------------
+
+describe.each(MODES)("a formula drawn for %s", (mode) => {
+  const props = (extra: Record<string, unknown> = {}) => ({ html: '<span class="katex">x</span>', color: "", ...extra });
+  const context = () => ({ mode, text: (key: string) => (key === "enterFormula" ? "Formel eingeben" : "") });
+  type Size = { clientWidth?: number; clientHeight?: number; offsetWidth?: number; offsetHeight?: number };
+  const sizes = new Map<Element, Size>();
+  const observers: { callback: () => void; observed: Element[]; disconnected: boolean }[] = [];
+
+  beforeAll(() => {
+    const proto = (window as unknown as { HTMLElement: { prototype: object } }).HTMLElement.prototype;
+    for (const name of ["clientWidth", "clientHeight", "offsetWidth", "offsetHeight"] as const) {
+      Object.defineProperty(proto, name, { configurable: true, get(this: Element) { return sizes.get(this)?.[name]; } });
+    }
+  });
+  const observing = () => {
+    observers.length = 0;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        entry = { callback: () => {}, observed: [] as Element[], disconnected: false };
+        constructor(callback: () => void) {
+          this.entry.callback = callback;
+          observers.push(this.entry);
+        }
+        observe(target: Element) {
+          this.entry.observed.push(target);
+        }
+        disconnect() {
+          this.entry.disconnected = true;
+        }
+      },
+    );
+  };
+
+  it("is a box with the typeset formula in it, hidden until it is fitted", () => {
+    observing();
+    const root = element();
+    renderTex(root, props(), context());
+    expect(find(root, ".weft-tex > .weft-tex-inner")?.innerHTML).toBe('<span class="katex">x</span>');
+    expect(find(root, ".weft-tex-inner")?.getAttribute("style")).toBeNull();
+    expect(root.getAttribute("style")).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
+  it("is scaled to fit its box - the whole formula, centred - at once where the box is laid out, and again when the box or the formula changes size", () => {
+    observing();
+    const root = element();
+    renderTex(root, props(), context());
+    const box = find(root, ".weft-tex") as HTMLElement;
+    const inner = find(root, ".weft-tex-inner") as HTMLElement;
+    // (Not laid out yet: nothing is fitted.)
+    expect(inner.getAttribute("style")).toBeNull();
+    expect(observers.length).toBe(1);
+    expect(observers[0].observed).toEqual([box, inner]);
+    sizes.set(box, { clientWidth: 200, clientHeight: 100 });
+    sizes.set(inner, { offsetWidth: 100, offsetHeight: 100 });
+    observers[0].callback();
+    expect(inner.style.transform).toBe("translate(50px, 0px) scale(1)");
+    expect(inner.style.visibility).toBe("inherit");
+    // (Too wide for the box: scaled down by the width, centred downwards.)
+    sizes.set(box, { clientWidth: 100, clientHeight: 100 });
+    sizes.set(inner, { offsetWidth: 200, offsetHeight: 50 });
+    observers[0].callback();
+    expect(inner.style.transform).toBe("translate(0px, 37.5px) scale(0.5)");
+    // (Too high: by the height.)
+    sizes.set(inner, { offsetWidth: 50, offsetHeight: 400 });
+    observers[0].callback();
+    expect(inner.style.transform).toBe("translate(43.75px, 0px) scale(0.25)");
+    // (A formula without size, or a box without, is left as it is.)
+    sizes.set(inner, { offsetWidth: 0, offsetHeight: 10 });
+    observers[0].callback();
+    expect(inner.style.transform).toBe("translate(43.75px, 0px) scale(0.25)");
+    sizes.set(inner, { offsetWidth: 10, offsetHeight: 10 });
+    sizes.set(box, { clientWidth: 0, clientHeight: 100 });
+    observers[0].callback();
+    expect(inner.style.transform).toBe("translate(43.75px, 0px) scale(0.25)");
+    vi.unstubAllGlobals();
+    sizes.clear();
+  });
+
+  it("is fitted when it is drawn into a box that is laid out already", () => {
+    observing();
+    const root = element();
+    // (The box is made by the function: its size is given as soon as it is there.)
+    const create = document.createElement.bind(document);
+    const made: Element[] = [];
+    vi.spyOn(document, "createElement").mockImplementation(((tag: string) => {
+      const created = create(tag);
+      made.push(created);
+      if (tag === "div" && made.filter((e) => e.tagName === "DIV").length === 1) sizes.set(created, { clientWidth: 300, clientHeight: 100 });
+      if (tag === "div" && made.filter((e) => e.tagName === "DIV").length === 2) sizes.set(created, { offsetWidth: 150, offsetHeight: 50 });
+      return created;
+    }) as never);
+    renderTex(root, props(), context());
+    vi.restoreAllMocks();
+    expect((find(root, ".weft-tex-inner") as HTMLElement).style.transform).toBe("translate(0px, 0px) scale(2)");
+    vi.unstubAllGlobals();
+    sizes.clear();
+  });
+
+  it("has the colour of the whole formula on what it is drawn into - and none, the block's own, when it has none", () => {
+    observing();
+    const root = element();
+    const instance = renderTex(root, props({ color: "#ff3300" }), context());
+    expect(root.style.color).toBe("#ff3300");
+    instance.update(props({ color: "" }));
+    expect(root.style.color).toBe("");
+    instance.update(props({ color: "blue" }));
+    expect(root.style.color).toBe("blue");
+    vi.unstubAllGlobals();
+  });
+
+  it("is drawn again with another formula - the observer of the old one let go - and goes away", () => {
+    observing();
+    const root = element();
+    const instance = renderTex(root, props(), context());
+    instance.update(props({ html: "<b>y</b>" }));
+    expect(find(root, ".weft-tex-inner")?.innerHTML).toBe("<b>y</b>");
+    expect(root.querySelectorAll(".weft-tex").length).toBe(1);
+    expect(observers.length).toBe(2);
+    expect(observers[0].disconnected).toBe(true);
+    expect(observers[1].disconnected).toBe(false);
+    instance.destroy();
+    expect(root.childNodes.length).toBe(0);
+    expect(observers[1].disconnected).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  it("is fitted when the window is resized in a place that has no observer - and not any more once it is gone", () => {
+    vi.stubGlobal("ResizeObserver", undefined);
+    const added: string[] = [];
+    const removed: string[] = [];
+    const target = window as unknown as Record<string, unknown>;
+    // (linkedom's window has no listeners of its own: what the function asks of it is noted.)
+    target.addEventListener = (type: string) => void added.push(type);
+    target.removeEventListener = (type: string) => void removed.push(type);
+    const root = element();
+    const instance = renderTex(root, props(), context());
+    expect(added).toEqual(["resize"]);
+    expect(removed).toEqual([]);
+    instance.destroy();
+    expect(removed).toEqual(["resize"]);
+    delete target.addEventListener;
+    delete target.removeEventListener;
+    vi.unstubAllGlobals();
+  });
+
+  it(mode === "play" ? "shows nothing for a block without a formula (the box is there, empty)" : "says what an empty block is for - and a formula again once it has one", () => {
+    observing();
+    const root = element();
+    const instance = renderTex(root, props({ html: "" }), context());
+    if (mode === "play") {
+      expect(find(root, ".weft-tex-inner")?.innerHTML).toBe("");
+      expect(find(root, ".weft-edit-block-placeholder")).toBeNull();
+    } else {
+      expect(find(root, ".weft-edit-block-placeholder")?.textContent).toBe("Formel eingeben");
+      expect(find(root, ".weft-tex")).toBeNull();
+      expect(observers.length).toBe(0);
+      instance.update(props());
+      expect(find(root, ".weft-edit-block-placeholder")).toBeNull();
+      expect(find(root, ".weft-tex-inner")?.innerHTML).toBe('<span class="katex">x</span>');
+    }
+    vi.unstubAllGlobals();
+  });
+
+  it("is drawn in a place that has no words of its own", () => {
+    observing();
+    const root = element();
+    renderTex(root, props({ html: "" }), { mode });
+    expect(find(root, ".weft-edit-block-placeholder")).toBeNull();
+    expect(find(root, ".weft-tex")).not.toBeNull();
+    vi.unstubAllGlobals();
   });
 });

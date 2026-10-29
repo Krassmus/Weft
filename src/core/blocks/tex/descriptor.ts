@@ -3,8 +3,9 @@ import type { BlockDescriptor } from "../types";
 
 /**
  * A TeX formula (KaTeX, display mode). It is scaled to fit its box like a picture; the colour is the whole formula's, anything else is written into the
- * formula itself. Not translated. Drawn by BlockView, SlideThumbnail and the player's renderTexBlock (the exported page carries KaTeX's CSS and fonts when
- * a formula is on it: buildRuntimeHtml.ts).
+ * formula itself. Not translated. The player, the canvas, the thumbnails and the PDF draw it with one function
+ * (blocks/tex/render.js) from the formula typeset ahead of time (buildRuntimeHtml.ts, which also carries KaTeX's CSS and fonts when a formula is on the
+ * page); it is edited in a dialog.
  */
 export const texBlock: BlockDescriptor<TexBlock> = {
   kind: "tex",

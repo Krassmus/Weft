@@ -2045,12 +2045,22 @@
   // The keyframes of one block animation as an Aufbau (hidden -> shown); an Abbau plays them
   // backwards (effectFrames with phase "exit"), except where the opposite isn't simply the reverse.
   // translate/clip-path/filter (not transform): composes with a block's own rotate().
-  var WIPE_HIDDEN = {
-    right: "inset(0 100% 0 0)", // uncovered from the left edge towards the right one
-    left: "inset(0 0 0 100%)",
-    down: "inset(0 0 100% 0)",
-    up: "inset(100% 0 0 0)",
-  };
+  // A wipe cuts the block along ONE edge - the one it travels with - and nowhere else: whatever of the block sticks out of its box (the head of an arrow, a
+  // shadow, a stroke) stays as it is. So the other three sides of the clip are far outside the block (a slide's width), not on its box: `inset(0 ...)` there
+  // would cut the block at its box all along. The sides count like those of `inset()`: top, right, bottom, left.
+  var WIPE_FAR = "-100cqw";
+  var WIPE_SIDE_INDEX = { up: 0, right: 1, down: 2, left: 3 };
+  // The clip with `edge` on one side, the others far out (or at `others`).
+  function wipeInset(side, edge, others) {
+    var far = others === undefined ? WIPE_FAR : others;
+    var sides = [far, far, far, far];
+    sides[WIPE_SIDE_INDEX[side]] = edge;
+    return "inset(" + sides.join(" ") + ")";
+  }
+  // The side whose edge moves for an Aufbau that travels in `direction` (an Aufbau "right" uncovers the block from its left edge towards the right one: the
+  // moving edge is the right one), and the side an Abbau covers it from (the one it started at: the left).
+  var WIPE_AUFBAU_SIDE = { right: "right", left: "left", down: "down", up: "up" };
+  var WIPE_ABBAU_SIDE = { right: "left", left: "right", down: "up", up: "down" };
   var MOVE_SIDE_ANGLES = { right: 0, down: 90, left: 180, up: 270 };
 
   // The angle of the side a "move" comes from / goes to, in degrees (see BlockEffect.moveDirection and moveAngle).
@@ -2080,13 +2090,26 @@
       // 75% of the circle's reference length (the diagonal / sqrt 2) is past every corner.
       frames = [{ clipPath: "circle(0% at 50% 50%)" }, { clipPath: "circle(75% at 50% 50%)" }];
     } else if (type === "wipe") {
-      var hidden = WIPE_HIDDEN[effect.direction || "right"] || WIPE_HIDDEN.right;
-      frames = [{ clipPath: hidden }, { clipPath: "inset(0 0 0 0)" }];
-      // Abbau: covered up the way the wipe travels, i.e. from the edge the Aufbau started at.
+      var direction = WIPE_AUFBAU_SIDE[effect.direction] ? effect.direction : "right";
       if (phase === "exit") {
-        var covered = { right: "inset(0 0 0 100%)", left: "inset(0 100% 0 0)", down: "inset(100% 0 0 0)", up: "inset(0 0 100% 0)" };
-        return [{ clipPath: "inset(0 0 0 0)" }, { clipPath: covered[effect.direction || "right"] || covered.right }];
+        // Abbau: covered up the way the wipe travels, i.e. from the edge the Aufbau started at. At the very start and end the other sides come in from far
+        // out (and go back), so that what sticks out of the box is not cut at once.
+        var covering = WIPE_ABBAU_SIDE[direction];
+        return [
+          { clipPath: wipeInset(covering, WIPE_FAR), offset: 0 },
+          { clipPath: wipeInset(covering, "0%"), offset: 0.05 },
+          { clipPath: wipeInset(covering, "100%"), offset: 0.95 },
+          { clipPath: wipeInset(covering, "100%", "0px"), offset: 1 },
+        ];
       }
+      // Aufbau: the moving edge goes from the box's edge it starts at to the one it ends at over almost all of the time; what sticks out beyond the end follows
+      // in the last twentieth, so that it is not there all at once when the effect is over.
+      var moving = WIPE_AUFBAU_SIDE[direction];
+      frames = [
+        { clipPath: wipeInset(moving, "100%"), offset: 0 },
+        { clipPath: wipeInset(moving, "0%"), offset: 0.95 },
+        { clipPath: wipeInset(moving, WIPE_FAR), offset: 1 },
+      ];
     } else if (type === "blur") {
       frames = [{ opacity: 0, filter: "blur(24px)" }, { opacity: 1, filter: "blur(0px)" }];
     } else if (type === "anvil") {

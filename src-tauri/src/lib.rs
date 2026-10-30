@@ -9,6 +9,8 @@ mod cli_tool;
 #[cfg(desktop)]
 mod control;
 mod color_sampler;
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+mod mkv_remux;
 mod native_video;
 mod open_files;
 #[cfg(target_os = "ios")]

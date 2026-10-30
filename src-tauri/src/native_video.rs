@@ -34,9 +34,23 @@ pub async fn native_video_to_h264(app: tauri::AppHandle, input: String, output: 
     }
 }
 
-/// The conversion itself: starts the export session and waits for it, telling `progress` how far it is every fifth of a second.
+/// The conversion itself. A Matroska file (.mkv) is first repacked into an MP4 without encoding (the system reads no Matroska, see mkv_remux.rs), then exported.
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 fn convert(input: &str, output: &str, progress: impl Fn(f32)) -> Result<(), String> {
+    use std::path::Path;
+    if !crate::mkv_remux::is_matroska(Path::new(input)) {
+        return export(input, output, progress);
+    }
+    let repacked = format!("{output}.repacked.mp4");
+    let _ = std::fs::remove_file(&repacked);
+    let result = crate::mkv_remux::remux_mkv_to_mp4(Path::new(input), Path::new(&repacked)).and_then(|_| export(&repacked, output, progress));
+    let _ = std::fs::remove_file(&repacked);
+    result
+}
+
+/// Starts the export session and waits for it, telling `progress` how far it is every fifth of a second.
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+fn export(input: &str, output: &str, progress: impl Fn(f32)) -> Result<(), String> {
     use block2::RcBlock;
     use objc2_av_foundation::{
         AVAssetExportPreset1920x1080, AVAssetExportSession, AVAssetExportSessionStatus, AVFileTypeMPEG4, AVURLAsset,

@@ -58,12 +58,14 @@ describe("the quiz game that comes with Weft", () => {
     expect(content.languages).toEqual(["de_DE", "en_US"]);
   });
 
-  it("has a start, fifteen questions with one right answer of four, and an ending", () => {
+  it("has a start, fifteen required questions with one right answer of four, and an ending", () => {
     const quizzes = pages.flatMap((page) => Object.values(page.blocks).filter((block): block is QuizBlock => block.kind === "quiz"));
     expect(pages.length).toBe(17);
     expect(quizzes.length).toBe(15);
     for (const quiz of quizzes) {
       expect(quiz.single, quiz.questionHtml).toBe(true);
+      // (A required task: the slide cannot be left without an answer.)
+      expect(quiz.required, quiz.questionHtml).toBe(true);
       expect(quiz.options.length).toBe(4);
       expect(quiz.correctOptionIds.length).toBe(1);
       expect(quiz.name).toBe("Frage");

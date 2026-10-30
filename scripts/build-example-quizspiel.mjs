@@ -335,7 +335,7 @@ QUESTIONS.forEach((question, index) => {
   add({
     op: "add_block", page, kind: "quiz", as: `quiz${n}`,
     set: {
-      name: "Frage", single: true,
+      name: "Frage", single: true, required: true,
       questionHtml: HTML(`<p>${question.q[0]}</p>`, `<p>${question.q[1]}</p>`),
       options, correctOptionIds: [`o${question.right}`],
       explanation: T(question.why[0], question.why[1]),

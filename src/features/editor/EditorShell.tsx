@@ -243,7 +243,10 @@ export function EditorShell() {
   // (The slide the presentation is on - the module tells which: see "page-shown" in player.runtime.js - is what the editor shows afterwards.)
   const shownPageRef = useRef<string | null>(null);
   const endPresentationRef = useRef<() => void>(() => {});
-  useEffect(() => watchFullscreenExit(() => endPresentationRef.current()), []);
+  // "Abspielen im Fenster": the module plays in the window the editor is in, the window is not in full screen - so leaving full screen (or the window changing its size,
+  // which is how it is told) has nothing to do with the presentation ending.
+  const presentInWindowRef = useRef(false);
+  useEffect(() => watchFullscreenExit(() => !presentInWindowRef.current && endPresentationRef.current()), []);
   useEffect(() => {
     function onMessage(e: MessageEvent) {
       if (e.data && e.data.source === "weft-module" && e.data.type === "page-shown" && typeof e.data.pageId === "string") shownPageRef.current = e.data.pageId;
@@ -424,6 +427,7 @@ export function EditorShell() {
   const handleOpenRecentRef = useRef<(path: string, options?: { ownBar?: boolean }) => Promise<void> | void>(() => {});
   // "Abspielen" and "Präsentieren" in the native "Ansicht" menu: on the slide that is selected.
   const playFromMenuRef = useRef<() => void>(() => {});
+  const playInWindowFromMenuRef = useRef<() => void>(() => {});
   const presentFromMenuRef = useRef<() => void>(() => {});
   const presentingRef = useRef(presenting);
   presentingRef.current = presenting;
@@ -503,6 +507,9 @@ export function EditorShell() {
     const unlistenPlay = listen("weft://menu-play", () => {
       if (!idle() && !presenterRef.current) playFromMenuRef.current();
     });
+    const unlistenPlayInWindow = listen("weft://menu-play-window", () => {
+      if (!idle() && !presenterRef.current) playInWindowFromMenuRef.current();
+    });
     const unlistenPresent = listen("weft://menu-present", () => {
       if (!idle() && !presenterRef.current) presentFromMenuRef.current();
     });
@@ -520,6 +527,7 @@ export function EditorShell() {
       void unlistenJoin.then((fn) => fn());
       void unlistenMerge.then((fn) => fn());
       void unlistenPlay.then((fn) => fn());
+      void unlistenPlayInWindow.then((fn) => fn());
       void unlistenPresent.then((fn) => fn());
     };
   }, []);
@@ -657,15 +665,17 @@ export function EditorShell() {
   }
   endPresentationRef.current = endPresentation;
 
-  function handlePresent(startPageId: string | null) {
+  /** Plays the module on `startPageId` (null: from its beginning): on the whole screen, or - with `inWindow` - in the window the editor is in. */
+  function handlePresent(startPageId: string | null, inWindow = false) {
     shownPageRef.current = startPageId;
+    presentInWindowRef.current = inWindow;
     setPresentStartPageId(startPageId);
     setPresenting(true);
-    void enterFullscreenPreview();
+    if (!inWindow) void enterFullscreenPreview();
   }
 
   if (presenting) {
-    return <PresentationView startPageId={presentStartPageId} onExit={endPresentation} />;
+    return <PresentationView startPageId={presentStartPageId} inWindow={presentInWindowRef.current} onExit={endPresentation} />;
   }
   if (presenter) {
     return <PresenterView startPageId={presenter.startPageId} onExit={() => setPresenter(null)} />;
@@ -780,6 +790,7 @@ export function EditorShell() {
   }
   handleExportPdfRef.current = handleExportPdf;
   playFromMenuRef.current = () => handlePresent(startPageIdOf(useDocumentStore.getState().selection));
+  playInWindowFromMenuRef.current = () => handlePresent(startPageIdOf(useDocumentStore.getState().selection), true);
   presentFromMenuRef.current = () => setPresenter({ startPageId: startPageIdOf(useDocumentStore.getState().selection) });
 
   // Switching to another module replaces the one that is open: what is saved in its file already (the

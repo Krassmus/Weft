@@ -11,12 +11,15 @@ import { tr } from "../../core/i18n/tr";
  */
 export function PresentationView({
   startPageId,
+  inWindow = false,
   onExit,
 }: {
   /** Which page to open on - whatever was selected when "Abspielen" was clicked (see
    * Canvas.tsx/EditorShell.tsx), or null to start from the module's actual beginning like a real
    * learner would. */
   startPageId: string | null;
+  /** It plays in the window the editor is in ("Abspielen im Fenster"), not on the whole screen: there is no full screen to leave. */
+  inWindow?: boolean;
   onExit: () => void;
 }) {
   const content = useDocumentStore((s) => s.doc.content);
@@ -43,7 +46,7 @@ export function PresentationView({
   async function handleExit() {
     // Leaving the presentation must never depend on leaving full screen having worked.
     try {
-      await exitFullscreenPreview();
+      if (!inWindow) await exitFullscreenPreview();
     } finally {
       onExit();
     }

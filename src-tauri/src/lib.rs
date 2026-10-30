@@ -90,6 +90,7 @@ struct MenuStrings {
     redo: &'static str,
     view: &'static str,
     play: &'static str,
+    play_window: &'static str,
     present: &'static str,
     zoom_in: &'static str,
     zoom_out: &'static str,
@@ -120,6 +121,7 @@ fn menu_strings(lang: &str) -> MenuStrings {
             redo: "Wiederholen",
             view: "Ansicht",
             play: "Abspielen",
+            play_window: "Abspielen im Fenster",
             present: "Präsentieren (mit Moderatoransicht)",
             zoom_in: "Oberfläche vergrößern",
             zoom_out: "Oberfläche verkleinern",
@@ -147,6 +149,7 @@ fn menu_strings(lang: &str) -> MenuStrings {
             redo: "Redo",
             view: "View",
             play: "Play",
+            play_window: "Play in Window",
             present: "Present (with Presenter View)",
             zoom_in: "Make Interface Larger",
             zoom_out: "Make Interface Smaller",
@@ -285,13 +288,15 @@ fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String], player: boo
     let redo_item = MenuItem::with_id(app_handle, "weft-redo", strings.redo, true, Some("CmdOrCtrl+Shift+Z"))?;
     edit_menu.prepend_items(&[&undo_item, &redo_item])?;
 
-    // "Ansicht": playing the module and presenting it with the presenter view, on the slide that is selected (the same as the "Abspielen"
-    // button of the work area). Not for a player file - there is nothing selected to start from, and no module to present.
+    // "Ansicht": playing the module - on the whole screen ("Abspielen", like the button of the work area) or in the window the editor is in
+    // ("Abspielen im Fenster") - and presenting it with the presenter view, on the slide that is selected. Not for a player file - there is
+    // nothing selected to start from, and no module to present.
     if let Some(view_menu) = view_menu {
         view_menu.set_text(strings.view)?;
         let play_item = MenuItem::with_id(app_handle, "weft-play", strings.play, editing, Some("CmdOrCtrl+Alt+P"))?;
+        let play_window_item = MenuItem::with_id(app_handle, "weft-play-window", strings.play_window, editing, None::<&str>)?;
         let present_item = MenuItem::with_id(app_handle, "weft-present", strings.present, editing, Some("CmdOrCtrl+Alt+Shift+P"))?;
-        view_menu.prepend_items(&[&play_item, &present_item, &PredefinedMenuItem::separator(app_handle)?])?;
+        view_menu.prepend_items(&[&play_item, &play_window_item, &present_item, &PredefinedMenuItem::separator(app_handle)?])?;
         // The size of Weft's own interface (an accessibility setting, also in the settings window) - the pinch gesture of the trackpad does
         // not change it any more (that is for the slide, see useStageZoom in Canvas.tsx), so this menu and these keys do.
         let zoom_in_item = MenuItem::with_id(app_handle, "weft-zoom-in", strings.zoom_in, true, Some("CmdOrCtrl+Plus"))?;
@@ -642,6 +647,9 @@ pub fn run() {
                     }
                     "weft-play" => {
                         let _ = app_handle.emit("weft://menu-play", ());
+                    }
+                    "weft-play-window" => {
+                        let _ = app_handle.emit("weft://menu-play-window", ());
                     }
                     "weft-present" => {
                         let _ = app_handle.emit("weft://menu-present", ());

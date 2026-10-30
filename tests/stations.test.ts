@@ -21,7 +21,7 @@ import { clipboardEntryPlainText } from "../src/core/document/clipboard";
 import { createEmptyDocument } from "../src/core/document/createEmptyDocument";
 import { fieldHtml, fieldHtmlPatch, fieldWording, fieldWordingPatch, isTranslated, itemWording, itemWordingPatch, rotateDefaultLanguage } from "../src/core/document/translations";
 import { allowedSlips, clozeIsRight, levenshtein } from "../src/core/document/cloze";
-import { usedAssetIds } from "../src/core/document/usedAssets";
+import { placedPages, usedAssetIds, withoutDeletedPages } from "../src/core/document/usedAssets";
 import { placeholderSources, withProgress } from "../src/core/document/variablePlaceholders";
 import { translations } from "../src/core/i18n/translations";
 import { tr } from "../src/core/i18n/tr";
@@ -837,6 +837,64 @@ describe("the quiz", () => {
     quiz.correctOptionIds = quiz.options.map((option) => option.id);
     quiz.open = true;
     expect(findings(m).map((finding) => finding.code)).not.toContain("quiz-single-many-correct");
+  });
+});
+
+describe("what a deleted page leaves behind (usedAssets.ts)", () => {
+  /** A module with a page in the sequence, one in each of the two branches of a logic block, a layout with a picture, and a page that was deleted - each with a picture. */
+  const built = () => {
+    const content = createEmptyDocument().content;
+    const picture = (page: string, id: string) => ({ op: "add_block", page, kind: "revealer", set: { imageAssetId: id } });
+    const made = runOperations(content, [
+      { op: "add_variable", name: "v", type: "boolean", initialValue: false },
+      { op: "add_page", as: "top" },
+      picture("$top", "in-sequence"),
+      { op: "add_logic", name: "Zweig", as: "fork", branches: [{ label: "A", condition: { variable: "v", comparator: "eq", value: true } }, { label: "B" }] },
+      { op: "add_page", branch: { logic: "$fork", branch: "A" }, as: "a" },
+      picture("$a", "in-branch-a"),
+      { op: "add_page", branch: { logic: "$fork", branch: "B" }, as: "b" },
+      picture("$b", "in-branch-b"),
+      { op: "add_layout", name: "Eigenes", as: "layout" },
+      { op: "add_block", layout: "$layout", kind: "revealer", set: { imageAssetId: "in-layout" } },
+      { op: "add_page", as: "gone" },
+      picture("$gone", "on-deleted-page"),
+      { op: "remove_page", page: "$gone" },
+    ]);
+    return { content, gone: made.results[made.results.length - 3].result.page as string };
+  };
+
+  it("does not count what only a page that was deleted uses - while the pages of the sequence, of both branches and the layouts count", () => {
+    const { content, gone } = built();
+    // (removePage takes the page out of the sequence, not out of the module's pages.)
+    expect(content.pages[gone]).toBeDefined();
+    const used = usedAssetIds(content);
+    expect([...used].sort()).toEqual(["in-branch-a", "in-branch-b", "in-layout", "in-sequence"]);
+    expect(used.has("on-deleted-page")).toBe(false);
+  });
+
+  it("knows the pages that are part of the module: the ones of the sequence and of the branches of its logic blocks", () => {
+    const { content, gone } = built();
+    const placed = placedPages(content).map((page) => page.id);
+    expect(placed).not.toContain(gone);
+    expect(placed.length).toBe(Object.keys(content.pages).length - 1);
+    // (A page that is brought back by undoing the deletion counts again.)
+    content.sequence[gone] = { ...(Object.values(content.sequence)[0] as object), kind: "page", pageId: gone } as never;
+    expect(placedPages(content).map((page) => page.id)).toContain(gone);
+  });
+
+  it("is played without the deleted pages - the module itself if it has none", () => {
+    const { content, gone } = built();
+    const played = withoutDeletedPages(content);
+    expect(Object.keys(played.pages)).not.toContain(gone);
+    expect(Object.keys(played.pages).length).toBe(Object.keys(content.pages).length - 1);
+    expect(played.layouts).toBe(content.layouts);
+    expect(withoutDeletedPages(played)).toBe(played);
+  });
+
+  it("counts every page where there is no sequence to tell", () => {
+    const { content, gone } = built();
+    const bare = { ...content, sequence: undefined } as unknown as WeftModule;
+    expect(placedPages(bare).map((page) => page.id)).toContain(gone);
   });
 });
 

@@ -4,7 +4,7 @@ import type { WeftDocument, WeftModule } from "../types";
 import { useAssetStore } from "../assets/assetStore";
 import { Automerge } from "../collab/automerge";
 import { currentHandle, useDocumentStore } from "../document/store";
-import { usedAssetIds } from "../document/usedAssets";
+import { usedAssetIds, withoutDeletedPages } from "../document/usedAssets";
 import { coverLogoBytes, LOGO_FILE } from "./coverImage";
 import { buildInlineFontFaceCss } from "../runtime/buildInlineFontFaceCss";
 import { buildRuntimeHtml } from "../runtime/buildRuntimeHtml";
@@ -89,7 +89,7 @@ function zipInWorker(files: AsyncZippable): Promise<Uint8Array> {
 /**
  * Packs a document into the .weft / exported-module zip: weft.json (the save format - verbatim
  * except for content.assets, pruned to only images/videos a block still actually references, see
- * usedAssetIds), a generated index.html that plays the module stand-alone, and the referenced
+ * usedAssetIds - which leaves out what only a deleted page used), a generated index.html that plays the module stand-alone, and the referenced
  * binary assets - images and videos, and the custom fonts (kept as files so a saved module can be
  * reopened). Every font the module uses - the curated ones its text actually references (see
  * fontFaceCss.ts - guaranteed to render the same everywhere the module ends up, unlike a system
@@ -110,15 +110,19 @@ export async function packDocument(doc: WeftDocument, options: { forExport?: boo
   const usedIds = usedAssetIds(doc.content);
   const usedAssets = doc.content.assets.filter((meta) => usedIds.has(meta.id));
   const content = { ...doc.content, assets: usedAssets };
-  const docToSave: WeftDocument = { formatVersion: doc.formatVersion, content };
+  // The pages that were deleted are still in `pages` (see removePage): a saved file keeps them in weft.json - they belong to the editing history it carries, which is
+  // only used if it describes exactly weft.json - but the page that plays the module has no use for them, and an export (which has no history) carries nothing of
+  // what was deleted.
+  const played = withoutDeletedPages(content);
+  const docToSave: WeftDocument = { formatVersion: doc.formatVersion, content: forExport ? played : content };
 
   // Every font is inlined into index.html as a data: URI, not shipped as a file next to it: a host
   // LMS may run the module in a sandboxed iframe without allow-same-origin, whose opaque origin the
   // browser refuses to load a (CORS-only) font file for. See buildInlineFontFaceCss.ts.
-  const fontFaceCss = await buildInlineFontFaceCss(content);
+  const fontFaceCss = await buildInlineFontFaceCss(played);
 
   const files: AsyncZippable = {
-    "index.html": strToU8(await buildRuntimeHtml(content, {}, fontFaceCss)),
+    "index.html": strToU8(await buildRuntimeHtml(played, {}, fontFaceCss)),
   };
   if (options.playerOnly) files[PLAYER_MARKER_FILE] = strToU8(JSON.stringify({ format: "weft-player", version: 1 }));
   else files["weft.json"] = strToU8(JSON.stringify(docToSave, null, 2));

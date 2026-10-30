@@ -291,7 +291,8 @@ export function BlockView({
     block.kind === "button" ||
     block.kind === "cloze" ||
     block.kind === "quiz" ||
-    block.kind === "list";
+    block.kind === "list" ||
+    block.kind === "code";
   const isFreelyMovableBlock = (isTextLike && !editing) || !!viewOf(block.kind)?.freelyMovable || block.kind === "matching" || block.kind === "sort" || block.kind === "script" || block.kind === "tex" || block.kind === "image" || block.kind === "video" || block.kind === "audio" || block.kind === "shape" || block.kind === "arrow" || block.kind === "files" || block.kind === "revealer" || block.kind === "progress";
   // Only an image, video or revealer (an icon) has a "natural" width/height ratio worth protecting from a stretch -
   // an embedded page (iframe) is expected to be responsive and reflow at whatever size it's
@@ -425,7 +426,19 @@ export function BlockView({
   /** Puts the caret into the text of this block where it was clicked (clientX/clientY): into the region under the pointer - the
    * question or an option of a quiz, an item of a list - or, when the click was beside the regions, the nearest one. */
   function startEditing(clientX: number, clientY: number) {
+    // A code block is edited in a textarea that only exists while it is edited: where the click is in its code is found in the highlighted copy
+    // that stands there before, and the caret put at that place once the textarea is there.
+    const codeOffset = block.kind === "code" ? codeOffsetAt(wrapRef.current, clientX, clientY) : null;
     flushSync(() => setEditing(true));
+    if (block.kind === "code") {
+      const textarea = wrapRef.current?.querySelector<HTMLTextAreaElement>("textarea");
+      if (textarea) {
+        textarea.focus({ preventScroll: true });
+        const at = codeOffset ?? textarea.value.length;
+        textarea.setSelectionRange(at, at);
+      }
+      return;
+    }
     const regions = Array.from(wrapRef.current?.querySelectorAll<HTMLElement>('[contenteditable="true"]') ?? []);
     if (regions.length === 0) return;
     let editable = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>('[contenteditable="true"]') ?? null;
@@ -814,7 +827,7 @@ function BlockContent({
     case "script":
       return <ScriptHexagon />;
     case "code":
-      return <CodeView block={block} editable={selected} onCommit={(code) => onUpdate?.({ code })} />;
+      return <CodeView block={block} editable={selected && editing} onCommit={(code) => onUpdate?.({ code })} />;
     case "tex":
       return <TexRenderView block={block} mode="edit" />;
     case "image":
@@ -1336,6 +1349,32 @@ const CARET_PLACEHOLDER = "\u200b";
 
 /** Whether `container` holds anything to see - text (the placeholder above is none) or a picture. (A line break is not counted: some
  * browsers keep a <br> at the end of the line they are typing in, and that is no content to carry over.) */
+/** Where in its code the point (clientX, clientY) is, for a code block (its highlighted copy, `.weft-code-pre`, has the same text and layout as the textarea that is
+ * laid over it while the code is edited): the number of characters before it - or null where the point is not in the text. */
+function codeOffsetAt(wrap: HTMLElement | null, clientX: number, clientY: number): number | null {
+  const pre = wrap?.querySelector<HTMLElement>(".weft-code-pre");
+  if (!pre) return null;
+  const doc = document as Document & {
+    caretRangeFromPoint?: (x: number, y: number) => Range | null;
+    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+  };
+  let node: Node | null = null;
+  let offset = 0;
+  if (doc.caretRangeFromPoint) {
+    const range = doc.caretRangeFromPoint(clientX, clientY);
+    if (range) [node, offset] = [range.startContainer, range.startOffset];
+  } else if (doc.caretPositionFromPoint) {
+    const position = doc.caretPositionFromPoint(clientX, clientY);
+    if (position) [node, offset] = [position.offsetNode, position.offset];
+  }
+  if (!node || !pre.contains(node)) return null;
+  const before = document.createRange();
+  before.selectNodeContents(pre);
+  before.setEnd(node, offset);
+  // (The line break the copy ends with is no part of the code.)
+  return Math.min(before.toString().length, Math.max(0, (pre.textContent ?? "").length - 1));
+}
+
 function hasVisibleContent(container: HTMLElement): boolean {
   return (container.textContent ?? "").replace(/\u200b/g, "").trim().length > 0 || container.querySelector("img") !== null;
 }

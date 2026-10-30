@@ -6,7 +6,9 @@ import { stageThemeProps } from "./stageTheme";
 import type { CSSProperties, DragEvent as ReactDragEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, RefObject } from "react";
 import playIconSvg from "../../../mockups/icons/play.svg?raw";
 import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
+import { descriptorOf } from "../../core/blocks/registry";
 import {
+  addFilesBlock,
   addImageBlockToLayout,
   addGalleryBlockToPage,
   addImageBlockToPage,
@@ -109,8 +111,11 @@ function dropPosition(clientX: number, clientY: number, stageRect: DOMRect, casc
 
 /** Where a gallery made of dropped pictures goes: centred on the drop, as large as a new gallery is (60 by 70 percent, less where the slide has no room). */
 function galleryDropPosition(clientX: number, clientY: number, stageRect: DOMRect): BlockPosition {
-  const width = 60;
-  const height = 70;
+  return centeredDropPosition(clientX, clientY, stageRect, 60, 70);
+}
+
+/** Where a block of the given size (in percent of the slide) goes that is centred on the drop, less where the slide has no room. */
+function centeredDropPosition(clientX: number, clientY: number, stageRect: DOMRect, width: number, height: number): BlockPosition {
   const centerX = ((clientX - stageRect.left) / stageRect.width) * 100;
   const centerY = ((clientY - stageRect.top) / stageRect.height) * 100;
   return { x: clampAxis(centerX - width / 2, width), y: clampAxis(centerY - height / 2, height), width, height };
@@ -901,9 +906,10 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
     const galleryId = galleryUnder(e.target);
     endFileDrag();
     const rect = e.currentTarget.getBoundingClientRect();
-    const mediaFiles = Array.from(e.dataTransfer.files).filter(
-      (f) => f.type.startsWith("image/") || isVideoFile(f) || f.type.startsWith("audio/"),
-    );
+    const isMedia = (f: File) => f.type.startsWith("image/") || isVideoFile(f) || f.type.startsWith("audio/");
+    const mediaFiles = Array.from(e.dataTransfer.files).filter(isMedia);
+    // Whatever is none of those is a file to hand out: all of them together are one files block (not a pile of blocks).
+    const otherFiles = Array.from(e.dataTransfer.files).filter((f) => !isMedia(f));
     // Sequential, not Promise.all - addImage/addVideo reads the file's own dimensions before
     // editing the document, and each edit() call is its own undo step, so keeping them in drop
     // order keeps undo order sane too.
@@ -933,6 +939,18 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
       } else {
         lastBlockId = await addImage(file, position);
       }
+    }
+    if (otherFiles.length > 0) {
+      const box = descriptorOf("files")?.placement.box ?? { width: 40, height: 30 };
+      const centered = centeredDropPosition(e.clientX, e.clientY, rect, box.width, box.height);
+      // (Dropped together with pictures or videos it does not lie right on top of the last of them.)
+      const offset = mediaFiles.length > 0 ? DROP_CASCADE_PERCENT * mediaFiles.length : 0;
+      const filesBlockId = await addFilesBlock(container, otherFiles, {
+        ...centered,
+        x: clampAxis(centered.x + offset, centered.width),
+        y: clampAxis(centered.y + offset, centered.height),
+      });
+      if (filesBlockId) lastBlockId = filesBlockId;
     }
     // Select whichever landed last, mirroring how pasting a block selects the new copy.
     if (lastBlockId) select({ type: "block", container, blockId: lastBlockId });

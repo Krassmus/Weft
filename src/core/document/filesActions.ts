@@ -53,6 +53,23 @@ async function keyFor(protection: FilesProtection | null, password: string | nul
   return key;
 }
 
+/**
+ * Files as assets of the module (without a password) and the entries for a files block that lists them: the bytes are put to the asset store, the caller pushes the
+ * metas to the module's assets and the entries to the block, in one step of its own. A file that cannot be read - a folder that was dropped is one - is left out.
+ */
+export async function filesAsAssets(files: File[]): Promise<ReturnType<typeof newAsset>[]> {
+  const created: ReturnType<typeof newAsset>[] = [];
+  for (const file of files) {
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      created.push(newAsset(file.name, file.type || "application/octet-stream", file.size, bytes, false));
+    } catch {
+      // (Not a file that can be had.)
+    }
+  }
+  return created;
+}
+
 /** Adds files to a block - encrypted with `password` if the block has one (which must be the right one). */
 export async function addFilesToBlock(container: BlockContainerRef, blockId: string, files: File[], password: string | null): Promise<void> {
   const block = currentFilesBlock(container, blockId);

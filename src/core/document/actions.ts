@@ -70,6 +70,7 @@ import {
 } from "./pageTimeline";
 import type { BlockContainerRef } from "./store";
 import { useDocumentStore } from "./store";
+import { filesAsAssets } from "./filesActions";
 import { tr } from "../i18n/tr";
 import { descriptorOf, isLayoutOnlyKind, isPageOnlyKind, isReorderableEventId, isTaskBlock } from "../blocks/registry";
 
@@ -1625,6 +1626,30 @@ export function addGalleryBlockToPage(pageId: string, files: File[], position: B
     m.assets.push(...assets);
     insertOrdered(page.blocks, block.id, block);
     syncPageTimelineEvents(page);
+  });
+  return block.id;
+}
+
+/**
+ * Drops files that are no picture, video or sound onto a page or layout as one files block (FilesBlock) in one step, in the order of the files, centred on `position`
+ * (whose size it takes). Returns the id of the block - none if not one of the files could be read.
+ */
+export async function addFilesBlock(container: BlockContainerRef, files: File[], position: BlockPosition): Promise<string | null> {
+  const created = await filesAsAssets(files);
+  if (created.length === 0) return null;
+  const block = defaultBlockFor("files") as NewBlock & { kind: "files" };
+  block.position = position;
+  block.files = created.map(({ entry }) => entry);
+  edit(tr("ui.add_files_2"), (m) => {
+    m.assets.push(...created.map(({ meta }) => meta));
+    if (container.kind === "page") {
+      const page = m.pages[container.pageId];
+      if (!page) return;
+      insertOrdered(page.blocks, block.id, block);
+      syncPageTimelineEvents(page);
+    } else {
+      pushBlock(m.layouts[container.layoutId], block);
+    }
   });
   return block.id;
 }

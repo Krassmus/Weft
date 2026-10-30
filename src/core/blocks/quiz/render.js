@@ -5,10 +5,11 @@
 //
 //   renderQuiz(root, props, ctx) draws into `root` (an empty element that has the block's size) and returns { update(props), destroy() }.
 //
-//   props   what the block says, in the language that is shown: { id, question, options: [{ id, html }], correctOptionIds, open, single, hiddenOptionIds,
-//           explanation, marked } - the question and the answers as HTML, which answers are the right ones (a test: the quiz is right when exactly those are
+//   props   what the block says, in the language that is shown: { id, question, options: [{ id, html }], correctOptionIds, open, single, required,
+//           hiddenOptionIds, explanation, marked } - the question and the answers as HTML, which answers are the right ones (a test: the quiz is right when exactly those are
 //           ticked), whether it is an open question (nothing is right or wrong: it is thanked), whether only one answer can be picked (round buttons: picking
-//           another takes the first back), which answers are taken away (a script did: their place stays empty and they cannot be picked), what is told
+//           another takes the first back), whether it is a required task (a quiz that has answers to pick cannot be submitted before one is picked),
+//           which answers are taken away (a script did: their place stays empty and they cannot be picked), what is told
 //           after the submit (plain text, its lines kept), and - for a picture - the answers that stand ticked in it (the thumbnails show the right ones, a
 //           PDF none: it does not give the answers away).
 //   ctx     what the place it is drawn in provides:
@@ -129,6 +130,18 @@ export function renderQuiz(root, props, ctx) {
   submit.appendChild(submitLabel);
   form.appendChild(submit);
 
+  // A required quiz with answers to pick is submitted only once one is picked (the button waits, greyed out). Not where nothing can be picked (no answers, or all
+  // taken away), and only where it is used: a picture of it shows the button as it is.
+  var syncSubmit = function () {
+    if (!live || data.required !== true || answered !== null) return;
+    var pickable = inputs.some(function (input) {
+      return !input.disabled;
+    });
+    var picked = inputs.some(function (input) {
+      return input.checked;
+    });
+    submit.disabled = pickable && !picked;
+  };
   var showFeedbackTitle = function () {
     feedbackTitle.textContent = ctx.text(data.open ? "thanks" : answered ? "correct" : "incorrect");
   };
@@ -163,10 +176,12 @@ export function renderQuiz(root, props, ctx) {
     // pageTimeline.ts), which is likewise about the first pick, not every subsequent one.
     var hasFiredFill = false;
     optionsWrap.addEventListener("change", function () {
+      syncSubmit();
       if (hasFiredFill) return;
       hasFiredFill = true;
       ctx.fill();
     });
+    syncSubmit();
 
     submit.addEventListener("click", function () {
       var ticked = inputs
@@ -209,6 +224,7 @@ export function renderQuiz(root, props, ctx) {
       data = next;
       fillTexts();
       showHidden();
+      syncSubmit();
       submitLabel.nodeValue = ctx.text("submit");
       explanation.textContent = data.explanation || "";
       if (answered !== null) {

@@ -479,7 +479,8 @@ export interface QuizBlock extends BaseBlock {
    * `weft validate` says so when it has not. Ignored for an open question. Absent: any number of answers can be ticked. */
   single?: boolean;
   /** A required task ("Pflichtangabe"): a Weiter that would leave the page - the Weiter button, Space, the arrow, a tap - is held back until
-   * it has been submitted, and a button whose action is "Weiter" is greyed out meanwhile (see weiter in player.runtime.js). Absent: not required. */
+   * it has been submitted, and a button whose action is "Weiter" is greyed out meanwhile (see weiter in player.runtime.js). A quiz that has answers to pick
+   * can then not be submitted before one is picked: its "Abschicken" waits, greyed out (see syncSubmit in blocks/quiz/render.js). Absent: not required. */
   required?: boolean;
   /** What happens once the quiz as a whole was answered right / wrong (all options as they should be / not). */
   onCorrect: VariableEffect[];

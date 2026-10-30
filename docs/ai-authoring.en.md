@@ -85,7 +85,7 @@ Want it differently? Then say what triggers with `set_trigger` (this **replaces*
 
 - Quiz: `questionHtml`, `options` (`id`, `html`), `correctOptionIds`. **`explanation`** is a text shown after submitting under "right/wrong" - no detour through triggers needed. Several right answers are possible.
 - Gap text: the answers stand as `[[answer]]` in the text, several right ones with `|` (`[[Shakespeare|Shakespear]]`). `caseSensitive` and `tolerance` (typos, 0 to 2) say what counts as right. Spaces never count (1 714 is 1714).
-- **Required task:** `"required": true` on the quiz or gap text (default: off). Until it has been submitted the player holds back every Weiter that would leave the slide - button, Space, arrow, tap -; builds before it go on. A button whose action is `advance` ("Weiter") is greyed out meanwhile when its next press would leave the slide. A `goto` button or an automatic change (for example "go to the next slide after submitting") is not affected.
+- **Required task:** `"required": true` on the quiz or gap text (default: off). Until it has been submitted the player holds back every Weiter that would leave the slide - button, Space, arrow, tap -; builds before it go on. A button whose action is `advance` ("Weiter") is greyed out meanwhile when its next press would leave the slide. A `goto` button or an automatic change (for example "go to the next slide after submitting") is not affected. A **quiz** that has answers to pick also cannot be submitted before one is picked ("Abschicken" is greyed out until then).
 - Both need room for their feedback under the button: `validate --layout` measures it too.
 
 ## Forks

@@ -2964,6 +2964,7 @@
       correctOptionIds: block.correctOptionIds,
       open: block.open === true,
       single: block.single === true,
+      required: block.required === true,
       hiddenOptionIds: quizHandles[block.id] ? quizHandles[block.id].hidden : [],
       explanation: quizExplanationText(block),
     };

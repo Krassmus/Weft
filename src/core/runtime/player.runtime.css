@@ -552,11 +552,11 @@ summary:focus-visible,
 
 /* plain: a button turns a shade darker, an answer's border a shade stronger. */
 .weft-block-button-el:not(:disabled):hover,
-.weft-quiz-submit:hover {
+.weft-quiz-submit:not(:disabled):hover {
   background: var(--slide-button-hover);
 }
 
-.weft-quiz-submit:hover {
+.weft-quiz-submit:not(:disabled):hover {
   background: var(--slide-accent-hover);
 }
 
@@ -573,7 +573,7 @@ summary:focus-visible,
   box-shadow: inset 0 0 0 0.07em color-mix(in srgb, var(--slide-button-fg) 55%, transparent);
 }
 
-.weft-stage[data-weft-style="elegant"] .weft-quiz-submit:hover {
+.weft-stage[data-weft-style="elegant"] .weft-quiz-submit:not(:disabled):hover {
   box-shadow: inset 0 0 0 0.07em color-mix(in srgb, var(--slide-accent-text) 55%, transparent);
 }
 
@@ -588,7 +588,7 @@ summary:focus-visible,
   box-shadow: 0 0.3em 0.8em color-mix(in srgb, var(--slide-button-bg) 40%, transparent);
 }
 
-.weft-stage[data-weft-style="round"] .weft-quiz-submit:hover {
+.weft-stage[data-weft-style="round"] .weft-quiz-submit:not(:disabled):hover {
   background: var(--slide-accent-color);
   transform: translateY(-0.08em);
   box-shadow: 0 0.3em 0.8em color-mix(in srgb, var(--slide-accent-color) 40%, transparent);
@@ -610,7 +610,7 @@ summary:focus-visible,
   filter: brightness(1.14);
 }
 
-.weft-stage[data-weft-style="futuristic"] .weft-quiz-submit:hover {
+.weft-stage[data-weft-style="futuristic"] .weft-quiz-submit:not(:disabled):hover {
   background: var(--slide-accent-color);
   filter: brightness(1.14);
 }
@@ -640,7 +640,7 @@ summary:focus-visible,
   }
 
   .weft-stage .weft-block-button-el:hover,
-  .weft-stage .weft-quiz-submit:hover {
+  .weft-stage .weft-quiz-submit:not(:disabled):hover {
     transform: none;
   }
 }

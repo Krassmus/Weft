@@ -9,6 +9,8 @@ export interface QuizRenderProps {
   correctOptionIds: string[];
   /** An open question: nothing is right or wrong. */
   open?: boolean;
+  /** A required task: while the quiz has answers to pick, it cannot be submitted before one is picked (the button waits). Only where it is used. */
+  required?: boolean;
   /** Only one answer can be picked (round buttons; ignored for an open question). */
   single?: boolean;
   /** The answers a script took away: their place stays empty and they cannot be picked. */

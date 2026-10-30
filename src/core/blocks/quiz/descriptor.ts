@@ -79,7 +79,7 @@ export const quizBlock: BlockDescriptor<QuizBlock> = {
       incorrect: "Quiz falsch abgeschickt",
     },
   },
-  summary: (block) => `${clip(block.questionHtml, 80) || "(ohne Frage)"} [${block.options.length} Optionen${block.open ? ", offen" : `, ${block.correctOptionIds.length} richtig${block.single ? ", eine Antwort wählbar" : ""}`}]`,
+  summary: (block) => `${clip(block.questionHtml, 80) || "(ohne Frage)"} [${block.options.length} Optionen${block.open ? ", offen" : `, ${block.correctOptionIds.length} richtig${block.single ? ", genau eine Antwort wählbar" : ""}`}]`,
   validate: (block) => {
     const problems: ReturnType<NonNullable<typeof quizBlock.validate>> = [];
     const ids = new Set(block.options.map((option) => option.id));

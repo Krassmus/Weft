@@ -162,6 +162,12 @@
   display: none;
 }
 
+/* A required quiz (see renderQuiz) cannot be submitted before an answer is picked: the button waits, greyed out like a "Weiter" that is held back. */
+.weft-quiz-submit:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .weft-quiz-submit-icon {
   width: 0.85em;
   height: 0.85em;

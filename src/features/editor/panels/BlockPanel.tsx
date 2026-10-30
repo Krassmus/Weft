@@ -3650,6 +3650,7 @@ function QuizEditor({ block, page, onUpdate }: { block: QuizBlock; page?: Page; 
           <span>{tr("ui.required_task")}</span>
         </label>
         {block.required && <p className="weft-hint">{tr("ui.required_task_hint")}</p>}
+        {block.required && block.options.length > 0 && <p className="weft-hint">{tr("ui.quiz_required_hint")}</p>}
       </Collapsible>
 
       <Collapsible title={tr("ui.quiz_explanation")} defaultOpen={quizExplanation(block, lang, defaultLang).trim() !== ""}>

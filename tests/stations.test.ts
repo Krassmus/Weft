@@ -782,7 +782,7 @@ describe("the quiz", () => {
     quiz.correctOptionIds = [quiz.options[0].id];
     expect(descriptorOf("quiz")!.summary!(m.block as never, { labels: {} })).toMatch(/\[2 Optionen, 1 richtig\]$/);
     quiz.single = true;
-    expect(descriptorOf("quiz")!.summary!(m.block as never, { labels: {} })).toMatch(/\[2 Optionen, 1 richtig, eine Antwort wählbar\]$/);
+    expect(descriptorOf("quiz")!.summary!(m.block as never, { labels: {} })).toMatch(/\[2 Optionen, 1 richtig, genau eine Antwort wählbar\]$/);
     quiz.open = true;
     expect(descriptorOf("quiz")!.summary!(m.block as never, { labels: {} })).toMatch(/\[2 Optionen, offen\]$/);
   });

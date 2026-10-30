@@ -1072,6 +1072,16 @@ describe.each(MODES)("a quiz drawn for %s", (mode) => {
     expect(boxes(root).every((box) => box.getAttribute("name") === "opt-q1")).toBe(true);
   });
 
+  it("shows the submit button as it is where it is only a picture, even for a required task", () => {
+    const root = element();
+    const instance = renderQuiz(root, { ...props, required: true }, context());
+    const button = find(root, ".weft-quiz-submit") as HTMLButtonElement;
+    expect(!!button.disabled).toBe(mode === "play");
+    // (Nor when it is drawn again.)
+    instance.update({ ...props, required: true });
+    expect(!!button.disabled).toBe(mode === "play");
+  });
+
   it("has round icons where only one answer can be picked - when the place gives them, else the boxes'", () => {
     const icons = { ...ICONS, radioUnchecked: "radio-off", radioChecked: "radio-on" };
     const iconsOf = (extra: object, set: typeof icons | typeof ICONS) => {
@@ -1103,6 +1113,73 @@ describe.each(MODES)("a quiz drawn for %s", (mode) => {
   });
 
   if (mode === "play") {
+    describe("as a required task", () => {
+      const submitButton = (root: Element) => find(root, ".weft-quiz-submit") as HTMLButtonElement;
+      const pick = (root: Element, index: number, on = true) => {
+        const input = boxes(root)[index];
+        input.checked = on;
+        fire(input, "change");
+      };
+
+      it("cannot be submitted before an answer is picked: the button waits, is free once one is picked, and waits again when it is taken back", () => {
+        const root = element();
+        renderQuiz(root, { ...props, required: true }, context());
+        expect(!!submitButton(root).disabled).toBe(true);
+        pick(root, 1);
+        expect(!!submitButton(root).disabled).toBe(false);
+        pick(root, 1, false);
+        expect(!!submitButton(root).disabled).toBe(true);
+        pick(root, 0);
+        pick(root, 2);
+        expect(!!submitButton(root).disabled).toBe(false);
+      });
+
+      it("is submitted as any quiz once one is picked", () => {
+        const root = element();
+        const ctx = context();
+        renderQuiz(root, { ...props, required: true }, ctx);
+        expect(!!submitButton(root).disabled).toBe(true);
+        pick(root, 0);
+        pick(root, 2);
+        fire(submitButton(root), "click");
+        expect(ctx.submit).toHaveBeenCalledWith({ ticked: ["a", "c"], correct: true });
+      });
+
+      it("is not held where it is not required, or where nothing can be picked (no answers, all taken away)", () => {
+        const waiting = (extra: object) => {
+          const root = element();
+          renderQuiz(root, { ...props, ...extra }, context());
+          return !!submitButton(root).disabled;
+        };
+        expect(waiting({})).toBe(false);
+        expect(waiting({ required: false })).toBe(false);
+        expect(waiting({ required: true })).toBe(true);
+        expect(waiting({ required: true, options: [], correctOptionIds: [] })).toBe(false);
+        expect(waiting({ required: true, hiddenOptionIds: ["a", "b", "c"] })).toBe(false);
+      });
+
+      it("waits again when the answer that was picked is taken away by a script", () => {
+        const root = element();
+        const instance = renderQuiz(root, { ...props, required: true }, context());
+        pick(root, 0);
+        expect(!!submitButton(root).disabled).toBe(false);
+        instance.update({ ...props, required: true, hiddenOptionIds: ["a"] });
+        expect(!!submitButton(root).disabled).toBe(true);
+        pick(root, 1);
+        expect(!!submitButton(root).disabled).toBe(false);
+      });
+
+      it("holds a round-button quiz and an open question the same way", () => {
+        for (const extra of [{ single: true }, { open: true, correctOptionIds: [] }]) {
+          const root = element();
+          renderQuiz(root, { ...props, ...extra, required: true }, context());
+          expect(!!submitButton(root).disabled).toBe(true);
+          pick(root, 0);
+          expect(!!submitButton(root).disabled).toBe(false);
+        }
+      });
+    });
+
     it("takes an answer back that is ticked when a script takes it away, and does not count it", () => {
       const root = element();
       const ctx = context();
@@ -1988,7 +2065,11 @@ describe.each(MODES)("a sorting puzzle drawn for %s", (mode) => {
       const root = element();
       document.body.appendChild(root);
       const ctx = context();
+      // (The objects come mixed up at random; the order the drag ends in must not happen to be that one - the move would then not be a change. With no luck in
+      // it they stand b, c, d, a.)
+      const random = vi.spyOn(Math, "random").mockReturnValue(0.99);
       renderSort(root, props(), ctx);
+      random.mockRestore();
       setOrder(root, ["a", "b", "c", "d"]);
       // (There is no layout here: the middle of every object is given.)
       const place = () => order(root).forEach((id, index) => {

@@ -9,7 +9,7 @@ import { findChrome, preparePlayer, resolvePages } from "./render";
  * state): the slide after the second Weiter, a quiz after it was submitted, a gap text after it was filled in.
  *
  * Steps (one string each; words with spaces in "quotes"):
- *   weiter · zurueck          press → / ←  (the keys of a learner - the module's keyboard navigation has to be on)
+ *   weiter · zurueck          press → / ←  (the keys of a learner - the module's keyboard navigation has to be on; ← takes the builds of the slide back first)
  *   click <text>              click the first visible button, answer or link that has this text
  *   tick <n> [<n> ...]        tick the n-th answers (1, 2, ...) of the first quiz that is not answered yet
  *   submit                    press "Abschicken" of the first quiz or gap text that is not answered yet

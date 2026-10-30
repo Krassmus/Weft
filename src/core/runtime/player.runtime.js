@@ -388,7 +388,7 @@
     if (renderAll || follower) return;
     navPrev = el("button", { type: "button", class: "weft-sr-nav-button" }, []);
     navNext = el("button", { type: "button", class: "weft-sr-nav-button" }, []);
-    navPrev.addEventListener("click", goPrev);
+    navPrev.addEventListener("click", back);
     navNext.addEventListener("click", function () {
       if (pos >= history.length) restart();
       else weiter();
@@ -404,7 +404,7 @@
     navElement.hidden = module.keyboardNavigationEnabled === false;
     navElement.setAttribute("aria-label", uiString("navigation"));
     navPrev.textContent = uiString("previous");
-    navPrev.disabled = pos <= 0;
+    navPrev.disabled = pos <= 0 && !(pos === 0 && buildsDone > 0);
     navNext.textContent = uiString(pos >= history.length ? "restart" : "next");
   }
   var baseTitle = document.title;
@@ -804,18 +804,34 @@
     render(leaving());
   }
 
+  // Back to how things stood when the page at `index` of `history` was entered: its variables and its place in the sequence; what came after is forgotten.
+  function takeBackTo(index) {
+    if (!variablesAtEntry[index]) return;
+    variables = Object.assign({}, variablesAtEntry[index]);
+    cursor = JSON.parse(JSON.stringify(cursorAtEntry[index]));
+    history.length = index + 1;
+    variablesAtEntry.length = index + 1;
+    cursorAtEntry.length = index + 1;
+    gradedAtPos.length = Math.min(gradedAtPos.length, index);
+  }
+
+  // The slide before the one on show.
   function goPrev() {
     if (pos <= 0) return;
     pos--;
-    if (variablesAtEntry[pos]) {
-      variables = Object.assign({}, variablesAtEntry[pos]);
-      cursor = JSON.parse(JSON.stringify(cursorAtEntry[pos]));
-      history.length = pos + 1;
-      variablesAtEntry.length = pos + 1;
-      cursorAtEntry.length = pos + 1;
-      gradedAtPos.length = Math.min(gradedAtPos.length, pos);
-    }
+    takeBackTo(pos);
     render();
+  }
+
+  // "Zurück" (← , a tap on the left, the button for screen readers, the presenter view): on a slide that has been built up with Weiter it takes the builds back - the
+  // slide starts over, as it was when it was entered - and only on one that stands as it began does it go to the slide before.
+  function back() {
+    if (pos >= 0 && pos < history.length && buildsDone > 0) {
+      takeBackTo(pos);
+      render();
+      return;
+    }
+    goPrev();
   }
 
   function restart() {
@@ -1713,7 +1729,7 @@
 
   // ---- keyboard navigation ----
   // Space/→ advance (restarting instead once the module has ended, exactly like the built-in
-  // "Weiter" button block); ← goes back (goPrev() already no-ops safely on the first page).
+  // "Weiter" button block); ← goes back (back(): the builds of the slide first, then the slide before; it no-ops safely on the first page).
   // Skipped for whatever a focused element would otherwise do with that same key natively - a
   // focused button or checkbox already reacts to Space itself, and firing our own handler too
   // would advance/restart a second time on top of that.
@@ -1751,7 +1767,7 @@
     // queue for it, so Weiter here always means "start over", exactly like the "Neu starten"
     // button it shows, same as the ternary every other Weiter-ish control (the button block,
     // quiz auto-advance) already uses.
-    if (isLeft) goPrev();
+    if (isLeft) back();
     else if (pos >= history.length) restart();
     else weiter();
   });
@@ -1781,7 +1797,7 @@
     var now = Date.now();
     if (now - lastTapAdvanceAt < 300) return;
     lastTapAdvanceAt = now;
-    if (goBack) goPrev();
+    if (goBack) back();
     else weiter();
   });
 
@@ -2039,6 +2055,7 @@
       announceAppearing = false;
     }
     updateAdvanceButtons();
+    updateNavigation();
     reportState();
   }
 
@@ -4389,7 +4406,7 @@
       if (data.action === "weiter") {
         if (pos >= history.length) restart();
         else weiter();
-      } else if (data.action === "prev") goPrev();
+      } else if (data.action === "prev") back();
       else if (data.action === "restart") restart();
       else if (data.action === "goto") goToPage(data.pageId, instantly);
       else if (data.action === "sync") {

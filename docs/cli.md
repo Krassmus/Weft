@@ -133,7 +133,7 @@ npm run weft -- play modul.weft --page 4 --steps "tick 1 3 5; submit; weiter" -o
 
 | Schritt | Was er tut |
 |---|---|
-| `weiter` · `zurueck` | → / ← drücken (die Tastaturbedienung des Moduls muss an sein) |
+| `weiter` · `zurueck` | → / ← drücken (die Tastaturbedienung des Moduls muss an sein). ← nimmt zuerst die Aufbauten der Folie zurück (sie beginnt von vorn), erst auf einer Folie, die so steht, wie sie anfing, geht es zur Folie davor |
 | `click <Text>` | den ersten sichtbaren Button, die Antwort oder den Link mit diesem Text anklicken |
 | `tick <n> …` | die n-ten Antworten (ab 1) des ersten noch offenen Quiz ankreuzen |
 | `zuordnen <Objekt> <Ziel>` | im ersten Matching ein Objekt (nach seinem Text) einem Ziel zuordnen |

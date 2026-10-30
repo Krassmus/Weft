@@ -49,6 +49,7 @@ import type { BlockContainerRef } from "../../../core/document/store";
 import { confirmDestructive, pickFilesFromDisk, pickFontFile, pickScriptFile, warnAboutVideoUploads } from "../../../core/io/fileIO";
 import { filesCheckPassword } from "../../../core/runtime/filesCrypto.js";
 import { formatFileSize } from "../blocks/FilesView";
+import { VIDEO_FILE_ACCEPT } from "../../../core/io/videoFileTypes";
 import { useTranscodeStatus } from "../../../core/io/videoTranscode";
 import type {
   Block,
@@ -1180,7 +1181,7 @@ function VideoEditor({
           <span>{tr("ui.video_file")}</span>
           <input
             type="file"
-            accept="video/*"
+            accept={VIDEO_FILE_ACCEPT}
             disabled={transcode.active}
             onChange={(e) => {
               const file = e.target.files?.[0];

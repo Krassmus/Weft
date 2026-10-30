@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { isVideoFile } from "../../core/io/videoFileTypes";
 import { ActionPathOverlay } from "./ActionPathOverlay";
 import { StagePageContext } from "./blocks/stagePage";
 import { stageThemeProps } from "./stageTheme";
@@ -901,7 +902,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
     endFileDrag();
     const rect = e.currentTarget.getBoundingClientRect();
     const mediaFiles = Array.from(e.dataTransfer.files).filter(
-      (f) => f.type.startsWith("image/") || f.type.startsWith("video/") || f.type.startsWith("audio/"),
+      (f) => f.type.startsWith("image/") || isVideoFile(f) || f.type.startsWith("audio/"),
     );
     // Sequential, not Promise.all - addImage/addVideo reads the file's own dimensions before
     // editing the document, and each edit() call is its own undo step, so keeping them in drop
@@ -923,7 +924,7 @@ export function Canvas({ onPresent }: { onPresent: (startPageId: string | null) 
     for (const [index, file] of mediaFiles.entries()) {
       if (imagesDone && file.type.startsWith("image/")) continue;
       const position = dropPosition(e.clientX, e.clientY, rect, index);
-      if (file.type.startsWith("video/")) {
+      if (isVideoFile(file)) {
         const result = await addVideo(file, position);
         lastBlockId = result.blockId;
         videoReports.push({ fileName: file.name, ...result });

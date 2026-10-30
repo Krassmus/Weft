@@ -138,7 +138,8 @@ describe("converting a video to H.264", () => {
     nativeFails = "Cannot Open";
     ffmpegWorks = false;
     const m = await load();
-    await expect(m.transcodeToH264(video())).rejects.toThrow("Cannot Open");
+    // (In words that can be understood, with what the system said at the end.)
+    await expect(m.transcodeToH264(video())).rejects.toThrow(/\.MOV.*Cannot Open/);
     expect(files.size).toBe(0);
     expect(m.useTranscodeStatus.getState().active).toBe(false);
   });

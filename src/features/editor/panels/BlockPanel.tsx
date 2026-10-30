@@ -49,6 +49,7 @@ import type { BlockContainerRef } from "../../../core/document/store";
 import { confirmDestructive, pickFilesFromDisk, pickFontFile, pickScriptFile, warnAboutVideoUploads } from "../../../core/io/fileIO";
 import { filesCheckPassword } from "../../../core/runtime/filesCrypto.js";
 import { formatFileSize } from "../blocks/FilesView";
+import { isTouchDevice } from "../../../core/platform";
 import { VIDEO_FILE_ACCEPT } from "../../../core/io/videoFileTypes";
 import { useTranscodeStatus } from "../../../core/io/videoTranscode";
 import type {
@@ -1181,7 +1182,8 @@ function VideoEditor({
           <span>{tr("ui.video_file")}</span>
           <input
             type="file"
-            accept={VIDEO_FILE_ACCEPT}
+            // (On a tablet no filter: its file picker greys out what the system does not know as a video - an mkv, a raw .hevc - and could not choose it.)
+            accept={isTouchDevice() ? undefined : VIDEO_FILE_ACCEPT}
             disabled={transcode.active}
             onChange={(e) => {
               const file = e.target.files?.[0];

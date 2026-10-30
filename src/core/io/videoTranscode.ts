@@ -195,7 +195,11 @@ export async function transcodeToH264(file: File): Promise<File> {
       }
     }
     if (!converted) {
-      if (!commandName) throw new Error(String(nativeError instanceof Error ? nativeError.message : nativeError));
+      if (!commandName) {
+        // (The system's own words for it are "The operation could not be completed" and the like: said so that it can be understood.)
+        const said = nativeError instanceof Error ? nativeError.message : String(nativeError);
+        throw new Error(tr("ui.video_system_cannot_read", { extension: fileExtension(file.name), said }));
+      }
       await runFfmpeg(commandName, [
         "-y",
         "-i",

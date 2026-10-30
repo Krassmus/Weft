@@ -2,10 +2,14 @@
 // conversion (src/native_video.rs) reads MP4 and MOV and not Matroska, and an iPad has no ffmpeg - so a video that someone downloaded as .mkv could not be converted
 // there at all. Repacked it can: the MP4 goes through AVAssetExportSession like any other.
 //
-// What is taken over: the first video track, H.264 (V_MPEG4/ISO/AVC) or HEVC (V_MPEGH/ISO/HEVC), and the first sound track that is AAC (or else AC-3). A file whose
-// sound is of another kind (DTS, Opus, Vorbis, E-AC-3) is refused with a word that says so, rather than made silent. Other tracks (subtitles, more sounds) are left
-// out. The samples are the same bytes in both containers (a Matroska HEVC or H.264 frame is length-prefixed like an MP4's, the codec's configuration record is the
-// same), so nothing is rewritten but the boxes around them.
+// What is taken over: the first video track, H.264 (V_MPEG4/ISO/AVC) or HEVC (V_MPEGH/ISO/HEVC), and the first sound track that is AAC (or else AC-3). Other tracks
+// (subtitles, more sounds) are left out. The samples are the same bytes in both containers (a Matroska HEVC or H.264 frame is length-prefixed like an MP4's, the
+// codec's configuration record is the same), so nothing is rewritten but the boxes around them.
+//
+// Vorbis (the sound of most .mkv and .webm files from the net) is not something an MP4 holds and the system does not play: it is decoded here (the `lewton` crate)
+// and written as 16-bit PCM, a sound that QuickTime files hold ('sowt') and the export turns into AAC. For that the result has to be a .mov: the system goes by the
+// extension, and reads the PCM in an .mp4 as no sound at all. A sound of any other kind (DTS, Opus, E-AC-3, ...) cannot be had: the file is repacked without sound,
+// and the result says so (Sound::Dropped), for the one who asked to tell the person who added the video.
 //
 // The file is read once from front to back, only its structure is kept in memory (where each frame lies and when it is shown) - a video of many gigabytes is no
 // problem - and the frames are copied over to `mdat` in the order they come. The `moov` follows the data. A frame is shown (PTS) at the time Matroska says; MP4 also
@@ -17,13 +21,24 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
-/// What was repacked: the codecs of the pictures and of the sound (if there is one), as the sample entries of the MP4 name them.
+/// What became of the sound.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Sound {
+    /// The file has none.
+    None,
+    /// Taken over as it is: "mp4a" (AAC) or "ac-3".
+    Copied(&'static str),
+    /// Decoded to PCM: "vorbis".
+    Decoded(&'static str),
+    /// Left out, because it is of a kind that cannot be had here: the codec the file names (A_DTS, A_OPUS, ...).
+    Dropped(String),
+}
+
+/// What was repacked: the codec of the pictures as the sample entry of the MP4 names it ("avc1" for H.264, "hvc1" for HEVC), and what became of the sound.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Repacked {
-    /// "avc1" (H.264) or "hvc1" (HEVC).
     pub video: &'static str,
-    /// "mp4a" (AAC) or "ac-3"; none for a file without sound.
-    pub audio: Option<&'static str>,
+    pub sound: Sound,
 }
 
 /// Whether the file begins like a Matroska (or WebM) file: the EBML header.
@@ -491,6 +506,14 @@ struct OutTrack {
     media_start: u32,
     /// The length of the media in the units of its timescale.
     duration: u64,
+    /// For a sound that was decoded: where its PCM lies (the samples above are none).
+    pcm: Option<Pcm>,
+}
+
+struct Pcm {
+    frames: u64,
+    channels: u32,
+    chunk_offset: u64,
 }
 
 struct OutSample {
@@ -531,6 +554,46 @@ fn audio_entry(kind: &[u8; 4], channels: u32, sample_rate: u32, config: Vec<u8>)
     payload.extend_from_slice(&(if sample_rate <= 0xFFFF { sample_rate << 16 } else { 0 }).to_be_bytes());
     payload.extend(config);
     bx(kind, &payload)
+}
+
+/// The sample entry of 16-bit PCM in the way of QuickTime ('sowt': little-endian), with the extra fields of version 1 that say how it is packed (one sample is one frame).
+fn pcm_entry(channels: u32, sample_rate: u32) -> Vec<u8> {
+    let mut payload = vec![0u8; 6];
+    payload.extend_from_slice(&1u16.to_be_bytes());
+    payload.extend_from_slice(&1u16.to_be_bytes()); // version 1
+    payload.extend_from_slice(&[0u8; 6]);
+    payload.extend_from_slice(&(channels as u16).to_be_bytes());
+    payload.extend_from_slice(&16u16.to_be_bytes());
+    payload.extend_from_slice(&[0u8; 4]);
+    payload.extend_from_slice(&(if sample_rate <= 0xFFFF { sample_rate << 16 } else { 0 }).to_be_bytes());
+    payload.extend_from_slice(&be32(1)); // samples per packet
+    payload.extend_from_slice(&be32(2)); // bytes per packet (of one channel)
+    payload.extend_from_slice(&be32(2 * channels)); // bytes per frame
+    payload.extend_from_slice(&be32(2)); // bytes per sample
+    bx(b"sowt", &payload)
+}
+
+/// The three headers of a Vorbis track from its CodecPrivate (Xiph lacing: the number of packets less one, the sizes of all but the last, the packets): the one
+/// that identifies the stream, the comments (not needed) and the setup.
+fn vorbis_headers(private: &[u8]) -> Option<(&[u8], &[u8])> {
+    if *private.first()? != 2 {
+        return None;
+    }
+    let mut at = 1usize;
+    let mut sizes = [0usize; 2];
+    for size in &mut sizes {
+        loop {
+            let byte = *private.get(at)?;
+            at += 1;
+            *size += byte as usize;
+            if byte != 255 {
+                break;
+            }
+        }
+    }
+    let identification = private.get(at..at + sizes[0])?;
+    let setup = private.get(at + sizes[0] + sizes[1]..)?;
+    Some((identification, setup))
 }
 
 /// The `esds` box of an AAC track with its AudioSpecificConfig.
@@ -676,7 +739,34 @@ fn trak(track: &OutTrack, id: u32) -> Vec<u8> {
     bx(b"trak", &join(&parts))
 }
 
+/// The sample table of PCM that lies in one piece: one sample is one frame, so the tables are a line each.
+fn stbl_pcm(track: &OutTrack, pcm: &Pcm) -> Vec<u8> {
+    let frames = pcm.frames as u32;
+    let mut stts = be32(1).to_vec();
+    stts.extend_from_slice(&be32(frames));
+    stts.extend_from_slice(&be32(1));
+    let mut stsc = be32(1).to_vec();
+    stsc.extend_from_slice(&[&be32(1)[..], &be32(frames)[..], &be32(1)[..]].concat());
+    let mut stsz = be32(2 * pcm.channels).to_vec();
+    stsz.extend_from_slice(&be32(frames));
+    let mut co64 = be32(1).to_vec();
+    co64.extend_from_slice(&pcm.chunk_offset.to_be_bytes());
+    bx(
+        b"stbl",
+        &join(&[
+            full(b"stsd", 0, 0, &join(&[be32(1).to_vec(), track.entry.clone()])),
+            full(b"stts", 0, 0, &stts),
+            full(b"stsc", 0, 0, &stsc),
+            full(b"stsz", 0, 0, &stsz),
+            full(b"co64", 0, 0, &co64),
+        ]),
+    )
+}
+
 fn stbl(track: &OutTrack) -> Vec<u8> {
+    if let Some(pcm) = &track.pcm {
+        return stbl_pcm(track, pcm);
+    }
     let samples = &track.samples;
     let mut parts = vec![full(b"stsd", 0, 0, &join(&[be32(1).to_vec(), track.entry.clone()]))];
     let deltas = run_length(&samples.iter().map(|s| s.delta).collect::<Vec<_>>());
@@ -739,7 +829,42 @@ fn stbl(track: &OutTrack) -> Vec<u8> {
     bx(b"stbl", &join(&parts))
 }
 
-/// Repacks the Matroska file at `input` into an MP4 at `output`.
+/// Turns the packets of a Vorbis track into 16-bit PCM, interleaved and little-endian.
+struct VorbisDecoder {
+    identification: lewton::header::IdentHeader,
+    setup: lewton::header::SetupHeader,
+    previous: lewton::audio::PreviousWindowRight,
+    channels: u32,
+    sample_rate: u32,
+}
+
+impl VorbisDecoder {
+    /// From the CodecPrivate of the track; none if it does not hold the headers of a stream with sound that can be had.
+    fn new(private: &[u8]) -> Option<VorbisDecoder> {
+        let (identification, setup) = vorbis_headers(private)?;
+        let identification = lewton::header::read_header_ident(identification).ok()?;
+        let setup = lewton::header::read_header_setup(setup, identification.audio_channels, (identification.blocksize_0, identification.blocksize_1)).ok()?;
+        let (channels, sample_rate) = (identification.audio_channels as u32, identification.audio_sample_rate);
+        if channels == 0 || sample_rate == 0 {
+            return None;
+        }
+        Some(VorbisDecoder { identification, setup, previous: lewton::audio::PreviousWindowRight::new(), channels, sample_rate })
+    }
+
+    /// Appends the sound of one packet to `bytes` and returns how many frames (one sample of every channel) that is. A packet that cannot be read gives none.
+    fn decode(&mut self, packet: &[u8], bytes: &mut Vec<u8>) -> u64 {
+        let Ok(channels) = lewton::audio::read_audio_packet(&self.identification, &self.setup, packet, &mut self.previous) else { return 0 };
+        let frames = channels.first().map(|c| c.len()).unwrap_or(0);
+        for frame in 0..frames {
+            for channel in &channels {
+                bytes.extend_from_slice(&channel[frame].to_le_bytes());
+            }
+        }
+        frames as u64
+    }
+}
+
+/// Repacks the Matroska file at `input` into an MP4 at `output`. (An output with decoded sound has to be named `.mov` - see the head of this file.)
 pub fn remux_mkv_to_mp4(input: &Path, output: &Path) -> Result<Repacked, String> {
     let parsed = parse(input)?;
     let scale = parsed.timecode_scale;
@@ -755,18 +880,26 @@ pub fn remux_mkv_to_mp4(input: &Path, output: &Path) -> Result<Repacked, String>
     if video_track.private.is_empty() {
         return Err("The file does not say how its pictures are coded.".to_string());
     }
-    // The sound: the first track that is AAC, else the first that is AC-3. A file that has sound of no such kind is refused rather than made silent.
+    // The sound: the first track that is AAC, else AC-3, else Vorbis (which is decoded). A file that has sound of no such kind is repacked without it - and says so.
     let sound_tracks: Vec<&Track> = parsed.tracks.iter().filter(|t| t.kind == 2 && !t.encoded).collect();
-    let audio_track = sound_tracks
+    let mut audio_track = sound_tracks
         .iter()
         .find(|t| t.codec.starts_with("A_AAC"))
         .or_else(|| sound_tracks.iter().find(|t| t.codec == "A_AC3"))
+        .or_else(|| sound_tracks.iter().find(|t| t.codec == "A_VORBIS"))
         .copied();
-    if audio_track.is_none() {
-        if let Some(track) = parsed.tracks.iter().find(|t| t.kind == 2) {
-            return Err(format!("The sound of this file ({}) cannot be taken over: only AAC and AC-3.", track.codec));
+    let mut vorbis = None;
+    if let Some(track) = audio_track.filter(|t| t.codec == "A_VORBIS") {
+        match VorbisDecoder::new(&track.private) {
+            Some(decoder) => vorbis = Some(decoder),
+            None => audio_track = None,
         }
     }
+    let mut sound = match parsed.tracks.iter().find(|t| t.kind == 2) {
+        None => Sound::None,
+        Some(first) if audio_track.is_none() => Sound::Dropped(if first.encoded { "compressed or encrypted".to_string() } else { first.codec.clone() }),
+        Some(_) => Sound::None,
+    };
 
     let mut input_file = File::open(input).map_err(|e| e.to_string())?;
     let video_timescale = (1_000_000_000 / scale).clamp(1, u32::MAX as u64) as u32;
@@ -813,13 +946,33 @@ pub fn remux_mkv_to_mp4(input: &Path, output: &Path) -> Result<Repacked, String>
         start_ms: ms((sorted[0] - zero) as u64, video_timescale),
         media_start: shift as u32,
         duration: video_duration,
+        pcm: None,
     }];
 
-    let mut audio_codec = None;
-    if let Some(track) = audio_track {
+    let mut pcm_frames: Vec<&Frame> = Vec::new();
+    if audio_track.is_some() {
         if audio_frames.is_empty() {
             return Err("The file has no sound.".to_string());
         }
+        if let Some(decoder) = &vorbis {
+            // (The samples are written below, decoded one packet after the other.)
+            sound = Sound::Decoded("vorbis");
+            pcm_frames = audio_frames.clone();
+            out_tracks.push(OutTrack {
+                video: false,
+                timescale: decoder.sample_rate,
+                entry: pcm_entry(decoder.channels, decoder.sample_rate),
+                width: 0,
+                height: 0,
+                samples: Vec::new(),
+                start_ms: ms((audio_frames[0].pts - zero).max(0) as u64, video_timescale),
+                media_start: 0,
+                duration: 0,
+                pcm: Some(Pcm { frames: 0, channels: decoder.channels, chunk_offset: 0 }),
+            });
+        }
+    }
+    if let Some(track) = audio_track.filter(|_| vorbis.is_none()) {
         let (entry, frame_samples, rate, codec): (Vec<u8>, u32, u32, &'static str) = if track.codec.starts_with("A_AAC") {
             if track.private.len() < 2 {
                 return Err("The file does not say how its sound is coded.".to_string());
@@ -834,7 +987,7 @@ pub fn remux_mkv_to_mp4(input: &Path, output: &Path) -> Result<Repacked, String>
             let (config, rate, channels) = ac3_config(&head).ok_or("The sound of this file is not AC-3 as it says.")?;
             (audio_entry(b"ac-3", channels, rate, config), 1536, rate, "ac-3")
         };
-        audio_codec = Some(codec);
+        sound = Sound::Copied(codec);
         let samples: Vec<OutSample> = audio_frames
             .iter()
             .map(|frame| OutSample { source: frame.offset, size: frame.size, delta: frame_samples, offset: 0, key: true, written_at: 0, chunk: 0 })
@@ -850,6 +1003,7 @@ pub fn remux_mkv_to_mp4(input: &Path, output: &Path) -> Result<Repacked, String>
             start_ms: ms((audio_frames[0].pts - zero).max(0) as u64, video_timescale),
             media_start: 0,
             duration,
+            pcm: None,
         });
     }
 
@@ -884,13 +1038,31 @@ pub fn remux_mkv_to_mp4(input: &Path, output: &Path) -> Result<Repacked, String>
         sample.chunk = chunk;
         written += sample.size as u64;
     }
+    if let Some(mut decoder) = vorbis {
+        let chunk_offset = written;
+        let mut frames = 0u64;
+        let mut bytes: Vec<u8> = Vec::new();
+        for frame in &pcm_frames {
+            buffer.resize(frame.size as usize, 0);
+            input_file.seek(SeekFrom::Start(frame.offset)).map_err(io)?;
+            input_file.read_exact(&mut buffer).map_err(io)?;
+            bytes.clear();
+            frames += decoder.decode(&buffer, &mut bytes);
+            out.write_all(&bytes).map_err(io)?;
+        }
+        written += frames * 2 * decoder.channels as u64;
+        if let Some(track) = out_tracks.iter_mut().find(|t| t.pcm.is_some()) {
+            track.duration = frames;
+            track.pcm = Some(Pcm { frames, channels: decoder.channels, chunk_offset });
+        }
+    }
     out.seek(SeekFrom::Start(mdat_at + 8)).map_err(io)?;
     out.write_all(&(written - mdat_at).to_be_bytes()).map_err(io)?;
     out.seek(SeekFrom::Start(written)).map_err(io)?;
     let movie_duration = out_tracks.iter().map(|t| ms(t.duration, t.timescale) + t.start_ms).max().unwrap_or(0);
     out.write_all(&moov(&out_tracks, movie_duration)).map_err(io)?;
     out.flush().map_err(io)?;
-    Ok(Repacked { video: video_codec, audio: audio_codec })
+    Ok(Repacked { video: video_codec, sound })
 }
 
 #[cfg(test)]
@@ -1024,7 +1196,7 @@ mod tests {
         let bytes = std::fs::read(&mp4).unwrap();
         let _ = std::fs::remove_file(&mkv);
         let _ = std::fs::remove_file(&mp4);
-        assert_eq!(result, Ok(Repacked { video: "avc1", audio: None }));
+        assert_eq!(result, Ok(Repacked { video: "avc1", sound: Sound::None }));
 
         assert_eq!(&bytes[4..8], b"ftyp");
         // The sizes of the three pictures, as they were decoded.
@@ -1047,7 +1219,52 @@ mod tests {
     }
 
     #[test]
-    fn refuses_a_file_that_is_not_matroska_or_has_sound_it_cannot_take() {
+    fn reads_the_headers_of_a_vorbis_track() {
+        // Three packets: the lengths 3 and 2 are told, the third is the rest.
+        assert_eq!(vorbis_headers(&[2, 3, 2, 1, 1, 1, 2, 2, 9, 9, 9]), Some((&[1u8, 1, 1][..], &[9u8, 9, 9][..])));
+        // A length of more than 255 is told in several bytes.
+        let mut private = vec![2, 255, 45, 1];
+        private.extend(vec![7u8; 300]);
+        private.push(5);
+        private.extend([8u8, 8]);
+        let (identification, setup) = vorbis_headers(&private).unwrap();
+        assert_eq!((identification.len(), setup.len()), (300, 2));
+        assert_eq!(vorbis_headers(&[1, 3, 4]), None);
+        assert_eq!(vorbis_headers(&[2, 200]), None);
+        // (Headers that are none: no decoder.)
+        assert!(VorbisDecoder::new(&[2, 3, 2, 1, 1, 1, 2, 2, 9, 9, 9]).is_none());
+    }
+
+    #[test]
+    fn repacks_a_file_with_sound_it_cannot_take_without_it_and_says_so() {
+        let video = [
+            uint_el(ID_TRACK_NUMBER, 1),
+            uint_el(ID_TRACK_TYPE, 1),
+            el(ID_CODEC_ID, b"V_MPEGH/ISO/HEVC"),
+            el(ID_CODEC_PRIVATE, &[1, 1, 0x60]),
+            el(ID_VIDEO, &join(&[uint_el(ID_PIXEL_WIDTH, 64), uint_el(ID_PIXEL_HEIGHT, 48)])),
+        ]
+        .concat();
+        let sound = [uint_el(ID_TRACK_NUMBER, 2), uint_el(ID_TRACK_TYPE, 2), el(ID_CODEC_ID, b"A_DTS")].concat();
+        let cluster = join(&[uint_el(ID_CLUSTER_TIMECODE, 0), simple_block(1, 0, true, &[1; 4]), simple_block(2, 0, true, &[2; 4]), simple_block(1, 40, true, &[3; 4])]);
+        let mut file = el(ID_EBML, &[]);
+        file.extend(el(ID_SEGMENT, &join(&[el(ID_TRACKS, &join(&[el(ID_TRACK_ENTRY, &video), el(ID_TRACK_ENTRY, &sound)])), el(ID_CLUSTER, &cluster)])));
+        let directory = std::env::temp_dir();
+        let mkv = directory.join(format!("weft-remux-test-dts-{}.mkv", std::process::id()));
+        let mp4 = directory.join(format!("weft-remux-test-dts-{}.mov", std::process::id()));
+        std::fs::write(&mkv, &file).unwrap();
+        let result = remux_mkv_to_mp4(&mkv, &mp4);
+        let bytes = std::fs::read(&mp4).unwrap_or_default();
+        let _ = std::fs::remove_file(&mkv);
+        let _ = std::fs::remove_file(&mp4);
+        assert_eq!(result, Ok(Repacked { video: "hvc1", sound: Sound::Dropped("A_DTS".to_string()) }));
+        // One track only: the pictures.
+        assert_eq!(bytes.windows(4).filter(|w| *w == b"trak").count(), 1);
+        assert_eq!(bytes.windows(4).filter(|w| *w == b"hvcC").count(), 1);
+    }
+
+    #[test]
+    fn refuses_a_file_that_is_not_matroska() {
         let directory = std::env::temp_dir();
         let path = directory.join(format!("weft-remux-test-other-{}.mkv", std::process::id()));
         std::fs::write(&path, b"not a matroska file at all").unwrap();

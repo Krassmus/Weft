@@ -13,9 +13,17 @@ pub fn native_video_conversion_available() -> bool {
     cfg!(any(target_os = "macos", target_os = "ios"))
 }
 
+/// What a conversion came to besides the file.
+#[derive(serde::Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct NativeConversion {
+    /// Set when the video had sound that could not be taken over (the codec the file names, like "A_DTS"): the result has none.
+    pub sound_dropped: Option<String>,
+}
+
 /// Converts the video at `input` into an H.264/AAC MP4 at `output` (a path that does not exist yet). Reports progress as events.
 #[tauri::command]
-pub async fn native_video_to_h264(app: tauri::AppHandle, input: String, output: String) -> Result<(), String> {
+pub async fn native_video_to_h264(app: tauri::AppHandle, input: String, output: String) -> Result<NativeConversion, String> {
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     {
         use tauri::Emitter;
@@ -30,20 +38,26 @@ pub async fn native_video_to_h264(app: tauri::AppHandle, input: String, output: 
     #[cfg(not(any(target_os = "macos", target_os = "ios")))]
     {
         let _ = (app, input, output);
-        Err("unsupported".to_string())
+        Err::<NativeConversion, String>("unsupported".to_string())
     }
 }
 
-/// The conversion itself. A Matroska file (.mkv) is first repacked into an MP4 without encoding (the system reads no Matroska, see mkv_remux.rs), then exported.
+/// The conversion itself. A Matroska file (.mkv) is first repacked into a QuickTime file without encoding the pictures (the system reads no Matroska, see
+/// mkv_remux.rs), then exported. (The name has to end in .mov: a sound that was decoded is PCM, which the system reads in a .mov and takes for no sound in an .mp4.)
 #[cfg(any(target_os = "macos", target_os = "ios"))]
-fn convert(input: &str, output: &str, progress: impl Fn(f32)) -> Result<(), String> {
+fn convert(input: &str, output: &str, progress: impl Fn(f32)) -> Result<NativeConversion, String> {
+    use crate::mkv_remux::{is_matroska, remux_mkv_to_mp4, Sound};
     use std::path::Path;
-    if !crate::mkv_remux::is_matroska(Path::new(input)) {
-        return export(input, output, progress);
+    if !is_matroska(Path::new(input)) {
+        export(input, output, progress)?;
+        return Ok(NativeConversion::default());
     }
-    let repacked = format!("{output}.repacked.mp4");
+    let repacked = format!("{output}.repacked.mov");
     let _ = std::fs::remove_file(&repacked);
-    let result = crate::mkv_remux::remux_mkv_to_mp4(Path::new(input), Path::new(&repacked)).and_then(|_| export(&repacked, output, progress));
+    let result = remux_mkv_to_mp4(Path::new(input), Path::new(&repacked)).and_then(|repacked_as| {
+        export(&repacked, output, progress)?;
+        Ok(NativeConversion { sound_dropped: if let Sound::Dropped(codec) = repacked_as.sound { Some(codec) } else { None } })
+    });
     let _ = std::fs::remove_file(&repacked);
     result
 }
@@ -102,7 +116,8 @@ mod tests {
     fn converts_a_video_given_by_the_environment() {
         let input = std::env::var("WEFT_TEST_VIDEO").expect("WEFT_TEST_VIDEO");
         let output = std::env::var("WEFT_TEST_OUT").expect("WEFT_TEST_OUT");
-        super::convert(&input, &output, |fraction| println!("progress {fraction}")).expect("conversion");
+        let result = super::convert(&input, &output, |fraction| println!("progress {fraction}")).expect("conversion");
+        println!("sound dropped: {:?}", result.sound_dropped);
         assert!(std::fs::metadata(&output).map(|meta| meta.len() > 0).unwrap_or(false));
     }
 }

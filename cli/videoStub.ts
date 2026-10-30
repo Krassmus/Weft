@@ -11,6 +11,9 @@ export function isVideoConversionAvailable(): Promise<boolean> {
 export function transcodeToH264(): Promise<never> {
   return Promise.reject(new Error("Videos lassen sich im Kommandozeilenwerkzeug nicht umwandeln."));
 }
+export function soundDroppedOf(): null {
+  return null;
+}
 export function useTranscodeStatus(): never {
   throw new Error("not available");
 }

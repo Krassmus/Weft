@@ -144,11 +144,23 @@ function runFfmpeg(commandName: string, args: string[]): Promise<void> {
   });
 }
 
-/** The conversion by the system (see native_video.rs), with its progress from the event it sends. */
-async function runNative(inputPath: string, outputPath: string): Promise<void> {
+// For a converted video that came out without the sound of the original (see soundDroppedOf).
+const droppedSounds = new WeakMap<File, string>();
+
+/**
+ * The codec of the sound that a conversion had to leave out ("A_DTS", "A_OPUS", ...), if `converted` - a file transcodeToH264 returned - has no sound because of it.
+ * The system converts the sound of most files, but not of every kind (see mkv_remux.rs): the video is then made without, and whoever added it is told.
+ */
+export function soundDroppedOf(converted: File): string | null {
+  return droppedSounds.get(converted) ?? null;
+}
+
+/** The conversion by the system (see native_video.rs), with its progress from the event it sends. Returns the codec of the sound it left out, if it did. */
+async function runNative(inputPath: string, outputPath: string): Promise<string | null> {
   const unlisten = await listen<number>("weft://video-progress", (event) => useTranscodeStatus.setState({ progress: Math.min(1, Math.max(0, event.payload)) }));
   try {
-    await invoke("native_video_to_h264", { input: inputPath, output: outputPath });
+    const result = await invoke<{ soundDropped?: string | null } | null>("native_video_to_h264", { input: inputPath, output: outputPath });
+    return result?.soundDropped ?? null;
   } finally {
     unlisten();
   }
@@ -182,9 +194,10 @@ export async function transcodeToH264(file: File): Promise<File> {
     await writeFile(inputPath, new Uint8Array(await file.arrayBuffer()));
     let converted = false;
     let nativeError: unknown = null;
+    let soundDropped: string | null = null;
     if (native) {
       try {
-        await runNative(inputPath, outputPath);
+        soundDropped = await runNative(inputPath, outputPath);
         converted = true;
       } catch (err) {
         // (A file the system does not read: ffmpeg, if there is one, tries it.)
@@ -223,7 +236,9 @@ export async function transcodeToH264(file: File): Promise<File> {
     }
     const bytes = await readFile(outputPath);
     const outName = `${file.name.replace(/\.[^.]+$/, "")}.mp4`;
-    return new File([bytes], outName, { type: "video/mp4" });
+    const result = new File([bytes], outName, { type: "video/mp4" });
+    if (soundDropped) droppedSounds.set(result, soundDropped);
+    return result;
   } finally {
     useTranscodeStatus.setState(IDLE_STATUS);
     await remove(inputPath).catch(() => {});

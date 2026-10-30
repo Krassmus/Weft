@@ -52,6 +52,7 @@ tauri-plugin-deep-link = "2"
 # as a fallback "image" representation, not the actual photo. See the `arboard` dependency below
 # for the fix.
 tauri-plugin-clipboard-manager = "2"
+lewton = { version = "0.10", default-features = false }
 # Reads an actual file path list off the pasteboard (arboard's own `get().file_list()`) - the one
 # thing tauri-plugin-clipboard-manager's JS API above doesn't expose at all, needed so a Finder
 # file copy can be read from disk with its real bytes/format intact (see read_clipboard_file_paths

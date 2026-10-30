@@ -1,7 +1,7 @@
 import { createId } from "../id";
 import { aspectRatioNumeric } from "../aspectRatio";
 import { useAssetStore } from "../assets/assetStore";
-import { isVideoConversionAvailable, transcodeToH264 } from "../io/videoTranscode";
+import { isVideoConversionAvailable, soundDroppedOf, transcodeToH264 } from "../io/videoTranscode";
 import { isNotEverywherePlayable, sniffVideoCodec } from "../io/videoCodec";
 import type {
   ActionEffect,
@@ -1367,6 +1367,14 @@ export interface VideoUploadResult {
   /** The size of the file that was stored (after a conversion, if one happened) - for warning about a
    * very large one, see warnAboutVideoUploads in io/fileIO.ts. */
   sizeBytes: number;
+  /** The codec of the sound that the conversion had to leave out ("A_DTS", ...): the stored video has none (see soundDroppedOf in io/videoTranscode.ts). */
+  soundDropped?: string;
+}
+
+/** `{ soundDropped }` for a converted file that came out without the sound of the original, else nothing - to be spread into a VideoUploadResult. */
+function droppedSound(converted: File): { soundDropped?: string } {
+  const codec = soundDroppedOf(converted);
+  return codec ? { soundDropped: codec } : {};
 }
 
 /** The file to actually store for a video upload, plus its aspect ratio and its VideoUploadResult
@@ -1385,7 +1393,7 @@ async function resolvePlayableVideo(file: File): Promise<{ file: File; aspect: n
       try {
         const converted = await transcodeToH264(file);
         const reprobe = await probeVideo(converted);
-        if (reprobe.playable) return { file: converted, aspect: reprobe.aspect, playable: true, ffmpegAttempted: true };
+        if (reprobe.playable) return { file: converted, aspect: reprobe.aspect, playable: true, ffmpegAttempted: true, ...droppedSound(converted) };
       } catch (err) {
         console.error("Video-Konvertierung fehlgeschlagen:", err instanceof Error ? err.message : err);
       }
@@ -1396,7 +1404,7 @@ async function resolvePlayableVideo(file: File): Promise<{ file: File; aspect: n
   try {
     const converted = await transcodeToH264(file);
     const reprobe = await probeVideo(converted);
-    return { file: converted, aspect: reprobe.aspect, playable: reprobe.playable, ffmpegAttempted: true };
+    return { file: converted, aspect: reprobe.aspect, playable: reprobe.playable, ffmpegAttempted: true, ...droppedSound(converted) };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("Video-Konvertierung fehlgeschlagen:", message);

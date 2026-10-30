@@ -495,6 +495,8 @@ export interface VideoUploadReport {
   ffmpegAttempted: boolean;
   error?: string;
   sizeBytes: number;
+  /** The codec of the sound the conversion had to leave out - see VideoUploadResult in document/actions.ts. */
+  soundDropped?: string;
 }
 
 function formatSize(bytes: number): string {
@@ -529,11 +531,26 @@ export async function warnLargeVideos(videos: { fileName: string; sizeBytes: num
   );
 }
 
+/** What a codec of the sound is called to the people who read this ("A_DTS" -> "DTS"); the ones that have a well-known name, else the id as the file has it. */
+function soundName(codec: string): string {
+  const known: Record<string, string> = { A_DTS: "DTS", A_OPUS: "Opus", A_EAC3: "E-AC-3", A_FLAC: "FLAC", A_TRUEHD: "TrueHD", A_MPEG: "MP3", A_PCM: "PCM" };
+  const key = Object.keys(known).find((id) => codec === id || codec.startsWith(`${id}/`));
+  return key ? known[key] : codec.replace(/^A_/, "");
+}
+
+/** A heads-up for videos that were converted but came out without sound, because the sound is of a kind this device cannot convert (see soundDroppedOf in videoTranscode.ts). */
+export async function warnSilentVideos(videos: { fileName: string; soundDropped: string }[]): Promise<void> {
+  const list = videos.map((v) => `„${v.fileName}“ (${soundName(v.soundDropped)})`).join(", ");
+  await showWarning(tr(videos.length === 1 ? "ui.video_without_sound_one" : "ui.video_without_sound_many", { list }), tr("ui.video_without_sound"));
+}
+
 /** Everything worth telling the author about videos that were just added: those that may not play back
- * (see warnUnplayableVideo) first, then those that are very large (see warnLargeVideos). */
+ * (see warnUnplayableVideo) first, then those that came out without sound (see warnSilentVideos), then those that are very large (see warnLargeVideos). */
 export async function warnAboutVideoUploads(reports: VideoUploadReport[]): Promise<void> {
   const unplayable = reports.filter((r) => !r.playable);
   if (unplayable.length > 0) await warnUnplayableVideo(unplayable);
+  const silent = reports.flatMap((r) => (r.soundDropped ? [{ fileName: r.fileName, soundDropped: r.soundDropped }] : []));
+  if (silent.length > 0) await warnSilentVideos(silent);
   const large = reports.filter((r) => r.sizeBytes >= LARGE_VIDEO_BYTES);
   if (large.length > 0) await warnLargeVideos(large);
 }

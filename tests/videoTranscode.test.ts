@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const calls: string[] = [];
 let nativeAvailable = true;
 let nativeFails: string | null = null;
+let nativeDropsSound: string | null = null;
 let ffmpegWorks = true;
 let ffmpegFails = false;
 const files = new Map<string, Uint8Array>();
@@ -18,7 +19,7 @@ vi.mock("@tauri-apps/api/core", () => ({
     if (command === "native_video_to_h264") {
       if (nativeFails) throw new Error(nativeFails);
       files.set(args!.output, new Uint8Array([1, 2, 3, 4]));
-      return undefined;
+      return { soundDropped: nativeDropsSound };
     }
     throw new Error(`unexpected ${command}`);
   }),
@@ -80,6 +81,7 @@ beforeEach(() => {
   files.clear();
   nativeAvailable = true;
   nativeFails = null;
+  nativeDropsSound = null;
   ffmpegWorks = true;
   ffmpegFails = false;
 });
@@ -107,6 +109,17 @@ describe("converting a video to H.264", () => {
     expect(calls).toContain("invoke:native_video_to_h264");
     expect(files.size).toBe(0);
     expect(m.useTranscodeStatus.getState().active).toBe(false);
+  });
+
+  it("tells which sound the system had to leave out - of that file only", async () => {
+    nativeDropsSound = "A_DTS";
+    const m = await load();
+    const silent = await m.transcodeToH264(video());
+    expect(m.soundDroppedOf(silent)).toBe("A_DTS");
+    nativeDropsSound = null;
+    const sounding = await m.transcodeToH264(video());
+    expect(m.soundDroppedOf(sounding)).toBeNull();
+    expect(m.soundDroppedOf(silent)).toBe("A_DTS");
   });
 
   it("shows the progress the system reports while it works", async () => {

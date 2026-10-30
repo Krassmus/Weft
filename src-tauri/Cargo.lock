@@ -2084,6 +2084,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "lewton"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "777b48df9aaab155475a83a7df3070395ea1ac6902f5cd062b8f2b028075c030"
+dependencies = [
+ "byteorder",
+ "tinyvec",
+]
+
+[[package]]
 name = "libappindicator"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4871,6 +4881,7 @@ dependencies = [
  "arboard",
  "block2",
  "getrandom 0.2.17",
+ "lewton",
  "objc2",
  "objc2-app-kit",
  "objc2-av-foundation",

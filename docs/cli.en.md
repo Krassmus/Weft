@@ -133,7 +133,7 @@ npm run weft -- play module.weft --page 4 --steps "tick 1 3 5; submit; weiter" -
 
 | Step | What it does |
 |---|---|
-| `weiter` · `zurueck` | press → / ← (the module's keyboard navigation has to be on). ← takes the builds of the slide back first (it starts over); only on a slide that stands as it began does it go to the slide before |
+| `weiter` · `zurueck` | press → / ← (the module's keyboard navigation has to be on). ← takes the builds of the slide back first (it starts over); only on a slide that stands as it began does it go to the slide before - also before the one the game began with (`--page`), where the slide before is certain: not when a branch or a jump page lies before it |
 | `click <text>` | click the first visible button, answer or link with this text |
 | `tick <n> …` | tick the n-th answers (from 1) of the first quiz that is still open |
 | `zuordnen <object> <target>` | in the first matching, assign an object (by its text) to a target |

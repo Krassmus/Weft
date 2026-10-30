@@ -404,7 +404,7 @@
     navElement.hidden = module.keyboardNavigationEnabled === false;
     navElement.setAttribute("aria-label", uiString("navigation"));
     navPrev.textContent = uiString("previous");
-    navPrev.disabled = pos <= 0 && !(pos === 0 && buildsDone > 0);
+    navPrev.disabled = pos <= 0 && !(pos === 0 && (buildsDone > 0 || placeBeforeStart()));
     navNext.textContent = uiString(pos >= history.length ? "restart" : "next");
   }
   var baseTitle = document.title;
@@ -815,9 +815,48 @@
     gradedAtPos.length = Math.min(gradedAtPos.length, index);
   }
 
+  // The place of the slide before the first one the learner has seen - what the slide before is when the presentation was started in the middle of the module
+  // ("Abspielen" on slide 5: ← on it goes to slide 4). Only where that is certain: the slide before in the same way (the sequence, or the branch the slide is in),
+  // or the one before a branch the slide starts. Where the slide before is a branch (which of its ways the learner would have come by is not known) or a jump
+  // page (never shown), there is none: null.
+  function placeBeforeStart() {
+    var first = cursorAtEntry[0];
+    if (pos !== 0 || !first) return null;
+    var place = null;
+    if (first.branch && first.branch.pos > 0) {
+      place = { topIndex: first.topIndex, branch: { logicBlockId: first.branch.logicBlockId, branchId: first.branch.branchId, pages: first.branch.pages, pos: first.branch.pos - 1 } };
+    } else {
+      var node = first.topIndex > 0 ? module.sequence[first.topIndex - 1] : null;
+      if (node && node.kind === "page") place = { topIndex: first.topIndex - 1, branch: null };
+    }
+    if (!place) return null;
+    var pageId = place.branch ? place.branch.pages[place.branch.pos] : module.sequence[place.topIndex].pageId;
+    var page = module.pages[pageId];
+    return page && !page.jump ? { place: place, pageId: pageId } : null;
+  }
+
+  // ← on the first slide that was shown, where there is a slide before it (see placeBeforeStart): that one is shown, with the variables of the beginning; the way
+  // on from there is the one of the sequence again.
+  function goBeforeStart() {
+    var before = placeBeforeStart();
+    if (!before) return;
+    var snapshot = Object.assign({}, variablesAtEntry[0]);
+    variables = Object.assign({}, snapshot);
+    cursor = JSON.parse(JSON.stringify(before.place));
+    history = [before.pageId];
+    variablesAtEntry = [snapshot];
+    cursorAtEntry = [JSON.parse(JSON.stringify(before.place))];
+    gradedAtPos = [];
+    pos = 0;
+    render();
+  }
+
   // The slide before the one on show.
   function goPrev() {
-    if (pos <= 0) return;
+    if (pos <= 0) {
+      if (pos === 0) goBeforeStart();
+      return;
+    }
     pos--;
     takeBackTo(pos);
     render();
@@ -2932,7 +2971,7 @@
     // "Nächste Folie". Besides that:
     var clickEventId = "button-click:" + block.id;
     if (block.action === "prev") {
-      button.disabled = pos <= 0;
+      button.disabled = pos <= 0 && !placeBeforeStart();
       button.addEventListener("click", function () {
         (block.onClick || []).forEach(applyEffect);
         happened(clickEventId);

@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { appCacheDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, readFile, remove, writeFile } from "@tauri-apps/plugin-fs";
 import { Command } from "@tauri-apps/plugin-shell";
@@ -7,6 +9,10 @@ import { isTauri } from "./fileIO";
 import { tr } from "../i18n/tr";
 
 /**
+ * Two ways to convert, tried in this order: the system's own (AVFoundation, src-tauri/src/native_video.rs - on the iPad and the Mac: nothing to install, hardware
+ * quick, and the only way on the iPad, where an app cannot start another program) and an ffmpeg of the computer (all that Windows and Linux have, and what reads
+ * the formats AVFoundation does not: webm, mkv). A file the system does not read falls through to ffmpeg where there is one.
+ *
  * ffmpeg isn't bundled with Weft - that would mean shipping a ~50-80MB binary per platform (mac/
  * Windows/Linux, each its own build) plus real licensing homework (H.264 *encoding* needs
  * libx264, which is GPL; fine to invoke as a separate process the way this does, murkier to
@@ -46,6 +52,21 @@ async function findFfmpegCommandName(): Promise<string | null> {
 export async function isFfmpegAvailable(): Promise<boolean> {
   if (!isTauri()) return false;
   return (await findFfmpegCommandName()) !== null;
+}
+
+// undefined = not asked yet this session.
+let cachedNativeAvailable: boolean | undefined;
+
+/** Whether the system itself can convert a video here (the iPad, the Mac: see src-tauri/src/native_video.rs). */
+export async function isNativeConversionAvailable(): Promise<boolean> {
+  if (!isTauri()) return false;
+  if (cachedNativeAvailable === undefined) cachedNativeAvailable = await invoke<boolean>("native_video_conversion_available").catch(() => false);
+  return cachedNativeAvailable;
+}
+
+/** Whether a video can be converted here at all: by the system, or by an ffmpeg of the computer. */
+export async function isVideoConversionAvailable(): Promise<boolean> {
+  return (await isNativeConversionAvailable()) || (await isFfmpegAvailable());
 }
 
 interface TranscodeStatus {
@@ -123,10 +144,20 @@ function runFfmpeg(commandName: string, args: string[]): Promise<void> {
   });
 }
 
+/** The conversion by the system (see native_video.rs), with its progress from the event it sends. */
+async function runNative(inputPath: string, outputPath: string): Promise<void> {
+  const unlisten = await listen<number>("weft://video-progress", (event) => useTranscodeStatus.setState({ progress: Math.min(1, Math.max(0, event.payload)) }));
+  try {
+    await invoke("native_video_to_h264", { input: inputPath, output: outputPath });
+  } finally {
+    unlisten();
+  }
+}
+
 /**
- * Re-encodes a video file to H.264/AAC MP4 via the local ffmpeg (see isFfmpegAvailable) - for a
- * file probeVideo (document/actions.ts) couldn't confirm as playable, typically an HEVC/H.265
- * export from an iPhone or Mac, which only Safari can decode. H.264 is the one video codec every
+ * Re-encodes a video file to H.264/AAC MP4 - by the system (see isNativeConversionAvailable), else via the local ffmpeg (see isFfmpegAvailable). For a
+ * file probeVideo (document/actions.ts) couldn't confirm as playable, or one in a codec not every browser plays (see videoCodec.ts), typically an HEVC/H.265
+ * export from an iPhone or Mac. H.264 is the one video codec every
  * mainstream browser and OS plays without a fuss, so this is what makes the exported module
  * actually portable rather than just working on whichever machine uploaded it.
  *
@@ -137,8 +168,9 @@ function runFfmpeg(commandName: string, args: string[]): Promise<void> {
  * same as a normal web-served MP4.
  */
 export async function transcodeToH264(file: File): Promise<File> {
+  const native = await isNativeConversionAvailable();
   const commandName = await findFfmpegCommandName();
-  if (!commandName) throw new Error(tr("ui.ffmpeg_was_not_found"));
+  if (!native && !commandName) throw new Error(tr("ui.ffmpeg_was_not_found"));
 
   const dir = await ensureCacheDir();
   const jobId = createId();
@@ -148,26 +180,43 @@ export async function transcodeToH264(file: File): Promise<File> {
   useTranscodeStatus.setState({ active: true, fileName: file.name, progress: null });
   try {
     await writeFile(inputPath, new Uint8Array(await file.arrayBuffer()));
-    await runFfmpeg(commandName, [
-      "-y",
-      "-i",
-      inputPath,
-      "-c:v",
-      "libx264",
-      "-preset",
-      "veryfast",
-      "-crf",
-      "23",
-      "-pix_fmt",
-      "yuv420p",
-      "-c:a",
-      "aac",
-      "-b:a",
-      "160k",
-      "-movflags",
-      "+faststart",
-      outputPath,
-    ]);
+    let converted = false;
+    let nativeError: unknown = null;
+    if (native) {
+      try {
+        await runNative(inputPath, outputPath);
+        converted = true;
+      } catch (err) {
+        // (A file the system does not read: ffmpeg, if there is one, tries it.)
+        nativeError = err;
+        console.warn("Umwandlung durch das System fehlgeschlagen:", err);
+        await remove(outputPath).catch(() => {});
+        useTranscodeStatus.setState({ progress: null });
+      }
+    }
+    if (!converted) {
+      if (!commandName) throw new Error(String(nativeError instanceof Error ? nativeError.message : nativeError));
+      await runFfmpeg(commandName, [
+        "-y",
+        "-i",
+        inputPath,
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "23",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "160k",
+        "-movflags",
+        "+faststart",
+        outputPath,
+      ]);
+    }
     const bytes = await readFile(outputPath);
     const outName = `${file.name.replace(/\.[^.]+$/, "")}.mp4`;
     return new File([bytes], outName, { type: "video/mp4" });

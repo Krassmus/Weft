@@ -2,6 +2,12 @@
 export function isFfmpegAvailable(): Promise<boolean> {
   return Promise.resolve(false);
 }
+export function isNativeConversionAvailable(): Promise<boolean> {
+  return Promise.resolve(false);
+}
+export function isVideoConversionAvailable(): Promise<boolean> {
+  return Promise.resolve(false);
+}
 export function transcodeToH264(): Promise<never> {
   return Promise.reject(new Error("Videos lassen sich im Kommandozeilenwerkzeug nicht umwandeln."));
 }

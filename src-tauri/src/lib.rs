@@ -9,6 +9,7 @@ mod cli_tool;
 #[cfg(desktop)]
 mod control;
 mod color_sampler;
+mod native_video;
 mod open_files;
 #[cfg(target_os = "ios")]
 mod ios_open_urls;
@@ -579,6 +580,8 @@ pub fn run() {
             cli_tool::install_cli_link,
             color_sampler::screen_color_picker_available,
             color_sampler::pick_screen_color,
+            native_video::native_video_conversion_available,
+            native_video::native_video_to_h264,
             exit_app,
             cancel_exit
         ])

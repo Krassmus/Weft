@@ -1,7 +1,8 @@
 import { createId } from "../id";
 import { aspectRatioNumeric } from "../aspectRatio";
 import { useAssetStore } from "../assets/assetStore";
-import { isFfmpegAvailable, transcodeToH264 } from "../io/videoTranscode";
+import { isVideoConversionAvailable, transcodeToH264 } from "../io/videoTranscode";
+import { isNotEverywherePlayable, sniffVideoCodec } from "../io/videoCodec";
 import type {
   ActionEffect,
   ActionEffectType,
@@ -1369,16 +1370,29 @@ export interface VideoUploadResult {
 }
 
 /** The file to actually store for a video upload, plus its aspect ratio and its VideoUploadResult
- * - probes the file as given, and if that fails, tries re-encoding it with a local ffmpeg (see
- * videoTranscode.ts) before giving up and handing back the original alongside
- * `playable: false`. Kept as one shared step for all four setBlockVideo/setLayoutBlockVideo/
+ * - probes the file as given, and if that fails, tries converting it (by the system or a local ffmpeg: see
+ * videoTranscode.ts) before giving up and handing back the original alongside `playable: false`.
+ * A file that plays here but is in a codec not every browser plays (HEVC: see videoCodec.ts) is
+ * converted all the same where something can convert. Kept as one shared step for all four setBlockVideo/setLayoutBlockVideo/
  * addVideoBlockToPage/addVideoBlockToLayout entry points, so a converted file only ever gets
  * probed and stored once rather than each of them re-implementing the same fallback chain. */
 async function resolvePlayableVideo(file: File): Promise<{ file: File; aspect: number } & Omit<VideoUploadResult, "sizeBytes">> {
   const probe = await probeVideo(file);
-  if (probe.playable) return { file, ...probe, ffmpegAttempted: false };
-  const ffmpegFound = await isFfmpegAvailable();
-  if (!ffmpegFound) return { file, ...probe, ffmpegAttempted: false };
+  if (probe.playable) {
+    // It plays here - but a codec that not every browser plays (HEVC from an iPhone: Safari plays it, Chrome on a Windows computer often does not) is converted
+    // all the same, where something can convert, so that the module plays for the people it goes to as well. If that fails the file stays as it is: it plays.
+    if (isNotEverywherePlayable(await sniffVideoCodec(file).catch(() => null)) && (await isVideoConversionAvailable())) {
+      try {
+        const converted = await transcodeToH264(file);
+        const reprobe = await probeVideo(converted);
+        if (reprobe.playable) return { file: converted, aspect: reprobe.aspect, playable: true, ffmpegAttempted: true };
+      } catch (err) {
+        console.error("Video-Konvertierung fehlgeschlagen:", err instanceof Error ? err.message : err);
+      }
+    }
+    return { file, ...probe, ffmpegAttempted: false };
+  }
+  if (!(await isVideoConversionAvailable())) return { file, ...probe, ffmpegAttempted: false };
   try {
     const converted = await transcodeToH264(file);
     const reprobe = await probeVideo(converted);

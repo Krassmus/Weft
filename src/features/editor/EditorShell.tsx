@@ -310,6 +310,12 @@ export function EditorShell() {
     if (isTauri()) void invoke("set_player_mode", { active: player !== null || phase !== "editor" }).catch(() => undefined);
   }, [player !== null, phase !== "editor"]);
 
+  // "Abspielen im Fenster" is on: the View menu offers to end it where it offered to start it (and the window shows no cross of its own).
+  const playingInWindow = presenting && presentInWindowRef.current;
+  useEffect(() => {
+    if (isTauri()) void invoke("set_window_play", { active: playingInWindow }).catch(() => undefined);
+  }, [playingInWindow]);
+
   // The local interface for AI assistants (the command line tool, `weft` without a file): requests come in as events (src-tauri/src/control.rs).
   useEffect(() => {
     if (!isTauri()) return;
@@ -510,6 +516,9 @@ export function EditorShell() {
     const unlistenPlayInWindow = listen("weft://menu-play-window", () => {
       if (!idle() && !presenterRef.current) playInWindowFromMenuRef.current();
     });
+    const unlistenStopWindow = listen("weft://menu-stop-window", () => {
+      if (presentingRef.current) endPresentationRef.current();
+    });
     const unlistenPresent = listen("weft://menu-present", () => {
       if (!idle() && !presenterRef.current) presentFromMenuRef.current();
     });
@@ -528,6 +537,7 @@ export function EditorShell() {
       void unlistenMerge.then((fn) => fn());
       void unlistenPlay.then((fn) => fn());
       void unlistenPlayInWindow.then((fn) => fn());
+      void unlistenStopWindow.then((fn) => fn());
       void unlistenPresent.then((fn) => fn());
     };
   }, []);

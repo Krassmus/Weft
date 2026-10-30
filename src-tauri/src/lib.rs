@@ -91,6 +91,7 @@ struct MenuStrings {
     view: &'static str,
     play: &'static str,
     play_window: &'static str,
+    stop_window: &'static str,
     present: &'static str,
     zoom_in: &'static str,
     zoom_out: &'static str,
@@ -122,6 +123,7 @@ fn menu_strings(lang: &str) -> MenuStrings {
             view: "Ansicht",
             play: "Abspielen",
             play_window: "Abspielen im Fenster",
+            stop_window: "⏹ Abspielen im Fenster beenden",
             present: "Präsentieren (mit Moderatoransicht)",
             zoom_in: "Oberfläche vergrößern",
             zoom_out: "Oberfläche verkleinern",
@@ -150,6 +152,7 @@ fn menu_strings(lang: &str) -> MenuStrings {
             view: "View",
             play: "Play",
             play_window: "Play in Window",
+            stop_window: "⏹ Stop Playing in Window",
             present: "Present (with Presenter View)",
             zoom_in: "Make Interface Larger",
             zoom_out: "Make Interface Smaller",
@@ -168,6 +171,8 @@ struct MenuState {
     /// Weft is showing a player file (see src/features/player/): the items that act on the module being edited
     /// - which then isn't on screen - are greyed out.
     player: Mutex<bool>,
+    /// The module is playing in the window of the editor ("Abspielen im Fenster"): the menu then offers to end it where it offered to start it.
+    window_play: Mutex<bool>,
 }
 
 /// The menu text of a recent file: its file name, with the folder it is in when another recent file
@@ -191,7 +196,7 @@ fn recent_label(path: &str, all: &[String]) -> String {
 /// this needs to be idempotent - which Menu::default() already is, since it always constructs a
 /// brand new menu rather than mutating shared state.
 #[cfg(desktop)]
-fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String], player: bool) -> tauri::Result<Menu<Wry>> {
+fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String], player: bool, window_play: bool) -> tauri::Result<Menu<Wry>> {
     let strings = menu_strings(lang);
     let menu = Menu::default(app_handle)?;
     let items = menu.items()?;
@@ -294,7 +299,12 @@ fn build_menu(app_handle: &AppHandle, lang: &str, recent: &[String], player: boo
     if let Some(view_menu) = view_menu {
         view_menu.set_text(strings.view)?;
         let play_item = MenuItem::with_id(app_handle, "weft-play", strings.play, editing, Some("CmdOrCtrl+Alt+P"))?;
-        let play_window_item = MenuItem::with_id(app_handle, "weft-play-window", strings.play_window, editing, None::<&str>)?;
+        // While the module plays in the window, this item ends that - it stands where "Abspielen im Fenster" stood.
+        let play_window_item = if window_play {
+            MenuItem::with_id(app_handle, "weft-stop-window", strings.stop_window, true, None::<&str>)?
+        } else {
+            MenuItem::with_id(app_handle, "weft-play-window", strings.play_window, editing, None::<&str>)?
+        };
         let present_item = MenuItem::with_id(app_handle, "weft-present", strings.present, editing, Some("CmdOrCtrl+Alt+Shift+P"))?;
         view_menu.prepend_items(&[&play_item, &play_window_item, &present_item, &PredefinedMenuItem::separator(app_handle)?])?;
         // The size of Weft's own interface (an accessibility setting, also in the settings window) - the pinch gesture of the trackpad does
@@ -323,7 +333,8 @@ fn set_menu_language(#[cfg_attr(not(desktop), allow(unused_variables))] app: App
         *state.lang.lock().unwrap() = lang.clone();
         let recent = state.recent.lock().unwrap().clone();
         let player = *state.player.lock().unwrap();
-        let menu = build_menu(&app, &lang, &recent, player).map_err(|e| e.to_string())?;
+        let window_play = *state.window_play.lock().unwrap();
+        let menu = build_menu(&app, &lang, &recent, player, window_play).map_err(|e| e.to_string())?;
         app.set_menu(menu).map_err(|e| e.to_string())?;
     }
     #[cfg(not(desktop))]
@@ -343,7 +354,29 @@ fn set_player_mode(#[cfg_attr(not(desktop), allow(unused_variables))] app: AppHa
         *state.player.lock().unwrap() = active;
         let lang = state.lang.lock().unwrap().clone();
         let recent = state.recent.lock().unwrap().clone();
-        let menu = build_menu(&app, &lang, &recent, active).map_err(|e| e.to_string())?;
+        let window_play = *state.window_play.lock().unwrap();
+        let menu = build_menu(&app, &lang, &recent, active, window_play).map_err(|e| e.to_string())?;
+        app.set_menu(menu).map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = active;
+    }
+    Ok(())
+}
+
+/// Whether the module is playing in the window of the editor ("Ansicht > Abspielen im Fenster", see EditorShell.tsx): the menu then offers
+/// "Abspielen im Fenster beenden" in its place. A no-op on mobile.
+#[tauri::command]
+fn set_window_play(#[cfg_attr(not(desktop), allow(unused_variables))] app: AppHandle, active: bool) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        let state = app.state::<MenuState>();
+        *state.window_play.lock().unwrap() = active;
+        let lang = state.lang.lock().unwrap().clone();
+        let recent = state.recent.lock().unwrap().clone();
+        let player = *state.player.lock().unwrap();
+        let menu = build_menu(&app, &lang, &recent, player, active).map_err(|e| e.to_string())?;
         app.set_menu(menu).map_err(|e| e.to_string())?;
     }
     #[cfg(not(desktop))]
@@ -364,7 +397,8 @@ fn set_recent_files(#[cfg_attr(not(desktop), allow(unused_variables))] app: AppH
         *state.recent.lock().unwrap() = paths.clone();
         let lang = state.lang.lock().unwrap().clone();
         let player = *state.player.lock().unwrap();
-        let menu = build_menu(&app, &lang, &paths, player).map_err(|e| e.to_string())?;
+        let window_play = *state.window_play.lock().unwrap();
+        let menu = build_menu(&app, &lang, &paths, player, window_play).map_err(|e| e.to_string())?;
         app.set_menu(menu).map_err(|e| e.to_string())?;
     }
     #[cfg(not(desktop))]
@@ -495,7 +529,7 @@ pub fn run() {
 
     #[cfg(desktop)]
     {
-        builder = builder.manage(MenuState { lang: Mutex::new("de".to_string()), recent: Mutex::new(Vec::new()), player: Mutex::new(false) });
+        builder = builder.manage(MenuState { lang: Mutex::new("de".to_string()), recent: Mutex::new(Vec::new()), player: Mutex::new(false), window_play: Mutex::new(false) });
     }
 
     // First of all the plugins (it has to be): a second start of the program - which is what a click on
@@ -534,6 +568,7 @@ pub fn run() {
             set_menu_language,
             set_recent_files,
             set_player_mode,
+            set_window_play,
             open_settings_window,
             open_audience_window,
             close_audience_window,
@@ -600,7 +635,7 @@ pub fn run() {
                 // German by default at boot, purely as a starting point - the main window calls
                 // set_menu_language with the actually-resolved language (system/de/en) within its
                 // first render, correcting this before the user has any real chance to notice.
-                let menu = build_menu(handle, "de", &[], false)?;
+                let menu = build_menu(handle, "de", &[], false, false)?;
                 _app.set_menu(menu)?;
 
                 _app.on_menu_event(|app_handle, event| match event.id().as_ref() {
@@ -650,6 +685,9 @@ pub fn run() {
                     }
                     "weft-play-window" => {
                         let _ = app_handle.emit("weft://menu-play-window", ());
+                    }
+                    "weft-stop-window" => {
+                        let _ = app_handle.emit("weft://menu-stop-window", ());
                     }
                     "weft-present" => {
                         let _ = app_handle.emit("weft://menu-present", ());

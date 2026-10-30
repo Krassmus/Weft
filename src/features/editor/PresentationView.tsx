@@ -7,7 +7,8 @@ import { tr } from "../../core/i18n/tr";
 /**
  * The Keynote-style "present" screen: full-viewport, nothing but the running module. No
  * sidebar, inspector or editing controls - Escape (or the small corner button, for touch
- * devices with no Escape key) is the only way out.
+ * devices with no Escape key) is the only way out. Played in the window ("Abspielen im Fenster")
+ * it has no corner button: the View menu ends it as well.
  */
 export function PresentationView({
   startPageId,
@@ -54,9 +55,12 @@ export function PresentationView({
 
   return (
     <div className="weft-presentation">
-      <button type="button" className="weft-presentation-exit" onClick={() => void handleExit()} title={tr("ui.end_preview_esc")}>
-        ✕
-      </button>
+      {/* (Playing in the window has no cross: the View menu ends it - "Abspielen im Fenster beenden" - and so does Escape.) */}
+      {!inWindow && (
+        <button type="button" className="weft-presentation-exit" onClick={() => void handleExit()} title={tr("ui.end_preview_esc")}>
+          ✕
+        </button>
+      )}
       <PreviewFrame module={content} startPageId={startPageId} />
     </div>
   );

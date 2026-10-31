@@ -1,6 +1,5 @@
 import { parseAutomergeUrl } from "@automerge/automerge-repo/slim";
 import { BroadcastChannelNetworkAdapter } from "@automerge/automerge-repo-network-broadcastchannel";
-import { WebSocketClientAdapter } from "@automerge/automerge-repo-network-websocket";
 import { allowSharing, currentHandle, openSharedDocument, repo, useDocumentStore } from "../document/store";
 import { confirmDestructive } from "../io/fileIO";
 import { loadCollabOptions } from "./settings";
@@ -11,9 +10,8 @@ import { tr } from "../i18n/tr";
 
 /**
  * Collaboration on one document: the Automerge repo (see document/store.ts) is connected to other
- * peers - directly over WebRTC (no server of ours: see webrtcAdapter.ts), over BroadcastChannel (other
- * tabs/windows of the same app on this machine), and/or through a WebSocket sync server of someone's
- * own (scripts/collab-server.mjs) - and the document that is being edited is announced to them.
+ * peers - directly over WebRTC (no server of ours: see webrtcAdapter.ts) and over BroadcastChannel (other
+ * tabs/windows of the same app on this machine) - and the document that is being edited is announced to them.
  * Whoever has its invitation link can open it; from then on every change anybody makes is merged
  * into everyone's copy.
  *
@@ -26,8 +24,6 @@ import { tr } from "../i18n/tr";
 export interface CollabOptions {
   /** Connect directly to the other people (WebRTC) - on by default. */
   direct?: boolean;
-  /** ws://host:port of a sync server, if there is one. */
-  serverUrl?: string;
   /** Sync with other tabs of the same browser. */
   broadcast?: boolean;
   /** Signaling relays (Nostr) the direct connection finds the others over, instead of the public
@@ -113,7 +109,6 @@ const secrets = {
 let connectedDocumentId: string | null = null;
 
 let broadcastAttached = false;
-const attachedServers = new Set<string>();
 let directAdapter: WebRtcNetworkAdapter | null = null;
 let assetSync: AssetSync | null = null;
 let presenceSync: PresenceSync | null = null;
@@ -121,15 +116,11 @@ let presenceSync: PresenceSync | null = null;
 function connect(
   documentId: string,
   secret: string | null,
-  { direct = true, serverUrl, broadcast = false, relayUrls, turnServers }: CollabOptions,
+  { direct = true, broadcast = false, relayUrls, turnServers }: CollabOptions,
 ): void {
   if (broadcast && !broadcastAttached) {
     repo.networkSubsystem.addNetworkAdapter(new BroadcastChannelNetworkAdapter());
     broadcastAttached = true;
-  }
-  if (serverUrl && !attachedServers.has(serverUrl)) {
-    repo.networkSubsystem.addNetworkAdapter(new WebSocketClientAdapter(serverUrl));
-    attachedServers.add(serverUrl);
   }
   // One direct connection at a time: to the room of the document being edited.
   directAdapter?.disconnect();

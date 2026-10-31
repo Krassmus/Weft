@@ -120,7 +120,7 @@ npm run tauri build -- --config src-tauri/tauri.cli.conf.json
 
 **Die KI als Teilnehmerin der Live-Zusammenarbeit (für das Tablet)**
 - Am Computer gibt es das Arbeiten am offenen Modul schon, ohne Zusammenarbeit: `weft status` / `weft edit` ohne Datei (siehe `cli.md`). Für das Tablet bleibt der Weg über die Zusammenarbeit:
-- Ein Programm auf einem Mac oder Server tritt per Einladungslink bei, bearbeitet das Modul mit denselben Operationen und zeichnet die Folien selbst. Der Mensch sieht die Änderungen live, ohne etwas auszulösen (auch auf dem iPad). Dazu bräuchte es das Beitreten ohne Browser (WebRTC in Node oder über den Sync-Server `scripts/collab-server.mjs`), das Einlesen von Änderungen und eine Regel, wann die KI „fertig" ist.
+- Ein Programm auf einem Mac oder Server tritt per Einladungslink bei, bearbeitet das Modul mit denselben Operationen und zeichnet die Folien selbst. Der Mensch sieht die Änderungen live, ohne etwas auszulösen (auch auf dem iPad). Dazu bräuchte es das Beitreten ohne Browser (WebRTC in Node), das Einlesen von Änderungen und eine Regel, wann die KI „fertig" ist.
 
 **Kleinere Lücken**
 - Schriften lassen sich mit `weft_edit` nicht hinzufügen.

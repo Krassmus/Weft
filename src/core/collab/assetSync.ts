@@ -10,7 +10,7 @@ import type { WeftModule } from "../types";
  * metadata, see AssetMeta) - so a peer that joins, or that receives a block someone just added, has
  * to get the files themselves from whoever has them. This is that exchange, by asset id, over the
  * ephemeral messages of the document's own connection (DocHandle.broadcast) - so it runs over
- * whatever transport the Automerge repo is connected by (BroadcastChannel, a sync server, later
+ * whatever transport the Automerge repo is connected by (BroadcastChannel,
  * WebRTC) without a channel of its own:
  *
  *   want   - "I'm missing these ids" (to everybody, repeated while something is missing)

@@ -47,7 +47,6 @@ import { presenceColor, usePresence } from "../../../core/collab/presence";
 import { PersonAvatar } from "../PersonAvatar";
 import { Collapsible } from "../Collapsible";
 import { useDirectConnection } from "../../../core/collab/webrtcAdapter";
-import { COLLAB_SERVER_KEY, readSetting } from "../../../core/collab/settings";
 import {
   connectLiveCollaboration,
   disableLiveCollaboration,
@@ -622,7 +621,7 @@ const DIRECT_STATUS_TEXT = {
  * Edit this module together with others: "An Datei zusammen arbeiten" announces the document being
  * edited, saves its password in the file and shows the link others join with (joining and merging a
  * file are in the File menu). The people are connected directly (WebRTC - no server of ours); how
- * (relays, TURN, a sync server) is set once for the app, in its settings window. See core/collab/.
+ * (relays, TURN) is set once for the app, in its settings window. See core/collab/.
  */
 function CollaborationField() {
   const [error, setError] = useState("");
@@ -634,7 +633,6 @@ function CollaborationField() {
   const receiving = Object.values(transfers);
   const megabytes = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
   const webRtcAvailable = typeof RTCPeerConnection !== "undefined";
-  const serverUrl = readSetting(COLLAB_SERVER_KEY, "").trim();
 
   async function copyLink() {
     try {
@@ -651,7 +649,7 @@ function CollaborationField() {
         <input
           type="checkbox"
           checked={live !== null}
-          disabled={!webRtcAvailable && !serverUrl}
+          disabled={!webRtcAvailable}
           onChange={(e) => (e.target.checked ? enableLiveCollaboration() : disableLiveCollaboration())}
         />
         <span>{tr("ui.work_on_the_file_together")}</span>

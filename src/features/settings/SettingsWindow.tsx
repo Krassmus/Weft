@@ -5,7 +5,6 @@ import type { ControlMode } from "../../core/control/bridge";
 import { invoke } from "@tauri-apps/api/core";
 import {
   COLLAB_RELAYS_KEY,
-  COLLAB_SERVER_KEY,
   COLLAB_TURN_KEY,
   readSetting,
   readTurnSetting,
@@ -60,7 +59,6 @@ const CONTRAST_OPTIONS: { value: ContrastLevel; labelKey: "settings.contrast.sty
 /** How this computer connects for working together on a module (see core/collab/settings.ts). */
 function NetworkSettings() {
   const { t } = useTranslation();
-  const [server, setServer] = useState(() => readSetting(COLLAB_SERVER_KEY, ""));
   const [relays, setRelays] = useState(() => readSetting(COLLAB_RELAYS_KEY, ""));
   const [turn, setTurn] = useState<TurnSetting>(readTurnSetting);
   function updateTurn(patch: Partial<TurnSetting>) {
@@ -72,17 +70,6 @@ function NetworkSettings() {
   return (
     <SettingsGroup title={t("settings.network.legend")}>
       <p className="weft-hint">{t("settings.network.hint")}</p>
-      <label className="weft-field">
-        <span>{t("settings.network.server")}</span>
-        <input
-          value={server}
-          placeholder="wss://…"
-          onChange={(e) => {
-            setServer(e.target.value);
-            writeSetting(COLLAB_SERVER_KEY, e.target.value);
-          }}
-        />
-      </label>
       <label className="weft-field">
         <span>{t("settings.network.relays")}</span>
         <textarea

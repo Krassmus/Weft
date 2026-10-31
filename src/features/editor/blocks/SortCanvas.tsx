@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
+import { IMAGE_FILE_ACCEPT } from "../../../core/io/imageFileTypes";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { Block, SortBlock, SortItem } from "../../../core/types";
 import { useEditingLanguage } from "../useEditingLanguage";
@@ -188,7 +189,7 @@ export function SortCanvas({ block, selected, onUpdate }: { block: SortBlock; se
       <input
         ref={fileInput}
         type="file"
-        accept="image/*"
+        accept={IMAGE_FILE_ACCEPT}
         hidden
         onChange={(e) => {
           const file = e.target.files?.[0];

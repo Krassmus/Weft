@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { IMAGE_FILE_ACCEPT } from "../../../core/io/imageFileTypes";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { addAssetFromFile } from "../../../core/document/actions";
@@ -324,7 +325,7 @@ export function TextFormatDialog({ onClose }: { onClose: () => void }) {
                 <span>{tr("ui.image_file")}</span>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept={IMAGE_FILE_ACCEPT}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) setAssetId(addAssetFromFile(file));

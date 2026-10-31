@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { IMAGE_FILE_ACCEPT } from "../../../core/io/imageFileTypes";
 import { descriptorOf, itemTextName } from "../../../core/blocks/registry";
 import type { FieldSpec, FieldUi, ListField } from "../../../core/blocks/types";
 import { useAssetStore } from "../../../core/assets/assetStore";
@@ -167,7 +168,7 @@ export function FieldsPanel({ block, container, page, onUpdate }: { block: Block
                 {item[assetName] ? tr(ui.change) : tr(ui.choose)}
                 <input
                   type="file"
-                  accept="image/*"
+                  accept={IMAGE_FILE_ACCEPT}
                   hidden
                   onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -183,7 +184,7 @@ export function FieldsPanel({ block, container, page, onUpdate }: { block: Block
           {tr(ui.add)}
           <input
             type="file"
-            accept="image/*"
+            accept={IMAGE_FILE_ACCEPT}
             multiple
             hidden
             onChange={(e) => {

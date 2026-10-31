@@ -1270,12 +1270,29 @@ export function sendBlockToBack(container: BlockContainerRef, blockId: string) {
 // ---- Media sizing: fitting a picked/dropped image or video to its own aspect ratio -----------
 
 async function imageAspectRatio(file: File): Promise<number> {
+  // (createImageBitmap does not decode an SVG - a picture of no pixels of its own - so for one the size it says it has is read from the file.)
+  if (file.type === "image/svg+xml" || /\.svg$/i.test(file.name)) return svgAspectRatio(await file.text());
   const bitmap = await createImageBitmap(file);
   try {
     return bitmap.width / bitmap.height;
   } finally {
     bitmap.close();
   }
+}
+
+/** The aspect ratio an SVG is drawn in: its width and height where it has both (in numbers: a percentage says nothing), else its viewBox, else a square. */
+export function svgAspectRatio(source: string): number {
+  const root = new DOMParser().parseFromString(source, "image/svg+xml").documentElement;
+  if (!root || root.localName !== "svg") return 1;
+  const size = (name: string) => {
+    const value = root.getAttribute(name)?.trim() ?? "";
+    return /%$/.test(value) ? 0 : parseFloat(value);
+  };
+  const [width, height] = [size("width"), size("height")];
+  if (width > 0 && height > 0) return width / height;
+  const box = (root.getAttribute("viewBox") ?? "").trim().split(/[\s,]+/).map(Number);
+  if (box.length === 4 && box[2] > 0 && box[3] > 0) return box[2] / box[3];
+  return 1;
 }
 
 interface VideoProbe {

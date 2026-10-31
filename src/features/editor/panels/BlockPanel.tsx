@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { IMAGE_FILE_ACCEPT } from "../../../core/io/imageFileTypes";
 import type { MouseEvent as ReactMouseEvent, RefObject } from "react";
 import { createPortal } from "react-dom";
 import { stopPointIconSvg } from "../stopPointIcon";
@@ -869,7 +870,7 @@ function ImageEditor({
       <MediaFilePicker
         label={tr("ui.image_file")}
         kind="image"
-        accept="image/*"
+        accept={IMAGE_FILE_ACCEPT}
         title={tr("ui.choose_image_file")}
         formats="PNG, JPG, GIF, WebP, SVG"
         acceptsFile={(file) => file.type.startsWith("image/")}
@@ -2040,7 +2041,7 @@ function ListEditor({
         <MediaFilePicker
           label={tr("ui.image_file_for_the_markers")}
           kind="image"
-          accept="image/*"
+          accept={IMAGE_FILE_ACCEPT}
           title={tr("ui.choose_image_file")}
           acceptsFile={(file) => file.type.startsWith("image/")}
           onFile={onSetImage}
@@ -2167,7 +2168,7 @@ function RevealerEditor({
           <MediaFilePicker
             label={tr("ui.revealer_image")}
             kind="image"
-            accept="image/*"
+            accept={IMAGE_FILE_ACCEPT}
             title={tr("ui.revealer_choose_image")}
             acceptsFile={(file) => file.type.startsWith("image/")}
             onFile={onSetImage}
@@ -3354,7 +3355,7 @@ function MatchingEditor({ block, container, page, onUpdate }: { block: MatchingB
               {item.assetId ? tr("ui.matching_change_image") : tr("ui.matching_choose_image")}
               <input
                 type="file"
-                accept="image/*"
+                accept={IMAGE_FILE_ACCEPT}
                 hidden
                 onChange={(e) => {
                   const file = e.target.files?.[0];
@@ -3544,7 +3545,7 @@ function SortEditor({ block, container, page, onUpdate }: { block: SortBlock; co
                   {item.assetId ? tr("ui.matching_change_image") : tr("ui.matching_choose_image")}
                   <input
                     type="file"
-                    accept="image/*"
+                    accept={IMAGE_FILE_ACCEPT}
                     hidden
                     onChange={(e) => {
                       const file = e.target.files?.[0];

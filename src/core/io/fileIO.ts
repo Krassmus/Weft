@@ -1,4 +1,5 @@
 import { confirm as confirmNative, message as messageNative, open, save } from "@tauri-apps/plugin-dialog";
+import { IMAGE_FILE_ACCEPT } from "./imageFileTypes";
 import { appCacheDir, join } from "@tauri-apps/api/path";
 import { mkdir, readFile, remove, rename, stat, writeFile } from "@tauri-apps/plugin-fs";
 import type { WeftDocument } from "../types";
@@ -374,7 +375,7 @@ export async function pickImageFile(): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "image/*";
+    input.accept = IMAGE_FILE_ACCEPT;
     input.onchange = () => resolve(input.files?.[0] ?? null);
     input.click();
   });

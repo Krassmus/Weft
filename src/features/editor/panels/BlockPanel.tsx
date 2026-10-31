@@ -50,7 +50,8 @@ import { confirmDestructive, pickFilesFromDisk, pickFontFile, pickScriptFile, wa
 import { filesCheckPassword } from "../../../core/runtime/filesCrypto.js";
 import { formatFileSize } from "../blocks/FilesView";
 import { isTouchDevice } from "../../../core/platform";
-import { VIDEO_FILE_ACCEPT } from "../../../core/io/videoFileTypes";
+import { isVideoFile, VIDEO_FILE_ACCEPT } from "../../../core/io/videoFileTypes";
+import { MediaFilePicker } from "./MediaFilePicker";
 import { useTranscodeStatus } from "../../../core/io/videoTranscode";
 import type {
   Block,
@@ -865,17 +866,15 @@ function ImageEditor({
 }) {
   return (
     <Collapsible title={tr("ui.content")}>
-      <label className="weft-field">
-        <span>{tr("ui.image_file")}</span>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onSetImage(file);
-          }}
-        />
-      </label>
+      <MediaFilePicker
+        label={tr("ui.image_file")}
+        kind="image"
+        accept="image/*"
+        title={tr("ui.choose_image_file")}
+        formats="PNG, JPG, GIF, WebP, SVG"
+        acceptsFile={(file) => file.type.startsWith("image/")}
+        onFile={onSetImage}
+      />
       <label className="weft-field">
         <span>{tr("ui.alt_text")}</span>
         <input value={block.alt} onChange={(e) => onUpdate({ alt: e.target.value })} />
@@ -1178,22 +1177,22 @@ function VideoEditor({
   return (
     <>
       <Collapsible title={tr("ui.content")}>
-        <label className="weft-field">
-          <span>{tr("ui.video_file")}</span>
-          <input
-            type="file"
-            // (On a tablet no filter: its file picker greys out what the system does not know as a video - an mkv, a raw .hevc - and could not choose it.)
-            accept={isTouchDevice() ? undefined : VIDEO_FILE_ACCEPT}
-            disabled={transcode.active}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              void onSetVideo(file).then((result) => {
-                void warnAboutVideoUploads([{ fileName: file.name, ...result }]);
-              });
-            }}
-          />
-        </label>
+        <MediaFilePicker
+          label={tr("ui.video_file")}
+          kind="video"
+          // (On a tablet no filter: its file picker greys out what the system does not know as a video - an mkv, a raw .hevc - and could not choose it.)
+          accept={isTouchDevice() ? undefined : VIDEO_FILE_ACCEPT}
+          title={tr("ui.choose_video_file")}
+          formats={tr("ui.video_recommended_format")}
+          disabled={transcode.active}
+          acceptsFile={isVideoFile}
+          onFile={(file) => {
+            void onSetVideo(file).then((result) => {
+              void warnAboutVideoUploads([{ fileName: file.name, ...result }]);
+            });
+          }}
+          current={block.assetId ? { assetId: block.assetId, onRemove: () => onUpdate({ assetId: null }) } : null}
+        />
         {transcode.active && (
           <p className="weft-hint">
             „{transcode.fileName}{tr("ui.is_being_converted_to_h_264")}
@@ -1284,17 +1283,16 @@ function AudioEditor({
   return (
     <>
       <Collapsible title={tr("ui.content")}>
-        <label className="weft-field">
-          <span>{tr("ui.audio_file")}</span>
-          <input
-            type="file"
-            accept="audio/*"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void onSetAudio(file);
-            }}
-          />
-        </label>
+        <MediaFilePicker
+          label={tr("ui.audio_file")}
+          kind="audio"
+          accept="audio/*"
+          title={tr("ui.choose_audio_file")}
+          formats="MP3, M4A, WAV, OGG"
+          acceptsFile={(file) => file.type.startsWith("audio/")}
+          onFile={(file) => void onSetAudio(file)}
+          current={block.assetId ? { assetId: block.assetId, onRemove: () => onUpdate({ assetId: null }) } : null}
+        />
         <p className="weft-hint">{tr("ui.audio_formats_hint")}</p>
 
         <label className="weft-field">
@@ -2039,17 +2037,14 @@ function ListEditor({
         </label>
       )}
       {block.marker === "image" && (
-        <label className="weft-field">
-          <span>{tr("ui.image_file_for_the_markers")}</span>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) onSetImage(file);
-            }}
-          />
-        </label>
+        <MediaFilePicker
+          label={tr("ui.image_file_for_the_markers")}
+          kind="image"
+          accept="image/*"
+          title={tr("ui.choose_image_file")}
+          acceptsFile={(file) => file.type.startsWith("image/")}
+          onFile={onSetImage}
+        />
       )}
       {block.marker === "image" && (
         <div className="weft-field">
@@ -2168,17 +2163,14 @@ function RevealerEditor({
           <textarea rows={4} value={words.body} onChange={(e) => say({ body: e.target.value })} />
         </label>
         <div className="weft-field">
-          <span>{tr("ui.revealer_image")}</span>
           {imageUrl && <img className="weft-cover-preview" src={imageUrl} alt="" />}
-          <input
-            type="file"
+          <MediaFilePicker
+            label={tr("ui.revealer_image")}
+            kind="image"
             accept="image/*"
-            aria-label={tr("ui.revealer_choose_image")}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) onSetImage(file);
-              e.target.value = "";
-            }}
+            title={tr("ui.revealer_choose_image")}
+            acceptsFile={(file) => file.type.startsWith("image/")}
+            onFile={onSetImage}
           />
           {imageUrl && (
             <button type="button" className="weft-ghost-button weft-full-width" onClick={() => onUpdate({ imageAssetId: null })}>

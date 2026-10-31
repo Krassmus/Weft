@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import type { ReactNode } from "react";
 import { AI_SETTINGS_VISIBLE, readControlMode, writeControlMode } from "../../core/control/bridge";
 import type { ControlMode } from "../../core/control/bridge";
 import { invoke } from "@tauri-apps/api/core";
@@ -21,6 +22,19 @@ import { PersonAvatar } from "../editor/PersonAvatar";
 import { UI_ZOOM_STEPS, useAccessibilityStore } from "../../core/accessibility/accessibilityStore";
 import { isTauri } from "../../core/io/fileIO";
 import type { ContrastLevel } from "../../core/accessibility/accessibilityStore";
+
+/** A group of settings: a tile like the foldable sections of the side panels (see .weft-settings-field in App.css), named by its heading for a screen reader. */
+function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
+  const headingId = useId();
+  return (
+    <section className="weft-settings-field" aria-labelledby={headingId}>
+      <h2 id={headingId} className="weft-settings-field-title">
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
 
 const LANGUAGE_OPTIONS: { value: LanguagePreference; labelKey: "settings.language.system" | "settings.language.de" | "settings.language.en" }[] = [
   { value: "system", labelKey: "settings.language.system" },
@@ -56,8 +70,7 @@ function NetworkSettings() {
   }
 
   return (
-    <fieldset className="weft-settings-field">
-      <legend>{t("settings.network.legend")}</legend>
+    <SettingsGroup title={t("settings.network.legend")}>
       <p className="weft-hint">{t("settings.network.hint")}</p>
       <label className="weft-field">
         <span>{t("settings.network.server")}</span>
@@ -96,7 +109,7 @@ function NetworkSettings() {
         <input type="password" value={turn.password ?? ""} onChange={(e) => updateTurn({ password: e.target.value })} />
       </label>
       <p className="weft-hint">{t("settings.network.turnHint")}</p>
-    </fieldset>
+    </SettingsGroup>
   );
 }
 
@@ -208,8 +221,7 @@ function AiSettings() {
   const mcpConfig = mcpCommand ? JSON.stringify({ mcpServers: { weft: { command: mcpCommand } } }, null, 2) : "";
 
   return (
-    <fieldset className="weft-settings-field">
-      <legend>{t("settings.ai.legend")}</legend>
+    <SettingsGroup title={t("settings.ai.legend")}>
       {isTauri() && <LiveSettings />}
       {!isTauri() ? (
         <p className="weft-hint">{t("settings.ai.web")}</p>
@@ -246,7 +258,7 @@ function AiSettings() {
           <CopyBlock text={mcpConfig} />
         </>
       )}
-    </fieldset>
+    </SettingsGroup>
   );
 }
 
@@ -278,8 +290,7 @@ export function SettingsWindow() {
   return (
     <div className="weft-settings-window">
       <h1 className="weft-settings-window-title">{t("settings.window.title")}</h1>
-      <fieldset className="weft-settings-field">
-        <legend>{t("settings.language.legend")}</legend>
+      <SettingsGroup title={t("settings.language.legend")}>
         {LANGUAGE_OPTIONS.map((option) => (
           <label key={option.value} className="weft-field weft-field-inline">
             <input
@@ -292,9 +303,8 @@ export function SettingsWindow() {
           </label>
         ))}
         <p className="weft-hint">{t("settings.language.hint")}</p>
-      </fieldset>
-      <fieldset className="weft-settings-field">
-        <legend>{t("settings.access.legend")}</legend>
+      </SettingsGroup>
+      <SettingsGroup title={t("settings.access.legend")}>
         <span className="weft-settings-subtitle">{t("settings.contrast.label")}</span>
         {CONTRAST_OPTIONS.map((option) => (
           <label key={option.value} className="weft-field weft-field-inline">
@@ -321,9 +331,8 @@ export function SettingsWindow() {
           <span>{t("settings.focus.label")}</span>
         </label>
         <p className="weft-hint">{t("settings.focus.hint")}</p>
-      </fieldset>
-      <fieldset className="weft-settings-field">
-        <legend>{t("settings.profile.legend")}</legend>
+      </SettingsGroup>
+      <SettingsGroup title={t("settings.profile.legend")}>
         <label className="weft-field">
           <span>{t("settings.profile.name")}</span>
           <input value={profile.name} onChange={(e) => profile.setName(e.target.value)} />
@@ -355,7 +364,7 @@ export function SettingsWindow() {
           {avatarError && <p className="weft-placeholder-warning">{t("settings.profile.error")}</p>}
         </div>
         <p className="weft-hint">{t("settings.profile.hint")}</p>
-      </fieldset>
+      </SettingsGroup>
       {AI_SETTINGS_VISIBLE && <AiSettings />}
       <NetworkSettings />
     </div>

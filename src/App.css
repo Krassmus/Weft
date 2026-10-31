@@ -3163,20 +3163,33 @@ button.weft-timeline-node-icon:hover {
   font-weight: 600;
 }
 
+/* A group of settings looks like a foldable section of the side panels (.weft-collapsible): a tile of the lighter ground with a heading in capitals and the
+   same room around everything. */
 .weft-settings-field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 0;
-  padding: 12px 14px;
-  border: 1px solid var(--weft-border);
+  gap: 10px;
+  min-width: 0;
+  margin: 0 0 10px;
+  padding: 0 10px 12px;
+  border: 1px solid var(--weft-border-subtle);
   border-radius: var(--weft-radius);
+  background: var(--weft-collapsible-bg);
 }
 
-.weft-settings-field legend {
-  padding: 0 4px;
-  color: var(--weft-text-muted);
-  font-size: 11.5px;
+.weft-settings-field-title {
+  margin: 0;
+  padding: 9px 0 0;
+  color: var(--weft-text);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* (The edge of a button, which is as dark as the tile itself where it sits on the lighter ground, is the one of the other controls.) */
+.weft-settings-field .weft-ghost-button {
+  border-color: var(--weft-border);
 }
 
 .weft-settings-field .weft-hint {

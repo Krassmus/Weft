@@ -71,19 +71,6 @@ function NetworkSettings() {
     <SettingsGroup title={t("settings.network.legend")}>
       <p className="weft-hint">{t("settings.network.hint")}</p>
       <label className="weft-field">
-        <span>{t("settings.network.relays")}</span>
-        <textarea
-          rows={3}
-          value={relays}
-          placeholder={t("settings.network.relaysPlaceholder")}
-          onChange={(e) => {
-            setRelays(e.target.value);
-            writeSetting(COLLAB_RELAYS_KEY, e.target.value);
-          }}
-        />
-      </label>
-      <p className="weft-hint">{t("settings.network.relaysHint")}</p>
-      <label className="weft-field">
         <span>{t("settings.network.turnUrl")}</span>
         <input value={turn.url ?? ""} placeholder="turn:turn.example.org:3478" onChange={(e) => updateTurn({ url: e.target.value })} />
       </label>
@@ -96,6 +83,19 @@ function NetworkSettings() {
         <input type="password" value={turn.password ?? ""} onChange={(e) => updateTurn({ password: e.target.value })} />
       </label>
       <p className="weft-hint">{t("settings.network.turnHint")}</p>
+      <label className="weft-field">
+        <span>{t("settings.network.relays")}</span>
+        <textarea
+          rows={3}
+          value={relays}
+          placeholder={t("settings.network.relaysPlaceholder")}
+          onChange={(e) => {
+            setRelays(e.target.value);
+            writeSetting(COLLAB_RELAYS_KEY, e.target.value);
+          }}
+        />
+      </label>
+      <p className="weft-hint">{t("settings.network.relaysHint")}</p>
     </SettingsGroup>
   );
 }

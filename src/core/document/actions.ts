@@ -28,12 +28,14 @@ import type {
   InteractiveStyle,
   VariableType,
   WeftModule,
+  ModuleLicense,
 } from "../types";
 import { isMediaBlock } from "../types";
 import { insertOrdered, moveOrdered, moveOrderedRun, orderedIdRecord, orderedKeys, orderedValues } from "./ordering";
 import { findChain, reorderedLinks } from "../eventGraph/chains";
 import { assignPatch, plain, removeWhere } from "./plain";
 import { applyPlaceholderStyle, plainParagraphs } from "./placeholders";
+import { isBuiltInLicense } from "../license/licenses";
 import { branchPageIds, sequenceOf } from "./sequence";
 import { planSlideMove } from "./slideMoves";
 import { imageToPng, LOGO_FILE } from "../io/coverImage";
@@ -106,6 +108,14 @@ export function setTemplate(template: boolean) {
   edit("Vorlage ändern", (m) => {
     if (template) m.template = true;
     else delete m.template;
+  });
+}
+
+/** The licence the module is passed on under (see ModuleLicense): a built-in one by its id, one of the author's own with its name and text. */
+export function setModuleLicense(license: ModuleLicense) {
+  edit("Lizenz ändern", (m) => {
+    // (Only what belongs to the kind: a built-in licence is its id alone.)
+    m.license = plain(isBuiltInLicense(license.id) ? { id: license.id } : { id: license.id, name: license.name ?? "", text: license.text ?? "" });
   });
 }
 

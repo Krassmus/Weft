@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 // player, which talks to it (see syncLms in player.runtime.js).
 import vanillaLmSource from "../../../mockups/VanillaLM.js?raw";
 import { describedKinds, isInvisibleKind } from "../blocks/registry";
+import { describeLicense, licenseOfModule } from "../license/licenses";
 import arrowRenderSource from "../blocks/arrow/render.js?raw";
 import shapeRenderSource from "../blocks/shape/render.js?raw";
 import revealerGeometrySource from "./revealerGeometry.js?raw";
@@ -120,6 +121,7 @@ export async function buildRuntimeHtml(
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(module.title)}</title>
+${licenseHead(module)}
 <style>${stageThemeCss}</style>
 <style>${quizCardCss}</style>
 <style>${iframeCss}</style>
@@ -249,6 +251,13 @@ async function buildQrCodeSvgs(module: WeftModule): Promise<Record<string, strin
   );
 
   return Object.fromEntries(entries.filter((entry): entry is [string, string] => entry !== null));
+}
+
+/** The licence of the module for whoever (or whatever program) reads the page: `<meta name="license">` with its name and, for a Creative Commons one, `<link rel="license">` to its text. */
+function licenseHead(module: WeftModule): string {
+  const license = describeLicense(licenseOfModule(module));
+  const link = license.url ? `\n<link rel="license" href="${escapeHtml(license.url)}" />` : "";
+  return `<meta name="license" content="${escapeHtml(license.spdx)}" />${link}`;
 }
 
 function escapeHtml(value: string): string {

@@ -46,6 +46,7 @@ import type { FolderPeer } from "../../../core/collab/folder/folderSync";
 import { presenceColor, usePresence } from "../../../core/collab/presence";
 import { PersonAvatar } from "../PersonAvatar";
 import { Collapsible } from "../Collapsible";
+import { LicenseField } from "./LicenseField";
 import { useDirectConnection } from "../../../core/collab/webrtcAdapter";
 import {
   connectLiveCollaboration,
@@ -907,6 +908,10 @@ export function SettingsTab() {
             {tr("ui.upload_your_own_font_2")}
           </button>
         </div>
+      </Collapsible>
+
+      <Collapsible title={tr("ui.license")}>
+        <LicenseField />
       </Collapsible>
 
       <ScriptLibrariesCard />

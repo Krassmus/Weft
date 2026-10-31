@@ -3737,6 +3737,44 @@ button.weft-timeline-node-icon:hover {
 }
 
 /* A library of the module with its code shown (SettingsTab.tsx): the code takes a line of its own below the name. */
+.weft-settings-license {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+}
+
+.weft-settings-license .weft-field {
+  align-self: stretch;
+}
+
+.weft-license-text {
+  box-sizing: border-box;
+  max-height: 220px;
+  margin: 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-input-bg);
+  color: var(--weft-text);
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.weft-license-link {
+  align-self: flex-start;
+  font-size: 11.5px;
+  color: var(--weft-accent);
+}
+
 .weft-script-library-row {
   flex-wrap: wrap;
 }

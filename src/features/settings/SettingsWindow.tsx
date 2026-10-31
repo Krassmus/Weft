@@ -17,6 +17,7 @@ import type { LanguagePreference } from "../../core/i18n/languageStore";
 import { useSyncMenuLanguage } from "../../core/i18n/useSyncMenuLanguage";
 import { avatarFromFile } from "../../core/profile/avatarImage";
 import { useProfileStore } from "../../core/profile/profileStore";
+import { useLicenseStore } from "../../core/license/licenseStore";
 import { PersonAvatar } from "../editor/PersonAvatar";
 import { UI_ZOOM_STEPS, useAccessibilityStore } from "../../core/accessibility/accessibilityStore";
 import { isTauri } from "../../core/io/fileIO";
@@ -56,6 +57,39 @@ const CONTRAST_OPTIONS: { value: ContrastLevel; labelKey: "settings.contrast.sty
  * different place to put them. Next to the language: the person's own profile (name and avatar
  * picture, see profileStore.ts) - what the people they collaborate with get to see of them - and
  * how their computer connects to them (network). */
+/** The licences the author makes themselves - a name and a text each - which a module can then take as its licence (see core/license/). */
+function LicenseSettings() {
+  const { t } = useTranslation();
+  const licenses = useLicenseStore((s) => s.licenses);
+  const add = useLicenseStore((s) => s.add);
+  const update = useLicenseStore((s) => s.update);
+  const remove = useLicenseStore((s) => s.remove);
+  return (
+    <SettingsGroup title={t("settings.licenses.legend")}>
+      <p className="weft-hint">{t("settings.licenses.hint")}</p>
+      {licenses.length === 0 && <p className="weft-hint">{t("settings.licenses.none")}</p>}
+      {licenses.map((license) => (
+        <div key={license.id} className="weft-settings-license">
+          <label className="weft-field">
+            <span>{t("settings.licenses.name")}</span>
+            <input value={license.name} placeholder={t("settings.licenses.namePlaceholder")} onChange={(e) => update(license.id, { name: e.target.value })} />
+          </label>
+          <label className="weft-field">
+            <span>{t("settings.licenses.text")}</span>
+            <textarea rows={6} value={license.text} onChange={(e) => update(license.id, { text: e.target.value })} />
+          </label>
+          <button type="button" className="weft-ghost-button" onClick={() => remove(license.id)}>
+            {t("settings.licenses.remove")}
+          </button>
+        </div>
+      ))}
+      <button type="button" className="weft-ghost-button weft-full-width" onClick={() => add()}>
+        {t("settings.licenses.add")}
+      </button>
+    </SettingsGroup>
+  );
+}
+
 /** How this computer connects for working together on a module (see core/collab/settings.ts). */
 function NetworkSettings() {
   const { t } = useTranslation();
@@ -352,6 +386,7 @@ export function SettingsWindow() {
         </div>
         <p className="weft-hint">{t("settings.profile.hint")}</p>
       </SettingsGroup>
+      <LicenseSettings />
       {AI_SETTINGS_VISIBLE && <AiSettings />}
       <NetworkSettings />
     </div>

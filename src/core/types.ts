@@ -1331,9 +1331,25 @@ export interface WeftModule {
    * have always been), "elegant" (a serif face), "round" (pill-shaped), "futuristic" (angular, two corners cut, a technical face). Each also
    * has its own, subtle look for when the pointer is over a clickable element. */
   interactiveStyle?: InteractiveStyle;
+  /** The licence of the module (see ModuleLicense). Missing - a module saved before this existed, or one that never changed it: the default,
+   * CC BY 4.0 (see core/license/licenses.ts). */
+  license?: ModuleLicense;
 }
 
 export type InteractiveStyle = "plain" | "elegant" | "round" | "futuristic";
+
+/**
+ * The licence a module is passed on under (the module's settings, "Lizenz"). The ones Weft knows are named by `id` alone: "cc0" (CC0 1.0), "cc-by-4.0",
+ * "cc-by-sa-4.0" or "all-rights-reserved". A licence of the author's own (made in the settings of the app, with a text of their own) has an id of its own
+ * and brings `name` and `text` with it: the module is passed on, and whoever opens it need not have that licence in their app.
+ */
+export interface ModuleLicense {
+  id: string;
+  /** Only for a licence of the author's own: what it is called. */
+  name?: string;
+  /** Only for a licence of the author's own: its text. */
+  text?: string;
+}
 
 /**
  * The root object that is serialized to weft.json. Save format and export format are the

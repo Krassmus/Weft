@@ -17,6 +17,7 @@ import { defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
 import { createDefaultPageTimeline, syncPageTimelineEvents } from "./pageTimeline";
 import { ensureBuiltinVariables } from "./variables";
 import { tr } from "../i18n/tr";
+import { DEFAULT_LICENSE_ID } from "../license/licenses";
 
 /** A page's/layout's blocks keyed by id, stacked in the order given (the last one on top). */
 function blockRecord<T extends NewBlock>(blocks: T[]): Record<string, T & { order: string }> {
@@ -176,6 +177,7 @@ export function createEmptyDocument(): WeftDocument {
     colorPalette: [],
     languages: [],
     keyboardNavigationEnabled: true,
+    license: { id: DEFAULT_LICENSE_ID },
   };
   ensureBuiltinVariables(content.variables);
 
@@ -211,6 +213,7 @@ export function createBlankDocument(): WeftDocument {
     colorPalette: [],
     languages: [],
     keyboardNavigationEnabled: true,
+    license: { id: DEFAULT_LICENSE_ID },
   };
   ensureBuiltinVariables(content.variables);
   return { formatVersion: CURRENT_FORMAT_VERSION, content };

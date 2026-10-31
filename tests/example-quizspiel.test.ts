@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { loadWeft } from "../cli/load";
 import { validate } from "../cli/validate";
-import type { QuizBlock } from "../src/core/types";
+import type { QuizBlock, ScriptBlock } from "../src/core/types";
 
 /**
  * The quiz game that ships as an example (src/start-content/examples/quizspiel.weft, made by scripts/build-example-quizspiel.mjs): the file is a valid module in
- * both languages, and the library that holds its jokers and its ending does what the game says - tried here with stand-ins for what the player gives a logic
- * block's code (`vars`, `getBlock`, `jump`).
+ * both languages, and its code does what the game says - the library (the long jokers and the helpers) and the logic blocks (the short scripts, written out
+ * in the blocks so that they can be read) - tried here with stand-ins for what the player gives a logic block's code (`vars`, `getBlock`, `jump`).
  */
 const loaded = loadWeft("src/start-content/examples/quizspiel.weft");
 const content = loaded.content;
@@ -15,16 +15,26 @@ const pages = Object.values(content.pages);
 type Vars = Record<string, unknown>;
 type Option = { id: string; index: number; text: string; correct: boolean; hidden: boolean };
 const libraryCode = (content.scriptLibraries ?? []).map((library) => library.code).join("\n");
-const library = new Function(`${libraryCode}\nreturn { wwnmFiftyFifty, wwnmAudience, wwnmPhone, wwnmAnswered, wwnmQuit, wwnmEnd, wwnmSafe, wwnmMoney };`)() as {
-  wwnmFiftyFifty(vars: Vars, getBlock: (name: string) => unknown): void;
+const library = new Function(`${libraryCode}\nreturn { wwnmAudience, wwnmPhone, wwnmSafe, wwnmMoney };`)() as {
   wwnmAudience(vars: Vars, getBlock: (name: string) => unknown): void;
   wwnmPhone(vars: Vars, getBlock: (name: string) => unknown): void;
-  wwnmAnswered(vars: Vars, jump: (label: string, type?: string) => void): void;
-  wwnmQuit(vars: Vars, jump: (label: string, type?: string) => void): void;
-  wwnmEnd(vars: Vars): void;
   wwnmSafe(level: number): number;
   wwnmMoney(vars: Vars, amount: number): string;
 };
+
+type GetBlock = (name: string) => unknown;
+type Jump = (label: string, type?: string) => void;
+/** The logic blocks of the game: their code by name, as it stands in the blocks. */
+const scriptBlocks = pages.flatMap((page) => Object.values(page.blocks).filter((block): block is ScriptBlock => block.kind === "script"));
+const codeOf = (name: string) => scriptBlocks.find((block) => block.name === name)!.code;
+/** What a logic block does: its code run the way the player runs it (with the library's functions at hand), with `vars`, `getBlock` and `jump`. */
+const runBlock = (name: string) =>
+  new Function(`${libraryCode}\nreturn function (vars, getBlock, jump) {\n${codeOf(name)}\n};`)() as (vars: Vars, getBlock: GetBlock, jump: Jump) => void;
+const fifty = runBlock("Joker 50:50");
+const quit = runBlock("Aussteigen");
+const answered = runBlock("Nach dem Abschicken");
+const endScript = runBlock("Ende");
+const noJump: Jump = () => {};
 
 /** What getBlock("Frage") tells for a question of four answers: A is the right one; `hidden` follows hideOptions. */
 const questionStub = () => {
@@ -83,7 +93,7 @@ describe("the quiz game that comes with Weft", () => {
     for (let run = 0; run < 50; run++) {
       const vars: Vars = {};
       const { block, getBlock, hidden } = questionStub();
-      library.wwnmFiftyFifty(vars, getBlock);
+      fifty(vars, getBlock, noJump);
       expect(hidden.size).toBe(2);
       expect(hidden.has("o0")).toBe(false);
       expect(block.visibleOptions.length).toBe(2);
@@ -163,7 +173,7 @@ describe("the quiz game that comes with Weft", () => {
 
   it("does nothing, and says nothing, where the slide has no such question", () => {
     const vars: Vars = {};
-    library.wwnmFiftyFifty(vars, () => null);
+    fifty(vars, () => null, noJump);
     library.wwnmAudience(vars, () => null);
     library.wwnmPhone(vars, () => null);
     expect(vars).toEqual({});
@@ -172,10 +182,10 @@ describe("the quiz game that comes with Weft", () => {
   it("goes on after a right answer and ends the game after a wrong one, at the ending slide", () => {
     const jumps: unknown[][] = [];
     const jump = (...args: unknown[]) => void jumps.push(args);
-    library.wwnmAnswered({ richtig: true }, jump);
+    answered({ richtig: true }, () => null, jump);
     expect(jumps).toEqual([]);
     const vars: Vars = { richtig: false };
-    library.wwnmAnswered(vars, jump);
+    answered(vars, () => null, jump);
     expect(jumps).toEqual([["17", "fade"]]);
     expect(vars.ausgang).toBe("falsch");
     // (The ending is the last slide.)
@@ -185,7 +195,7 @@ describe("the quiz game that comes with Weft", () => {
   it("tells what is kept at the end: nothing, the safe level, what one had when walking away, the million", () => {
     const end = (vars: Vars) => {
       const result: Vars = { userlanguage: "de_DE", ...vars };
-      library.wwnmEnd(result);
+      endScript(result, () => null, noJump);
       return [result.endtitel, result.endtext];
     };
     expect(end({ ausgang: "falsch", stufe: "3" })).toEqual(["Leider falsch", "Du gehst leider ohne Gewinn nach Hause."]);
@@ -195,15 +205,32 @@ describe("the quiz game that comes with Weft", () => {
     expect(end({ ausgang: "aussteigen", stufe: "0" })[1]).toBe("Du steigst aus, bevor du etwas gewonnen hast.");
     expect(end({ ausgang: "gewonnen", stufe: "15" })).toEqual(["Du hast die Million!", "Alle 15 Fragen richtig - herzlichen Glückwunsch zu 1.000.000 €!"]);
     const english: Vars = { userlanguage: "en_US", ausgang: "aussteigen", stufe: "10" };
-    library.wwnmEnd(english);
+    endScript(english, () => null, noJump);
     expect(english.endtext).toBe("You walk away with €16,000.");
   });
 
   it("walking away ends the game at the ending slide", () => {
     const jumps: unknown[][] = [];
     const vars: Vars = {};
-    library.wwnmQuit(vars, (...args: unknown[]) => void jumps.push(args));
+    quit(vars, () => null, (...args: unknown[]) => void jumps.push(args));
     expect(vars.ausgang).toBe("aussteigen");
     expect(jumps).toEqual([["17", "fade"]]);
+  });
+  it("has the short scripts written out in the logic blocks of every question slide, and calls the two long jokers from the library", () => {
+    const questions = pages.filter((page) => Object.values(page.blocks).some((block) => block.kind === "quiz"));
+    expect(questions.length).toBe(15);
+    for (const page of questions) {
+      const code = (name: string) => (Object.values(page.blocks).find((block) => block.kind === "script" && block.name === name) as ScriptBlock).code;
+      expect(code("Joker 50:50")).toContain("hideOptions");
+      expect(code("Aussteigen")).toContain('vars.ausgang = "aussteigen"');
+      expect(code("Nach dem Abschicken")).toContain("if (vars.richtig) return;");
+      // (The long ones are one call, with a comment that says where the function is.)
+      expect(code("Joker Publikum")).toContain("wwnmAudience(vars, getBlock);");
+      expect(code("Joker Telefon")).toContain("wwnmPhone(vars, getBlock);");
+      expect(code("Joker Publikum")).toContain("JavaScript-Bibliotheken");
+    }
+    expect(codeOf("Ende")).toContain("vars.endtitel");
+    // What stands in the blocks is not in the library any more.
+    for (const gone of ["wwnmFiftyFifty", "wwnmQuit", "wwnmAnswered", "wwnmEnd"]) expect(libraryCode).not.toContain(gone);
   });
 });

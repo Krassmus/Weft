@@ -759,6 +759,14 @@ function ScriptLibrariesCard() {
   const libraries = useDocumentStore((s) => s.doc.content.scriptLibraries) ?? [];
   const hasLogicBlock = useDocumentStore((s) => Object.values(s.doc.content.pages).some((page) => Object.values(page.blocks).some((block) => block.kind === "script")));
   const { bind } = useDragReorder();
+  // The libraries whose code is shown (read only: to see how the logic blocks work, not a place to edit).
+  const [shown, setShown] = useState<Set<string>>(new Set());
+  const toggleCode = (id: string) =>
+    setShown((previous) => {
+      const next = new Set(previous);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   if (libraries.length === 0 && !hasLogicBlock) return null;
   return (
     <Collapsible title={tr("ui.script_libraries")}>
@@ -767,9 +775,20 @@ function ScriptLibrariesCard() {
           {libraries.map((library, index) => {
             const { dragClassName, ...dragAttrs } = bind("language", SCRIPT_LIBRARY_LIST_ID, index, (_container, to) => moveScriptLibrary(library.id, to));
             return (
-              <li key={library.id} className={"weft-language-row" + dragClassName} {...dragAttrs}>
+              <li key={library.id} className={"weft-language-row weft-script-library-row" + dragClassName} {...dragAttrs}>
                 <span className="weft-language-row-name">{library.fileName}</span>
                 <span className="weft-language-row-code">{Math.max(1, Math.round(library.code.length / 1024))} KB</span>
+                <button
+                  type="button"
+                  className="weft-icon-button"
+                  title={shown.has(library.id) ? tr("ui.script_library_hide_code") : tr("ui.script_library_show_code")}
+                  aria-label={`${shown.has(library.id) ? tr("ui.script_library_hide_code") : tr("ui.script_library_show_code")}: ${library.fileName}`}
+                  aria-expanded={shown.has(library.id)}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => toggleCode(library.id)}
+                >
+                  {"</>"}
+                </button>
                 <button
                   type="button"
                   className="weft-icon-button"
@@ -783,6 +802,11 @@ function ScriptLibrariesCard() {
                 >
                   ×
                 </button>
+                {shown.has(library.id) && (
+                  <pre className="weft-script-library-code" tabIndex={0} aria-label={library.fileName} onPointerDown={(e) => e.stopPropagation()}>
+                    {library.code.trim()}
+                  </pre>
+                )}
               </li>
             );
           })}

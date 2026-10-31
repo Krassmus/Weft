@@ -3,8 +3,9 @@
 //
 //   npm run build:cli && node scripts/build-example-quizspiel.mjs [ausgabe.weft]
 //
-// Die Fragen, ihre Erklärungen und alle Texte stehen hier in beiden Sprachen (de_DE, en_US). Die Joker (50:50, Publikum, Telefon), die
-// Gewinnstufen und das Ende stehen in einer Skript-Bibliothek des Moduls (WWNM_LIBRARY); die Logikblöcke auf den Folien rufen sie nur auf.
+// Die Fragen, ihre Erklärungen und alle Texte stehen hier in beiden Sprachen (de_DE, en_US). Die kurzen Skripte - 50:50, Aussteigen, nach dem Abschicken,
+// das Ende - stehen als lesbarer Code direkt in den Logikblöcken (BLOCK_CODE). Was länger ist (Publikum, Telefon) und die Hilfen (Gewinnstufen,
+// Geldformat, Mischen) stehen in einer Skript-Bibliothek des Moduls (WWNM_LIBRARY), die die Logikblöcke aufrufen.
 // Das Skript baut das Modul auf Deutsch und übersetzt es danach mit `weft text export` / `import` aus den hier gesammelten Paaren.
 
 import { execFileSync } from "node:child_process";
@@ -70,8 +71,9 @@ const QUESTIONS = [
 ];
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------
-// Die Bibliothek des Moduls: Gewinnstufen, die drei Joker, das Aussteigen, die falsche Antwort und das Ende. Läuft einmal beim Start; die Logikblöcke
-// auf den Folien rufen die Funktionen mit `vars`, `getBlock` und `jump` auf (die gibt es in einer Bibliothek selbst nicht).
+// Die Bibliothek des Moduls: Gewinnstufen, Hilfsfunktionen (Geldformat, Mischen, ...) und die beiden langen Joker Publikum und Telefon. Läuft einmal beim
+// Start; die Logikblöcke auf den Folien rufen die Funktionen mit `vars` und `getBlock` auf (die gibt es in einer Bibliothek selbst nicht). Die kurzen
+// Skripte (50:50, Aussteigen, nach dem Abschicken, das Ende) stehen nicht hier, sondern in den Logikblöcken (BLOCK_CODE unten).
 // Der Zustand steckt in Variablen (nur Texte und Ja/Nein: eine Zahlen-Variable würde die Tabelle am Ende des Moduls anzeigen):
 //   stufe        "0" bis "15": die letzte richtig beantwortete Frage        ausgang   "falsch", "aussteigen" oder "gewonnen"
 //   richtig      Ja/Nein: die letzte Antwort war richtig (setzt das Quiz)
@@ -118,15 +120,6 @@ function wwnmLevel(vars) {
 
 function wwnmUsed(vars, name) {
   vars[name] = true;
-}
-
-// 50:50: zwei falsche Antworten verschwinden.
-function wwnmFiftyFifty(vars, getBlock) {
-  var question = getBlock("Frage");
-  if (!question) return;
-  var wrong = wwnmShuffle(question.wrongOptions.filter(function (option) { return !option.hidden; }));
-  question.hideOptions(wrong.slice(0, 2));
-  wwnmUsed(vars, "joker5050");
 }
 
 // Publikum: Wie viele Prozent die richtige Antwort bekommt, hängt von der Frage ab (95 % bei der ersten, etwa 40 % bei der letzten) und wird jedes Mal
@@ -194,37 +187,58 @@ function wwnmPhone(vars, getBlock) {
   wwnmUsed(vars, "jokerTelefon");
 }
 
-function wwnmQuit(vars, jump) {
-  vars.ausgang = "aussteigen";
-  jump("17", "fade");
-}
-
-// Nach dem Abschicken (die Rückmeldung des Quiz war einen Moment zu sehen): Eine falsche Antwort beendet das Spiel. Bei einer richtigen läuft das Skript einfach
-// aus, und sein Auslöser zu "Nächste Folie" geht weiter zur nächsten Frage (ein jump lässt ihn nicht mehr auslösen).
-function wwnmAnswered(vars, jump) {
-  if (vars.richtig) return;
-  vars.ausgang = "falsch";
-  jump("17", "fade");
-}
-
-// Die Schlussfolie: wie das Spiel ausging und was man mitnimmt.
-function wwnmEnd(vars) {
-  var german = wwnmGerman(vars);
-  var level = Number(vars.stufe) || 0;
-  if (vars.ausgang === "gewonnen") {
-    vars.endtitel = german ? "Du hast die Million!" : "You won the million!";
-    vars.endtext = german ? "Alle 15 Fragen richtig - herzlichen Glückwunsch zu " + wwnmMoney(vars, WWNM_PRIZES[15]) + "!" : "All 15 questions right - congratulations on " + wwnmMoney(vars, WWNM_PRIZES[15]) + "!";
-  } else if (vars.ausgang === "aussteigen") {
-    var kept = WWNM_PRIZES[level];
-    vars.endtitel = german ? "Gut gespielt!" : "Well played!";
-    vars.endtext = kept > 0 ? (german ? "Du steigst aus und nimmst " + wwnmMoney(vars, kept) + " mit." : "You walk away with " + wwnmMoney(vars, kept) + ".") : (german ? "Du steigst aus, bevor du etwas gewonnen hast." : "You walk away before winning anything.");
-  } else {
-    var safe = wwnmSafe(level);
-    vars.endtitel = german ? "Leider falsch" : "Sorry, that was wrong";
-    vars.endtext = safe > 0 ? (german ? "Du fällst auf die Sicherheitsstufe zurück und gehst mit " + wwnmMoney(vars, safe) + " nach Hause." : "You fall back to the safe level and go home with " + wwnmMoney(vars, safe) + ".") : (german ? "Du gehst leider ohne Gewinn nach Hause." : "You go home without any winnings.");
-  }
-}
 `;
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+// Der Code der Logikblöcke: lesbar, so wie er in den Blöcken steht (das Skript eines Blocks hat `vars` (der Zustand des Spiels), `getBlock` (ein Block der
+// Folie, hier die Frage), `jump` (zu einer anderen Folie springen) und kann alles aus der Bibliothek aufrufen).
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+const BLOCK_CODE = {
+  fifty: `// Joker 50:50: zwei falsche Antworten der Frage verschwinden.
+// (wwnmShuffle mischt eine Liste; es steht in der Bibliothek "wwnm": Einstellungen > JavaScript-Bibliotheken.)
+var question = getBlock("Frage");
+if (!question) return;
+var wrong = wwnmShuffle(question.wrongOptions.filter(function (option) { return !option.hidden; }));
+question.hideOptions(wrong.slice(0, 2));
+vars.joker5050 = true;`,
+
+  audience: `// Joker Publikum: die Stimmen werden in der Bibliothek "wwnm" ausgerechnet
+// (Funktion wwnmAudience: Einstellungen > JavaScript-Bibliotheken) und in die Joker-Anzeige geschrieben.
+wwnmAudience(vars, getBlock);`,
+
+  phone: `// Joker Telefon: der Rat der Freundin oder des Freundes kommt aus der Bibliothek "wwnm"
+// (Funktion wwnmPhone: Einstellungen > JavaScript-Bibliotheken) und wird in die Joker-Anzeige geschrieben.
+wwnmPhone(vars, getBlock);`,
+
+  quit: `// Aussteigen: das Spiel endet hier. Die Schlussfolie nimmt den Gewinn der letzten richtigen Antwort mit.
+vars.ausgang = "aussteigen";
+jump("17", "fade");`,
+
+  // Nach dem Abschicken, wenn die Rückmeldung des Quiz einen Moment zu sehen war.
+  answered: `// Nach dem Abschicken (die Rückmeldung des Quiz war einen Moment zu sehen):
+// Eine falsche Antwort beendet das Spiel. Bei einer richtigen läuft das Skript einfach aus,
+// und sein Auslöser zu "Nächste Folie" geht weiter zur nächsten Frage (nach einem jump nicht mehr).
+if (vars.richtig) return;
+vars.ausgang = "falsch";
+jump("17", "fade");`,
+
+  end: `// Die Schlussfolie: wie das Spiel ausging und was man mitnimmt.
+// (wwnmGerman, wwnmMoney und wwnmSafe sowie WWNM_PRIZES stehen in der Bibliothek "wwnm".)
+var german = wwnmGerman(vars);
+var level = Number(vars.stufe) || 0;
+if (vars.ausgang === "gewonnen") {
+  vars.endtitel = german ? "Du hast die Million!" : "You won the million!";
+  vars.endtext = german ? "Alle 15 Fragen richtig - herzlichen Glückwunsch zu " + wwnmMoney(vars, WWNM_PRIZES[15]) + "!" : "All 15 questions right - congratulations on " + wwnmMoney(vars, WWNM_PRIZES[15]) + "!";
+} else if (vars.ausgang === "aussteigen") {
+  var kept = WWNM_PRIZES[level];
+  vars.endtitel = german ? "Gut gespielt!" : "Well played!";
+  vars.endtext = kept > 0 ? (german ? "Du steigst aus und nimmst " + wwnmMoney(vars, kept) + " mit." : "You walk away with " + wwnmMoney(vars, kept) + ".") : (german ? "Du steigst aus, bevor du etwas gewonnen hast." : "You walk away before winning anything.");
+} else {
+  var safe = wwnmSafe(level);
+  vars.endtitel = german ? "Leider falsch" : "Sorry, that was wrong";
+  vars.endtext = safe > 0 ? (german ? "Du fällst auf die Sicherheitsstufe zurück und gehst mit " + wwnmMoney(vars, safe) + " nach Hause." : "You fall back to the safe level and go home with " + wwnmMoney(vars, safe) + ".") : (german ? "Du gehst leider ohne Gewinn nach Hause." : "You go home without any winnings.");
+}`,
+};
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------
 // Aussehen
@@ -358,9 +372,9 @@ QUESTIONS.forEach((question, index) => {
   // Die Joker und das Aussteigen: je ein Button, der sein Skript auslöst; ein benutzter Joker verschwindet (auch auf den späteren Folien).
   const hidden = { type: "none", durationMs: 0 };
   const jokers = [
-    ["50:50", "50:50", "fifty", "wwnmFiftyFifty(vars, getBlock);", "joker5050", 4],
-    ["Publikum", "Audience", "audience", "wwnmAudience(vars, getBlock);", "jokerPublikum", 20],
-    ["Telefon", "Phone", "phone", "wwnmPhone(vars, getBlock);", "jokerTelefon", 36],
+    ["50:50", "50:50", "fifty", BLOCK_CODE.fifty, "joker5050", 4],
+    ["Publikum", "Audience", "audience", BLOCK_CODE.audience, "jokerPublikum", 20],
+    ["Telefon", "Phone", "phone", BLOCK_CODE.phone, "jokerTelefon", 36],
   ];
   for (const [de, en, key, code, used, x] of jokers) {
     add({ op: "add_block", page, kind: "button", as: `${key}${n}`, set: { name: `Joker ${de}`, text: T(de, en), action: "event", exitEffect: hidden, position: { x, y: 11.5, width: 14.5, height: 6 } } });
@@ -369,12 +383,12 @@ QUESTIONS.forEach((question, index) => {
     add({ op: "set_trigger", page, to: `exit:$${key}${n}`, condition: used });
   }
   add({ op: "add_block", page, kind: "button", as: `quit${n}`, set: { name: "Aussteigen", text: T("Aussteigen", "Walk away"), action: "event", position: { x: 54, y: 11.5, width: 14, height: 6 } } });
-  add({ op: "add_block", page, kind: "script", as: `quitScript${n}`, set: { name: "Aussteigen", code: "wwnmQuit(vars, jump);" } });
+  add({ op: "add_block", page, kind: "script", as: `quitScript${n}`, set: { name: "Aussteigen", code: BLOCK_CODE.quit } });
   add({ op: "set_trigger", page, to: `script-run:$quitScript${n}`, from: `click:$quit${n}` });
   // Nach dem Abschicken, wenn die Rückmeldung des Quiz einen Moment zu sehen war: das Skript sieht nach. Falsch: es springt zum Ende. Richtig: es läuft aus, und sein
   // Auslöser führt zu "Nächste Folie". Was sonst dorthin führte (die Weiter-Kette und jeder Button, der nur ein Ereignis auslöst), fällt weg: set_trigger nimmt bei
   // "from": null jeweils den ersten Auslöser weg.
-  add({ op: "add_block", page, kind: "script", as: `answeredScript${n}`, set: { name: "Nach dem Abschicken", code: "wwnmAnswered(vars, jump);" } });
+  add({ op: "add_block", page, kind: "script", as: `answeredScript${n}`, set: { name: "Nach dem Abschicken", code: BLOCK_CODE.answered } });
   add({ op: "set_trigger", page, to: `script-run:$answeredScript${n}`, from: `quiz-submit:$quiz${n}`, delayMs: 1800 });
   clearEnd(page);
   add({ op: "add_trigger", page, from: `script-run:$answeredScript${n}`, to: "end" });
@@ -385,7 +399,7 @@ add({ op: "add_page", layout: "$layout", as: "ende" });
 add({ op: "add_text", page: "$ende", x: 8, y: 22, width: 84, height: 14, name: "Ergebnis", html: bi(() => paragraph(colored(GOLD, "<b>{{endtitel}}</b>"), { size: 5.5, align: "center" })) });
 add({ op: "add_text", page: "$ende", x: 14, y: 42, width: 72, height: 16, name: "Gewinn", html: bi(() => paragraph("{{endtext}}", { size: 2.8, align: "center", line: 1.35 })) });
 add({ op: "add_block", page: "$ende", kind: "button", as: "again", set: { name: "Neues Spiel", text: T("Neues Spiel", "New game"), action: "goto", targetPageId: "1", position: { x: 38, y: 68, width: 24, height: 9 } } });
-add({ op: "add_block", page: "$ende", kind: "script", as: "endScript", set: { name: "Ende", code: "wwnmEnd(vars);" } });
+add({ op: "add_block", page: "$ende", kind: "script", as: "endScript", set: { name: "Ende", code: BLOCK_CODE.end } });
 add({ op: "set_trigger", page: "$ende", to: "script-run:$endScript", from: "start" });
 
 add({ op: "set_transition", page: "all", type: "fade", durationMs: 400 });

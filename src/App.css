@@ -3736,6 +3736,31 @@ button.weft-timeline-node-icon:hover {
   font-size: 10.5px;
 }
 
+/* A library of the module with its code shown (SettingsTab.tsx): the code takes a line of its own below the name. */
+.weft-script-library-row {
+  flex-wrap: wrap;
+}
+
+.weft-script-library-code {
+  flex-basis: 100%;
+  box-sizing: border-box;
+  max-height: 280px;
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--weft-radius-sm);
+  background: var(--weft-input-bg);
+  color: var(--weft-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre;
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .weft-language-row-code {
   margin-left: auto;
   color: var(--weft-text-faint);

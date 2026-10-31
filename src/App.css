@@ -1468,12 +1468,22 @@ button.weft-timeline-node-icon:hover {
   position: absolute;
   outline: 1px dashed transparent;
   touch-action: none;
-  /* A long press opens the menu of the element (useLongPressContextMenu), not the one of the system for a picture. */
+  /* A long press opens the menu of the element (useLongPressContextMenu), not the one of the system for a picture, nor a selection of text (with "Look up"
+     and "Translate"): only what is being edited can be selected (below). */
   -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   /* Same base size as the exported player (see player.runtime.css) so the edit canvas and the
      real output agree - and so it visibly scales as you resize the slide itself. */
   font-size: 16px;
   font-size: 1.7cqw;
+}
+
+.weft-edit-block [contenteditable="true"],
+.weft-edit-block input,
+.weft-edit-block textarea {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .weft-edit-block-inner {
@@ -1723,6 +1733,15 @@ button.weft-timeline-node-icon:hover {
   position: relative;
   width: 100%;
   height: 100%;
+}
+
+/* Covers the still of a video so that a press lands on it and not on the picture of the video. */
+.weft-edit-block-video-shield {
+  position: absolute;
+  inset: 0;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .weft-edit-block-video {

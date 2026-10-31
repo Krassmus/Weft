@@ -851,6 +851,8 @@ function BlockContent({
       return block.assetId ? (
         <div className="weft-edit-block-video-wrap">
           <EditorVideo src={getObjectUrl(block.assetId)} loop={block.loop} muted={block.muted} previewTime={videoPreviewTime} />
+          {/* (Over the still: on an iPad, a long press on a paused video offers the text in it - "Translate" - next to the menu of the block.) */}
+          <div className="weft-edit-block-video-shield" />
           <div className="weft-edit-block-video-icon" dangerouslySetInnerHTML={{ __html: video2IconSvg }} />
         </div>
       ) : (

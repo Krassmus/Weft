@@ -9,7 +9,10 @@ import { runsInTauri } from "../../../core/platform";
 /** The licence of the module (the module's settings): a choice among the four Weft knows and the author's own (made in the settings of the app), with what
  * the chosen one says below. */
 export function LicenseField() {
-  const license = useDocumentStore((s) => licenseOfModule(s.doc.content));
+  // (What is in the document, not licenseOfModule(...) in the selector: for a module that says nothing that makes a new object every time, which React takes
+  // for a store that keeps changing.)
+  const stored = useDocumentStore((s) => s.doc.content.license);
+  const license = licenseOfModule({ license: stored });
   const own = useLicenseStore((s) => s.licenses);
   const described = describeLicense(license);
   // A licence the module carries that is not (any more) in the author's list - one that came with a module from somebody else: it stays a choice.

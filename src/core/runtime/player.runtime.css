@@ -310,6 +310,7 @@ body {
 }
 
 /* ---- Files block (filesBoxElement in player.runtime.js) ---- */
+/* (Its corners are in em, as its text: the font size follows the width of the slide - 1.5cqw - so the rounding does too, in the player, on the canvas and in a thumbnail.) */
 .weft-files {
   box-sizing: border-box;
   width: 100%;
@@ -317,7 +318,7 @@ body {
   overflow: auto;
   padding: 1em;
   border: 1px solid var(--slide-line-strong);
-  border-radius: 8px;
+  border-radius: 0.57em;
   background: var(--slide-surface-quiet);
   color: var(--slide-fg);
   font-size: 14px;
@@ -364,7 +365,7 @@ body {
 .weft-files-unlock {
   padding: 0.25em 0.8em;
   border: 1px solid var(--slide-button-bg);
-  border-radius: 6px;
+  border-radius: 0.43em;
   background: var(--slide-button-bg);
   color: var(--slide-button-fg);
   font: inherit;
@@ -389,7 +390,7 @@ body {
   min-width: 0;
   padding: 0.25em 0.5em;
   border: 1px solid var(--slide-line-strong);
-  border-radius: 6px;
+  border-radius: 0.43em;
   background: var(--slide-surface);
   color: var(--slide-fg);
   font: inherit;

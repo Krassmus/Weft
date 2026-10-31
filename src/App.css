@@ -3859,7 +3859,7 @@ button.weft-timeline-node-icon:hover {
   overflow: hidden;
   padding: 1em;
   border: 1px solid var(--slide-line-strong);
-  border-radius: 8px;
+  border-radius: 0.57em;
   background: var(--slide-surface-quiet);
   color: var(--slide-fg);
   font-size: 14px;
@@ -3908,7 +3908,7 @@ button.weft-timeline-node-icon:hover {
 
 .weft-edit-files-action {
   padding: 0.25em 0.8em;
-  border-radius: 6px;
+  border-radius: 0.43em;
   background: var(--slide-button-bg);
   color: var(--slide-button-fg);
   white-space: nowrap;

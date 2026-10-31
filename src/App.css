@@ -1468,6 +1468,8 @@ button.weft-timeline-node-icon:hover {
   position: absolute;
   outline: 1px dashed transparent;
   touch-action: none;
+  /* A long press opens the menu of the element (useLongPressContextMenu), not the one of the system for a picture. */
+  -webkit-touch-callout: none;
   /* Same base size as the exported player (see player.runtime.css) so the edit canvas and the
      real output agree - and so it visibly scales as you resize the slide itself. */
   font-size: 16px;

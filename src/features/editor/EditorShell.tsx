@@ -65,6 +65,7 @@ import { PlayerShell } from "../player/PlayerShell";
 import { Sidebar } from "./Sidebar";
 import { useCopyPaste } from "./useCopyPaste";
 import { useDeleteSelection } from "./useDeleteSelection";
+import { useLongPressContextMenu } from "./useLongPressContextMenu";
 import { tr } from "../../core/i18n/tr";
 
 const SIDEBAR_WIDTH_MIN = 220;
@@ -98,6 +99,8 @@ const OPENING_ANIMATION_MS = 1400;
 export function EditorShell() {
   const { t } = useTranslation();
   useSyncMenuLanguage();
+  // (A long press opens the context menus on a tablet, where there is no right click.)
+  useLongPressContextMenu();
   const doc = useDocumentStore((s) => s.doc);
   const filePath = useDocumentStore((s) => s.filePath);
   const undo = useDocumentStore((s) => s.undo);

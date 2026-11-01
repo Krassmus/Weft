@@ -797,7 +797,8 @@ function BlockContent({
     case "text":
       return (
         <EditableRichText
-          className={"weft-edit-block-text" + (block.scrollable ? " is-scrollable" : "")}
+          // (weft-block-text: the padding and the margins of the text as the player has them - core/blocks/text/render.css.)
+          className={"weft-block-text weft-edit-block-text" + (block.scrollable ? " is-scrollable" : "")}
           style={textBoxCss(block.box)}
           html={textHtml(block, lang, defaultLang)}
           editable={selected && editing}
@@ -812,7 +813,7 @@ function BlockContent({
         <div className="weft-edit-block-placeholder-box">
           <span className="weft-edit-block-placeholder-label">{block.label || tr("ui.placeholder")}</span>
           <EditableRichText
-            className="weft-edit-block-text"
+            className="weft-block-text weft-edit-block-text"
             html={block.html}
             editable={selected && editing}
             wholeMode={selected && !editing}

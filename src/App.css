@@ -2216,7 +2216,9 @@ button.weft-timeline-node-icon:hover {
   gap: 0.6em;
   /* Everything here is in em of the block's own type size (1.7cqw): the block is the same picture at every zoom, in the editor, in
      the thumbnail and in the player - a px value would not scale along (and make the rows taller than the box when zoomed out). */
-  padding: 0.25em;
+  /* (No padding: the player's .weft-quiz has none, and the question and the options start at the edge of the block there - with one here the picture
+     was 0.25em narrower on each side than the player's and the words broke somewhere else.) */
+  padding: 0;
   /* Deliberately no own font-size override (there used to be one, smaller than the block default)
      - it needs to match .weft-block's base size in player.runtime.css exactly, em-for-em, or the
      same question/options/submit content ends up taking up a visibly different amount of the

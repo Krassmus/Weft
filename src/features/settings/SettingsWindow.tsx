@@ -13,6 +13,7 @@ import {
 import type { TurnSetting } from "../../core/collab/settings";
 import { useTranslation } from "../../core/i18n/useTranslation";
 import { useLanguageStore } from "../../core/i18n/languageStore";
+import { LANGUAGES, LANGUAGE_NAMES } from "../../core/i18n/translations";
 import type { LanguagePreference } from "../../core/i18n/languageStore";
 import { useSyncMenuLanguage } from "../../core/i18n/useSyncMenuLanguage";
 import { avatarFromFile } from "../../core/profile/avatarImage";
@@ -36,10 +37,9 @@ function SettingsGroup({ title, children }: { title: string; children: ReactNode
   );
 }
 
-const LANGUAGE_OPTIONS: { value: LanguagePreference; labelKey: "settings.language.system" | "settings.language.de" | "settings.language.en" }[] = [
-  { value: "system", labelKey: "settings.language.system" },
-  { value: "de", labelKey: "settings.language.de" },
-  { value: "en", labelKey: "settings.language.en" },
+const LANGUAGE_OPTIONS: { value: LanguagePreference; label: (t: (key: "settings.language.system") => string) => string }[] = [
+  { value: "system", label: (t) => t("settings.language.system") },
+  ...LANGUAGES.map((language) => ({ value: language, label: () => LANGUAGE_NAMES[language] })),
 ];
 
 const CONTRAST_OPTIONS: { value: ContrastLevel; labelKey: "settings.contrast.stylish" | "settings.contrast.higher" | "settings.contrast.strong" }[] = [
@@ -320,7 +320,7 @@ export function SettingsWindow() {
               checked={preference === option.value}
               onChange={() => setPreference(option.value)}
             />
-            <span>{t(option.labelKey)}</span>
+            <span>{option.label(t)}</span>
           </label>
         ))}
         <p className="weft-hint">{t("settings.language.hint")}</p>

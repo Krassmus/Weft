@@ -4,9 +4,11 @@
  * explore) and tutorials (modules that explain Weft, played in the player). They are .weft files in src/start-content/<kind>/,
  * described by that folder's manifest.json (see the README there). A manifest entry whose file isn't there (yet) is left out.
  */
+import type { Language } from "../../core/i18n/translations";
+
 export type ContentKind = "templates" | "examples" | "tutorials";
 
-type Localized = string | Partial<Record<"de" | "en", string>>;
+type Localized = string | Partial<Record<Language, string>>;
 
 interface ManifestEntry {
   /** The file in the folder. */
@@ -44,7 +46,7 @@ export function bundledModules(kind: ContentKind): BundledModule[] {
 }
 
 /** A text of the manifest in the language of the editor (the other one, then any, when it has none for that). */
-export function localized(text: Localized | undefined, lang: "de" | "en"): string {
+export function localized(text: Localized | undefined, lang: Language): string {
   if (text === undefined) return "";
   if (typeof text === "string") return text;
   return text[lang] ?? text.en ?? text.de ?? "";

@@ -5,6 +5,8 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import settingsIconSvg from "../../../mockups/icons/admin.svg?raw";
 import logo from "../../assets/weft-logo.png";
 import { tr } from "../../core/i18n/tr";
+import { LANGUAGE_LOCALES } from "../../core/i18n/translations";
+import type { Language } from "../../core/i18n/translations";
 import { useTranslation } from "../../core/i18n/useTranslation";
 import { listLibrary, readLibraryFile } from "../../core/io/library";
 import { forgetRecentFile, readRecentFiles, syncRecentMenu } from "../../core/io/recentFiles";
@@ -411,7 +413,7 @@ function ProjectsSection({ actions, progress }: { actions: StartActions; progres
                 {progress.active?.key === project.path && <LoadBar seconds={progress.active.seconds} />}
                 <div className="weft-start-card-body">
                   <h3 title={title}>{title}</h3>
-                  <p>{tr("ui.start_last_edited", { date: project.modified ? new Date(project.modified).toLocaleDateString(lang === "de" ? "de-DE" : "en-GB") : "-" })}</p>
+                  <p>{tr("ui.start_last_edited", { date: project.modified ? new Date(project.modified).toLocaleDateString(LANGUAGE_LOCALES[lang]) : "-" })}</p>
                   <span className="weft-start-card-folder" title={project.path}>
                     <Icon name="folder" size={16} />
                     {project.folder}
@@ -465,7 +467,7 @@ function ProjectsSection({ actions, progress }: { actions: StartActions; progres
   );
 }
 
-function TutorialsSection({ tutorials, lang, progress, onPlay }: { tutorials: BundledModule[]; lang: "de" | "en"; progress: OpenProgress; onPlay: (module: BundledModule) => Promise<void> }) {
+function TutorialsSection({ tutorials, lang, progress, onPlay }: { tutorials: BundledModule[]; lang: Language; progress: OpenProgress; onPlay: (module: BundledModule) => Promise<void> }) {
   const [all, setAll] = useState(false);
   const summaries = useBundledSummaries(tutorials);
   const shown = all ? tutorials : tutorials.slice(0, TUTORIALS_SHOWN);
@@ -520,7 +522,7 @@ function TutorialsSection({ tutorials, lang, progress, onPlay }: { tutorials: Bu
 }
 
 /** The dialog that lists modules that come with Weft as cards to pick from - the templates, or (with `title`) the examples. */
-function TemplatesDialog({ title, templates, lang, progress, onClose, onUse }: { title?: string; templates: BundledModule[]; lang: "de" | "en"; progress: OpenProgress; onClose: () => void; onUse: (module: BundledModule) => void }) {
+function TemplatesDialog({ title, templates, lang, progress, onClose, onUse }: { title?: string; templates: BundledModule[]; lang: Language; progress: OpenProgress; onClose: () => void; onUse: (module: BundledModule) => void }) {
   const summaries = useBundledSummaries(templates);
   const firstRef = useRef<HTMLDivElement>(null);
   useEffect(() => firstRef.current?.focus(), []);

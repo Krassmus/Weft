@@ -1,19 +1,31 @@
 import { create } from "zustand";
+import { LANGUAGES } from "./translations";
 import type { Language } from "./translations";
 
 export type LanguagePreference = "system" | Language;
 
 const STORAGE_KEY = "weft:language";
 
-function systemLanguage(): Language {
-  const raw = (typeof navigator !== "undefined" && navigator.language) || "en";
-  return raw.toLowerCase().startsWith("de") ? "de" : "en";
+/** The first of the languages the system prefers (in its order) that the interface has - "pt-PT" gives "pt", "de-AT" gives "de";
+ * English when none of them is offered. */
+export function systemLanguage(preferred?: readonly string[]): Language {
+  const list = preferred ?? (typeof navigator !== "undefined" ? (navigator.languages?.length ? navigator.languages : [navigator.language]) : []);
+  for (const raw of list) {
+    const code = (raw ?? "").toLowerCase().split(/[-_]/)[0];
+    const match = LANGUAGES.find((language) => language === code);
+    if (match) return match;
+  }
+  return "en";
+}
+
+function isLanguage(value: string | null): value is Language {
+  return value !== null && (LANGUAGES as readonly string[]).includes(value);
 }
 
 function readStoredPreference(): LanguagePreference {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "system" || stored === "de" || stored === "en") return stored;
+    if (stored === "system" || isLanguage(stored)) return stored;
   } catch {
     // Storage unavailable (private/locked-down webview) - just fall back to system detection.
   }

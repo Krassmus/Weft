@@ -1,5 +1,11 @@
 import type { Block } from "../types";
 import { uiDe, uiEn } from "./uiStrings";
+import { es } from "./locales/es";
+import { fr } from "./locales/fr";
+import { it } from "./locales/it";
+import { pl } from "./locales/pl";
+import { pt } from "./locales/pt";
+import { tr } from "./locales/tr";
 
 /**
  * App-UI strings, in English and German - not document content (a module's own title, slide
@@ -240,9 +246,37 @@ const en = { ...baseEn, ...uiEn };
 const de: Record<keyof typeof en, string> = { ...baseDe, ...uiDe };
 
 export type TranslationKey = keyof typeof en;
-export type Language = "de" | "en";
 
-export const translations: Record<Language, Record<TranslationKey, string>> = { en, de };
+/** The languages of the interface. German and English are written by hand (and are the ones the strings are checked against);
+ * the others (locales/) were translated from the English, "pt" is Brazilian Portuguese. */
+export const LANGUAGES = ["de", "en", "es", "fr", "pt", "it", "tr", "pl"] as const;
+export type Language = (typeof LANGUAGES)[number];
+
+/** Each language in its own name - the settings list shows them like this so that anyone finds theirs. */
+export const LANGUAGE_NAMES: Record<Language, string> = {
+  de: "Deutsch",
+  en: "English",
+  es: "Español",
+  fr: "Français",
+  pt: "Português (Brasil)",
+  it: "Italiano",
+  tr: "Türkçe",
+  pl: "Polski",
+};
+
+/** The locale (for dates and numbers) that goes with each language. */
+export const LANGUAGE_LOCALES: Record<Language, string> = {
+  de: "de-DE",
+  en: "en-GB",
+  es: "es-ES",
+  fr: "fr-FR",
+  pt: "pt-BR",
+  it: "it-IT",
+  tr: "tr-TR",
+  pl: "pl-PL",
+};
+
+export const translations: Record<Language, Record<TranslationKey, string>> = { en, de, es, fr, pt, it, tr, pl };
 
 /** One shared map from a block's own `kind` to its translation key - PagePanel.tsx,
  * LayoutPanel.tsx and BlockPanel.tsx each need "what do we call this kind of block", and used to

@@ -1,5 +1,38 @@
 [
   {
+    "file": "willkommen.weft",
+    "title": {
+      "de": "Willkommen bei Weft",
+      "en": "Welcome to Weft",
+      "es": "Te damos la bienvenida a Weft",
+      "fr": "Bienvenue dans Weft",
+      "pt": "Boas-vindas ao Weft",
+      "it": "Benvenuto in Weft",
+      "tr": "Weft'e hoş geldin",
+      "pl": "Witaj w Weft"
+    },
+    "description": {
+      "de": "Ein kurzer Rundgang durch die App: Folien, Editor, Seitenleiste und Event-Graph.",
+      "en": "A short tour of the app: slides, editor, sidebar and event graph.",
+      "es": "Un breve recorrido por la app: diapositivas, editor, barra lateral y grafo de eventos.",
+      "fr": "Un court tour de l’app : diapositives, éditeur, barre latérale et graphe d’événements.",
+      "pt": "Um passeio rápido pelo app: slides, editor, barra lateral e grafo de eventos.",
+      "it": "Un breve giro dell’app: diapositive, editor, barra laterale e grafo degli eventi.",
+      "tr": "Uygulamaya kısa bir tur: slaytlar, düzenleyici, kenar çubuğu ve olay grafiği.",
+      "pl": "Krótki spacer po aplikacji: slajdy, edytor, panel boczny i graf zdarzeń."
+    },
+    "tag": {
+      "de": "Einstieg",
+      "en": "Getting started",
+      "es": "Primeros pasos",
+      "fr": "Premiers pas",
+      "pt": "Primeiros passos",
+      "it": "Primi passi",
+      "tr": "Başlangıç",
+      "pl": "Pierwsze kroki"
+    }
+  },
+  {
     "file": "grundlagen.weft",
     "title": { "de": "Die erste Präsentation", "en": "Your first presentation" },
     "description": { "de": "Erstelle Folien, füge Texte und Bilder hinzu und gestalte Übergänge.", "en": "Create slides, add text and images and design transitions." },

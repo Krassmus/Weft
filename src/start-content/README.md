@@ -8,12 +8,17 @@ so a file only has to be dropped in next to its entry.
 | ------------ | ----------------------------------------------- | ---------------------------------------------------- |
 | `templates/` | "Mit Vorlage starten" (a dialog with all of them) | a new, unsaved module that is a copy of the file     |
 | `examples/`  | "Beispiel erkunden" (one entry: it is opened; several: a dialog with all of them) | a new, unsaved module that is a copy of the file     |
-| `tutorials/` | "Weft kennenlernen" (a row of cards)             | played in the player only - nothing can be edited    |
+| `tutorials/` | "Tutorials" (a row of cards, under "Meine Projekte") | played in the player only - nothing can be edited, in the language of Weft's interface |
 
 Whichever way a module of these folders is opened, working on it never changes the file: it opens as a copy of its own (a new id, an
 editing history of its own) that has no file yet, so the first "Speichern" asks where to put it. The files carry `"template": true` in
 their `weft.json` (`weft edit` with `{"op": "set_template"}` sets it) - that is what makes Weft open one as a copy when it is opened
 from anywhere else too (File > Open, a double click), not only from the start screen. The copy is not a template any more. A template that has its texts in several languages (the module's `languages`) opens in the language of the person who opens it: the language of Weft's interface becomes its default language - the blocks and the editor are in it - and the other languages stay as translations. The title comes from the manifest (`title` per language), since a module's title has no translations of its own. A template that lacks that language opens as it is.
+
+A tutorial is not played from the page the file was saved with: Weft makes the page from the module itself (`weft.json`, see `src/core/io/playModule.ts`) and starts it in the
+language of Weft's interface - the one of the module's `languages` that matches it, otherwise English, otherwise the player decides (as for a learner). So a
+tutorial can be one module with its texts in several languages (as `willkommen.weft`), and a file that the `weft` command line wrote works as well (it has no page of its
+own). Only a custom font of a tutorial is not shown (the fonts are read from the editor's own store).
 
 ## manifest.json
 

@@ -489,7 +489,7 @@ export const es: Record<TranslationKey, string> = {
   "ui.start_remove_from_list": "Quitar de la lista",
   "ui.start_show_in_folder": "Mostrar en la carpeta",
   "ui.start_more": "Más",
-  "ui.start_learn_weft": "Conoce Weft",
+  "ui.start_learn_weft": "Tutoriales",
   "ui.start_learn_weft_hint": "De la primera diapositiva a la aventura interactiva.",
   "ui.start_show_all_tutorials": "Mostrar todos los tutoriales",
   "ui.start_minutes": "{n} min",

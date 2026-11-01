@@ -55,7 +55,7 @@ import { PresentationView } from "./PresentationView";
 import { PresenterView } from "../presenter/PresenterView";
 import { announceStatus } from "../../core/accessibility/statusAnnouncer";
 import { hasNativeMenu, libraryMode } from "../../core/platform";
-import { loadPlayerFile } from "../../core/io/playerFile";
+import { loadModuleForPlay } from "../../core/io/playModule";
 import { unpackDocument } from "../../core/io/unpack";
 import { StartScreen } from "../start/StartScreen";
 import { useStartStore } from "../start/startStore";
@@ -862,10 +862,10 @@ export function EditorShell() {
 
   handleUseModuleRef.current = handleUseModule;
 
-  // A tutorial is only played (nothing of the module that is open is touched: the start screen comes back with "Start").
+  // A tutorial is only played (nothing of the module that is open is touched: the start screen comes back with "Start") - in the language of Weft's interface.
   async function handlePlayModule(bytes: Uint8Array) {
     try {
-      openPlayer(await loadPlayerFile(bytes), null);
+      openPlayer(await loadModuleForPlay(bytes, resolveLanguage(useLanguageStore.getState().preference)), null);
     } catch (err) {
       alert(`${t("toolbar.openFailed")}\n${errorMessage(err)}`);
     }

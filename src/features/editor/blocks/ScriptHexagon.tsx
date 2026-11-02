@@ -1,4 +1,4 @@
-import gearIconSvg from "../../../../mockups/icons/admin.svg?raw";
+import gearIconSvg from "../../../assets/icons/admin.svg?raw";
 
 /** What a logic block (see ScriptBlock) looks like in the editor - on the slide and in its thumbnail: a green hexagon with a gear in it.
  * The player shows nothing of it. */

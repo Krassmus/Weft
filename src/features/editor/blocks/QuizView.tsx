@@ -4,9 +4,9 @@ import { quizExplanation, quizOptionHtml, quizQuestionHtml } from "../../../core
 import { withProgress } from "../../../core/document/variablePlaceholders";
 import { playerStringsFor } from "../../../core/i18n/playerStrings";
 import type { QuizBlock } from "../../../core/types";
-import acceptSvg from "../../../../mockups/icons/accept.svg?raw";
-import checkboxCheckedSvg from "../../../../mockups/icons/checkbox-checked.svg?raw";
-import checkboxUncheckedSvg from "../../../../mockups/icons/checkbox-unchecked.svg?raw";
+import acceptSvg from "../../../assets/icons/accept.svg?raw";
+import checkboxCheckedSvg from "../../../assets/icons/checkbox-checked.svg?raw";
+import checkboxUncheckedSvg from "../../../assets/icons/checkbox-unchecked.svg?raw";
 import { RenderHost } from "./RenderHost";
 
 // The round buttons of a quiz where only one answer can be picked (the same drawing the player has).

@@ -3,7 +3,7 @@ import { IMAGE_FILE_ACCEPT } from "../../../core/io/imageFileTypes";
 import type { MouseEvent as ReactMouseEvent, RefObject } from "react";
 import { createPortal } from "react-dom";
 import { stopPointIconSvg } from "../stopPointIcon";
-import moreOptionsIconSvg from "../../../../mockups/icons/admin.svg?raw";
+import moreOptionsIconSvg from "../../../assets/icons/admin.svg?raw";
 import { TextFormatDialog } from "./TextFormatDialog";
 import { ImageEffectDialog } from "./ImageEffectDialog";
 import { IMAGE_MASK_SHAPES, defaultMask, removePoint, setRadius, toggleSmooth } from "../../../core/document/imageMask";
@@ -132,7 +132,7 @@ import { useBackdropClose } from "../useBackdropClose";
 import { useDialogA11y } from "../useDialogA11y";
 import { blockTitle } from "../blockTitle";
 import { Waveform } from "./Waveform";
-import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
+import trashIconSvg from "../../../assets/icons/trash.svg?raw";
 import { orderedValues } from "../../../core/document/ordering";
 import { BlockKindIcon } from "../BlockKindIcon";
 

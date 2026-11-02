@@ -4,7 +4,7 @@ import { useAssetStore } from "../../../core/assets/assetStore";
 import { matchingItemText } from "../../../core/document/translations";
 import { playerStringsFor } from "../../../core/i18n/playerStrings";
 import type { MatchItem, MatchingBlock } from "../../../core/types";
-import acceptSvg from "../../../../mockups/icons/accept.svg?raw";
+import acceptSvg from "../../../assets/icons/accept.svg?raw";
 
 /** The place of a card while it is being dragged on the canvas (percent of the area): it is written into the block when the pointer is let go. */
 export type MatchingDrag = { id: string; x: number; y: number };

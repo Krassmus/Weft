@@ -12,7 +12,6 @@ Cornelia
 Minerva
 Lavinia
 Flavia
-Luna
 Victoria
 Serena
 Stella
@@ -74,7 +73,6 @@ Sol
 Luna
 Nova
 Vega
-Lyra
 Elara
 Io
 Titan
@@ -106,3 +104,4 @@ Umbra
 Obsidian
 Rune
 Omen
+Memento

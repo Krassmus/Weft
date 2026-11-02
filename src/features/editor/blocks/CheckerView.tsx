@@ -3,9 +3,9 @@ import type { CheckerRenderContext, CheckerRenderProps } from "../../../core/blo
 import { fieldWording } from "../../../core/document/translations";
 import { playerStringsFor } from "../../../core/i18n/playerStrings";
 import type { CheckerBlock } from "../../../core/types";
-import acceptSvg from "../../../../mockups/icons/accept.svg?raw";
-import checkboxCheckedSvg from "../../../../mockups/icons/checkbox-checked.svg?raw";
-import checkboxUncheckedSvg from "../../../../mockups/icons/checkbox-unchecked.svg?raw";
+import acceptSvg from "../../../assets/icons/accept.svg?raw";
+import checkboxCheckedSvg from "../../../assets/icons/checkbox-checked.svg?raw";
+import checkboxUncheckedSvg from "../../../assets/icons/checkbox-unchecked.svg?raw";
 import { RenderHost } from "./RenderHost";
 
 /** The icons of a checker (the player has its own copies of the same pictures). */

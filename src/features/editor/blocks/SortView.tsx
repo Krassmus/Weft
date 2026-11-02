@@ -7,7 +7,7 @@ import { playerStringsFor } from "../../../core/i18n/playerStrings";
 import { tr } from "../../../core/i18n/tr";
 import { BlockKindIcon } from "../BlockKindIcon";
 import type { SortBlock, SortItem } from "../../../core/types";
-import acceptSvg from "../../../../mockups/icons/accept.svg?raw";
+import acceptSvg from "../../../assets/icons/accept.svg?raw";
 
 /**
  * A sorting puzzle as it is drawn - the canvas and the thumbnails. The markup and the class names are those the player makes (renderSortBlock in

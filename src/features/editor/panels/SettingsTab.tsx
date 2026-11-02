@@ -55,9 +55,9 @@ import {
   invitationLink,
 } from "../../../core/collab/session";
 import { useDragReorder } from "../useDragReorder";
-import fileIconSvg from "../../../../mockups/icons/file.svg?raw";
-import folderCloudIconSvg from "../../../../mockups/icons/folder-cloud.svg?raw";
-import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
+import fileIconSvg from "../../../assets/icons/file.svg?raw";
+import folderCloudIconSvg from "../../../assets/icons/folder-cloud.svg?raw";
+import trashIconSvg from "../../../assets/icons/trash.svg?raw";
 import { countColorUsage } from "../../../core/colors/usage";
 import { ColorField } from "../ColorField";
 import { DialogFrame } from "../CollabDialogs";

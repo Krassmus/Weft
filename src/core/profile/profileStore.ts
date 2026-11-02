@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import firstNamesText from "../../../mockups/vornamen.txt?raw";
-import lastNamesText from "../../../mockups/nachnamen.txt?raw";
+import firstNamesText from "./vornamen.txt?raw";
+import lastNamesText from "./nachnamen.txt?raw";
 
 /**
  * Who this person is to the people they work with: a name and an optional avatar picture. It belongs
@@ -33,7 +33,7 @@ function write(key: string, value: string | null): void {
   }
 }
 
-/** The lines of a list (mockups/vornamen.txt, nachnamen.txt), each name once. */
+/** The lines of a list (vornamen.txt, nachnamen.txt), each name once. */
 function namesOf(text: string): string[] {
   return [...new Set(text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean))];
 }

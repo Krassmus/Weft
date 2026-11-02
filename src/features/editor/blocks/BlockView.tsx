@@ -7,12 +7,12 @@ import type { CSSProperties, MutableRefObject, PointerEvent as ReactPointerEvent
 // A generic "this is a video" indicator for the (non-interactive, see below) editor canvas -
 // deliberately not play.svg, which would look clickable even though clicking does nothing here;
 // see player.runtime.js/.css for the real, playable preview/export instead.
-import video2IconSvg from "../../../../mockups/icons/video2.svg?raw";
-import checkboxCheckedSvg from "../../../../mockups/icons/checkbox-checked.svg?raw";
+import video2IconSvg from "../../../assets/icons/video2.svg?raw";
+import checkboxCheckedSvg from "../../../assets/icons/checkbox-checked.svg?raw";
 import { RADIO_CHECKED_SVG, RADIO_UNCHECKED_SVG } from "./QuizView";
-import checkboxUncheckedSvg from "../../../../mockups/icons/checkbox-unchecked.svg?raw";
-import acceptSvg from "../../../../mockups/icons/accept.svg?raw";
-import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
+import checkboxUncheckedSvg from "../../../assets/icons/checkbox-unchecked.svg?raw";
+import acceptSvg from "../../../assets/icons/accept.svg?raw";
+import trashIconSvg from "../../../assets/icons/trash.svg?raw";
 import { aspectRatioNumeric } from "../../../core/aspectRatio";
 import { buttonAppearanceCss } from "../../../core/document/buttonAppearance";
 import {

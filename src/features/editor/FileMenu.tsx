@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import settingsIconSvg from "../../../mockups/icons/admin.svg?raw";
+import settingsIconSvg from "../../assets/icons/admin.svg?raw";
 import { readRecentFiles } from "../../core/io/recentFiles";
 import { libraryMode } from "../../core/platform";
 import { useDocumentStore } from "../../core/document/store";

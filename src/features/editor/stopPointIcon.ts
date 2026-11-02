@@ -2,9 +2,9 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Block } from "../../core/types";
 import { BlockKindIcon } from "./BlockKindIcon";
-import pauseIconSvg from "../../../mockups/icons/pause.svg?raw";
-import animationIconSvgRaw from "../../../mockups/icons/animation.svg?raw";
-import pinIconSvgRaw from "../../../mockups/icons/pin.svg?raw";
+import pauseIconSvg from "../../assets/icons/pause.svg?raw";
+import animationIconSvgRaw from "../../assets/icons/animation.svg?raw";
+import pinIconSvgRaw from "../../assets/icons/pin.svg?raw";
 
 // The animation symbol has its blue as an inline style, which the colour of the event (see .weft-timeline-node-icon in App.css) does
 // not override.

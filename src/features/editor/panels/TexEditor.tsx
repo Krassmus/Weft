@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { createPortal } from "react-dom";
-import editIconSvg from "../../../../mockups/icons/maximize.svg?raw";
+import editIconSvg from "../../../assets/icons/maximize.svg?raw";
 import { renderTexToHtml } from "../../../core/tex/renderTex";
 import type { TexBlock } from "../../../core/types";
 import { useTexDialog } from "../blocks/texDialogStore";

@@ -3,7 +3,7 @@ import type { SolutionRenderContext, SolutionRenderProps } from "../../../core/b
 import { fieldWording } from "../../../core/document/translations";
 import { playerStringsFor } from "../../../core/i18n/playerStrings";
 import type { SolutionBlock } from "../../../core/types";
-import acceptSvg from "../../../../mockups/icons/accept.svg?raw";
+import acceptSvg from "../../../assets/icons/accept.svg?raw";
 import { RenderHost } from "./RenderHost";
 
 /**

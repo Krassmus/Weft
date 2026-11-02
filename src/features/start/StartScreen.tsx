@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { readFile, stat } from "@tauri-apps/plugin-fs";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import settingsIconSvg from "../../../mockups/icons/admin.svg?raw";
+import settingsIconSvg from "../../assets/icons/admin.svg?raw";
 import logo from "../../assets/weft-logo.png";
 import { tr } from "../../core/i18n/tr";
 import { LANGUAGE_LOCALES } from "../../core/i18n/translations";

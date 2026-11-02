@@ -15,7 +15,7 @@ import { useActionEdit } from "../actionEdit";
 import { listPageTriggerEvents } from "../Timeline";
 import { SecondsControl } from "./SecondsControl";
 import { TriggerPicker } from "./TriggerPicker";
-import trashIconSvg from "../../../../mockups/icons/trash.svg?raw";
+import trashIconSvg from "../../../assets/icons/trash.svg?raw";
 
 const TYPES: ActionEffectType[] = ["move", "shake", "blink"];
 const TYPE_LABELS: Record<ActionEffectType, () => string> = {

@@ -5,7 +5,7 @@ import { sortItemText, sortLabel } from "../../../core/document/translations";
 import { withProgress } from "../../../core/document/variablePlaceholders";
 import { playerStringsFor } from "../../../core/i18n/playerStrings";
 import type { SortBlock } from "../../../core/types";
-import acceptSvg from "../../../../mockups/icons/accept.svg?raw";
+import acceptSvg from "../../../assets/icons/accept.svg?raw";
 import { RenderHost } from "./RenderHost";
 
 /**

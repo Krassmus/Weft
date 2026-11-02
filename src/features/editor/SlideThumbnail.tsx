@@ -17,7 +17,7 @@ import { TexRenderView } from "./blocks/TexRenderView";
 // Same "this is a video, not a button" watermark as the editor canvas (see BlockView.tsx) - kept
 // visually consistent between the two views, per the same reasoning: it's not clickable here
 // either.
-import video2IconSvg from "../../../mockups/icons/video2.svg?raw";
+import video2IconSvg from "../../assets/icons/video2.svg?raw";
 import { viewOf } from "./blocks/blockViews";
 import { ScriptHexagon } from "./blocks/ScriptHexagon";
 

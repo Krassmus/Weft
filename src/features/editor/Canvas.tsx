@@ -4,7 +4,7 @@ import { ActionPathOverlay } from "./ActionPathOverlay";
 import { StagePageContext } from "./blocks/stagePage";
 import { stageThemeProps } from "./stageTheme";
 import type { CSSProperties, DragEvent as ReactDragEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, RefObject } from "react";
-import playIconSvg from "../../../mockups/icons/play.svg?raw";
+import playIconSvg from "../../assets/icons/play.svg?raw";
 import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
 import { descriptorOf } from "../../core/blocks/registry";
 import {

@@ -1,20 +1,20 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
-import gearIconSvg from "../../../mockups/icons/admin.svg?raw";
+import gearIconSvg from "../../assets/icons/admin.svg?raw";
 
 const conditionIconSvg =
   '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h12M4 12h6M4 17h8"/><path d="M14 15l2.5 2.5L21 12"/></svg>';
-import playIconSvg from "../../../mockups/icons/play.svg?raw";
-import arrowRightIconSvg from "../../../mockups/icons/arr_1right.svg?raw";
-import acceptIconSvg from "../../../mockups/icons/accept.svg?raw";
-import declineIconSvg from "../../../mockups/icons/decline.svg?raw";
-import hand2IconSvg from "../../../mockups/icons/hand2.svg?raw";
-import cursorIconRaw from "../../../mockups/icons/cursor.svg?raw";
-import video2IconSvg from "../../../mockups/icons/video2.svg?raw";
-import stopIconSvg from "../../../mockups/icons/stop.svg?raw";
-import infoIconSvgRaw from "../../../mockups/icons/info-circle-full.svg?raw";
-import animationIconSvgRaw from "../../../mockups/icons/animation.svg?raw";
-import dashingAwayIconSvgRaw from "../../../mockups/icons/dashing-away.svg?raw";
+import playIconSvg from "../../assets/icons/play.svg?raw";
+import arrowRightIconSvg from "../../assets/icons/arr_1right.svg?raw";
+import acceptIconSvg from "../../assets/icons/accept.svg?raw";
+import declineIconSvg from "../../assets/icons/decline.svg?raw";
+import hand2IconSvg from "../../assets/icons/hand2.svg?raw";
+import cursorIconRaw from "../../assets/icons/cursor.svg?raw";
+import video2IconSvg from "../../assets/icons/video2.svg?raw";
+import stopIconSvg from "../../assets/icons/stop.svg?raw";
+import infoIconSvgRaw from "../../assets/icons/info-circle-full.svg?raw";
+import animationIconSvgRaw from "../../assets/icons/animation.svg?raw";
+import dashingAwayIconSvgRaw from "../../assets/icons/dashing-away.svg?raw";
 import { reorderChain } from "../../core/document/actions";
 import { isChainOrderAllowed, isTriggerableNode, listAllNodes } from "../../core/document/pageTimeline";
 import { eventLookOf, isReorderableEventId } from "../../core/blocks/registry";

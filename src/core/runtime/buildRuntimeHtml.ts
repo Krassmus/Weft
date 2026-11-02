@@ -1,7 +1,7 @@
 import QRCode from "qrcode";
 // The LMS client library (Stud.IP counterpart lives in its plugin) - embedded unchanged, ahead of the
 // player, which talks to it (see syncLms in player.runtime.js).
-import vanillaLmSource from "../../../mockups/VanillaLM.js?raw";
+import vanillaLmSource from "./VanillaLM.js?raw";
 import { describedKinds, isInvisibleKind } from "../blocks/registry";
 import { describeLicense, licenseOfModule } from "../license/licenses";
 import arrowRenderSource from "../blocks/arrow/render.js?raw";

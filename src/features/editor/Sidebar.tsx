@@ -29,7 +29,7 @@ import { VariablesTab } from "./panels/VariablesTab";
 import { SlideThumbnail } from "./SlideThumbnail";
 import { removeBranchWithConfirm } from "./removeBranchWithConfirm";
 import { pageLabels } from "../../core/document/pageLabels";
-import jumpIconSvg from "../../../mockups/icons/forward.svg?raw";
+import jumpIconSvg from "../../assets/icons/forward.svg?raw";
 import { useDragReorder } from "./useDragReorder";
 import { presenceColor, usePresence } from "../../core/collab/presence";
 import type { PeerPresence } from "../../core/collab/presence";

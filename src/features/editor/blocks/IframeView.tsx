@@ -7,8 +7,8 @@ import { useDocumentStore } from "../../../core/document/store";
 import { playerStringsFor } from "../../../core/i18n/playerStrings";
 import { tr } from "../../../core/i18n/tr";
 import type { IframeBlock } from "../../../core/types";
-import globeIconSvg from "../../../../mockups/icons/globe.svg?raw";
-import qrIconSvg from "../../../../mockups/icons/code-qr.svg?raw";
+import globeIconSvg from "../../../assets/icons/globe.svg?raw";
+import qrIconSvg from "../../../assets/icons/code-qr.svg?raw";
 import { RenderHost } from "./RenderHost";
 
 /**

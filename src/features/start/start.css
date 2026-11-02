@@ -415,21 +415,6 @@
   font-size: 12px;
 }
 
-.weft-start-play {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 1.5px solid #8b5cf6;
-  border-radius: 50%;
-  color: #b79bff;
-}
-
-.weft-start-card:hover .weft-start-play {
-  background: #8b5cf6;
-  color: #fff;
-}
-
 .weft-start-card-more {
   position: absolute;
   right: 8px;

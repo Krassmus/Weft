@@ -489,7 +489,7 @@ export const tr: Record<TranslationKey, string> = {
   "ui.start_remove_from_list": "Listeden kaldır",
   "ui.start_show_in_folder": "Klasörde göster",
   "ui.start_more": "Daha fazla",
-  "ui.start_learn_weft": "Eğitimler",
+  "ui.start_learn_weft": "Weft'i tanı",
   "ui.start_learn_weft_hint": "İlk slayttan etkileşimli maceraya.",
   "ui.start_show_all_tutorials": "Tüm eğitimleri göster",
   "ui.start_minutes": "{n} dk",

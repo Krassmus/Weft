@@ -49,6 +49,12 @@ const icon = {
     </>
   ),
   play: <path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none" />,
+  playCircle: (
+    <>
+      <circle cx="12" cy="12" r="11" fill="currentColor" stroke="none" />
+      <path d="M10 8v8l6.5-4z" fill="#fff" stroke="none" />
+    </>
+  ),
   folder: <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />,
   clock: (
     <>
@@ -473,7 +479,7 @@ function TutorialsSection({ tutorials, lang, progress, onPlay }: { tutorials: Bu
   const shown = all ? tutorials : tutorials.slice(0, TUTORIALS_SHOWN);
   return (
     <section className="weft-start-section">
-      <SectionHead icon="play" title={tr("ui.start_learn_weft")} hint={tr("ui.start_learn_weft_hint")}>
+      <SectionHead icon="playCircle" title={tr("ui.start_learn_weft")} hint={tr("ui.start_learn_weft_hint")}>
         {tutorials.length > TUTORIALS_SHOWN && (
           <button type="button" className="weft-start-link" onClick={() => setAll((v) => !v)}>
             {all ? tr("ui.start_show_fewer") : tr("ui.start_show_all_tutorials")} <Icon name="arrow" size={16} />
@@ -501,17 +507,14 @@ function TutorialsSection({ tutorials, lang, progress, onPlay }: { tutorials: Bu
               <div className="weft-start-card-body">
                 <h3 title={title}>{title}</h3>
                 <p>{localized(module.description, lang)}</p>
-                <div className="weft-start-card-foot">
-                  {module.minutes !== undefined && (
+                {module.minutes !== undefined && (
+                  <div className="weft-start-card-foot">
                     <span className="weft-start-minutes">
                       <Icon name="clock" size={16} />
                       {tr("ui.start_minutes", { n: module.minutes })}
                     </span>
-                  )}
-                  <span className="weft-start-play" aria-label={tr("ui.start_play")}>
-                    <Icon name="play" size={14} />
-                  </span>
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           );

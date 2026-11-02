@@ -1,0 +1,150 @@
+0|Retour
+1|Suivant
+2|TON PREMIER MODULE D’APPRENTISSAGE
+3|Quelle est la meilleure façon d’apprendre ?
+4|Découvre-le – et apprends au passage à construire un module d’apprentissage.
+5|C’est parti
+6|Sept façons d’apprendre quelque chose
+7|Lire
+8|Écouter
+9|Regarder
+10|Voir et entendre
+11|Discuter
+12|Essayer soi-même
+13|Enseigner à quelqu’un
+14|Laquelle rapporte le plus ?
+15|Qu’est-ce qui reste le mieux ?
+16|Mets les sept façons d’apprendre dans le bon ordre : en haut ce qui reste le moins, en bas ce qui rapporte le plus.
+17|Glisse les cartes au bon endroit – et estime simplement !
+18|reste peu
+19|reste beaucoup
+20|Exactement !
+21|Tu as une bonne intuition de la façon dont l’apprentissage fonctionne.
+22|Dans un instant, ton ordre devient une pyramide.
+23|Presque !
+24|Pas si simple, n’est-ce pas ? C’était une question d’estimation.
+25|Tu vas voir tout de suite l’ordre dans lequel on la raconte d’habitude.
+26|La pyramide de l’apprentissage
+27|Plus tu es actif en apprenant,
+28|plus il en reste.
+29|C’est ce qu’on lit dans beaucoup de livres, de séminaires et de formations.
+30|Ça semble logique, non ?
+31|Mais est-ce vraiment vrai ?
+32|Les pourcentages de la pyramide de l’apprentissage (10 %, 20 % … 90 %) sont scientifiquement prouvés.
+33|Vrai
+34|Faux
+35|Bien vu !
+36|Tu te méfies – et tu as raison.
+37|Tu verras pourquoi sur la diapositive suivante.
+38|Surprise !
+39|Presque tout le monde le croit – les chiffres ont l’air si bien rangés.
+40|Tu verras pourquoi ce n’est pas vrai sur la diapositive suivante.
+41|Les chiffres ne sont pas prouvés.
+42|Edgar Dale
+43|a dessiné en 1946 un « cône de l’expérience » – sans aucun pourcentage.
+44|Les chiffres ont été ajoutés plus tard. Une étude qui les étaye reste introuvable à ce jour.
+45|Il y a quand même une part de vérité.
+46|Celui qui participe activement apprend en général mieux que celui qui se contente d’écouter ou de lire.
+47|225 études
+48|(Freeman et al., 2014) : avec l’apprentissage actif, le taux d’échec est de
+49|21,8 %
+50|dans les cours purement magistraux, il est de
+51|33,8 %
+52|Essayer
+53|Expliquer
+54|Et maintenant, l’astuce :
+55|Tu viens d’apprendre activement.
+56|Tu as trié, deviné et décidé – au lieu de simplement lire.
+57|C’est exactement comme ça que ce module d’apprentissage est construit. Dans la deuxième partie, je te montre comment.
+58|VOICI COMMENT C’EST FAIT
+59|Voici comment ce module est construit
+60|Tu viens de jouer un module d’apprentissage. Regardons maintenant à l’intérieur – dans l’éditeur de Weft où il a été créé.
+61|Diapositives
+62|La diapositive
+63|Propriétés
+64|Événements
+65|Nouvelles diapositives et mise en page
+66|Avec « Ajouter » à gauche, tu crées une nouvelle diapositive. Chaque diapositive reçoit une mise en page.
+67|Le papier quadrillé, « Retour », « Suivant » et la barre de progression n’existent qu’une fois dans la mise en page – et valent pour toutes les diapositives.
+68|c’est ici que tu la modifies – pour toutes les diapositives
+69|Texte, images, formes – et exercices
+70|Avec le + au-dessus de la diapositive, tu poses tout sur la diapositive.
+71|À gauche, il y a ce qu’on montre ; à droite, ce qui fait participer – comme le puzzle de tri de tout à l’heure.
+72|pour montrer
+73|pour participer
+74|La pyramide est faite d’images
+75|Les sept niveaux sont des images dessinées (SVG) qui se superposent exactement. Chaque niveau est une image à part – chacun peut donc apparaître seul.
+76|Les étiquettes à côté sont de simples textes.
+77|Le puzzle de tri
+78|Tu écris les cartes dans le bon ordre. Weft les mélange pour les apprenants.
+79|Aux extrémités de la ligne, il y a deux mots – ici « peu » et « beaucoup ».
+80|les mots aux extrémités
+81|Une tâche obligatoire
+82|La case « Tâche obligatoire » bloque « Suivant » tant que la tâche n’est pas envoyée.
+83|la case
+84|le cadenas : « Suivant » est bloqué
+85|Comment la pyramide grandit-elle ?
+86|Chaque niveau a un effet d’entrée : il apparaît en fondu par le bas, en 0,65 seconde …
+87|… et ce, avec « Suivant », une fois que l’étiquette du niveau précédent est apparue.
+88|comment il apparaît
+89|ce qui le déclenche
+90|Le graphe d’événements
+91|Sous la diapositive, tu vois ce qui se passe et quand :
+92|Suivant – le niveau 1 apparaît – 0,3 seconde plus tard son étiquette – Suivant – niveau 2 …
+93|Niveau 1
+94|pause de 0,3 s
+95|Chaque cercle est un événement ; les lignes disent ce qu’il déclenche.
+96|Créer une variable
+97|Dans l’onglet « Variables », tu en crées une nouvelle avec « + Variable ».
+98|Elle reçoit un nom et un type : Nombre, Texte, Oui/Non – ou « Calculée » si elle résulte d’autres variables.
+99|Astuce : des noms en anglais, sans espaces.
+100|c’est ici que tu en crées une
+101|nom et type
+102|Une variable vaut pour tout le module
+103|Elle n’appartient pas à une diapositive : chaque élément de chaque diapositive peut la modifier – et chaque ramification peut la lire.
+104|score
+105|Nombre
+106|Association : +1 par paire
+107|Texte à trous : +1
+108|Bouton : +1 à chaque clic
+109|Ramification : lit score
+110|Les éléments modifient des variables
+111|Presque chaque élément interactif peut modifier des variables : un quiz, une association, un texte à trous, un bouton …
+112|Ici : si l’ordre est juste, « sortCorrect » est mis sur « Oui ». Avec des nombres, tu peux aussi additionner – c’est ainsi que « score » compte les points.
+113|cette variable reçoit la valeur « Oui »
+114|plusieurs effets sont possibles
+115|La ramification
+116|Une ramification envoie les apprenants sur un autre chemin selon le résultat.
+117|Chaque branche a une condition sur une variable. Ici : « sortCorrect = Oui ». Si elle ne s’applique pas, la dernière branche s’applique.
+118|la ramification
+119|la condition
+120|Un module, huit langues
+121|Sous « Réglages », tu ajoutes des langues. La première est la langue par défaut.
+122|Ce module existe en huit langues : il démarre dans la langue de ton app – et on peut changer en haut à droite.
+123|Partager
+124|Enregistrer
+125|crée un fichier .weft – pour continuer à construire dans Weft.
+126|Exporter
+127|crée une page web à lire dans le navigateur ou dans le système de gestion de l’apprentissage.
+128|En PDF
+129|te donne les diapositives à imprimer.
+130|page web à lire
+131|TESTE TES CONNAISSANCES
+132|Qu’est-ce qui va avec quoi ?
+133|Mise en page
+134|Effet d’entrée
+135|Ramification
+136|Variable
+137|vaut pour beaucoup de diapositives à la fois
+138|fait apparaître quelque chose avec « Suivant »
+139|envoie les apprenants sur d’autres chemins
+140|se souvient de ce qui s’est passé
+141|Encore une question
+142|Pour que personne ne continue sans répondre, tu rends la tâche [[obligatoire]].
+143|Réussi !
+144|Tu connais maintenant les éléments les plus importants d’un module d’apprentissage.
+145|Tout n’est pas encore resté. C’est normal – n’hésite pas à revoir la deuxième partie.
+146|Revoir la deuxième partie
+147|C’est à toi maintenant.
+148|Sur l’écran d’accueil, commence un nouveau module d’apprentissage – ou choisis « Partir d’un modèle » et reconstruis la pyramide de l’apprentissage.
+149|Tu trouveras d’autres tutoriels sous « Découvrir Weft ».

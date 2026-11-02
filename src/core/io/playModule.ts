@@ -18,6 +18,14 @@ export function startLocaleFor(languages: readonly string[], language: Language)
   return languages.find((locale) => base(locale) === language) ?? languages.find((locale) => base(locale) === "en") ?? null;
 }
 
+/** The page of a module with the language it starts in set (see startLocaleFor) - for a page that is already made, like the one in a player file. */
+export function withStartLanguage(html: string, language: Language): string {
+  const data = DATA_TAG.exec(html);
+  const languages = data ? ((JSON.parse(data[1]) as { languages?: string[] }).languages ?? []) : [];
+  const locale = startLocaleFor(languages, language);
+  return html.replace(START_LANGUAGE_TAG, (_, open: string, close: string) => open + JSON.stringify(locale) + close);
+}
+
 const DATA_TAG = /<script id="weft-data" type="application\/json">([\s\S]*?)<\/script>/;
 const START_LANGUAGE_TAG = /(<script id="weft-start-language" type="application\/json">)[\s\S]*?(<\/script>)/;
 
@@ -33,11 +41,7 @@ export async function loadModuleForPlay(zipBytes: Uint8Array, language: Language
   const files = unzipSync(zipBytes);
   if (!files["weft.json"]) {
     const player = await loadPlayerFile(zipBytes);
-    const data = DATA_TAG.exec(player.html);
-    const languages = data ? ((JSON.parse(data[1]) as { languages?: string[] }).languages ?? []) : [];
-    const locale = startLocaleFor(languages, language);
-    const html = player.html.replace(START_LANGUAGE_TAG, (_, open: string, close: string) => open + JSON.stringify(locale) + close);
-    return { html, title: player.title };
+    return { html: withStartLanguage(player.html, language), title: player.title };
   }
 
   // (importAssets: false - the pictures are read from the archive here and not put into the editor's own store.)

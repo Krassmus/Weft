@@ -20,6 +20,9 @@ language of Weft's interface - the one of the module's `languages` that matches 
 tutorial can be one module with its texts in several languages (as `willkommen.weft`), and a file that the `weft` command line wrote works as well (it has no page of its
 own). Only a custom font of a tutorial is not shown (the fonts are read from the editor's own store).
 
+`tutorials/erstes-lernmodul.weft` and `templates/lernpyramide.weft` are made by `scripts/tutorial-erstes-lernmodul/` (see its README): they have their texts in all eight languages of Weft's
+interface, so the tutorial plays - and the template opens - in the language of the app, and the tile on the start screen shows the first slide in it too.
+
 ## manifest.json
 
 A list of entries:

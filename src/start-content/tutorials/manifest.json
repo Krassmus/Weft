@@ -33,6 +33,39 @@
     }
   },
   {
+    "file": "erstes-lernmodul.weft",
+    "title": {
+      "de": "Dein erstes Lernmodul",
+      "en": "Your first learning module",
+      "es": "Tu primer módulo de aprendizaje",
+      "fr": "Ton premier module d’apprentissage",
+      "pt": "Seu primeiro módulo de aprendizagem",
+      "it": "Il tuo primo modulo di apprendimento",
+      "tr": "İlk öğrenme modülün",
+      "pl": "Twój pierwszy moduł edukacyjny"
+    },
+    "description": {
+      "de": "Eine Lernpyramide spielen – und sehen, wie ein Lernmodul gebaut wird: Aufgaben, Effekte, Variablen und Verzweigungen.",
+      "en": "Play a learning pyramid – and see how a learning module is built: tasks, effects, variables and branches.",
+      "es": "Juega una pirámide del aprendizaje y descubre cómo se construye un módulo de aprendizaje: tareas, efectos, variables y ramificaciones.",
+      "fr": "Joue une pyramide de l’apprentissage et découvre comment on construit un module d’apprentissage : exercices, effets, variables et ramifications.",
+      "pt": "Jogue uma pirâmide da aprendizagem e veja como se monta um módulo de aprendizagem: tarefas, efeitos, variáveis e ramificações.",
+      "it": "Gioca una piramide dell’apprendimento e scopri come si costruisce un modulo di apprendimento: compiti, effetti, variabili e ramificazioni.",
+      "tr": "Bir öğrenme piramidini oyna ve bir öğrenme modülünün nasıl yapıldığını gör: görevler, efektler, değişkenler ve dallanmalar.",
+      "pl": "Przejdź piramidę uczenia się i zobacz, jak zbudowany jest moduł edukacyjny: zadania, efekty, zmienne i rozgałęzienia."
+    },
+    "tag": {
+      "de": "Grundlagen",
+      "en": "Basics",
+      "es": "Fundamentos",
+      "fr": "Bases",
+      "pt": "Fundamentos",
+      "it": "Basi",
+      "tr": "Temel",
+      "pl": "Podstawy"
+    }
+  },
+  {
     "file": "grundlagen.weft",
     "title": { "de": "Die erste Präsentation", "en": "Your first presentation" },
     "description": { "de": "Erstelle Folien, füge Texte und Bilder hinzu und gestalte Übergänge.", "en": "Create slides, add text and images and design transitions." },

@@ -1,0 +1,150 @@
+0|Back
+1|Next
+2|YOUR FIRST LEARNING MODULE
+3|What’s the best way to learn?
+4|Find out – and learn how to build a learning module along the way.
+5|Let’s go
+6|Seven ways to learn something
+7|Reading
+8|Listening
+9|Looking
+10|Seeing and hearing
+11|Discussing
+12|Trying it yourself
+13|Teaching someone else
+14|Which one gives the most?
+15|What sticks best?
+16|Put the seven ways of learning in the right order: at the top what sticks the least, at the bottom what gives the most.
+17|Drag the cards to the right place – and just guess!
+18|sticks little
+19|sticks a lot
+20|Just like that!
+21|You have a good feeling for how learning works.
+22|In a moment, your order turns into a pyramid.
+23|Almost!
+24|Not that easy, is it? It was a guessing question, after all.
+25|In a moment you’ll see the order in which it is usually told.
+26|The learning pyramid
+27|The more active you are when learning,
+28|the more sticks.
+29|That is what it says in many books, seminars and trainings.
+30|Sounds logical, doesn’t it?
+31|But is that actually true?
+32|The percentages of the learning pyramid (10 %, 20 % … 90 %) are scientifically proven.
+33|True
+34|False
+35|Well spotted!
+36|You are sceptical – exactly right.
+37|You’ll see why on the next slide.
+38|Surprise!
+39|Almost everyone believes it – the numbers look so tidy.
+40|You’ll see why it isn’t true on the next slide.
+41|The numbers are not proven.
+42|Edgar Dale
+43|drew a “cone of experience” in 1946 – without any percentages.
+44|The numbers were added later. A study behind them can still not be found today.
+45|There is a true core in it anyway.
+46|Those who take an active part usually learn better than those who only listen or read.
+47|225 studies
+48|(Freeman et al., 2014): in courses with active learning
+49|21.8 %
+50|failed, in pure lectures
+51|33.8 %
+52|Trying out
+53|Explaining
+54|And now the trick:
+55|You have just learned actively.
+56|You sorted, guessed and decided – instead of just reading.
+57|This is exactly how this learning module is built. In the second part I’ll show you how.
+58|HOW IT IS BUILT
+59|How this module is built
+60|You have just played a learning module. Now let’s look inside – at the Weft editor it was made in.
+61|Slides
+62|The slide
+63|Properties
+64|Events
+65|New slides and the layout
+66|With “Add” on the left you create a new slide. Every slide gets a layout.
+67|The grid paper, “Back”, “Next” and the progress bar exist only once in the layout – and apply to all slides.
+68|you change it here – for all slides
+69|Text, images, shapes – and tasks
+70|With the + above the slide, you put everything on the slide.
+71|On the left are things to show, on the right things to take part in – like the sorting puzzle from before.
+72|to show
+73|to take part
+74|The pyramid is made of images
+75|The seven levels are drawn images (SVG) that lie exactly on top of one another. Each level is an image of its own – so each can appear on its own.
+76|The labels next to it are just ordinary texts.
+77|The sorting puzzle
+78|You write the cards in the right order. Weft shuffles them for the learners.
+79|At the ends of the line there are two words – here “little” and “a lot”.
+80|the words at the ends
+81|A required task
+82|The “Required task” checkbox blocks “Next” until the task has been submitted.
+83|the checkbox
+84|the lock: Next is blocked
+85|How does the pyramid grow?
+86|Every level has an entrance effect: it fades in from below, in 0.65 seconds …
+87|… and at “Next”, after the label of the level before has appeared.
+88|how it appears
+89|what triggers it
+90|The event graph
+91|Below the slide you see what happens when:
+92|Next – level 1 appears – 0.3 seconds later its label – Next – level 2 …
+93|Level 1
+94|0.3 s pause
+95|Every circle is an event; the lines say what it triggers.
+96|Creating a variable
+97|In the “Variables” tab you create a new one with “+ Variable”.
+98|It gets a name and a type: Number, Text, Yes/No – or “Calculated” if it results from other variables.
+99|Tip: English names without spaces.
+100|you create one here
+101|name and type
+102|One variable applies to the whole module
+103|It doesn’t belong to one slide: every element on every slide can change it – and every branching can read it.
+104|score
+105|Number
+106|Matching: +1 per pair
+107|Gap text: +1
+108|Button: +1 per click
+109|Branching: reads score
+110|Elements change variables
+111|Almost every interactive element can change variables: a quiz, a matching, a gap text, a button …
+112|Here: if the order is right, “sortCorrect” is set to “Yes”. With numbers you can also add – that’s how “score” counts the points.
+113|this variable gets the value “Yes”
+114|several effects are possible
+115|The branching
+116|A branching sends learners down a different path depending on the result.
+117|Each branch has a condition on a variable. Here: “sortCorrect = Yes”. If it doesn’t apply, the last branch applies.
+118|the branching
+119|the condition
+120|One module, eight languages
+121|Under “Settings” you add languages. The top one is the default language.
+122|This module exists in eight languages: it starts in the language of your app – and you can switch at the top right.
+123|Sharing
+124|Save
+125|makes a .weft file – to keep building in Weft.
+126|Export
+127|makes a web page to play in the browser or in the learning management system.
+128|As PDF
+129|gives you the slides to print.
+130|web page to play
+131|KNOWLEDGE CHECK
+132|What belongs to what?
+133|Layout
+134|Entrance effect
+135|Branching
+136|Variable
+137|applies to many slides at once
+138|makes something appear at “Next”
+139|sends learners down different paths
+140|remembers what has happened
+141|One more question
+142|To stop people clicking on without answering, you make the task a [[required|mandatory]] task.
+143|Done!
+144|You now know the most important building blocks of a learning module.
+145|Not everything has stuck yet. That’s normal – feel free to look at the second part again.
+146|Look at the second part again
+147|Now it’s your turn.
+148|On the start screen, start a new learning module – or choose “Start from a template” and rebuild the learning pyramid.
+149|You’ll find more tutorials under “Get to know Weft”.

@@ -1,0 +1,150 @@
+0|Zurück
+1|Weiter
+2|DEIN ERSTES LERNMODUL
+3|Wie lernt man eigentlich am besten?
+4|Finde es heraus – und lerne nebenbei, wie man ein Lernmodul baut.
+5|Los geht’s
+6|Sieben Wege, etwas zu lernen
+7|Lesen
+8|Zuhören
+9|Ansehen
+10|Sehen und hören
+11|Diskutieren
+12|Selbst ausprobieren
+13|Anderen etwas beibringen
+14|Welcher bringt am meisten?
+15|Was bleibt am besten hängen?
+16|Bring die sieben Lernwege in die richtige Reihenfolge: oben das, was am wenigsten hängen bleibt, unten das, was am meisten bringt.
+17|Ziehe die Karten an die richtige Stelle – und schätze einfach!
+18|bleibt wenig hängen
+19|bleibt viel hängen
+20|Genau so!
+21|Du hast ein gutes Gefühl dafür, wie Lernen funktioniert.
+22|Gleich wird aus deiner Reihenfolge eine Pyramide.
+23|Fast!
+24|Gar nicht so einfach, oder? Das war auch eine Schätzfrage.
+25|Gleich siehst du die Reihenfolge, wie sie meistens erzählt wird.
+26|Die Lernpyramide
+27|Je aktiver du lernst,
+28|desto mehr bleibt hängen.
+29|So steht es in vielen Büchern, Seminaren und Fortbildungen.
+30|Klingt logisch, oder?
+31|Aber stimmt das überhaupt?
+32|Die Prozentzahlen der Lernpyramide (10 %, 20 % … 90 %) sind wissenschaftlich belegt.
+33|Wahr
+34|Falsch
+35|Richtig erkannt!
+36|Du bist skeptisch – genau richtig.
+37|Warum, siehst du auf der nächsten Folie.
+38|Überraschung!
+39|Das glauben fast alle – die Zahlen sehen so ordentlich aus.
+40|Warum es nicht stimmt, siehst du auf der nächsten Folie.
+41|Die Zahlen sind nicht belegt.
+42|Edgar Dale
+43|zeichnete 1946 einen „Kegel der Erfahrung“ – ganz ohne Prozentzahlen.
+44|Die Zahlen kamen später dazu. Eine Studie, die dahintersteckt, ist bis heute nicht auffindbar.
+45|Ein wahrer Kern steckt trotzdem drin.
+46|Wer aktiv mitarbeitet, lernt meist besser als wer nur zuhört oder liest.
+47|225 Studien
+48|(Freeman u. a., 2014): Mit aktivem Lernen fielen
+49|21,8 %
+50|durch, in reinen Vorlesungen
+51|33,8 %
+52|Ausprobieren
+53|Erklären
+54|Und jetzt der Trick:
+55|Du hast gerade aktiv gelernt.
+56|Du hast sortiert, geraten und entschieden – statt nur zu lesen.
+57|Genau so ist dieses Lernmodul gebaut. Im zweiten Teil zeige ich dir, wie.
+58|SO IST DAS GEBAUT
+59|So ist dieses Modul gebaut
+60|Du hast gerade ein Lernmodul gespielt. Jetzt schauen wir hinein – in den Editor von Weft, in dem es entstanden ist.
+61|Folien
+62|Die Folie
+63|Eigenschaften
+64|Ereignisse
+65|Neue Folien und das Layout
+66|Mit „Hinzufügen“ links legst du eine neue Folie an. Jede Folie bekommt ein Layout.
+67|Das Karopapier, „Zurück“, „Weiter“ und der Fortschrittsbalken stehen nur einmal im Layout – und gelten für alle Folien.
+68|hier änderst du es – für alle Folien
+69|Text, Bilder, Formen – und Aufgaben
+70|Über das + über der Folie kommt alles auf die Folie.
+71|Links stehen Dinge zum Zeigen, rechts Dinge zum Mitmachen – wie das Sortierrätsel von eben.
+72|zum Zeigen
+73|zum Mitmachen
+74|Die Pyramide besteht aus Bildern
+75|Die sieben Stufen sind gezeichnete Bilder (SVG), die genau übereinander liegen. Jede Stufe ist ein eigenes Bild – so kann jede einzeln erscheinen.
+76|Die Beschriftungen daneben sind ganz normale Texte.
+77|Das Sortierrätsel
+78|Du schreibst die Karten in der richtigen Reihenfolge ein. Weft mischt sie für die Lernenden.
+79|An den Enden der Linie stehen zwei Wörter – hier „wenig“ und „viel“.
+80|die Wörter an den Enden
+81|Eine Pflichtaufgabe
+82|Das Häkchen „Pflichtangabe“ sperrt „Weiter“, bis die Aufgabe abgeschickt ist.
+83|das Häkchen
+84|das Schloss: Weiter ist gesperrt
+85|Wie wächst die Pyramide?
+86|Jede Stufe hat einen Aufbau-Effekt: Sie blendet von unten ein, in 0,65 Sekunden …
+87|… und zwar bei „Weiter“, nachdem die Beschriftung der Stufe davor erschienen ist.
+88|wie sie erscheint
+89|was sie auslöst
+90|Der Ereignisgraph
+91|Unter der Folie siehst du, was wann passiert:
+92|Weiter – Stufe 1 erscheint – 0,3 Sekunden später ihre Beschriftung – Weiter – Stufe 2 …
+93|Stufe 1
+94|0,3 s Pause
+95|Jeder Kreis ist ein Ereignis, die Linien sagen, was es auslöst.
+96|Eine Variable anlegen
+97|Im Reiter „Variablen“ legst du mit „+ Variable“ eine neue an.
+98|Sie bekommt einen Namen und einen Typ: Zahl, Text, Ja/Nein – oder „Berechnet“, wenn sie sich aus anderen Variablen ergibt.
+99|Tipp: englische Namen ohne Leerzeichen.
+100|hier legst du eine an
+101|Name und Typ
+102|Eine Variable gilt für das ganze Modul
+103|Sie gehört nicht zu einer Folie: Jedes Element auf jeder Folie kann sie verändern – und jede Weiche kann sie lesen.
+104|score
+105|Zahl
+106|Zuordnung: +1 je Paar
+107|Lückentext: +1
+108|Button: +1 bei jedem Klick
+109|Weiche: liest score
+110|Elemente verändern Variablen
+111|Fast jedes interaktive Element kann Variablen verändern: ein Quiz, eine Zuordnung, ein Lückentext, ein Button …
+112|Hier: Stimmt die Reihenfolge, wird „sortCorrect“ auf „Ja“ gesetzt. Bei Zahlen kannst du auch addieren – so zählt „score“ die Punkte.
+113|diese Variable bekommt den Wert „Ja“
+114|mehrere Effekte sind möglich
+115|Die Weiche
+116|Eine Verzweigung schickt Lernende je nach Ergebnis auf einen anderen Weg.
+117|Jeder Zweig hat eine Bedingung über eine Variable. Hier: „sortCorrect = Ja“. Trifft sie nicht zu, gilt der letzte Zweig.
+118|die Weiche
+119|die Bedingung
+120|Ein Modul, acht Sprachen
+121|Unter „Einstellungen“ fügst du Sprachen hinzu. Die oberste ist die Standardsprache.
+122|Dieses Modul gibt es in acht Sprachen: Es startet in der Sprache deiner App – und oben rechts kann man wechseln.
+123|Weitergeben
+124|Speichern
+125|macht eine .weft-Datei – zum Weiterbauen in Weft.
+126|Exportieren
+127|macht eine Webseite zum Abspielen im Browser oder im Lernmanagementsystem.
+128|Als PDF
+129|gibt es die Folien zum Drucken.
+130|Webseite zum Abspielen
+131|WISSENSCHECK
+132|Was gehört wozu?
+133|Layout
+134|Aufbau-Effekt
+135|Verzweigung
+136|Variable
+137|gilt für viele Folien auf einmal
+138|lässt etwas bei „Weiter“ erscheinen
+139|schickt Lernende auf andere Wege
+140|merkt sich, was passiert ist
+141|Noch eine Frage
+142|Damit niemand weiterklickt, ohne zu antworten, machst du die Aufgabe zur [[Pflichtaufgabe|Pflichtangabe]].
+143|Geschafft!
+144|Du kennst jetzt die wichtigsten Bausteine eines Lernmoduls.
+145|Noch ist nicht alles hängen geblieben. Das ist normal – schau dir den zweiten Teil gern noch einmal an.
+146|Zweiten Teil noch einmal ansehen
+147|Jetzt bist du dran.
+148|Starte auf dem Startbildschirm ein neues Lernmodul – oder wähle „Mit Vorlage starten“ und baue die Lernpyramide um.
+149|Mehr Tutorials findest du unter „Weft kennenlernen“.

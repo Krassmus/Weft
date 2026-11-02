@@ -83,31 +83,32 @@ function Icon({ name, size = 20 }: { name: keyof typeof icon; size?: number }) {
 
 // ---- What the tiles show of a module --------------------------------------------------------------------------------------
 
-/** The summaries of the bundled modules are read once (they do not change while the app runs). */
+/** The summaries of the bundled modules are read once per language of the interface (they do not change while the app runs). */
 const bundledSummaries = new Map<string, Promise<ModuleSummary | null>>();
 
-function bundledSummary(module: BundledModule): Promise<ModuleSummary | null> {
-  let summary = bundledSummaries.get(module.url);
+function bundledSummary(module: BundledModule, language: Language): Promise<ModuleSummary | null> {
+  const key = `${module.url}|${language}`;
+  let summary = bundledSummaries.get(key);
   if (!summary) {
     summary = loadBundledBytes(module)
-      .then(summarizeModule)
+      .then((bytes) => summarizeModule(bytes, language))
       .catch(() => null);
-    bundledSummaries.set(module.url, summary);
+    bundledSummaries.set(key, summary);
   }
   return summary;
 }
 
-function useBundledSummaries(modules: BundledModule[]): Record<string, ModuleSummary | null> {
+function useBundledSummaries(modules: BundledModule[], language: Language): Record<string, ModuleSummary | null> {
   const [summaries, setSummaries] = useState<Record<string, ModuleSummary | null>>({});
   useEffect(() => {
     let alive = true;
     for (const module of modules) {
-      void bundledSummary(module).then((summary) => alive && setSummaries((all) => ({ ...all, [module.url]: summary })));
+      void bundledSummary(module, language).then((summary) => alive && setSummaries((all) => ({ ...all, [module.url]: summary })));
     }
     return () => {
       alive = false;
     };
-  }, [modules]);
+  }, [modules, language]);
   return summaries;
 }
 
@@ -475,7 +476,7 @@ function ProjectsSection({ actions, progress }: { actions: StartActions; progres
 
 function TutorialsSection({ tutorials, lang, progress, onPlay }: { tutorials: BundledModule[]; lang: Language; progress: OpenProgress; onPlay: (module: BundledModule) => Promise<void> }) {
   const [all, setAll] = useState(false);
-  const summaries = useBundledSummaries(tutorials);
+  const summaries = useBundledSummaries(tutorials, lang);
   const shown = all ? tutorials : tutorials.slice(0, TUTORIALS_SHOWN);
   return (
     <section className="weft-start-section">
@@ -526,7 +527,7 @@ function TutorialsSection({ tutorials, lang, progress, onPlay }: { tutorials: Bu
 
 /** The dialog that lists modules that come with Weft as cards to pick from - the templates, or (with `title`) the examples. */
 function TemplatesDialog({ title, templates, lang, progress, onClose, onUse }: { title?: string; templates: BundledModule[]; lang: Language; progress: OpenProgress; onClose: () => void; onUse: (module: BundledModule) => void }) {
-  const summaries = useBundledSummaries(templates);
+  const summaries = useBundledSummaries(templates, lang);
   const firstRef = useRef<HTMLDivElement>(null);
   useEffect(() => firstRef.current?.focus(), []);
   return (

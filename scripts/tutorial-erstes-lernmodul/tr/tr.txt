@@ -1,0 +1,150 @@
+0|Geri
+1|İleri
+2|İLK ÖĞRENME MODÜLÜN
+3|En iyi nasıl öğrenilir?
+4|Bul bakalım – ve bu arada bir öğrenme modülünün nasıl yapıldığını da öğren.
+5|Başlayalım
+6|Bir şeyi öğrenmenin yedi yolu
+7|Okumak
+8|Dinlemek
+9|Bakmak
+10|Görmek ve duymak
+11|Tartışmak
+12|Kendin denemek
+13|Başkasına öğretmek
+14|Hangisi en çok kazandırır?
+15|Ne en iyi akılda kalır?
+16|Yedi öğrenme yolunu doğru sıraya koy: üstte en az akılda kalan, altta en çok kazandıran.
+17|Kartları doğru yere sürükle – ve içinden geldiği gibi tahmin et!
+18|az kalır
+19|çok kalır
+20|Aynen öyle!
+21|Öğrenmenin nasıl işlediğine dair iyi bir sezgin var.
+22|Birazdan senin sıran bir piramide dönüşecek.
+23|Neredeyse!
+24|O kadar kolay değil, değil mi? Zaten bir tahmin sorusuydu.
+25|Birazdan genelde anlatıldığı sırayı göreceksin.
+26|Öğrenme piramidi
+27|Öğrenirken ne kadar etkinsen,
+28|o kadar çok akılda kalır.
+29|Birçok kitapta, seminerde ve eğitimde böyle yazar.
+30|Mantıklı geliyor, değil mi?
+31|Peki bu gerçekten doğru mu?
+32|Öğrenme piramidinin yüzdeleri (%10, %20 … %90) bilimsel olarak kanıtlanmıştır.
+33|Doğru
+34|Yanlış
+35|İyi fark ettin!
+36|Şüpheyle yaklaşıyorsun – tam da öyle olmalı.
+37|Nedenini bir sonraki slaytta göreceksin.
+38|Sürpriz!
+39|Neredeyse herkes buna inanır – sayılar çok düzenli görünüyor.
+40|Neden doğru olmadığını bir sonraki slaytta göreceksin.
+41|Sayılar kanıtlanmamıştır.
+42|Edgar Dale
+43|1946’da hiçbir yüzde vermeden bir «deneyim konisi» çizdi.
+44|Sayılar sonradan eklendi. Arkasındaki bir çalışma bugüne kadar bulunamadı.
+45|Yine de içinde gerçek bir öz var.
+46|Etkin katılan kişi, yalnızca dinleyen ya da okuyan kişiden genelde daha iyi öğrenir.
+47|225 çalışma
+48|(Freeman vd., 2014): Aktif öğrenmeli kurslarda başarısızlık oranı
+49|%21,8
+50|iken, salt derslerde
+51|%33,8
+52|Denemek
+53|Anlatmak
+54|Ve şimdi püf noktası:
+55|Az önce etkin biçimde öğrendin.
+56|Sıraladın, tahmin ettin ve karar verdin – sadece okumak yerine.
+57|Bu öğrenme modülü tam olarak böyle yapıldı. İkinci bölümde sana nasıl olduğunu göstereceğim.
+58|BÖYLE YAPILDI
+59|Bu modül böyle yapıldı
+60|Az önce bir öğrenme modülü oynadın. Şimdi içine bakalım – yapıldığı Weft düzenleyicisine.
+61|Slaytlar
+62|Slayt
+63|Özellikler
+64|Olaylar
+65|Yeni slaytlar ve düzen
+66|Soldaki «Ekle» ile yeni bir slayt oluşturursun. Her slayt bir düzen alır.
+67|Kareli kâğıt, «Geri», «İleri» ve ilerleme çubuğu düzende yalnızca bir kez bulunur – ve tüm slaytlar için geçerlidir.
+68|bunu buradan değiştirirsin – tüm slaytlar için
+69|Metin, görseller, şekiller – ve görevler
+70|Slaytın üstündeki + ile her şeyi slayta koyarsın.
+71|Solda gösterilecek şeyler, sağda katılınacak şeyler var – az önceki sıralama bulmacası gibi.
+72|göstermek için
+73|katılmak için
+74|Piramit görsellerden oluşur
+75|Yedi basamak, tam üst üste duran çizilmiş görsellerdir (SVG). Her basamak kendi görselidir – bu yüzden her biri tek tek görünebilir.
+76|Yandaki etiketler sıradan metinlerdir.
+77|Sıralama bulmacası
+78|Kartları doğru sırayla yazarsın. Weft bunları öğrenenler için karıştırır.
+79|Çizginin uçlarında iki sözcük var – burada «az» ve «çok».
+80|uçlardaki sözcükler
+81|Zorunlu bir görev
+82|«Zorunlu görev» kutusu, görev gönderilene kadar «İleri»yi engeller.
+83|kutucuk
+84|kilit: «İleri» engelli
+85|Piramit nasıl büyür?
+86|Her basamağın bir giriş efekti var: aşağıdan belirerek gelir, 0,65 saniyede …
+87|… ve bunu «İleri» ile yapar, bir önceki basamağın etiketi göründükten sonra.
+88|nasıl göründüğü
+89|neyin tetiklediği
+90|Olay grafiği
+91|Slaytın altında neyin ne zaman olduğunu görürsün:
+92|İleri – 1. basamak görünür – 0,3 saniye sonra etiketi – İleri – 2. basamak …
+93|1. basamak
+94|0,3 sn ara
+95|Her daire bir olaydır; çizgiler neyi tetiklediğini söyler.
+96|Değişken oluşturma
+97|«Değişkenler» sekmesinde «+ Değişken» ile yeni bir tane oluşturursun.
+98|Bir ad ve bir tür alır: Sayı, Metin, Evet/Hayır – ya da başka değişkenlerden çıkıyorsa «Hesaplanan».
+99|İpucu: boşluksuz İngilizce adlar.
+100|buradan bir tane oluşturursun
+101|ad ve tür
+102|Bir değişken tüm modül için geçerlidir
+103|Bir slayda ait değildir: her slayttaki her öğe onu değiştirebilir – ve her dallanma onu okuyabilir.
+104|score
+105|Sayı
+106|Eşleştirme: çift başına +1
+107|Boşluk doldurma: +1
+108|Düğme: her tıklamada +1
+109|Dallanma: score’u okur
+110|Öğeler değişkenleri değiştirir
+111|Neredeyse her etkileşimli öğe değişkenleri değiştirebilir: bir sınav, bir eşleştirme, bir boşluk doldurma metni, bir düğme …
+112|Burada: sıra doğruysa «sortCorrect» «Evet» olarak ayarlanır. Sayılarda toplama da yapabilirsin – «score» puanları böyle sayar.
+113|bu değişken «Evet» değerini alır
+114|birden çok efekt mümkündür
+115|Dallanma
+116|Bir dallanma, öğrenenleri sonuca göre başka bir yola gönderir.
+117|Her dalın bir değişken üzerinde koşulu vardır. Burada: «sortCorrect = Evet». Uymazsa son dal geçerli olur.
+118|dallanma
+119|koşul
+120|Bir modül, sekiz dil
+121|«Ayarlar» altında dil eklersin. En üstteki varsayılan dildir.
+122|Bu modül sekiz dilde var: uygulamanın dilinde başlar – ve sağ üstten değiştirilebilir.
+123|Paylaşma
+124|Kaydet
+125|bir .weft dosyası oluşturur – Weft’te yapmaya devam etmek için.
+126|Dışa aktar
+127|tarayıcıda ya da öğrenme yönetim sisteminde oynatılacak bir web sayfası oluşturur.
+128|PDF olarak
+129|slaytları yazdırmak için verir.
+130|oynatmak için web sayfası
+131|BİLGİNİ SINA
+132|Hangisi neyle eşleşir?
+133|Düzen
+134|Giriş efekti
+135|Dallanma
+136|Değişken
+137|birçok slayt için aynı anda geçerlidir
+138|«İleri» ile bir şeyin belirmesini sağlar
+139|öğrenenleri başka yollara gönderir
+140|neyin olduğunu hatırlar
+141|Bir soru daha
+142|Kimsenin cevap vermeden ilerlememesi için görevi [[zorunlu]] yaparsın.
+143|Başardın!
+144|Artık bir öğrenme modülünün en önemli yapı taşlarını biliyorsun.
+145|Henüz her şey akılda kalmadı. Bu normal – ikinci bölüme istediğin kadar tekrar bakabilirsin.
+146|İkinci bölüme yeniden bak
+147|Şimdi sıra sende.
+148|Başlangıç ekranında yeni bir öğrenme modülü başlat – ya da «Şablonla başla»yı seç ve öğrenme piramidini yeniden kur.
+149|Daha fazla eğitimi «Weft’i tanı» altında bulursun.

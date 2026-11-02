@@ -1,0 +1,150 @@
+0|Voltar
+1|Próximo
+2|SEU PRIMEIRO MÓDULO DE APRENDIZAGEM
+3|Qual é a melhor forma de aprender?
+4|Descubra – e aprenda, de quebra, como montar um módulo de aprendizagem.
+5|Vamos lá
+6|Sete jeitos de aprender algo
+7|Ler
+8|Ouvir
+9|Olhar
+10|Ver e ouvir
+11|Debater
+12|Pôr em prática
+13|Ensinar outra pessoa
+14|Qual rende mais?
+15|O que fica melhor na memória?
+16|Coloque os sete jeitos de aprender na ordem certa: em cima o que menos fica, embaixo o que mais rende.
+17|Arraste os cartões para o lugar certo – e arrisque um palpite!
+18|fica pouco
+19|fica muito
+20|É isso mesmo!
+21|Você tem um bom feeling de como o aprendizado funciona.
+22|Daqui a pouco a sua ordem vira uma pirâmide.
+23|Quase!
+24|Não é tão fácil, né? Era uma pergunta de estimativa.
+25|Já já você vê a ordem em que ela costuma ser contada.
+26|A pirâmide da aprendizagem
+27|Quanto mais ativo você é ao aprender,
+28|mais fica na memória.
+29|É o que dizem muitos livros, seminários e treinamentos.
+30|Parece lógico, não parece?
+31|Mas isso é mesmo verdade?
+32|As porcentagens da pirâmide da aprendizagem (10 %, 20 % … 90 %) são comprovadas cientificamente.
+33|Verdadeiro
+34|Falso
+35|Boa percepção!
+36|Você desconfia – e faz bem.
+37|Por quê, você vê no próximo slide.
+38|Surpresa!
+39|Quase todo mundo acredita – os números parecem tão certinhos.
+40|Por que não é verdade, você vê no próximo slide.
+41|Os números não são comprovados.
+42|Edgar Dale
+43|desenhou em 1946 um «cone da experiência» – sem porcentagem nenhuma.
+44|Os números vieram depois. Um estudo por trás deles até hoje não foi encontrado.
+45|Mesmo assim, há um fundo de verdade.
+46|Quem participa ativamente costuma aprender melhor do que quem só ouve ou lê.
+47|225 estudos
+48|(Freeman e outros, 2014): nos cursos com aprendizagem ativa, reprovaram
+49|21,8 %
+50|e nas aulas puramente expositivas,
+51|33,8 %
+52|Experimentar
+53|Explicar
+54|E agora o pulo do gato:
+55|Você acabou de aprender de forma ativa.
+56|Você ordenou, adivinhou e decidiu – em vez de só ler.
+57|É exatamente assim que este módulo de aprendizagem é montado. Na segunda parte eu mostro como.
+58|ASSIM É CONSTRUÍDO
+59|Assim é construído este módulo
+60|Você acabou de jogar um módulo de aprendizagem. Agora vamos olhar por dentro – o editor do Weft, onde ele foi criado.
+61|Slides
+62|O slide
+63|Propriedades
+64|Eventos
+65|Novos slides e o layout
+66|Com «Adicionar», à esquerda, você cria um novo slide. Todo slide recebe um layout.
+67|O papel quadriculado, «Voltar», «Próximo» e a barra de progresso existem só uma vez no layout – e valem para todos os slides.
+68|aqui você muda isso – para todos os slides
+69|Texto, imagens, formas – e tarefas
+70|Com o + acima do slide, você coloca tudo no slide.
+71|À esquerda ficam coisas para mostrar, à direita coisas para participar – como o quebra-cabeça de ordem de antes.
+72|para mostrar
+73|para participar
+74|A pirâmide é feita de imagens
+75|Os sete níveis são imagens desenhadas (SVG) que ficam exatamente uma sobre a outra. Cada nível é uma imagem própria – por isso cada um pode aparecer sozinho.
+76|Os rótulos ao lado são textos comuns.
+77|O quebra-cabeça de ordem
+78|Você escreve os cartões na ordem certa. O Weft os embaralha para quem aprende.
+79|Nas pontas da linha há duas palavras – aqui «pouco» e «muito».
+80|as palavras nas pontas
+81|Uma tarefa obrigatória
+82|A caixa «Tarefa obrigatória» bloqueia o «Próximo» até a tarefa ser enviada.
+83|a caixa
+84|o cadeado: o «Próximo» está bloqueado
+85|Como a pirâmide cresce?
+86|Cada nível tem um efeito de entrada: ele surge em fade por baixo, em 0,65 segundo …
+87|… e isso no «Próximo», depois que o rótulo do nível anterior apareceu.
+88|como ele aparece
+89|o que o dispara
+90|O grafo de eventos
+91|Embaixo do slide você vê o que acontece e quando:
+92|Próximo – o nível 1 aparece – 0,3 segundo depois o seu rótulo – Próximo – nível 2 …
+93|Nível 1
+94|pausa de 0,3 s
+95|Cada círculo é um evento; as linhas dizem o que ele dispara.
+96|Criar uma variável
+97|Na aba «Variáveis», você cria uma nova com «+ Variável».
+98|Ela recebe um nome e um tipo: Número, Texto, Sim/Não – ou «Calculada», se resultar de outras variáveis.
+99|Dica: nomes em inglês, sem espaços.
+100|aqui você cria uma
+101|nome e tipo
+102|Uma variável vale para o módulo inteiro
+103|Ela não pertence a um slide: todo elemento de todo slide pode alterá-la – e toda ramificação pode lê-la.
+104|score
+105|Número
+106|Associação: +1 por par
+107|Texto com lacunas: +1
+108|Botão: +1 a cada clique
+109|Ramificação: lê score
+110|Elementos alteram variáveis
+111|Quase todo elemento interativo pode alterar variáveis: um quiz, uma associação, um texto com lacunas, um botão …
+112|Aqui: se a ordem está certa, «sortCorrect» passa para «Sim». Com números também dá para somar – é assim que «score» conta os pontos.
+113|esta variável recebe o valor «Sim»
+114|vários efeitos são possíveis
+115|A ramificação
+116|Uma ramificação manda quem aprende por outro caminho, conforme o resultado.
+117|Cada ramo tem uma condição sobre uma variável. Aqui: «sortCorrect = Sim». Se ela não se aplica, vale o último ramo.
+118|a ramificação
+119|a condição
+120|Um módulo, oito idiomas
+121|Em «Configurações» você adiciona idiomas. O de cima é o idioma padrão.
+122|Este módulo existe em oito idiomas: ele começa no idioma do seu app – e dá para trocar no canto superior direito.
+123|Compartilhar
+124|Salvar
+125|cria um arquivo .weft – para continuar montando no Weft.
+126|Exportar
+127|cria uma página web para reproduzir no navegador ou no sistema de gestão de aprendizagem.
+128|Como PDF
+129|dá os slides para imprimir.
+130|página web para reproduzir
+131|TESTE SEUS CONHECIMENTOS
+132|O que combina com o quê?
+133|Layout
+134|Efeito de entrada
+135|Ramificação
+136|Variável
+137|vale para vários slides de uma vez
+138|faz algo aparecer no «Próximo»
+139|manda quem aprende por outros caminhos
+140|guarda o que aconteceu
+141|Mais uma pergunta
+142|Para que ninguém avance sem responder, você torna a tarefa [[obrigatória]].
+143|Conseguiu!
+144|Agora você conhece os blocos mais importantes de um módulo de aprendizagem.
+145|Nem tudo ficou na memória ainda. É normal – fique à vontade para rever a segunda parte.
+146|Rever a segunda parte
+147|Agora é a sua vez.
+148|Na tela inicial, comece um novo módulo de aprendizagem – ou escolha «Começar com um modelo» e remonte a pirâmide da aprendizagem.
+149|Você encontra mais tutoriais em «Conheça o Weft».

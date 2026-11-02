@@ -1,0 +1,7 @@
+# made by build.sh / capture.mjs
+assets/
+crops/
+ops*.json
+edit-*.log
+texts-*.json
+*.weft

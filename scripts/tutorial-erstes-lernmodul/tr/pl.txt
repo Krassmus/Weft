@@ -1,0 +1,150 @@
+0|Wstecz
+1|Dalej
+2|TWÓJ PIERWSZY MODUŁ EDUKACYJNY
+3|Jak najlepiej się uczyć?
+4|Sprawdź to – i przy okazji naucz się, jak zbudować moduł edukacyjny.
+5|Zaczynamy
+6|Siedem sposobów uczenia się
+7|Czytanie
+8|Słuchanie
+9|Oglądanie
+10|Widzenie i słyszenie
+11|Dyskutowanie
+12|Własne próby
+13|Uczenie kogoś innego
+14|Który daje najwięcej?
+15|Co zostaje w głowie najlepiej?
+16|Ułóż siedem sposobów uczenia się we właściwej kolejności: u góry to, co zostaje najmniej, na dole to, co daje najwięcej.
+17|Przeciągnij karty na właściwe miejsce – i po prostu zgaduj!
+18|zostaje mało
+19|zostaje dużo
+20|Właśnie tak!
+21|Dobrze wyczuwasz, jak działa uczenie się.
+22|Za chwilę z twojej kolejności powstanie piramida.
+23|Prawie!
+24|To wcale nie takie łatwe, prawda? To było pytanie szacunkowe.
+25|Za chwilę zobaczysz kolejność, w jakiej zwykle się to opowiada.
+26|Piramida uczenia się
+27|Im bardziej aktywnie się uczysz,
+28|tym więcej zostaje w głowie.
+29|Tak piszą w wielu książkach, na seminariach i szkoleniach.
+30|Brzmi logicznie, prawda?
+31|Ale czy to naprawdę prawda?
+32|Wartości procentowe piramidy uczenia się (10 %, 20 % … 90 %) są naukowo udowodnione.
+33|Prawda
+34|Fałsz
+35|Dobrze zauważone!
+36|Podchodzisz sceptycznie – i słusznie.
+37|Dlaczego, zobaczysz na następnym slajdzie.
+38|Niespodzianka!
+39|Prawie wszyscy w to wierzą – liczby wyglądają tak porządnie.
+40|Dlaczego to nieprawda, zobaczysz na następnym slajdzie.
+41|Liczby nie są udowodnione.
+42|Edgar Dale
+43|narysował w 1946 roku „stożek doświadczenia” – zupełnie bez wartości procentowych.
+44|Liczby dodano później. Badania, które by za nimi stały, do dziś nie zostały odnalezione.
+45|Mimo to jest w tym ziarno prawdy.
+46|Kto aktywnie uczestniczy, uczy się zwykle lepiej niż ten, kto tylko słucha lub czyta.
+47|225 badań
+48|(Freeman i in., 2014): przy aktywnym uczeniu się oblało
+49|21,8 %
+50|a przy samych wykładach
+51|33,8 %
+52|Próbowanie
+53|Wyjaśnianie
+54|A teraz sztuczka:
+55|Właśnie uczysz się aktywnie.
+56|Układasz, zgadujesz i decydujesz – zamiast tylko czytać.
+57|Dokładnie tak zbudowany jest ten moduł edukacyjny. W drugiej części pokażę ci, jak.
+58|TAK TO ZBUDOWANO
+59|Tak zbudowano ten moduł
+60|Masz za sobą moduł edukacyjny. Teraz zajrzymy do środka – do edytora Weft, w którym powstał.
+61|Slajdy
+62|Slajd
+63|Właściwości
+64|Zdarzenia
+65|Nowe slajdy i układ
+66|Przyciskiem „Dodaj” po lewej tworzysz nowy slajd. Każdy slajd dostaje układ.
+67|Papier w kratkę, „Wstecz”, „Dalej” i pasek postępu istnieją w układzie tylko raz – i obowiązują wszystkie slajdy.
+68|tu to zmieniasz – dla wszystkich slajdów
+69|Tekst, obrazy, kształty – i zadania
+70|Za pomocą + nad slajdem umieszczasz na nim wszystko.
+71|Po lewej są rzeczy do pokazywania, po prawej rzeczy do zabawy – jak ta układanka kolejności sprzed chwili.
+72|do pokazywania
+73|do zabawy
+74|Piramida składa się z obrazów
+75|Siedem poziomów to narysowane obrazy (SVG), leżące dokładnie jeden na drugim. Każdy poziom to osobny obraz – dlatego każdy może pojawić się osobno.
+76|Opisy obok to zwykłe teksty.
+77|Układanka kolejności
+78|Wpisujesz karty we właściwej kolejności. Weft miesza je dla uczących się.
+79|Na końcach linii są dwa słowa – tu „mało” i „dużo”.
+80|słowa na końcach
+81|Zadanie obowiązkowe
+82|Pole „Zadanie obowiązkowe” blokuje „Dalej”, dopóki zadanie nie zostanie wysłane.
+83|pole wyboru
+84|kłódka: „Dalej” jest zablokowane
+85|Jak rośnie piramida?
+86|Każdy poziom ma efekt wejścia: pojawia się płynnie od dołu, w 0,65 sekundy …
+87|… i to przy „Dalej”, gdy pojawi się opis poprzedniego poziomu.
+88|jak się pojawia
+89|co go uruchamia
+90|Graf zdarzeń
+91|Pod slajdem widzisz, co dzieje się kiedy:
+92|Dalej – pojawia się poziom 1 – 0,3 sekundy później jego opis – Dalej – poziom 2 …
+93|Poziom 1
+94|przerwa 0,3 s
+95|Każde kółko to zdarzenie; linie mówią, co uruchamia.
+96|Tworzenie zmiennej
+97|Na karcie „Zmienne” tworzysz nową przyciskiem „+ Zmienna”.
+98|Dostaje nazwę i typ: Liczba, Tekst, Tak/Nie – albo „Obliczana”, jeśli wynika z innych zmiennych.
+99|Wskazówka: angielskie nazwy bez spacji.
+100|tu tworzysz nową
+101|nazwa i typ
+102|Zmienna obowiązuje w całym module
+103|Nie należy do jednego slajdu: każdy element na każdym slajdzie może ją zmienić – a każde rozgałęzienie może ją odczytać.
+104|score
+105|Liczba
+106|Dopasowywanie: +1 za parę
+107|Tekst z lukami: +1
+108|Przycisk: +1 za kliknięcie
+109|Rozgałęzienie: czyta score
+110|Elementy zmieniają zmienne
+111|Prawie każdy element interaktywny może zmieniać zmienne: quiz, dopasowywanie, tekst z lukami, przycisk …
+112|Tutaj: jeśli kolejność jest dobra, „sortCorrect” ustawia się na „Tak”. Przy liczbach możesz też dodawać – tak „score” liczy punkty.
+113|ta zmienna dostaje wartość „Tak”
+114|możliwych jest kilka efektów
+115|Rozgałęzienie
+116|Rozgałęzienie kieruje uczących się inną drogą, zależnie od wyniku.
+117|Każda gałąź ma warunek dotyczący zmiennej. Tu: „sortCorrect = Tak”. Jeśli nie jest spełniony, obowiązuje ostatnia gałąź.
+118|rozgałęzienie
+119|warunek
+120|Jeden moduł, osiem języków
+121|W „Ustawieniach” dodajesz języki. Najwyższy jest językiem domyślnym.
+122|Ten moduł istnieje w ośmiu językach: startuje w języku twojej aplikacji – a w prawym górnym rogu można go zmienić.
+123|Udostępnianie
+124|Zapisz
+125|tworzy plik .weft – do dalszej pracy w Weft.
+126|Eksportuj
+127|tworzy stronę internetową do odtwarzania w przeglądarce lub w systemie zarządzania nauczaniem.
+128|Jako PDF
+129|daje slajdy do wydrukowania.
+130|strona do odtwarzania
+131|SPRAWDŹ SWOJĄ WIEDZĘ
+132|Co do czego pasuje?
+133|Układ
+134|Efekt wejścia
+135|Rozgałęzienie
+136|Zmienna
+137|obowiązuje na wielu slajdach naraz
+138|sprawia, że coś pojawia się przy „Dalej”
+139|kieruje uczących się innymi drogami
+140|zapamiętuje, co się stało
+141|Jeszcze jedno pytanie
+142|Aby nikt nie szedł dalej bez odpowiedzi, ustawiasz zadanie jako [[obowiązkowe]].
+143|Udało się!
+144|Znasz już najważniejsze klocki modułu edukacyjnego.
+145|Nie wszystko jeszcze zostało w głowie. To normalne – śmiało obejrzyj drugą część jeszcze raz.
+146|Obejrzyj drugą część jeszcze raz
+147|Teraz twoja kolej.
+148|Na ekranie startowym rozpocznij nowy moduł edukacyjny – albo wybierz „Zacznij od szablonu” i zbuduj piramidę uczenia się od nowa.
+149|Więcej samouczków znajdziesz w „Poznaj Weft”.

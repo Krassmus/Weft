@@ -3,6 +3,8 @@ import { aspectRatioNumeric } from "../../core/aspectRatio";
 import { blobToDataUrl } from "../../core/runtime/buildPreviewAssetUrls";
 import type { AspectRatio } from "../../core/types";
 import { LOGO_FILE } from "../../core/io/coverImage";
+import type { Language } from "../../core/i18n/translations";
+import { startLocaleFor, withStartLanguage } from "../../core/io/playModule";
 import { unpackDocument } from "../../core/io/unpack";
 import { buildInlineFontFaceCss } from "../../core/runtime/buildInlineFontFaceCss";
 import { buildRuntimeHtml } from "../../core/runtime/buildRuntimeHtml";
@@ -35,18 +37,25 @@ function asPicture(html: string): string {
 
 /** A file without a page of its own (one that a tool like the `weft` command line wrote - only the page the app saves has it): the page is made
  * from the module itself, the way the app makes it when it saves. */
-async function summarizeWithoutPage(bytes: Uint8Array, coverUrl: string | null): Promise<ModuleSummary> {
+async function summarizeWithoutPage(bytes: Uint8Array, coverUrl: string | null, language?: Language): Promise<ModuleSummary> {
   try {
     const content = unpackDocument(bytes, { importAssets: false }).content;
     const files = unzipSync(bytes, {
       filter: (file) => file.name.startsWith("assets/") && IMAGE_EXTENSION.test(file.name) && file.originalSize <= MAX_IMAGE_BYTES,
     });
+    // The picture shows the first slide only: just the files that slide (and the layouts) mention are put into its page - a module with many
+    // pictures would otherwise take a long time to show as a tile.
+    const first = Object.values(content.sequence)
+      .filter((entry) => entry.kind === "page")
+      .sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0))[0];
+    const mentioned = JSON.stringify([first && "pageId" in first ? content.pages[first.pageId] : content.pages, content.layouts]);
     const urls: Record<string, string> = {};
     for (const meta of content.assets) {
+      if (!mentioned.includes(meta.id)) continue;
       const name = Object.keys(files).find((path) => path.startsWith(`assets/${meta.id}_`));
       if (name) urls[meta.id] = await blobToDataUrl(new Blob([files[name] as BlobPart], { type: meta.mimeType }));
     }
-    const html = asPicture(await buildRuntimeHtml(content, urls, await buildInlineFontFaceCss(content)));
+    const html = asPicture(await buildRuntimeHtml(content, urls, await buildInlineFontFaceCss(content), null, language ? startLocaleFor(content.languages, language) : null));
     let aspect = 16 / 9;
     try {
       aspect = aspectRatioNumeric(content.aspectRatio);
@@ -59,14 +68,15 @@ async function summarizeWithoutPage(bytes: Uint8Array, coverUrl: string | null):
   }
 }
 
-export async function summarizeModule(bytes: Uint8Array): Promise<ModuleSummary> {
+/** `language`: the language of Weft's interface - a module with texts in several languages shows its first slide in it (as it is played). */
+export async function summarizeModule(bytes: Uint8Array, language?: Language): Promise<ModuleSummary> {
   const files = unzipSync(bytes, {
     filter: (file) => file.name === "index.html" || file.name === LOGO_FILE || (file.name.startsWith("assets/") && IMAGE_EXTENSION.test(file.name) && file.originalSize <= MAX_IMAGE_BYTES),
   });
   const logo = files[LOGO_FILE];
   const coverUrl = logo ? await blobToDataUrl(new Blob([logo as BlobPart], { type: "image/png" })) : null;
   const page = files["index.html"];
-  if (!page) return summarizeWithoutPage(bytes, coverUrl);
+  if (!page) return summarizeWithoutPage(bytes, coverUrl, language);
   let html = strFromU8(page);
 
   const data = DATA_TAG.exec(html);
@@ -85,7 +95,7 @@ export async function summarizeModule(bytes: Uint8Array): Promise<ModuleSummary>
   }
 
   html = html.replace(ASSET_URLS_TAG, (_, open: string, close: string) => open + JSON.stringify(urls).replace(/</g, "\\u003c") + close);
-  html = asPicture(html);
+  html = asPicture(language ? withStartLanguage(html, language) : html);
   let aspect = 16 / 9;
   try {
     if (module.aspectRatio) aspect = aspectRatioNumeric(module.aspectRatio);

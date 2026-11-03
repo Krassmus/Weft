@@ -1,10 +1,20 @@
 # ======================================================================================================================
 # PART B: "So ist das gebaut" - pictures of the real editor with hand-drawn rings, arrows and labels
 # ======================================================================================================================
+import json
 import math
 import doodles
 
+# The pictures of the editor: one folder per interface language (crops/de, crops/en ...), taken by capture.mjs. The block has the German one as its own picture,
+# every other language has its own (set_media with "language") - so a learner in French sees the French editor. rects.json: where the things are the callouts point
+# to, in pixels of the German picture (they are in the same place in the others: the pictures are cut where those things are).
 CROPS = HERE / "crops"
+RECTS = json.loads((CROPS / "de" / "rects.json").read_text())
+
+
+def rect(crop, name, pad=(0, 0)):
+    x0, y0, x1, y1 = RECTS[crop][name]
+    return (x0 - pad[0], y0 - pad[1], x1 + pad[0], y1 + pad[1])
 PX, PY = 12.8, 7.2  # pixels per percent of a 1280 x 720 slide
 _gen = [0]
 
@@ -25,8 +35,10 @@ def kicker(page, label, color=BLUE):
 def shot(page, name, cw, ch, x, y, w, effect=None, as_=None):
     """a crop of the editor, w percent wide at (x, y); returns its geometry for the callouts"""
     h = round(w * PX * ch / cw / PY, 2)
-    ops.append({"op": "add_image", "page": page, "file": str(CROPS / f"{name}.jpg"), "alt": "", "position": {"x": x, "y": y, "width": w, "height": h}, "fit": False, "as": as_ or f"shot_{name}"})
+    ops.append({"op": "add_image", "page": page, "file": str(CROPS / "de" / f"{name}.jpg"), "alt": "", "position": {"x": x, "y": y, "width": w, "height": h}, "fit": False, "as": as_ or f"shot_{name}"})
     block = "$" + (as_ or f"shot_{name}")
+    for locale in LANGS[1:]:
+        ops.append({"op": "set_media", "block": block, "language": locale, "file": str(CROPS / locale.split("_")[0] / f"{name}.jpg")})
     sets = {"name": "Editor: " + name, "effect": {"kind": "shadow", "blur": 1.2, "color": INK, "offsetX": 0.35, "offsetY": 0.6, "opacity": 0.45}}
     if effect:
         sets["entranceEffect"] = effect
@@ -120,8 +132,8 @@ kicker(P, "SO IST DAS GEBAUT")
 heading(P, "Neue Folien und das Layout", sub_width=34)
 body(P, "Mit „Hinzufügen“ links legst du eine neue Folie an. Jede Folie bekommt ein Layout.", w=38, name="Einleitung")
 body(P, "Das Karopapier, „Zurück“, „Weiter“ und der Fortschrittsbalken stehen nur einmal im Layout – und gelten für alle Folien.", w=38, name="Layout", effect=fx("up"))
-c = shot(P, "layout-panel", 274, 232, 50, 24, 40)
-callout(P, c, (60, 188, 214, 218), "hier änderst du es – für alle Folien", (52, 80), label_w=28, anchor=(66, 81), bend=0.3)
+c = shot(P, "layout-panel", 274, 232, 54, 24, 34)
+callout(P, c, (60, 188, 214, 218), "hier änderst du es – für alle Folien", (50, 74), label_w=26, anchor=(64, 75), bend=0.3)
 
 # ---- 14: the + menu ------------------------------------------------------------------------------------------------------------
 ops.append({"op": "add_page", "layout": "$L_Skizzenheft", "as": "p14"})
@@ -129,10 +141,10 @@ P = "$p14"
 kicker(P, "SO IST DAS GEBAUT")
 heading(P, "Text, Bilder, Formen – und Aufgaben", sub_width=42)
 body(P, "Über das + über der Folie kommt alles auf die Folie.", w=44, name="Einleitung")
-body(P, "Links stehen Dinge zum Zeigen, rechts Dinge zum Mitmachen – wie das Sortierrätsel von eben.", w=44, name="Menü", effect=fx("up"))
+body(P, "Links stehen Dinge zum Zeigen, rechts Dinge zum Mitmachen – wie das Sortierrätsel von eben.", w=38, name="Menü", effect=fx("up"))
 c = shot(P, "plus-menu", 350, 490, 62, 22, 22)
-callout(P, c, (14, 72, 88, 100), "zum Zeigen", (43, 50), label_w=12, anchor=(55, 53), bend=-0.2)
-callout(P, c, (186, 311, 304, 340), "zum Mitmachen", (85, 74), label_w=14, anchor=(86, 75), bend=0.25)
+callout(P, c, (14, 72, 88, 100), "zum Zeigen", (47, 50), label_w=12, anchor=(58, 53), bend=-0.2)
+callout(P, c, (186, 311, 304, 340), "zum Mitmachen", (85, 68), label_w=14, anchor=(86, 69), bend=0.25)
 
 # ---- 15: the pyramid is pictures -----------------------------------------------------------------------------------------------
 ops.append({"op": "add_page", "layout": "$L_Skizzenheft", "as": "p15"})
@@ -148,11 +160,11 @@ ops.append({"op": "add_page", "layout": "$L_Skizzenheft", "as": "p16"})
 P = "$p16"
 kicker(P, "SO IST DAS GEBAUT")
 heading(P, "Das Sortierrätsel", sub_width=26)
-body(P, "Du schreibst die Karten in der richtigen Reihenfolge ein. Weft mischt sie für die Lernenden.", w=26, name="Karten")
-body(P, "An den Enden der Linie stehen zwei Wörter – hier „wenig“ und „viel“.", w=26, name="Enden", effect=fx("up"))
+body(P, "Du schreibst die Karten in der richtigen Reihenfolge ein. Weft mischt sie für die Lernenden.", w=26, size=2.2, name="Karten")
+body(P, "An den Enden der Linie stehen zwei Wörter – hier „wenig“ und „viel“.", w=26, size=2.2, name="Enden", effect=fx("up"))
 c1 = shot(P, "sort-canvas", 445, 430, 36, 17, 27)
-c2 = shot(P, "sort-panel", 274, 470, 70, 14, 24)
-callout(P, c2, (10, 255, 264, 310), "die Wörter an den Enden", (46, 72), label_w=20, anchor=(63, 74), bend=-0.25)
+c2 = shot(P, "sort-panel", 274, 300, 70, 14, 24)
+callout(P, c2, rect("sort-panel", "words", (-2, 2)), "die Wörter an den Enden", (46, 68), label_w=20, anchor=(63, 70), bend=-0.25)
 
 # ---- 17: required task -----------------------------------------------------------------------------------------------------------
 ops.append({"op": "add_page", "layout": "$L_Skizzenheft", "as": "p17"})
@@ -162,7 +174,7 @@ heading(P, "Eine Pflichtaufgabe", sub_width=26)
 body(P, "Das Häkchen „Pflichtangabe“ sperrt „Weiter“, bis die Aufgabe abgeschickt ist.", w=44, name="Pflicht")
 c1 = shot(P, "sort-required", 274, 125, 60, 18, 32)
 c2 = shot(P, "timeline-sort", 1030, 124, 7, 50, 86)
-callout(P, c1, (6, 8, 262, 36), "das Häkchen", (50, 30), label_w=9, anchor=(54, 31.5), bend=0.2)
+callout(P, c1, rect("sort-required", "tick", (4, 3)), "das Häkchen", (50, 30), label_w=9, anchor=(54, 31.5), bend=0.2)
 callout(P, c2, (950, 28, 1020, 90), "das Schloss: Weiter ist gesperrt", (50, 77), label_w=26, anchor=(76, 77.5), bend=0.2)
 
 # ---- 18: effect panel --------------------------------------------------------------------------------------------------------------
@@ -172,9 +184,9 @@ kicker(P, "SO IST DAS GEBAUT")
 heading(P, "Wie wächst die Pyramide?", sub_width=32)
 body(P, "Jede Stufe hat einen Aufbau-Effekt: Sie blendet von unten ein, in 0,65 Sekunden …", w=46, name="Effekt")
 body(P, "… und zwar bei „Weiter“, nachdem die Beschriftung der Stufe davor erschienen ist.", w=46, name="Auslöser", effect=fx("up"))
-c = shot(P, "tier-effect", 274, 345, 62, 17, 28)
-callout(P, c, (8, 178, 266, 208), "wie sie erscheint", (40, 52), label_w=20, anchor=(58, 54), bend=0.25)
-callout(P, c, (8, 240, 266, 270), "was sie auslöst", (40, 66), label_w=20, anchor=(58, 68), bend=0.25)
+c = shot(P, "tier-effect", 274, 366, 62, 17, 28)
+callout(P, c, rect("tier-effect", "how", (2, 0)), "wie sie erscheint", (40, 34), label_w=20, anchor=(58, 36), bend=0.25)
+callout(P, c, rect("tier-effect", "trigger", (2, 0)), "was sie auslöst", (40, 66), label_w=20, anchor=(58, 68), bend=0.25)
 
 # ---- 19: the event graph -----------------------------------------------------------------------------------------------------------
 ops.append({"op": "add_page", "layout": "$L_Skizzenheft", "as": "p19"})
@@ -185,7 +197,7 @@ body(P, "Unter der Folie siehst du, was wann passiert:", w=70, y=22, name="Einle
 body(P, "Weiter – Stufe 1 erscheint – 0,3 Sekunden später ihre Beschriftung – Weiter – Stufe 2 …", w=84, y=29, name="Ablauf", effect=fx("up"), color=ACCENT, font=HEAD, size=3.2, bold=True, fixed=True)
 c = shot(P, "timeline-pyramid", 1030, 76, 7, 46, 86)
 callout(P, c, (92, 6, 178, 70), "Stufe 1", (18, 66), label_w=10, anchor=(24, 66), bend=-0.2)
-callout(P, c, (168, 6, 215, 32), "0,3 s Pause", (36, 66), label_w=12, anchor=(40, 66), bend=0.2)
+callout(P, c, (168, 6, 215, 32), "0,3 s Pause", (36, 66), label_w=16, anchor=(40, 66), bend=0.2)
 body(P, "Jeder Kreis ist ein Ereignis, die Linien sagen, was es auslöst.", w=84, y=79, name="Hinweis", effect=fx("up"), size=2.2, color=MUTED, fixed=True)
 
 # ---- variables 1: define one ---------------------------------------------------------------------------------------------------
@@ -197,8 +209,8 @@ body(P, "Im Reiter „Variablen“ legst du mit „+ Variable“ eine neue an.",
 body(P, "Sie bekommt einen Namen und einen Typ: Zahl, Text, Ja/Nein – oder „Berechnet“, wenn sie sich aus anderen Variablen ergibt.", w=46, size=2.3, name="Typ", effect=fx("up"))
 body(P, "Tipp: englische Namen ohne Leerzeichen.", w=46, name="Tipp", effect=fx("up"), size=2.0, color=MUTED)
 c = shot(P, "variables", 262, 330, 60, 17, 25)
-callout(P, c, (8, 285, 250, 318), "hier legst du eine an", (42, 74), label_w=22, anchor=(58, 75.5), bend=-0.2)
-callout(P, c, (6, 247, 226, 277), "Name und Typ", (44, 56), label_w=14, anchor=(56, 58), bend=-0.2)
+callout(P, c, rect("variables", "add", (-1, 0)), "hier legst du eine an", (42, 74), label_w=22, anchor=(58, 75.5), bend=-0.2)
+callout(P, c, rect("variables", "row", (0, 0)), "Name und Typ", (44, 56), label_w=14, anchor=(56, 58), bend=-0.2)
 
 # ---- variables 2: one variable for the whole module ----------------------------------------------------------------------------
 def card(page, x, y, w, h, fill, paragraphs, size, key, seed, depends=None, delay=0, line_gap=1.0):
@@ -246,8 +258,8 @@ heading(P, "Elemente verändern Variablen", sub_width=34)
 body(P, "Fast jedes interaktive Element kann Variablen verändern: ein Quiz, eine Zuordnung, ein Lückentext, ein Button …", w=42, name="Elemente")
 body(P, "Hier: Stimmt die Reihenfolge, wird „sortCorrect“ auf „Ja“ gesetzt. Bei Zahlen kannst du auch addieren – so zählt „score“ die Punkte.", w=42, name="Beispiel", effect=fx("up"))
 c = shot(P, "effect-row", 274, 150, 52, 31, 40)
-callout(P, c, (8, 32, 266, 62), "diese Variable bekommt den Wert „Ja“", (52, 23), label_w=40, anchor=(72, 28), bend=-0.1)
-callout(P, c, (88, 74, 188, 104), "mehrere Effekte sind möglich", (55, 74), label_w=34, anchor=(72, 74), bend=0.1)
+callout(P, c, rect("effect-row", "row", (-1, 0)), "diese Variable bekommt den Wert „Ja“", (52, 23), label_w=40, anchor=(72, 28), bend=-0.1)
+callout(P, c, (80, RECTS["effect-row"]["more"][1], 195, RECTS["effect-row"]["more"][3]), "mehrere Effekte sind möglich", (55, 74), label_w=34, anchor=(72, 74), bend=0.1)
 
 # ---- 20: the fork --------------------------------------------------------------------------------------------------------------------
 ops.append({"op": "add_page", "layout": "$L_Skizzenheft", "as": "p20"})
@@ -259,7 +271,7 @@ body(P, "Jeder Zweig hat eine Bedingung über eine Variable. Hier: „sortCorrec
 c1 = shot(P, "fork-sidebar", 240, 135, 43, 20, 21)
 c2 = shot(P, "fork-panel", 274, 420, 68, 12, 25)
 callout(P, c1, (24, 4, 235, 36), "die Weiche", (44, 52), label_w=14, anchor=(49, 53), bend=0.2)
-callout(P, c2, (8, 372, 268, 406), "die Bedingung", (48, 70), label_w=16, anchor=(64, 71), bend=-0.2)
+callout(P, c2, rect("fork-panel", "condition", (0, 0)), "die Bedingung", (48, 70), label_w=16, anchor=(64, 71), bend=-0.2)
 
 # ---- 22: languages -------------------------------------------------------------------------------------------------------------------
 ops.append({"op": "add_page", "layout": "$L_Skizzenheft", "as": "p22"})

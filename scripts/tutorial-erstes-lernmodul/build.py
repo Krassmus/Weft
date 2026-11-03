@@ -268,8 +268,12 @@ text(P, "", 7, 42, 80, size=2.4, name="Studie", effect=fx("up"), box={"fill": "#
      paragraphs=[[{"text": "225 Studien", "bold": True}, " (Freeman u. a., 2014): Mit aktivem Lernen fielen ", {"text": "21,8\u00a0%", "bold": True, "color": GREEN}, " durch, in reinen Vorlesungen ", {"text": "33,8\u00a0%", "bold": True, "color": ACCENT}, "."]])
 for i, (icon, label) in enumerate((("flask", "Ausprobieren"), ("bubbles", "Diskutieren"), ("teacher", "Erklären"))):
     x = 12 + i * 22
-    pic(P, f"icon_{icon}.svg", x, 63, 8, effect=fx("up"), name=label)
-    text(P, label, x - 4, 63 + square(8) + 0.5, 16, size=2.6, font=HEAD, bold=True, align="center", effect=fx("up"), name=label + " (Text)")
+    pic(P, f"icon_{icon}.svg", x, 63, 8, effect=fx("up"), name=label, as_=f"k{i}")
+    text(P, label, x - 4, 63 + square(8) + 0.5, 16, size=2.6, font=HEAD, bold=True, align="center", effect=fx("up"), name=label + " (Text)", as_=f"kt{i}")
+# One "Weiter" brings in all six (the three icons and their words, one after the other): the first follows the box with the study, the others follow each other.
+_chain = ["k0", "kt0", "k1", "kt1", "k2", "kt2"]
+for _prev, _next in zip(_chain, _chain[1:]):
+    ops.append({"op": "set_trigger", "page": P, "to": f"entrance:${_next}", "from": f"entrance:${_prev}", "delayMs": 150, "weiter": False})
 pic(P, "icon_check.svg", 78, 22, 12, name="Haken")
 
 if not TEMPLATE:

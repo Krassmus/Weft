@@ -119,7 +119,7 @@ for lay, nav in (("Skizzenheft", True), ("Titel", False)):
         ops.append({"op": "add_block", "layout": L, "kind": "progress", "set": {"position": {"x": 7, "y": 94.2, "width": 86, "height": 1.1}, "variable": "progress", "color": ACCENT, "trackColor": "#e3dcc8", "rounded": True, "animate": True, "name": "Fortschritt"}})
         ops.append({"op": "add_block", "layout": L, "kind": "button", "set": {"position": {"x": 7, "y": 85.6, "width": 11, "height": 6.2}, "text": "Zurück", "action": "prev", "name": "Zurück", "html": f'<p style="line-height:1.25;margin:0"><font color="{INK}">Zurück</font></p>', "appearance": {"background": None, "borderColor": INK, "borderWidth": 0.12}}})
         ops.append({"op": "add_block", "layout": L, "kind": "button", "set": {"position": {"x": 81, "y": 85.6, "width": 12, "height": 6.2}, "text": "Weiter", "action": "advance", "name": "Weiter", "html": "Weiter"}})
-    ops.append({"op": "add_block", "layout": L, "kind": "language", "set": {"position": {"x": 69, "y": 2.2, "width": 24, "height": 4.6}, "name": "Sprache"}})
+    ops.append({"op": "add_block", "layout": L, "kind": "language", "set": {"position": {"x": 69, "y": 1.4, "width": 24, "height": 6.4}, "name": "Sprache"}})
 
 # ---- 1: title ------------------------------------------------------------------------------------------------------------
 ops.append({"op": "add_page", "layout": "$L_Titel", "as": "p1"})

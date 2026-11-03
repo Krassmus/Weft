@@ -1,0 +1,86 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>html,body{margin:0;background:#f7f2e7}canvas{display:block}</style>
+<canvas id="c" width="1280" height="720"></canvas>
+<script>
+// The picture of the tutorial's video "Farben mischen": two blobs of paint that meet and mix (the tutorial stops it after that, at 6 s, and asks what was mixed). Nothing in it is written or spoken, so it
+// needs no translation. draw(t) paints the picture at second t (render.mjs asks for one frame after the other and has ffmpeg make the video of them).
+var c = document.getElementById("c"), g = c.getContext("2d");
+var INK = "#2b2d42", PAPER = "#f7f2e7", GRID = "#dcd6c4";
+var COLORS = { blue: "#3b6fd4", yellow: "#f6c945", red: "#d9534f", green: "#2f9e6f", orange: "#f08a24", violet: "#8a5ac2" };
+// a round: when it starts, the two colours and what they make; the blobs come in, move together and mix, and shrink away at the end
+var ROUNDS = [
+  { t0: 0.0, a: "blue", b: "yellow", mix: "green", meet: 2.6, mixEnd: 5.0, end: 7.6 },
+];
+function hex(h) { return [1, 3, 5].map(function (i) { return parseInt(h.substr(i, 2), 16); }); }
+function lerpColor(a, b, k) { var x = hex(a), y = hex(b); return "rgb(" + x.map(function (v, i) { return Math.round(v + (y[i] - v) * k); }).join(",") + ")"; }
+function clamp(x) { return Math.max(0, Math.min(1, x)); }
+function ease(x) { x = clamp(x); return x * x * (3 - 2 * x); }
+function easeOut(x) { x = clamp(x); return 1 - Math.pow(1 - x, 3); }
+function pop(x) { x = clamp(x); var s = 1.70158; return 1 + (s + 1) * Math.pow(x - 1, 3) + s * Math.pow(x - 1, 2); }
+
+function blobPath(cx, cy, r, seed, t) {
+  g.beginPath();
+  for (var i = 0; i <= 72; i++) {
+    var ang = (i / 72) * Math.PI * 2;
+    var w = 1 + 0.035 * Math.sin(ang * 3 + seed + t * 1.7) + 0.02 * Math.sin(ang * 5 - seed * 2 + t * 2.3);
+    var x = cx + Math.cos(ang) * r * w, y = cy + Math.sin(ang) * r * w;
+    if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+  }
+  g.closePath();
+}
+
+function paper() {
+  g.fillStyle = PAPER; g.fillRect(0, 0, 1280, 720);
+  g.strokeStyle = GRID; g.lineWidth = 1; g.beginPath();
+  for (var x = 0; x <= 1280; x += 32) { g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, 720); }
+  for (var y = 0; y <= 720; y += 32) { g.moveTo(0, y + 0.5); g.lineTo(1280, y + 0.5); }
+  g.stroke();
+}
+
+function blobsOf(round, t) {
+  var local = t - round.t0, mixK = ease((t - round.meet) / (round.mixEnd - round.meet));
+  var appear = [pop(local / 0.8), pop((local - 0.35) / 0.8)];
+  var travel = easeOut((local - 1.0) / (round.meet - round.t0 - 1.0));
+  var gap = 215 - 0; // centres apart at the moment of stopping
+  var ax = 330 + (640 - gap / 2 - 330) * travel, bx = 950 + (640 + gap / 2 - 950) * travel;
+  // after the stop: the centres move together and the blobs grow
+  var close = ease((t - round.meet) / 1.4);
+  ax += (640 - ax) * close; bx += (640 - bx) * close;
+  var grow = 100 + 38 * close;
+  var leave = 1 - ease((t - (round.end - 0.8)) / 0.8); // the round ends: the blob shrinks away
+  var colA = lerpColor(COLORS[round.a], COLORS[round.mix], mixK), colB = lerpColor(COLORS[round.b], COLORS[round.mix], mixK);
+  var drift = Math.sin(t * 1.3) * 4;
+  return [
+    { x: ax, y: 360 + drift, r: grow * appear[0] * leave, col: colA, seed: 1 },
+    { x: bx, y: 360 - drift, r: grow * appear[1] * leave, col: colB, seed: 4 },
+  ].filter(function (b) { return b.r > 1; });
+}
+
+function sparkles(round, t) {
+  var k = (t - round.meet - 0.9) / 1.6;
+  if (k < 0 || k > 1) return;
+  g.strokeStyle = INK; g.lineWidth = 5; g.lineCap = "round";
+  for (var i = 0; i < 8; i++) {
+    var ang = (i / 8) * Math.PI * 2 + 0.3, r0 = 175 + 25 * easeOut(k), r1 = r0 + 26 * (1 - k);
+    g.globalAlpha = 1 - ease(k);
+    g.beginPath(); g.moveTo(640 + Math.cos(ang) * r0, 360 + Math.sin(ang) * r0); g.lineTo(640 + Math.cos(ang) * r1, 360 + Math.sin(ang) * r1); g.stroke();
+  }
+  g.globalAlpha = 1;
+}
+
+window.draw = function (t) {
+  paper();
+  var round = ROUNDS.filter(function (r) { return t >= r.t0; }).pop() || ROUNDS[0];
+  var blobs = blobsOf(round, t);
+  g.lineJoin = "round";
+  g.fillStyle = INK; g.strokeStyle = INK; g.lineWidth = 14;
+  blobs.forEach(function (b) { blobPath(b.x, b.y, b.r, b.seed, t); g.stroke(); g.fill(); });
+  blobs.forEach(function (b) { blobPath(b.x, b.y, b.r, b.seed, t); g.fillStyle = b.col; g.fill(); });
+  // a highlight on each
+  blobs.forEach(function (b) { g.strokeStyle = "rgba(255,255,255,.55)"; g.lineWidth = 7; g.lineCap = "round"; g.beginPath(); g.arc(b.x, b.y, b.r * 0.72, Math.PI * 1.1, Math.PI * 1.45); g.stroke(); });
+  sparkles(round, t);
+};
+window.DURATION = ROUNDS[ROUNDS.length - 1].end;
+window.draw(0);
+</script>

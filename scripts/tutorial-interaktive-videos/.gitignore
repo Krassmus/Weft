@@ -1,0 +1,6 @@
+# made by build.py / capture.mjs / video/render.mjs
+assets/
+crops/
+ops.json
+edit.log
+*.weft

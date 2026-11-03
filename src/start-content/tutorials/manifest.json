@@ -35,24 +35,24 @@
   {
     "file": "erstes-lernmodul.weft",
     "title": {
-      "de": "Dein erstes Lernmodul",
-      "en": "Your first learning module",
-      "es": "Tu primer módulo de aprendizaje",
-      "fr": "Ton premier module d’apprentissage",
-      "pt": "Seu primeiro módulo de aprendizagem",
-      "it": "Il tuo primo modulo di apprendimento",
-      "tr": "İlk öğrenme modülün",
-      "pl": "Twój pierwszy moduł edukacyjny"
+      "de": "Mit Lernmodulen arbeiten",
+      "en": "Working with learning modules",
+      "es": "Trabajar con módulos de aprendizaje",
+      "fr": "Travailler avec des modules d’apprentissage",
+      "pt": "Trabalhar com módulos de aprendizagem",
+      "it": "Lavorare con i moduli di apprendimento",
+      "tr": "Öğrenme modülleriyle çalışmak",
+      "pl": "Praca z modułami edukacyjnymi"
     },
     "description": {
-      "de": "Eine Lernpyramide spielen – und sehen, wie ein Lernmodul gebaut wird: Aufgaben, Effekte, Variablen und Verzweigungen.",
-      "en": "Play a learning pyramid – and see how a learning module is built: tasks, effects, variables and branches.",
-      "es": "Juega una pirámide del aprendizaje y descubre cómo se construye un módulo de aprendizaje: tareas, efectos, variables y ramificaciones.",
-      "fr": "Joue une pyramide de l’apprentissage et découvre comment on construit un module d’apprentissage : exercices, effets, variables et ramifications.",
-      "pt": "Jogue uma pirâmide da aprendizagem e veja como se monta um módulo de aprendizagem: tarefas, efeitos, variáveis e ramificações.",
-      "it": "Gioca una piramide dell’apprendimento e scopri come si costruisce un modulo di apprendimento: compiti, effetti, variabili e ramificazioni.",
-      "tr": "Bir öğrenme piramidini oyna ve bir öğrenme modülünün nasıl yapıldığını gör: görevler, efektler, değişkenler ve dallanmalar.",
-      "pl": "Przejdź piramidę uczenia się i zobacz, jak zbudowany jest moduł edukacyjny: zadania, efekty, zmienne i rozgałęzienia."
+      "de": "Worauf muss man achten, wenn die Präsentation plötzlich interaktiv wird und was kann Weft da alles?",
+      "en": "What do you need to watch out for when a presentation suddenly becomes interactive, and what can Weft do?",
+      "es": "¿Qué hay que tener en cuenta cuando la presentación se vuelve de repente interactiva y qué puede hacer Weft?",
+      "fr": "À quoi faut-il faire attention quand la présentation devient soudain interactive, et que peut faire Weft ?",
+      "pt": "O que é preciso observar quando a apresentação de repente se torna interativa e o que o Weft consegue fazer?",
+      "it": "A cosa bisogna fare attenzione quando la presentazione diventa all’improvviso interattiva e che cosa sa fare Weft?",
+      "tr": "Sunum birdenbire etkileşimli hale geldiğinde nelere dikkat etmek gerekir ve Weft neler yapabilir?",
+      "pl": "Na co trzeba uważać, gdy prezentacja nagle staje się interaktywna, i co potrafi Weft?"
     },
     "tag": {
       "de": "Grundlagen",

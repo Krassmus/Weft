@@ -132,6 +132,9 @@ export interface AssetField {
    * list: while another field of the item has it (a card of a matching: its picture, while it is a picture): else it does not stay in the module and is not
    * exported. */
   usedWhen?: { field: string; is: string };
+  /** Each language of the module can have a file of its own (a picture with words in it): the block's field is the default language's, the others' are kept in
+   * `translations[language][name]` - and are files of the module like it (they stay in it, are exported, are checked). Only for a field of the block itself. */
+  translatable?: boolean;
 }
 
 /**

@@ -118,6 +118,8 @@ A module in two languages is made from the finished one in the first language:
 4. **Add a language switch** (`add_block` with `kind: "language"`, best in the layout, top right and wide enough for "English (United States)"), otherwise the learners cannot choose the language.
 5. `weft validate --layout` checks the slides in every language; a translation is often longer than the original (`block-overflow` with the language in front). `weft render --lang en_US` and `weft play --lang en_US` show the slides in one language.
 
+An image block can have a picture of its own for each language (a screenshot of the interface in that language, a drawing with words in it): `set_media` with `language` (see `weft guide ops`); a language without one shows the default language's picture, and its description (`alt`) is a text like any other in `weft text export` / `import`.
+
 What Weft itself shows ("Submit", "That was correct!") comes in the language of the player; names of blocks, variables and branches are not translated. The first language of `set_languages` is the default: the blocks' own fields are in it, the others are translations (`set_languages` with another first language turns them around).
 
 ## Live in the open app

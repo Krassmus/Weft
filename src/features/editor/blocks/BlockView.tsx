@@ -19,6 +19,7 @@ import {
   fieldHtml,
   fieldHtmlPatch,
   fieldWording,
+  imageAssetId,
   listItemHtml,
   listItemPatch,
   listMergePatch,
@@ -831,15 +832,18 @@ function BlockContent({
       return <CodeView block={block} editable={selected && editing} onCommit={(code) => onUpdate?.({ code })} />;
     case "tex":
       return <TexRenderView block={block} mode="edit" />;
-    case "image":
-      if (block.assetId && (block.mask || block.effect)) {
-        return <ImageSvg block={block} src={getObjectUrl(block.assetId) ?? ""} ghost={maskEditing} />;
+    case "image": {
+      // (The picture of the language shown: its own, else the block's.)
+      const imageAsset = imageAssetId(block, lang, defaultLang);
+      if (imageAsset && (block.mask || block.effect)) {
+        return <ImageSvg block={block} src={getObjectUrl(imageAsset) ?? ""} ghost={maskEditing} />;
       }
-      return block.assetId ? (
-        <img src={getObjectUrl(block.assetId)} alt={block.alt} className="weft-edit-block-image" draggable={false} />
+      return imageAsset ? (
+        <img src={getObjectUrl(imageAsset)} alt={fieldWording(block, "alt", lang, defaultLang)} className="weft-edit-block-image" draggable={false} />
       ) : (
         <div className="weft-edit-block-placeholder">{tr("ui.choose_image")}</div>
       );
+    }
     case "video":
       // No native controls here, regardless of the block's own setting: pointer-events: none
       // (see App.css) already keeps them unusable, so showing them (and the "big play button"

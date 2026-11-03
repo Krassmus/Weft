@@ -1232,4 +1232,7 @@ export const tr: Record<TranslationKey, string> = {
   "ui.sample_text_2": "İkinci bir paragraf aralarındaki boşluğu gösterir",
   "ui.language_switcher": "Dil değiştirici",
   "ui.blur_dissolve": "Bulanıklık / çözülme",
+  "ui.image_file_for_language": "{language} için görsel dosyası",
+  "ui.image_shows_default_picture": "Burada kendi dosyasını seçene kadar bu dil {language} dilinin görselini gösterir. Konum, maske ve efekt aynı kalır.",
+  "ui.image_has_own_picture": "Bu dilin kendi görseli var. Varsayılan dilin görselini yeniden göstermek için kaldır.",
 };

@@ -111,6 +111,8 @@ Ein Modul in zwei Sprachen entsteht aus dem fertigen in der ersten Sprache:
 4. **Einen Sprachumschalter einbauen** (`add_block` mit `kind: "language"`, am besten in das Layout, oben rechts), sonst können die Lernenden die Sprache nicht wählen.
 5. `weft validate --layout` prüft die Folien in jeder Sprache; eine Übersetzung ist oft länger als das Original (`block-overflow` mit der Sprache davor). `weft render --lang en_US` und `weft play --lang en_US` zeigen die Folien in einer Sprache.
 
+Ein Bild-Block kann für jede Sprache ein eigenes Bild haben (einen Screenshot der Oberfläche in dieser Sprache, eine Zeichnung mit Wörtern darin): `set_media` mit `language` (siehe `weft guide ops`); eine Sprache ohne eigenes Bild zeigt das der Standardsprache, und die Beschreibung (`alt`) ist in `weft text export` / `import` ein Text wie jeder andere.
+
 Was Weft selbst zeigt („Abschicken", „Das war richtig!") kommt in der Sprache des Players; Namen von Blöcken, Variablen und Zweigen werden nicht übersetzt.
 
 ## Live in der offenen App

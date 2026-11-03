@@ -117,7 +117,8 @@ import { applyPlaceholderFormattingToPages, resetPlaceholderFormatting } from ".
 import { FontSelect } from "./FontSelect";
 import type { FontSelectGroup } from "./FontSelect";
 import { usePlaceholderProblems } from "../blocks/usePlaceholderProblems";
-import { matchingItemText, matchingItemTextPatch, sortItemText, sortItemTextPatch, sortLabel, sortLabelPatch, fieldWording, fieldWordingPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
+import { flagForLocale, languageName } from "../../../core/i18n/languages";
+import { imageAssetId, imageAssetPatch, matchingItemText, matchingItemTextPatch, sortItemText, sortItemTextPatch, sortLabel, sortLabelPatch, fieldWording, fieldWordingPatch, quizExplanation, quizExplanationPatch, quizOptionHtml, revealerWording, revealerWordingPatch, textHtml } from "../../../core/document/translations";
 import type { RevealerWording } from "../../../core/document/translations";
 import { revealerIconSvg } from "../../../core/runtime/revealerGeometry";
 import { clozeBlanks } from "../../../core/document/cloze";
@@ -161,7 +162,8 @@ const MAX_FONT_SIZE_PX = 300;
 interface BlockPanelProps {
   block: Block;
   onUpdate: (patch: Partial<Block>) => void;
-  onSetImage: (file: File) => void;
+  /** `language`: the language the picture is for (an image block keeps one picture for each language of the module). */
+  onSetImage: (file: File, language?: string | null) => void;
   onSetVideo: (file: File) => Promise<VideoUploadResult>;
   onSetAudio: (file: File) => Promise<void>;
   /** Where the block is (a page or a layout) - what the files block's actions need to find it. */
@@ -865,22 +867,33 @@ function ImageEditor({
   onUpdate: BlockPanelProps["onUpdate"];
   onSetImage: BlockPanelProps["onSetImage"];
 }) {
+  // A picture for each language of the module: in another language than the default one the file is that language's own (a screenshot of the
+  // interface in that language, a drawing with words in it) - and without one the default language's picture is shown.
+  const { lang, defaultLang } = useEditingLanguage();
+  const { lang: uiLanguage } = useTranslation();
+  const other = !!lang && !!defaultLang && lang !== defaultLang;
+  const ownAsset = other ? block.translations?.[lang]?.assetId : null;
+  const nameOf = (locale: string) => `${flagForLocale(locale)} ${languageName(locale, uiLanguage)}`;
   return (
     <Collapsible title={tr("ui.content")}>
+      <LanguageSelect block={block} />
       <MediaFilePicker
-        label={tr("ui.image_file")}
+        label={other ? tr("ui.image_file_for_language", { language: nameOf(lang) }) : tr("ui.image_file")}
         kind="image"
         accept={IMAGE_FILE_ACCEPT}
         title={tr("ui.choose_image_file")}
         formats="PNG, JPG, GIF, WebP, SVG"
         acceptsFile={(file) => file.type.startsWith("image/")}
-        onFile={onSetImage}
+        onFile={(file) => onSetImage(file, lang)}
+        current={ownAsset ? { assetId: ownAsset, onRemove: () => onUpdate(imageAssetPatch(block, lang, defaultLang, null)) } : null}
       />
+      {other && !ownAsset && <p className="weft-hint">{tr("ui.image_shows_default_picture", { language: nameOf(defaultLang) })}</p>}
+      {other && ownAsset && <p className="weft-hint">{tr("ui.image_has_own_picture")}</p>}
       <label className="weft-field">
         <span>{tr("ui.alt_text")}</span>
-        <input value={block.alt} onChange={(e) => onUpdate({ alt: e.target.value })} />
+        <input value={fieldWording(block, "alt", lang, defaultLang)} onChange={(e) => onUpdate(fieldWordingPatch(block, "alt", lang, defaultLang, e.target.value))} />
       </label>
-      {block.assetId && <ImageEditTiles block={block} onUpdate={onUpdate} />}
+      {imageAssetId(block, lang, defaultLang) && <ImageEditTiles block={block} onUpdate={onUpdate} />}
     </Collapsible>
   );
 }
@@ -890,6 +903,7 @@ function ImageEditor({
  * canvas, see MaskHandles) and "Effekt" (a dialog: border, shadow, reflection, paper edge, glow).
  */
 function ImageEditTiles({ block, onUpdate }: { block: ImageBlock; onUpdate: BlockPanelProps["onUpdate"] }) {
+  const { lang, defaultLang } = useEditingLanguage();
   const boxAspect = useImageBoxAspect(block);
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
   const editing = useImageEdit((s) => s.blockId === block.id);
@@ -1014,7 +1028,7 @@ function ImageEditTiles({ block, onUpdate }: { block: ImageBlock; onUpdate: Bloc
       {effectOpen && (
         <ImageEffectDialog
           block={block}
-          src={getObjectUrl(block.assetId ?? "") ?? ""}
+          src={getObjectUrl(imageAssetId(block, lang, defaultLang) ?? "") ?? ""}
           onApply={(effect) => onUpdate({ effect })}
           onClose={() => setEffectOpen(false)}
         />

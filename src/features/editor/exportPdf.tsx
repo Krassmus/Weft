@@ -4,6 +4,8 @@ import { drawSlide } from "./exportCanvas";
 import QRCode from "qrcode";
 import { useAssetStore } from "../../core/assets/assetStore";
 import { orderedValues } from "../../core/document/ordering";
+import { defaultLanguageOf, effectiveLanguage, imageAssetId } from "../../core/document/translations";
+import { useDocumentStore } from "../../core/document/store";
 import { branchPageIds, sequenceOf } from "../../core/document/sequence";
 import { aspectRatioNumeric } from "../../core/aspectRatio";
 import { buildImagePdf } from "../../core/io/pdfWriter";
@@ -87,6 +89,8 @@ export async function exportModuleAsPdf(
 ): Promise<Uint8Array> {
   const pageIds = pagesInPlayingOrder(content);
   const aspect = aspectRatioNumeric(content.aspectRatio);
+  // (The slides are drawn in the language the editor shows - see SlideThumbnail.)
+  const language = effectiveLanguage(content.languages, useDocumentStore.getState().editingLanguage);
   const holder = document.createElement("div");
   // Off the screen, but laid out (a slide that is not displayed has no size to draw).
   holder.style.cssText = `position:fixed;left:-20000px;top:0;width:${RENDER_WIDTH_PX}px;pointer-events:none;`;
@@ -111,8 +115,9 @@ export async function exportModuleAsPdf(
       // The pictures that have a mask or an effect, as data: addresses (see SlideThumbnail's imageUrls).
       const imageUrls: Record<string, string> = {};
       for (const block of blocks) {
-        if (block.kind !== "image" || !block.assetId || (!block.mask && !block.effect)) continue;
-        const blob = useAssetStore.getState().blobs.get(block.assetId);
+        if (block.kind !== "image" || (!block.mask && !block.effect)) continue;
+        const shown = imageAssetId(block, language, defaultLanguageOf(content.languages));
+        const blob = shown ? useAssetStore.getState().blobs.get(shown) : undefined;
         if (blob) imageUrls[block.id] = await blobToDataUrl(blob);
       }
       const canvas = await drawSlide(

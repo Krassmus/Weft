@@ -155,7 +155,11 @@ export interface BlockTranslation {
   /** RevealerBlock: the heading, the text of its window and the description of its picture (`text` is its button's label). */
   title?: string;
   body?: string;
+  /** ImageBlock too: its description in this language. */
   alt?: string;
+  /** ImageBlock: the picture in this language (a screenshot of the interface in this language, a drawing with words in it) - an asset of the module; absent:
+   * the block's own picture (the default language's). */
+  assetId?: UUID | null;
   /** QuizBlock: the explanation shown after submitting (plain text). */
   explanation?: string;
   /** SolutionBlock: the right word in this language (plain text; `text` is the words in its empty field). */
@@ -370,8 +374,11 @@ export type ImageEffectKind = ImageEffect["kind"];
 
 export interface ImageBlock extends BaseBlock {
   kind: "image";
+  /** The picture in the module's default language - and in every language that has none of its own (see `translations`). */
   assetId: UUID | null;
   alt: string;
+  /** Another language's picture and description, by locale ("fr_FR") - see BlockTranslation. The mask and the effect apply to every language's picture. */
+  translations?: Record<string, BlockTranslation>;
   /** Step one of editing: only the part inside the mask is shown. null/absent: the whole picture. */
   mask?: ImageMask | null;
   /** Step two: border, shadow, reflection, paper edge or glow. null/absent: none. */

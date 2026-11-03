@@ -1232,4 +1232,7 @@ export const pl: Record<TranslationKey, string> = {
   "ui.sample_text_2": "Drugi akapit pokazuje odstęp między nimi",
   "ui.language_switcher": "Przełącznik języka",
   "ui.blur_dissolve": "Rozmycie / rozpuszczanie",
+  "ui.image_file_for_language": "Plik obrazu dla: {language}",
+  "ui.image_shows_default_picture": "Ten język pokazuje obraz z języka {language}, dopóki nie wybierzesz tu własnego pliku. Położenie, maska i efekt pozostają bez zmian.",
+  "ui.image_has_own_picture": "Ten język ma własny obraz. Usuń go, aby znów pokazywać obraz języka domyślnego.",
 };

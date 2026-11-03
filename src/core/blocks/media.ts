@@ -5,7 +5,7 @@ import type { AudioBlock, Block, Page, VideoBlock } from "../types";
 import type { BlockProblem, OwnEventSpec } from "./types";
 
 /** The words of "the kind of block" in what `weft validate` says about a file: `image-Block hat noch keine Datei.` */
-export function mediaProblems(block: { kind: string; assetId: string | null; alt?: string }, module: { assets: { id: string }[] }): BlockProblem[] {
+export function mediaProblems(block: { kind: string; assetId: string | null; alt?: string; translations?: Record<string, { assetId?: string | null }> }, module: { assets: { id: string }[] }): BlockProblem[] {
   const problems: BlockProblem[] = [];
   if (!block.assetId) {
     problems.push({ level: "warning", code: "media-empty", message: `${block.kind}-Block hat noch keine Datei.` });
@@ -14,6 +14,11 @@ export function mediaProblems(block: { kind: string; assetId: string | null; alt
   if (!module.assets.some((asset) => asset.id === block.assetId))
     problems.push({ level: "error", code: "asset-missing", message: `${block.kind}-Block verweist auf die Datei ${block.assetId}, die nicht in der Liste der Dateien steht.` });
   if (block.kind === "image" && !block.alt?.trim()) problems.push({ level: "info", code: "image-no-alt", message: "Bild ohne Alternativtext." });
+  // (The picture of a language of its own is a file of the module too.)
+  for (const [language, translation] of Object.entries(block.translations ?? {})) {
+    if (translation.assetId && !module.assets.some((asset) => asset.id === translation.assetId))
+      problems.push({ level: "error", code: "asset-missing", message: `${block.kind}-Block verweist für ${language} auf die Datei ${translation.assetId}, die nicht in der Liste der Dateien steht.` });
+  }
   return problems;
 }
 

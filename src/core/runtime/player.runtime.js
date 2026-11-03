@@ -267,6 +267,17 @@
     return block.translations[currentLanguage];
   }
 
+  // The picture of an image block and its description in the current language: its own, else the block's (the default language's).
+  function imageAssetOf(block) {
+    var t = currentTranslation(block);
+    return (t && t.assetId) || block.assetId;
+  }
+
+  function imageAltOf(block) {
+    var t = currentTranslation(block);
+    return t && t.alt !== undefined ? t.alt : block.alt || "";
+  }
+
   function blockHtml(block) {
     var t = currentTranslation(block);
     return t && t.html !== undefined ? t.html : block.html;
@@ -366,7 +377,7 @@
   // formula: its MathML text; nothing for what has no words - a shape, a video).
   function speechOfBlock(wrap, block) {
     var text = "";
-    if (block.kind === "image") text = block.alt || "";
+    if (block.kind === "image") text = imageAltOf(block);
     else if (block.kind === "tex") {
       var mathml = wrap.querySelector(".katex-mathml");
       text = mathml ? mathml.textContent : block.tex || "";
@@ -2511,16 +2522,22 @@
       // The formula (typeset when the page is built) scaled to its box, and its colour: renderTex (blocks/tex/render.js, inlined ahead of this file).
       renderTex(wrap, { html: texHtml[block.id] || "", color: block.color || "" }, { mode: "play" });
     } else if (block.kind === "image") {
-      if (block.mask || block.effect) {
-        // imageSvgMarkup is core/runtime/imageGeometry.js, embedded ahead of this script (buildRuntimeHtml.ts) - the very code
-        // the editor draws the picture with. boxAspect: the block's real width : height on the slide.
-        var imageBoxAspect = block.position.height > 0 ? (block.position.width / block.position.height) * slideAspectNumeric() : 1;
-        imageInstanceCounter += 1;
-        wrap.classList.add("weft-block-image-masked");
-        wrap.innerHTML = imageSvgMarkup(block, imageBoxAspect, assetSrc(block.assetId), block.id + "-" + imageInstanceCounter);
-      } else {
-        wrap.appendChild(el("img", { src: assetSrc(block.assetId), alt: block.alt, style: "display:block;width:100%;height:100%;object-fit:contain;" }, []));
-      }
+      // Drawn again where another language has a picture or a description of its own (languageRefreshers).
+      var drawImage = function () {
+        wrap.textContent = "";
+        if (block.mask || block.effect) {
+          // imageSvgMarkup is core/runtime/imageGeometry.js, embedded ahead of this script (buildRuntimeHtml.ts) - the very code
+          // the editor draws the picture with. boxAspect: the block's real width : height on the slide.
+          var imageBoxAspect = block.position.height > 0 ? (block.position.width / block.position.height) * slideAspectNumeric() : 1;
+          imageInstanceCounter += 1;
+          wrap.classList.add("weft-block-image-masked");
+          wrap.innerHTML = imageSvgMarkup(block, imageBoxAspect, assetSrc(imageAssetOf(block)), block.id + "-" + imageInstanceCounter);
+        } else {
+          wrap.appendChild(el("img", { src: assetSrc(imageAssetOf(block)), alt: imageAltOf(block), style: "display:block;width:100%;height:100%;object-fit:contain;" }, []));
+        }
+      };
+      drawImage();
+      if (block.translations) languageRefreshers.push(drawImage);
     } else if (block.kind === "video" || block.kind === "audio") {
       // A sound works like a video, only without a picture (and without the big play button): it has the same events, time marks and
       // performers - and either a player of its own or nothing to see at all.

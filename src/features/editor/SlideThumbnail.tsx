@@ -5,6 +5,7 @@ import { aspectRatioCss, aspectRatioNumeric } from "../../core/aspectRatio";
 import { resolveInlineAssets } from "./blocks/richText";
 import { useAssetStore } from "../../core/assets/assetStore";
 import { useDocumentStore } from "../../core/document/store";
+import { imageAssetId } from "../../core/document/translations";
 import { useStageTheme } from "./stageTheme";
 import type { Block } from "../../core/types";
 import { ArrowRenderView } from "./blocks/ArrowRenderView";
@@ -189,16 +190,17 @@ function ThumbBlockBody({
       </div>
     );
   }
-  if (block.kind === "image" && block.assetId && (block.mask || block.effect)) {
+  const imageAsset = block.kind === "image" ? imageAssetId(block, lang, defaultLang) : null;
+  if (block.kind === "image" && imageAsset && (block.mask || block.effect)) {
     return (
       <div className="weft-thumb-block weft-thumb-block-shape" style={style}>
-        <ImageSvg block={block} src={imageUrl ?? getObjectUrl(block.assetId) ?? ""} />
+        <ImageSvg block={block} src={imageUrl ?? getObjectUrl(imageAsset) ?? ""} />
       </div>
     );
   }
   if (block.kind === "image") {
-    return block.assetId ? (
-      <img className="weft-thumb-block" style={style} src={getObjectUrl(block.assetId)} alt="" draggable={false} />
+    return imageAsset ? (
+      <img className="weft-thumb-block" style={style} src={getObjectUrl(imageAsset)} alt="" draggable={false} />
     ) : (
       <div className="weft-thumb-block weft-thumb-block-placeholder" style={style} />
     );

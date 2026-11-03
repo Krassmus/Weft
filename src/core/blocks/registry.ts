@@ -392,7 +392,11 @@ export function assetIdsOfFields(block: Block): string[] {
   const ids: unknown[] = [];
   for (const [name, spec] of fieldsOf(block)) {
     if (spec.type === "asset") {
-      if (!spec.usedWhen || record[spec.usedWhen.field] === spec.usedWhen.is) ids.push(record[name]);
+      if (!spec.usedWhen || record[spec.usedWhen.field] === spec.usedWhen.is) {
+        ids.push(record[name]);
+        // (A file of a language's own.)
+        if (spec.translatable) for (const translation of Object.values((record.translations as Record<string, Record<string, unknown>> | undefined) ?? {})) ids.push(translation[name]);
+      }
     }
     else if (spec.type === "list") {
       for (const item of (record[name] as Record<string, unknown>[] | undefined) ?? []) {

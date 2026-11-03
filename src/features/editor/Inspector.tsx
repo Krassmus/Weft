@@ -100,7 +100,7 @@ function InspectorBody({
         page={page}
         container={selection.container}
         onUpdate={(patch) => updateBlock(page.id, block.id, patch)}
-        onSetImage={(file) => setBlockImage(page.id, block.id, file)}
+        onSetImage={(file, language) => setBlockImage(page.id, block.id, file, language)}
         onSetVideo={(file) => setBlockVideo(page.id, block.id, file)}
         onSetAudio={(file) => setBlockAudio(page.id, block.id, file)}
       />
@@ -115,7 +115,7 @@ function InspectorBody({
       block={block}
       container={selection.container}
       onUpdate={(patch) => updateLayoutBlock(layout.id, block.id, patch)}
-      onSetImage={(file) => setLayoutBlockImage(layout.id, block.id, file)}
+      onSetImage={(file, language) => setLayoutBlockImage(layout.id, block.id, file, language)}
       onSetVideo={(file) => setLayoutBlockVideo(layout.id, block.id, file)}
       onSetAudio={(file) => setLayoutBlockAudio(layout.id, block.id, file)}
     />

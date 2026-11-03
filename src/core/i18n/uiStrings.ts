@@ -1131,6 +1131,9 @@ export const uiEn = {
   "ui.sample_text_2": "A second paragraph shows the space between them",
   "ui.language_switcher": "Language switcher",
   "ui.blur_dissolve": "Blur / dissolve",
+  "ui.image_file_for_language": "Image file for {language}",
+  "ui.image_shows_default_picture": "This language shows the picture of {language} until you choose a file of its own here. The place, mask and effect stay as they are.",
+  "ui.image_has_own_picture": "This language has a picture of its own. Remove it to show the default language's picture again.",
 } as const;
 
 export const uiDe: Record<keyof typeof uiEn, string> = {
@@ -2261,4 +2264,7 @@ export const uiDe: Record<keyof typeof uiEn, string> = {
   "ui.sample_text_2": "Ein zweiter Absatz zeigt den Abstand dazwischen",
   "ui.language_switcher": "Sprachschalter",
   "ui.blur_dissolve": "Blur / Dissolve",
+  "ui.image_file_for_language": "Bilddatei für {language}",
+  "ui.image_shows_default_picture": "Diese Sprache zeigt das Bild von {language}, bis du hier eine eigene Datei wählst. Platz, Maske und Effekt bleiben, wie sie sind.",
+  "ui.image_has_own_picture": "Diese Sprache hat ein eigenes Bild. Entferne es, um wieder das Bild der Standardsprache zu zeigen.",
 };

@@ -7,6 +7,8 @@ import { isInvisibleKind } from "../../core/blocks/registry";
 import { eventTimes } from "../../core/document/readingOrder";
 import { blockEffectNodeId } from "../../core/document/pageTimeline";
 import { orderedValues } from "../../core/document/ordering";
+import { defaultLanguageOf, effectiveLanguage, imageAssetId } from "../../core/document/translations";
+import { useDocumentStore } from "../../core/document/store";
 import { setCoverRenderer } from "../../core/io/coverImage";
 import type { CoverRenderer } from "../../core/io/coverImage";
 import type { Block, WeftModule } from "../../core/types";
@@ -48,6 +50,7 @@ const renderer: CoverRenderer = {
     if (!pageId) return null;
     const blocks = blocksAtRest(content, pageId);
     const aspect = aspectRatioNumeric(content.aspectRatio);
+    const language = effectiveLanguage(content.languages, useDocumentStore.getState().editingLanguage);
     const holder = document.createElement("div");
     // Off the screen, but laid out (a slide that is not displayed has no size to draw).
     holder.style.cssText = `position:fixed;left:-20000px;top:0;width:${COVER_WIDTH_PX}px;pointer-events:none;`;
@@ -57,8 +60,9 @@ const renderer: CoverRenderer = {
     try {
       const imageUrls: Record<string, string> = {};
       for (const block of blocks) {
-        if (block.kind !== "image" || !block.assetId || (!block.mask && !block.effect)) continue;
-        const blob = useAssetStore.getState().blobs.get(block.assetId);
+        if (block.kind !== "image" || (!block.mask && !block.effect)) continue;
+        const shown = imageAssetId(block, language, defaultLanguageOf(content.languages));
+        const blob = shown ? useAssetStore.getState().blobs.get(shown) : undefined;
         if (blob) imageUrls[block.id] = await blobToDataUrl(blob);
       }
       const canvas = await drawSlide(

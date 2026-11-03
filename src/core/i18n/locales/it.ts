@@ -1232,4 +1232,7 @@ export const it: Record<TranslationKey, string> = {
   "ui.sample_text_2": "Un secondo paragrafo mostra lo spazio tra di essi",
   "ui.language_switcher": "Selettore della lingua",
   "ui.blur_dissolve": "Sfocatura / dissolvenza",
+  "ui.image_file_for_language": "File immagine per {language}",
+  "ui.image_shows_default_picture": "Questa lingua mostra l’immagine di {language} finché non scegli qui un file suo. Posizione, maschera ed effetto restano invariati.",
+  "ui.image_has_own_picture": "Questa lingua ha un’immagine propria. Rimuovila per mostrare di nuovo l’immagine della lingua predefinita.",
 };

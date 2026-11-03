@@ -1,6 +1,6 @@
 import { descriptorOf, fieldsOf, itemsKeyOf, itemTextName, listFieldsOf } from "../blocks/registry";
 import type { FieldSpec } from "../blocks/types";
-import type { Block, BlockTranslation, ButtonBlock, CheckerBlock, SolutionBlock, ClozeBlock, LinkBlock, GalleryBlock, MatchItem, MatchingBlock, ListBlock, QuizBlock, RevealerBlock, SortBlock, SortItem, TextBlock, WeftModule } from "../types";
+import type { Block, BlockTranslation, ButtonBlock, CheckerBlock, SolutionBlock, ClozeBlock, ImageBlock, LinkBlock, GalleryBlock, MatchItem, MatchingBlock, ListBlock, QuizBlock, RevealerBlock, SortBlock, SortItem, TextBlock, WeftModule } from "../types";
 
 /**
  * Per-language wording of the blocks that carry text (text, quiz, button). The block's own fields
@@ -10,7 +10,7 @@ import type { Block, BlockTranslation, ButtonBlock, CheckerBlock, SolutionBlock,
  * block's own fields.
  */
 
-type Translatable = TextBlock | QuizBlock | ButtonBlock | LinkBlock | CheckerBlock | SolutionBlock | MatchingBlock | SortBlock | GalleryBlock | ListBlock | ClozeBlock;
+type Translatable = TextBlock | ImageBlock | QuizBlock | ButtonBlock | LinkBlock | CheckerBlock | SolutionBlock | MatchingBlock | SortBlock | GalleryBlock | ListBlock | ClozeBlock;
 type Translations = Record<string, BlockTranslation> | undefined;
 
 export function defaultLanguageOf(languages: readonly string[]): string | null {
@@ -195,6 +195,30 @@ function translatableFields(block: Block): { name: string; key: keyof BlockTrans
   return fieldsOf(block)
     .filter(([, spec]) => (spec.type === "text" || spec.type === "html") && spec.translatable)
     .map(([name, spec]) => ({ name, key: wordingKey(block, name), formatted: spec.type === "text" ? spec.formatted : undefined }));
+}
+
+/** The picture of an image block in `language`: the one it has of its own there, else the block's (the default language's). */
+export function imageAssetId(block: ImageBlock, language: string | null, defaultLanguage: string | null): string | null {
+  return translationOf(block.translations, language, defaultLanguage)?.assetId || block.assetId;
+}
+
+/** Whether the block has a picture of its own in `language` (the default language's picture is the block's own: it always has). */
+export function hasOwnImage(block: ImageBlock, language: string | null, defaultLanguage: string | null): boolean {
+  return isOwnWording(language, defaultLanguage) || !language ? !!block.assetId : !!block.translations?.[language]?.assetId;
+}
+
+/**
+ * The patch that gives the block the picture `assetId` in `language` (null: takes the language's own picture away - it shows the default's again): into the
+ * block itself for the default language, into its translations for another one.
+ */
+export function imageAssetPatch(block: ImageBlock, language: string | null, defaultLanguage: string | null, assetId: string | null): Partial<ImageBlock> {
+  if (isOwnWording(language, defaultLanguage) || !language) return { assetId };
+  const { assetId: _before, ...rest } = block.translations?.[language] ?? {};
+  const translations = { ...block.translations };
+  if (assetId) translations[language] = { ...rest, assetId };
+  else if (Object.keys(rest).length > 0) translations[language] = rest;
+  else delete translations[language];
+  return { translations };
 }
 
 /** The presenter notes of a page in `language` (see Page.notes): the translation if there is one, else the default language's. */
@@ -447,6 +471,13 @@ export function rotateDefaultLanguage(content: WeftModule, oldDefault: string, n
             delete own[formatted];
           }
         } else if (translated !== undefined) own[name] = translated;
+      }
+      // (A picture of its own: the default language's moves into the old default's translation, the new default's becomes the block's.)
+      for (const [name, spec] of fieldsOf(block)) {
+        if (spec.type !== "asset" || !spec.translatable) continue;
+        const incomingAsset = incomingWords?.[name as "assetId"];
+        if (own[name] !== undefined && own[name] !== null) (outgoingWords as Record<string, unknown>)[name] = own[name];
+        if (incomingAsset) (block as unknown as Record<string, unknown>)[name] = incomingAsset;
       }
       for (const [listName, spec] of listFieldsOf(block)) {
         const textName = itemTextName(spec);

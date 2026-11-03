@@ -5,6 +5,7 @@ import { safeLinkUrl } from "../src/core/document/linkUrl";
 import * as actions from "../src/core/document/actions";
 import { parseExpression } from "../src/core/document/expressions";
 import { DEFAULT_TEXT_BOX } from "../src/core/document/textBox";
+import { imageAssetPatch } from "../src/core/document/translations";
 import { buildTextHtml, estimateHeightPercent } from "./markup";
 import type { TextSpec } from "./markup";
 import { applyPlaceholderStyle, plainParagraphs } from "../src/core/document/placeholders";
@@ -827,6 +828,20 @@ const HANDLERS: Record<string, Handler> = {
   set_media(ctx, op) {
     const { block, container } = findBlock(ctx, op.block);
     if (block.kind !== "image" && block.kind !== "video" && block.kind !== "audio") fail(`Der Block ${block.id} ist ${block.kind}, kein Bild, Video oder Audio.`);
+    if (op.language !== undefined && op.language !== ctx.content.languages[0]) {
+      // The picture of one language (an image only): the block keeps it as its picture in that language - its place and shape stay the default picture's.
+      // (The picture of the default language is the block's own: it is replaced the ordinary way.)
+      if (block.kind !== "image") fail(`Nur ein Bild kann pro Sprache ein eigenes Bild haben - der Block ${block.id} ist ${block.kind}.`);
+      const languages = ctx.content.languages;
+      if (typeof op.language !== "string" || !languages.includes(op.language))
+        fail(`"language" ist eine der Sprachen des Moduls (${languages.length ? languages.join(", ") : "es hat keine - zuerst set_languages"}).`);
+      const language = op.language;
+      const picked = op.reset === true ? null : assetFor(ctx, op, "image");
+      const patch = imageAssetPatch(block, language, languages[0], picked?.id ?? null);
+      if (container.kind === "page") actions.updateBlock(container.id, block.id, patch as never);
+      else actions.updateLayoutBlock(container.id, block.id, patch as never);
+      return { block: block.id, language, ...(picked ? { asset: picked.id, ...(picked.info.warnings.length ? { warnings: picked.info.warnings } : {}) } : { reset: true }) };
+    }
     const { id, info } = assetFor(ctx, op, block.kind);
     const patch: Record<string, unknown> = { assetId: id };
     if (op.fit !== false) patch.position = fittedPosition(ctx, block.position, info);

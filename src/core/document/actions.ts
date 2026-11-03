@@ -41,7 +41,7 @@ import { planSlideMove } from "./slideMoves";
 import { imageToPng, LOGO_FILE } from "../io/coverImage";
 import type { SlideMove, SlideMoveKind } from "./slideMoves";
 import { DEFAULT_TRANSITION_DURATION_MS } from "./transitions";
-import { defaultLanguageOf, rotateDefaultLanguage } from "./translations";
+import { defaultLanguageOf, imageAssetPatch, rotateDefaultLanguage } from "./translations";
 import { defaultInitialValue, isBooleanVariable } from "./variables";
 import { defaultActionEffect, defaultEntranceEffect, defaultExitEffect } from "./blockEffects";
 import {
@@ -1487,14 +1487,20 @@ export function addAssetFromFile(file: File): string {
   return assetId;
 }
 
-export async function setBlockImage(pageId: string, blockId: string, file: File) {
+/**
+ * `language`: the language the picture is for, if it is not the module's default one - the image block then keeps it as its picture in that
+ * language (and stays as it is: its place and shape are the default picture's). A picture of the default language is the block's own.
+ */
+export async function setBlockImage(pageId: string, blockId: string, file: File, language?: string | null) {
   const assetId = createId();
   useAssetStore.getState().setAsset(assetId, file);
   const percentRatio = percentRatioForAspect(await imageAspectRatio(file));
   edit("Bild setzen", (m) => {
     m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
     const block = m.pages[pageId]?.blocks[blockId];
-    if (block && block.kind === "image") {
+    if (block && block.kind === "image" && language && language !== defaultLanguageOf(m.languages) && m.languages.includes(language)) {
+      Object.assign(block, imageAssetPatch(block, language, defaultLanguageOf(m.languages), assetId));
+    } else if (block && block.kind === "image") {
       block.assetId = assetId;
       block.position = fitToAspect(block.position, percentRatio);
     } else if (block && block.kind === "revealer") {
@@ -1582,14 +1588,16 @@ export function removeLayoutBlock(layoutId: string, blockId: string) {
   });
 }
 
-export async function setLayoutBlockImage(layoutId: string, blockId: string, file: File) {
+export async function setLayoutBlockImage(layoutId: string, blockId: string, file: File, language?: string | null) {
   const assetId = createId();
   useAssetStore.getState().setAsset(assetId, file);
   const percentRatio = percentRatioForAspect(await imageAspectRatio(file));
   edit("Bild setzen", (m) => {
     m.assets.push({ id: assetId, fileName: file.name, mimeType: file.type || "application/octet-stream" });
     const block = m.layouts[layoutId]?.blocks[blockId];
-    if (block && block.kind === "image") {
+    if (block && block.kind === "image" && language && language !== defaultLanguageOf(m.languages) && m.languages.includes(language)) {
+      Object.assign(block, imageAssetPatch(block, language, defaultLanguageOf(m.languages), assetId));
+    } else if (block && block.kind === "image") {
       block.assetId = assetId;
       block.position = fitToAspect(block.position, percentRatio);
     } else if (block && block.kind === "list") {

@@ -172,8 +172,9 @@ export function buildOutline(loaded: LoadedWeft, options: { page?: string } = {}
   const usage = new Map<string, number>();
   // (The pictures on the cards of a matching and the objects of a sorting puzzle belong to the block too.)
   const count = (block: unknown) => {
-    const own = block as { assetId?: string | null; sources?: { assetId?: string | null }[]; targets?: { assetId?: string | null }[]; items?: { assetId?: string | null }[] };
-    const ids = new Set([own.assetId, ...(own.sources ?? []).map((i) => i.assetId), ...(own.targets ?? []).map((i) => i.assetId), ...(own.items ?? []).map((i) => i.assetId)].filter((id): id is string => !!id));
+    const own = block as { assetId?: string | null; translations?: Record<string, { assetId?: string | null }>; sources?: { assetId?: string | null }[]; targets?: { assetId?: string | null }[]; items?: { assetId?: string | null }[] };
+    // (An image's picture in another language is the block's too.)
+    const ids = new Set([own.assetId, ...Object.values(own.translations ?? {}).map((t) => t.assetId), ...(own.sources ?? []).map((i) => i.assetId), ...(own.targets ?? []).map((i) => i.assetId), ...(own.items ?? []).map((i) => i.assetId)].filter((id): id is string => !!id));
     for (const id of ids) usage.set(id, (usage.get(id) ?? 0) + 1);
   };
   for (const page of Object.values(content.pages)) Object.values(page.blocks ?? {}).forEach(count);

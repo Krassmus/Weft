@@ -409,7 +409,19 @@
       "description": "What one block says in a language OTHER than the module's default one (see WeftModule.languages) - only the fields that have been translated; anything missing is shown in the default language's wording instead. The block's own plain fields (html, questionHtml, text, ...) ARE the default language's wording, so a module that never uses languages has none of this at all.",
       "properties": {
         "alt": {
+          "description": "ImageBlock too: its description in this language.",
           "type": "string"
+        },
+        "assetId": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UUID"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "ImageBlock: the picture in this language (a screenshot of the interface in this language, a drawing with words in it) - an asset of the module; absent: the block's own picture (the default language's)."
         },
         "body": {
           "type": "string"
@@ -1210,7 +1222,8 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "The picture in the module's default language - and in every language that has none of its own (see `translations`)."
         },
         "effect": {
           "anyOf": [
@@ -1259,6 +1272,13 @@
         },
         "position": {
           "$ref": "#/definitions/BlockPosition"
+        },
+        "translations": {
+          "additionalProperties": {
+            "$ref": "#/definitions/BlockTranslation"
+          },
+          "description": "Another language's picture and description, by locale (\"fr_FR\") - see BlockTranslation. The mask and the effect apply to every language's picture.",
+          "type": "object"
         }
       },
       "required": [

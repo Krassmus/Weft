@@ -65,12 +65,15 @@ function useMediaFacts(url: string | null, isVideo: boolean): { duration: number
 }
 
 /** The line of the file a block has now: a still (video), its name, its size and length, and a button that takes it away. */
-function CurrentFile({ assetId, kind, onRemove }: { assetId: string; kind: "video" | "audio"; onRemove: () => void }) {
+function CurrentFile({ assetId, kind, onRemove }: { assetId: string; kind: "video" | "audio" | "image"; onRemove: () => void }) {
   const meta = useDocumentStore((s) => s.doc.content.assets.find((asset) => asset.id === assetId));
   const getObjectUrl = useAssetStore((s) => s.getObjectUrl);
   const size = useAssetStore((s) => s.blobs.get(assetId)?.size ?? null);
   const url = getObjectUrl(assetId) ?? null;
-  const { duration, poster } = useMediaFacts(url, kind === "video");
+  // (A picture is its own still; there is nothing to play.)
+  const facts = useMediaFacts(kind === "image" ? null : url, kind === "video");
+  const duration = facts.duration;
+  const poster = kind === "image" ? url : facts.poster;
   const name = meta?.fileName.replace(/^[0-9a-f-]{36}_/, "") ?? "";
   const details = [size !== null ? formatFileSize(size) : null, duration !== null ? formatDuration(duration) : null].filter(Boolean).join("  •  ");
   return (
@@ -176,7 +179,7 @@ export function MediaFilePicker({
         </span>
         {formats && <span className="weft-filepicker-formats">{formats}</span>}
       </label>
-      {current && <CurrentFile assetId={current.assetId} kind={kind === "audio" ? "audio" : "video"} onRemove={current.onRemove} />}
+      {current && <CurrentFile assetId={current.assetId} kind={kind} onRemove={current.onRemove} />}
     </div>
   );
 }

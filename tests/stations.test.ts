@@ -19,14 +19,14 @@ import { effectEventSpecs } from "../src/core/blocks/pageEvents";
 import { pasteBlockInto } from "../src/core/document/actions";
 import { clipboardEntryPlainText } from "../src/core/document/clipboard";
 import { createEmptyDocument } from "../src/core/document/createEmptyDocument";
-import { fieldHtml, fieldHtmlPatch, fieldWording, fieldWordingPatch, isTranslated, itemWording, itemWordingPatch, rotateDefaultLanguage } from "../src/core/document/translations";
+import { fieldHtml, fieldHtmlPatch, fieldWording, fieldWordingPatch, hasOwnImage, imageAssetId, isTranslated, itemWording, itemWordingPatch, rotateDefaultLanguage } from "../src/core/document/translations";
 import { allowedSlips, clozeIsRight, levenshtein } from "../src/core/document/cloze";
 import { placedPages, usedAssetIds, withoutDeletedPages } from "../src/core/document/usedAssets";
 import { placeholderSources, withProgress } from "../src/core/document/variablePlaceholders";
 import { translations } from "../src/core/i18n/translations";
 import { tr } from "../src/core/i18n/tr";
 import { CURRENT_FORMAT_VERSION } from "../src/core/io/unpack";
-import type { Block, Page, WeftModule } from "../src/core/types";
+import type { Block, ImageBlock, Page, WeftModule } from "../src/core/types";
 
 /**
  * The stations (core/blocks): every kind of block that describes itself (core/blocks/registry.ts) is run through every place that treats all blocks alike -
@@ -417,7 +417,7 @@ describe("what is known about each kind", () => {
     code: { pageOnly: false, task: false, translatable: [], lists: [] },
     tex: { pageOnly: false, task: false, translatable: [], lists: [] },
     script: { pageOnly: true, task: false, translatable: [], lists: [] },
-    image: { pageOnly: false, task: false, translatable: [], lists: [] },
+    image: { pageOnly: false, task: false, translatable: ["alt"], lists: [] },
     video: { pageOnly: false, task: false, translatable: [], lists: [] },
     audio: { pageOnly: false, task: false, translatable: [], lists: [] },
     files: { pageOnly: false, task: false, translatable: [], lists: [] },
@@ -2145,5 +2145,82 @@ describe("the events of their own that a block gives its page (the descriptor's 
       expect(look?.hint?.(), type).toBe(hint === undefined ? undefined : tr(hint as never));
       expect(look?.icon, type).toBe(icon);
     }
+  });
+});
+
+describe("the picture of an image block in each language", () => {
+  /** A module with two languages and one picture (asset-1, the default language's); asset-2 and asset-3 are other files it has. */
+  const built = () => {
+    const content = createEmptyDocument().content;
+    content.languages = [DE, EN];
+    content.assets.push(
+      { id: "asset-1", fileName: "eins.png", mimeType: "image/png" },
+      { id: "asset-2", fileName: "zwei.png", mimeType: "image/png" },
+      { id: "asset-3", fileName: "drei.png", mimeType: "image/png" },
+    );
+    const made = runOperations(content, [{ op: "add_page", as: "p" }, { op: "add_image", page: "$p", asset: "asset-1", alt: "Hund", as: "img" }]);
+    const pageId = made.results[0].result.page as string;
+    const blockId = made.results[1].result.block as string;
+    return { content, pageId, blockId, block: () => content.pages[pageId].blocks[blockId] as ImageBlock };
+  };
+
+  it("is the block's own where a language has none of its own - and the language's where it has", () => {
+    const { content, block, pageId } = built();
+    expect(imageAssetId(block(), EN, DE)).toBe("asset-1");
+    runOperations(content, [{ op: "set_media", block: block().id, language: EN, asset: "asset-2" }]);
+    expect(imageAssetId(block(), EN, DE)).toBe("asset-2");
+    expect(imageAssetId(block(), DE, DE)).toBe("asset-1");
+    expect(block().assetId).toBe("asset-1");
+    expect(hasOwnImage(block(), EN, DE)).toBe(true);
+    // (It is the same block, in the same place.)
+    expect(content.pages[pageId].blocks[block().id].position).toEqual(block().position);
+  });
+
+  it("is taken away again (the default language's shows) - and leaves no empty entry behind", () => {
+    const { content, block } = built();
+    runOperations(content, [{ op: "set_media", block: block().id, language: EN, asset: "asset-2" }]);
+    runOperations(content, [{ op: "set_media", block: block().id, language: EN, reset: true }]);
+    expect(imageAssetId(block(), EN, DE)).toBe("asset-1");
+    expect(block().translations?.[EN]).toBeUndefined();
+  });
+
+  it("keeps the translated description beside it", () => {
+    const { content, block } = built();
+    Object.assign(block(), fieldWordingPatch(block(), "alt", EN, DE, "Dog"));
+    runOperations(content, [{ op: "set_media", block: block().id, language: EN, asset: "asset-2" }]);
+    expect(fieldWording(block(), "alt", EN, DE)).toBe("Dog");
+    expect(fieldWording(block(), "alt", DE, DE)).toBe("Hund");
+    // (Taking the picture away leaves the description.)
+    runOperations(content, [{ op: "set_media", block: block().id, language: EN, reset: true }]);
+    expect(fieldWording(block(), "alt", EN, DE)).toBe("Dog");
+  });
+
+  it("counts as a file of the module: used, exported, and checked by `weft validate`", () => {
+    const { content, block } = built();
+    expect(usedAssetIds(content).has("asset-2")).toBe(false);
+    runOperations(content, [{ op: "set_media", block: block().id, language: EN, asset: "asset-2" }]);
+    expect(usedAssetIds(content).has("asset-2")).toBe(true);
+    const codes = () => validate({ path: "test.weft", json: { formatVersion: CURRENT_FORMAT_VERSION, content }, content, files: new Set(), archive: false }).map((finding) => finding.code);
+    expect(codes()).not.toContain("asset-missing");
+    block().translations![EN].assetId = "gibt-es-nicht";
+    expect(codes()).toContain("asset-missing");
+  });
+
+  it("swaps with the new default language (each language keeps its picture)", () => {
+    const { content, block } = built();
+    runOperations(content, [{ op: "set_media", block: block().id, language: EN, asset: "asset-2" }]);
+    rotateDefaultLanguage(content, DE, EN);
+    expect(block().assetId).toBe("asset-2");
+    expect(imageAssetId(block(), DE, EN)).toBe("asset-1");
+    rotateDefaultLanguage(content, EN, DE);
+    expect(block().assetId).toBe("asset-1");
+    expect(imageAssetId(block(), EN, DE)).toBe("asset-2");
+  });
+
+  it("is refused for what is no picture, or a language the module does not have", () => {
+    const { content, block, pageId } = built();
+    expect(() => runOperations(content, [{ op: "set_media", block: block().id, language: "fr_FR", asset: "asset-2" }])).toThrow(/Sprachen des Moduls/);
+    const video = runOperations(content, [{ op: "add_block", page: pageId, kind: "video" }]).results[0].result.block as string;
+    expect(() => runOperations(content, [{ op: "set_media", block: video, language: EN, asset: "asset-2" }])).toThrow();
   });
 });

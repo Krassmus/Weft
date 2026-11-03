@@ -1,4 +1,4 @@
-"""Builds lernpyramide.weft (part A of the tutorial "Dein erstes Lernmodul") with the weft command line tool."""
+"""Builds lernpyramide.weft (part A of the tutorial "Mit Lernmodulen arbeiten") with the weft command line tool."""
 import json, os, pathlib, subprocess, sys
 
 HERE = pathlib.Path(__file__).parent
@@ -100,7 +100,7 @@ def heading(page, title, size=5.4, w=84, sub_width=30, y=6.5):
 
 # ---- module, look, variables -----------------------------------------------------------------------------------------------
 LANGS = ["de_DE", "en_US", "es_ES", "fr_FR", "pt_BR", "it_IT", "tr_TR", "pl_PL"]
-op(op="set_title", title="Lernpyramide" if TEMPLATE else "Dein erstes Lernmodul")
+op(op="set_title", title="Lernpyramide" if TEMPLATE else "Mit Lernmodulen arbeiten")
 op(op="set_languages", languages=LANGS)
 op(op="set_look", brightness="light", accentColor=ACCENT, interactiveStyle="round")
 op(op="set_palette", colors=[INK, ACCENT, BLUE, GREEN, "#f6c945", "#f7f2e7"] + TIER)
@@ -119,7 +119,10 @@ for lay, nav in (("Skizzenheft", True), ("Titel", False)):
         ops.append({"op": "add_block", "layout": L, "kind": "progress", "set": {"position": {"x": 7, "y": 94.2, "width": 86, "height": 1.1}, "variable": "progress", "color": ACCENT, "trackColor": "#e3dcc8", "rounded": True, "animate": True, "name": "Fortschritt"}})
         ops.append({"op": "add_block", "layout": L, "kind": "button", "set": {"position": {"x": 7, "y": 85.6, "width": 11, "height": 6.2}, "text": "Zurück", "action": "prev", "name": "Zurück", "html": f'<p style="line-height:1.25;margin:0"><font color="{INK}">Zurück</font></p>', "appearance": {"background": None, "borderColor": INK, "borderWidth": 0.12}}})
         ops.append({"op": "add_block", "layout": L, "kind": "button", "set": {"position": {"x": 81, "y": 85.6, "width": 12, "height": 6.2}, "text": "Weiter", "action": "advance", "name": "Weiter", "html": "Weiter"}})
-    ops.append({"op": "add_block", "layout": L, "kind": "language", "set": {"position": {"x": 69, "y": 1.4, "width": 24, "height": 6.4}, "name": "Sprache"}})
+    # The tutorial offers the language switch on its first slide only (the layout "Titel"): whoever does not understand the language finds it there
+    # at once. The template keeps it on every slide.
+    if TEMPLATE or not nav:
+        ops.append({"op": "add_block", "layout": L, "kind": "language", "set": {"position": {"x": 69, "y": 1.4, "width": 24, "height": 6.4}, "name": "Sprache"}})
 
 # ---- 1: title ------------------------------------------------------------------------------------------------------------
 ops.append({"op": "add_page", "layout": "$L_Titel", "as": "p1"})

@@ -863,9 +863,9 @@ export function EditorShell() {
   handleUseModuleRef.current = handleUseModule;
 
   // A tutorial is only played (nothing of the module that is open is touched: the start screen comes back with "Start") - in the language of Weft's interface.
-  async function handlePlayModule(bytes: Uint8Array) {
+  async function handlePlayModule(bytes: Uint8Array, title: string) {
     try {
-      openPlayer(await loadModuleForPlay(bytes, resolveLanguage(useLanguageStore.getState().preference)), null);
+      openPlayer({ ...(await loadModuleForPlay(bytes, resolveLanguage(useLanguageStore.getState().preference))), title }, null);
     } catch (err) {
       alert(`${t("toolbar.openFailed")}\n${errorMessage(err)}`);
     }
@@ -1020,7 +1020,7 @@ export function EditorShell() {
             onOpenFile: () => void handleOpenRef.current(),
             onOpenPath: async (path) => void (await handleOpenRecentRef.current(path, { ownBar: true })),
             onUseModule: (bytes, title) => handleUseModule(bytes, title),
-            onPlay: (bytes) => handlePlayModule(bytes),
+            onPlay: (bytes, title) => handlePlayModule(bytes, title),
             // (The desktop app has the settings in a window of their own, see show_settings_window in src-tauri/src/lib.rs.)
             onSettings: () => (hasNativeMenu() ? void invoke("open_settings_window").catch(() => undefined) : useCollabDialog.getState().show("settings")),
           }}

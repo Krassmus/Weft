@@ -33,7 +33,8 @@ export interface StartActions {
   /** `title`: the module's title in the language of the interface, where the catalogue has one (the module opens in that language). */
   onUseModule: (bytes: Uint8Array, title?: string) => Promise<void>;
   /** A tutorial: played in the player, not editable. */
-  onPlay: (bytes: Uint8Array) => Promise<void>;
+  /** `title`: the module's name in the language of Weft's interface (the one in the manifest) - the player shows that and not the one in the file. */
+  onPlay: (bytes: Uint8Array, title: string) => Promise<void>;
   onSettings: () => void;
 }
 
@@ -236,7 +237,7 @@ function Home({ actions }: { actions: StartActions }) {
   const progress = useOpenProgress();
 
   async function play(module: BundledModule) {
-    await progress.run(module.url, await bundledSize(module), async () => actions.onPlay(await loadBundledBytes(module)));
+    await progress.run(module.url, await bundledSize(module), async () => actions.onPlay(await loadBundledBytes(module), localized(module.title, lang)));
   }
 
   async function use(module: BundledModule) {

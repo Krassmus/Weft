@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds "Dein erstes Lernmodul" (the tutorial) or its template "Lernpyramide" with the `weft` command line tool, in all eight languages:
+# Builds "Mit Lernmodulen arbeiten" (the tutorial) or its template "Lernpyramide" with the `weft` command line tool, in all eight languages:
 #
 #   sh build.sh            -> lernpyramide.i18n.weft   (the tutorial: part A, the learning pyramide, and part B, how it is built)
 #   sh build.sh template   -> vorlage.i18n.weft        (the template: part A only, marked as a template)
@@ -31,3 +31,5 @@ $WEFT edit $NAME.weft $OPS -o $NAME.weft > edit-$NAME.log 2>&1 || { tail -5 edit
 $WEFT text export $NAME.weft --from de_DE --to $LANGS -o texts-$NAME.json >/dev/null || exit 1
 TEXTS=texts-$NAME.json FILLED=texts-$NAME-filled.json python3 -I assemble.py || exit 1
 $WEFT text import $NAME.weft texts-$NAME-filled.json -o $NAME.i18n.weft --force | tail -1
+# The tutorial gets a cover picture (logo.png): the pyramid and its percentages, without text - what its tile on the start screen shows.
+if [ "$NAME" = lernpyramide ]; then python3 -I cover.py $NAME.i18n.weft || exit 1; fi

@@ -171,24 +171,39 @@ def arrow(page, x0, y0, x1, y1, as_, bend=0.22, effect=True, color=ACCENT, name=
     pic(page, f, lx, ty, w, h=h, effect=fx("scale", 350) if effect else None, name=name, as_=as_)
 
 
-def callout(page, c, rect, label, label_xy, label_w=14, anchor=None, bend=0.22, color=ACCENT, size=2.7):
-    """a ring around rect (pixels of the crop), a label, an arrow from the label to the ring - they appear one after the other, with a single Weiter for all"""
+def callout(page, c, rect, label, label_xy, label_w=14, anchor=None, bend=0.1, color=ACCENT, size=2.7, align="left"):
+    """a ring around rect (pixels of the crop), a label, an arrow from the label to the ring - they appear one after the other, with a single Weiter for all.
+    The arrow starts at the edge of the label's text that is nearest to the ring (never in the middle of the text) and ends at the ring; `align`: how the text
+    stands in its box ("right" for a label that is left of the ring, so that the text ends where the arrow starts)."""
     x0, y0, x1, y1 = rect
     (ax, ay), (bx, by) = at(c, x0, y0), at(c, x1, y1)
     cx, cy, w, h = (ax + bx) / 2, (ay + by) / 2, (bx - ax) + 1.6, (by - ay) + 2.4
     k = _gen[0] + 1
     ring(page, cx, cy, w, h, f"r{k}")
     lx, ly = label_xy
-    ah = estimate(label, None, label_w, size, HEAD, True, 1.0, 1.2, None)
-    sx, sy = anchor if anchor else (lx + label_w / 2, ly + ah / 2)
+    per = 0.40  # (the width of a letter of the label, in percent of the slide per unit of size)
+    lines = max(1, math.ceil(len(label) * per * size / label_w))
+    tw = label_w if lines > 1 else min(label_w, len(label) * per * size)
+    th = lines * size * 1.2 * 1.78
+    tx = lx if align == "left" else (lx + label_w - tw if align == "right" else lx + (label_w - tw) / 2)
+    # the point of the text's box that is nearest to the ring's middle, a little way off it
+    nx = min(max(cx, tx), tx + tw)
+    ny = min(max(cy, ly), ly + th)
+    dx, dy = (cx - nx) * PX, (cy - ny) * PY
+    ln = math.hypot(dx, dy) or 1
+    gap = 9  # pixels
+    if anchor:
+        sx, sy = anchor
+    else:
+        sx, sy = nx + dx / ln * gap / PX, ny + dy / ln * gap / PY
     dx, dy = (cx - sx) * PX, (cy - sy) * PY
     ln = math.hypot(dx, dy) or 1
     ux, uy = dx / ln, dy / ln
     rx, ry = w / 2 * PX, h / 2 * PY
     t = 1 / math.sqrt((ux / rx) ** 2 + (uy / ry) ** 2)
-    ex, ey = cx - ux * t / PX * 1.06, cy - uy * t / PY * 1.06
+    ex, ey = cx - ux * t / PX * 1.08, cy - uy * t / PY * 1.08
     arrow(page, sx, sy, ex, ey, f"a{k}", bend)
-    text(page, label, lx, ly, label_w, size=size, color=color, font=HEAD, bold=True, line=1.2, h=round(3 * size * 1.2 * 1.78 + 1.2, 1), effect=fx("up", 400), name="Beschriftung: " + label, as_=f"b{k}")
+    text(page, label, lx, ly, label_w, size=size, color=color, font=HEAD, bold=True, line=1.2, align=align, h=round((lines + 1) * size * 1.2 * 1.78 + 1.6, 1), effect=fx("up", 400), name="Beschriftung: " + label, as_=f"b{k}")
     ops.append({"op": "set_trigger", "page": page, "to": f"entrance:$a{k}", "from": f"entrance:$r{k}", "delayMs": 250, "weiter": False})
     ops.append({"op": "set_trigger", "page": page, "to": f"entrance:$b{k}", "from": f"entrance:$a{k}", "delayMs": 250, "weiter": False})
     return k

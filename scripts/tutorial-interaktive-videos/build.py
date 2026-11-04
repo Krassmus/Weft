@@ -119,8 +119,8 @@ cur[0] = 25
 body(P, "Lege zuerst die Elemente an: Mit „+“ über der Folie fügst du ein Quiz hinzu.", w=36, size=2.4, name="Quiz anlegen")
 body(P, "Schreibe die Frage und die Antworten hinein und gib dem Quiz einen Namen.", w=36, size=2.4, color=MUTED, name="Frage", effect=fx("up"))
 if SHOTS:
-    c = shot(P, "plus-menu", 352, 461, 67, 25, 24)
-    callout(P, c, rect("plus-menu", "quiz", (4, 3)), "Hier: Quiz", (44, 52), label_w=16, anchor=(52, 55), bend=0.2)
+    c = shot(P, "plus-menu", 352, 461, 52, 25, 24)
+    callout(P, c, rect("plus-menu", "quiz", (4, 3)), "Hier: Quiz", (80, 41.2), label_w=14, bend=0.05)
 
 # ---- 5: step 2, a time mark -----------------------------------------------------------------------------------------------------------
 P = new_page("p5")
@@ -129,8 +129,8 @@ heading(P, "Schritt 2: Die Zeitmarke setzen", sub_width=38)
 text(P, "Wähle das Video aus und öffne „Zeitmarken konfigurieren“. Spiele das Video bis zur gewünschten Stelle und erstelle dort eine Zeitmarke.", 7, 25, 86, size=2.4, name="Zeitmarke", h=11)
 if SHOTS:
     c = shot(P, "dialog-mark", 720, 185, 12, 47, 76)
-    callout(P, c, rect("dialog-mark", "mark", (2, 2)), "Hier sitzt die Zeitmarke: 0:06", (60, 37.5), label_w=34, anchor=(70, 44.5), bend=0.2)
-    callout(P, c, rect("dialog-mark", "stop", width=150), "Hier hält das Video an", (38, 82), label_w=26, anchor=(48, 82), bend=-0.25)
+    callout(P, c, rect("dialog-mark", "mark", (2, 2)), "Hier sitzt die Zeitmarke: 0:06", (62, 37), label_w=34, bend=0.1)
+    callout(P, c, rect("dialog-mark", "stop", width=150), "Hier hält das Video an", (30, 83.5), label_w=28, bend=0.1)
 
 # ---- 6: step 3, the question appears there -------------------------------------------------------------------------------------------------
 P = new_page("p6")
@@ -139,8 +139,8 @@ heading(P, "Schritt 3: Das Quiz erscheint dort", sub_width=38)
 text(P, "Im selben Dialog wählst du bei „Lässt erscheinen“ das Quiz aus. Bis das Video die Zeitmarke erreicht, bleibt es unsichtbar.", 7, 25, 86, size=2.4, name="Erscheinen", h=11)
 if SHOTS:
     c = shot(P, "dialog-shows", 720, 125, 12, 47, 76)
-    callout(P, c, rect("dialog-shows", "row", width=210), "Das Quiz erscheint an der Zeitmarke", (36, 38.5), label_w=52, anchor=(60, 44.5), bend=0.2)
-    callout(P, c, rect("dialog-shows", "again", width=395), "… und geht wieder, wenn das Video weiterläuft", (28, 75), label_w=64, anchor=(50, 77), bend=-0.2)
+    callout(P, c, rect("dialog-shows", "row", width=210), "Das Quiz erscheint an der Zeitmarke", (32, 38.5), label_w=52, bend=0.1)
+    callout(P, c, rect("dialog-shows", "again", width=395), "… und geht wieder, wenn das Video weiterläuft", (28, 74.5), label_w=64, bend=0.0)
 
 # ---- 7: step 4, the video goes on ----------------------------------------------------------------------------------------------------------
 P = new_page("p7")
@@ -151,8 +151,8 @@ body(P, "Im Event-Graph klickst du auf „Start des Videos“. Dort stellst du e
 body(P, "Mit etwas Verzögerung – dann sieht man erst, ob die Antwort richtig war.", w=36, size=2.4, color=MUTED, name="Verzögerung", effect=fx("up"))
 if SHOTS:
     c = shot(P, "event-panel", 300, 420, 70, 24, 22)
-    callout(P, c, rect("event-panel", "after", (3, 3)), "Nach diesem Ereignis geht es weiter", (46, 70), label_w=20, anchor=(56, 73), bend=0.2)
-    callout(P, c, rect("event-panel", "delay", (3, 3)), "Wartezeit in Sekunden", (46, 50), label_w=20, anchor=(56, 53), bend=0.2)
+    callout(P, c, rect("event-panel", "after", (3, 3)), "Nach diesem Ereignis geht es weiter", (42, 66), label_w=24, bend=0.05, align="right")
+    callout(P, c, rect("event-panel", "delay", (3, 3)), "Wartezeit in Sekunden", (42, 50), label_w=24, bend=0.05, align="right")
 
 # ---- 7: time marks in detail --------------------------------------------------------------------------------------------------------------
 P = new_page("p7")

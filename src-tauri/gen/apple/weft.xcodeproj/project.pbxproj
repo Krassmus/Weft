@@ -14,6 +14,7 @@
 		924D90A1E12B310402134660 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 83E36C9DF1612FB3C17218E8 /* assets */; };
 		945CF1566294C13F3296AD41 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 40F625F23A2C14F3D22B7E1F /* Assets.xcassets */; };
 		A0E21C233945BFFB8FE511AE /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D50E70BDFC8422C94421337 /* QuartzCore.framework */; };
+		A9EB484F6202A0D128C1E553 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 8845FBCAD0A67C8CA11E7B0A /* PrivacyInfo.xcprivacy */; };
 		C24B7BD6A10F035A88CDCF36 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = F9985C6F4A66430CF03808B9 /* main.mm */; };
 		C3542571C62F02DC7271591D /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CFAE06F86189E25149D53CC5 /* CoreGraphics.framework */; };
 		D9F1D1EC8F9E05B73B33703D /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1A0314A6E41AC29A221C2ADF /* Metal.framework */; };
@@ -24,16 +25,25 @@
 		08B768E4F403C4F933822F81 /* weft_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = weft_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0B60E67100E79C74548073EE /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		1A0314A6E41AC29A221C2ADF /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		1C1F3FB8D75624805C680DF5 /* sandbox.rs */ = {isa = PBXFileReference; path = sandbox.rs; sourceTree = "<group>"; };
 		1C380637EAF6AEF228ED16E6 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		22ADCF2C3EEE0CED5E40FF43 /* weft_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = weft_iOS.entitlements; sourceTree = "<group>"; };
+		26ABCA67823406688976CE81 /* mkv_remux.rs */ = {isa = PBXFileReference; path = mkv_remux.rs; sourceTree = "<group>"; };
 		2D50E70BDFC8422C94421337 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		30FCC523B7EEAC424E4A00B8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		34CFDA15DF5C9E63EBE1C364 /* ios_open_urls.rs */ = {isa = PBXFileReference; path = ios_open_urls.rs; sourceTree = "<group>"; };
+		40C333A4E460C582EE7116B0 /* native_video.rs */ = {isa = PBXFileReference; path = native_video.rs; sourceTree = "<group>"; };
 		40F625F23A2C14F3D22B7E1F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		4EC68A7B73218457A6D2B38E /* open_files.rs */ = {isa = PBXFileReference; path = open_files.rs; sourceTree = "<group>"; };
 		6417ED4BE3CB612AA6CF9D44 /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
 		6A472062B5A50226598EB4D5 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		6F9B529922221112A32CA52C /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		776376B1FCD3D6552DB712BD /* cli_tool.rs */ = {isa = PBXFileReference; path = cli_tool.rs; sourceTree = "<group>"; };
 		83E36C9DF1612FB3C17218E8 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
+		8845FBCAD0A67C8CA11E7B0A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		8A60C4A5B34E9C331D407EB2 /* color_sampler.rs */ = {isa = PBXFileReference; path = color_sampler.rs; sourceTree = "<group>"; };
 		960E58AE68592254F25488EF /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
+		B84C0803A1B8047C6D8664A8 /* control.rs */ = {isa = PBXFileReference; path = control.rs; sourceTree = "<group>"; };
 		B88EDD0777650BA25FF38D67 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		CFAE06F86189E25149D53CC5 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		ED8B4C80B896C9E5E1B7C8D2 /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
@@ -76,6 +86,7 @@
 			isa = PBXGroup;
 			children = (
 				30FCC523B7EEAC424E4A00B8 /* Info.plist */,
+				8845FBCAD0A67C8CA11E7B0A /* PrivacyInfo.xcprivacy */,
 				22ADCF2C3EEE0CED5E40FF43 /* weft_iOS.entitlements */,
 			);
 			path = weft_iOS;
@@ -123,8 +134,16 @@
 		EE91ABC9FDFB6563B94DE842 /* src */ = {
 			isa = PBXGroup;
 			children = (
+				776376B1FCD3D6552DB712BD /* cli_tool.rs */,
+				8A60C4A5B34E9C331D407EB2 /* color_sampler.rs */,
+				B84C0803A1B8047C6D8664A8 /* control.rs */,
+				34CFDA15DF5C9E63EBE1C364 /* ios_open_urls.rs */,
 				ED8B4C80B896C9E5E1B7C8D2 /* lib.rs */,
 				6417ED4BE3CB612AA6CF9D44 /* main.rs */,
+				26ABCA67823406688976CE81 /* mkv_remux.rs */,
+				40C333A4E460C582EE7116B0 /* native_video.rs */,
+				4EC68A7B73218457A6D2B38E /* open_files.rs */,
+				1C1F3FB8D75624805C680DF5 /* sandbox.rs */,
 			);
 			name = src;
 			path = ../../src;
@@ -202,6 +221,7 @@
 			files = (
 				945CF1566294C13F3296AD41 /* Assets.xcassets in Resources */,
 				0518B4D77030EE054B0BAFF7 /* LaunchScreen.storyboard in Resources */,
+				A9EB484F6202A0D128C1E553 /* PrivacyInfo.xcprivacy in Resources */,
 				924D90A1E12B310402134660 /* assets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

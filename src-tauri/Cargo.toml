@@ -81,7 +81,8 @@ objc2-av-foundation = { version = "0.3", default-features = false, features = ["
 objc2 = "0.6"
 block2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "block2", "NSColor", "NSColorSampler", "NSColorSpace"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "alloc", "NSURL", "NSString", "NSError"] }
+# (NSArray, NSData: the security-scoped bookmarks of the Mac App Store version, see src/sandbox.rs.)
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "alloc", "NSURL", "NSString", "NSError", "NSArray", "NSData"] }
 # Converting a video to H.264 with the system's own AVAssetExportSession (src/native_video.rs).
 objc2-av-foundation = { version = "0.3", default-features = false, features = ["std", "block2", "AVAsset", "AVAssetExportSession", "AVMediaFormat"] }
 

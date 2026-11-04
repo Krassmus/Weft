@@ -13,6 +13,7 @@ mod color_sampler;
 mod mkv_remux;
 mod native_video;
 mod open_files;
+mod sandbox;
 #[cfg(target_os = "ios")]
 mod ios_open_urls;
 #[cfg(desktop)]
@@ -749,6 +750,8 @@ pub fn run() {
             open_audience_window,
             close_audience_window,
             open_files::take_pending_open_files,
+            sandbox::grant_access,
+            sandbox::sandboxed,
             read_clipboard_file_paths,
             control_reply,
             cli_tool::cli_info,
@@ -762,8 +765,14 @@ pub fn run() {
         ])
         .setup(|_app| {
             open_files::set_app(_app.handle());
+            // The Mac App Store version (sandboxed): the files and folders chosen earlier are opened again before the page asks for them.
+            sandbox::restore(_app.handle());
+            // (Not in the sandbox: a program that listens for other programs is not what the store version is for - and it has no
+            // command line tool to talk to it, see cli_tool.rs.)
             #[cfg(desktop)]
-            control::start(_app.handle());
+            if !sandbox::is_sandboxed() {
+                control::start(_app.handle());
+            }
             // The iPad: let the page reach the whole screen. A WKWebView keeps its content out of the status bar and the home
             // indicator on its own (`contentInsetAdjustmentBehavior` automatic) - and then the page's `viewport-fit=cover` and
             // `env(safe-area-inset-*)` (see index.html and App.css) do nothing: the app ends above the screen's rounded edge.

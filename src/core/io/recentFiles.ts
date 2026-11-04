@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "./fileIO";
 import { fromStoredPath, toStoredPath } from "./library";
+import { keepAccess } from "./sandboxAccess";
 
 /** How many files "Datei > Zuletzt geöffnet" offers. */
 export const MAX_RECENT_FILES = 10;
@@ -30,6 +31,8 @@ function writeRecentFiles(paths: string[]): string[] {
 /** Puts `path` first in the list (null: the document has no file, nothing changes). Returns the list. */
 export function rememberRecentFile(path: string | null): string[] {
   const current = readRecentFiles();
+  // (Every file that is opened or saved passes here: in the sandboxed Mac version the access to it is kept for the next start.)
+  keepAccess(path);
   if (!path || current[0] === path) return current;
   return writeRecentFiles([path, ...current.filter((other) => other !== path)].slice(0, MAX_RECENT_FILES));
 }

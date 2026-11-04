@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "category": "Education",
+    "resources": { "appstore/PrivacyInfo.xcprivacy": "PrivacyInfo.xcprivacy" },
+    "macOS": {
+      "entitlements": "appstore/Entitlements.plist"
+    }
+  }
+}

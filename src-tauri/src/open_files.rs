@@ -42,6 +42,31 @@ pub fn take_pending_open_files() -> Vec<OpenedFile> {
 /// The app is up: files that come in from now on are announced to the page.
 pub fn set_app(app: &AppHandle) {
     let _ = APP.set(app.clone());
+    // What came in before there was an app to keep the access with (the file that started the app).
+    #[cfg(desktop)]
+    {
+        let early: Vec<PathBuf> = std::mem::take(&mut *UNREMEMBERED.lock().unwrap());
+        for path in early {
+            keep_access(&path);
+        }
+    }
+}
+
+/// Files that were handed over before `set_app`: their access is kept as soon as it can be.
+#[cfg(desktop)]
+static UNREMEMBERED: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
+
+/// Sandboxed (Mac App Store): the system gave access to this file for now - keep it for the next start (the "recent" list).
+#[cfg(desktop)]
+fn keep_access(path: &Path) {
+    match APP.get() {
+        Some(app) => {
+            if let Err(error) = crate::sandbox::remember(app, path) {
+                eprintln!("[weft] sandbox: access to {} could not be kept ({error})", path.display());
+            }
+        }
+        None => UNREMEMBERED.lock().unwrap().push(path.to_path_buf()),
+    }
 }
 
 /// The Documents folder of the app (where the library is) - without an AppHandle, for the early entry point.
@@ -99,6 +124,8 @@ pub fn open_path(path: &Path) {
         return;
     }
     let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    // Sandboxed (Mac App Store): the system gave access to this file for now - keep it for the next start (the "recent" list).
+    keep_access(path);
     PENDING.lock().unwrap().push(OpenedFile { name, path: Some(path.to_string_lossy().into_owned()), error: None });
     if let Some(app) = APP.get() {
         let _ = app.emit("weft://open-file", ());

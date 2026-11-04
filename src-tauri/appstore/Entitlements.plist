@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The Mac App Store version of Weft (scripts/mac-appstore.sh). The App Sandbox is required there; this is all the app asks of it:
+  - network client and server: collaboration (WebRTC to the others, the public relays that introduce them) - a call that comes in from
+    another computer needs "server";
+  - files chosen in a dialog or handed over by the Finder, read and write, and the bookmarks that keep that access for the next start
+    (src-tauri/src/sandbox.rs): "Zuletzt geöffnet", autosave, the shared folder (Nextcloud ...).
+  The first two keys are the app's identity at Apple (the team of src-tauri/gen/apple/project.yml); a build for trying the sandbox on this
+  Mac (`scripts/mac-appstore.sh test`) leaves them out - they only work together with the provisioning profile.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.application-identifier</key>
+	<string>7GD6JHBABJ.com.weft.app</string>
+	<key>com.apple.developer.team-identifier</key>
+	<string>7GD6JHBABJ</string>
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>com.apple.security.network.server</key>
+	<true/>
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<key>com.apple.security.files.bookmarks.app-scope</key>
+	<true/>
+</dict>
+</plist>

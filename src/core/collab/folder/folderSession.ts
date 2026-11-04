@@ -1,4 +1,5 @@
 import { open } from "@tauri-apps/plugin-dialog";
+import { keepAccess } from "../../io/sandboxAccess";
 import { create } from "zustand";
 import { useAssetStore } from "../../assets/assetStore";
 import { currentHandle, useDocumentStore } from "../../document/store";
@@ -103,7 +104,9 @@ export function folderSyncAvailable(): boolean {
 /** Lets the person pick the shared folder. */
 export async function chooseSyncFolder(): Promise<string | null> {
   const picked = await open({ directory: true, multiple: false, title: tr("ui.choose_shared_folder") });
-  return typeof picked === "string" ? picked : null;
+  if (typeof picked !== "string") return null;
+  keepAccess(picked); // (the sandboxed Mac version: the folder stays reachable at the next start)
+  return picked;
 }
 
 /** Stops syncing the open module with its folder; `forget` also takes the folder off the module, so

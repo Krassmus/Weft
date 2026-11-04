@@ -1,0 +1,75 @@
+0|Back
+1|Next
+2|WEFT TUTORIAL
+3|Create an interactive video
+4|How a video that just plays becomes a learning task – in four steps.
+5|Let’s go
+6|The video element
+7|Actually, the video in Weft is an element for presentations: drag a file onto the slide, press play – done.
+8|It knows nothing about what else happens on the slide.
+9|But it can do more
+10|Start the video. It stops by itself in the middle – and a question appears.
+11|Which two colors were mixed?
+12|Blue and yellow
+13|Red and yellow
+14|Red and blue
+15|HOW IT WORKS
+16|Step 1: Create the quiz
+17|First create the elements: with “+” above the slide you add a quiz.
+18|Write the question and the answers into it and give the quiz a name.
+19|Here: Quiz
+20|Step 2: The time mark
+21|Select the video and open “Configure time marks”. Play the video up to the place you want and create a time mark there.
+22|The time mark is here: 0:06
+23|The video stops here
+24|Step 3: The quiz appears there
+25|In the same dialog you pick the quiz under “Makes appear”. Until the video reaches the time mark, it stays invisible.
+26|The quiz appears here
+27|… and goes away when the video goes on
+28|Step 4: The video goes on
+29|In the event graph you click “Start of the video”. There you set when the video starts again: after the event “Quiz submitted”.
+30|With a short delay – so you can first see whether the answer was right.
+31|The video goes on after this event
+32|Waiting time in seconds
+33|TIME MARKS
+34|Time marks in detail
+35|Every time mark has a time in minutes and seconds – accurate to about a quarter of a second. You can set as many as you like; Weft sorts them.
+36|“Stop the video here” stops the video. Without the tick it keeps playing, and the time mark only triggers something – a hint, for example.
+37|keeps playing
+38|only shows a hint
+39|stops
+40|the quiz appears
+41|EVENT GRAPH
+42|The event graph
+43|The event graph shows what happens when. With “Next” we go through it once, step by step.
+44|The video reaches the time mark 0:06 and stops.
+45|At the same moment the quiz appears.
+46|From 2 to 3 it goes on as soon as the question is submitted – no matter whether the answer is right or wrong.
+47|Then the video starts again, after a waiting time of 1.8 seconds.
+48|The video goes on.
+49|And the quiz disappears again. For every further question this pattern repeats.
+50|TIP
+51|Several questions: create first
+52|With several questions in the video, first create all the elements and name them well, so you can tell the quizzes apart. Only then set the time marks and assign the elements.
+53|1  Create and name the elements
+54|Q1 – Colors
+55|Q2 – Mixing
+56|Q3 – Recall
+57|2  Set the time marks and assign
+58|IDEAS
+59|What else you can build in
+60|Show a hint
+61|A time mark without a stop shows text or a picture.
+62|To reveal
+63|The video stops, a click on a button shows more.
+64|Branching
+65|Wrong answer? Then there’s an explanation first.
+66|Match, sort
+67|After the video, learners consolidate what they have seen.
+68|Collect points
+69|Every right answer counts – at the end there’s an evaluation.
+70|Many time marks
+71|One question after another: the video becomes a little test.
+72|Now it’s your turn
+73|Start a new learning module, drag a video and a quiz onto a slide and set the first time mark.
+74|Let the quiz appear there and the video go on afterwards – and your first interactive video is done.

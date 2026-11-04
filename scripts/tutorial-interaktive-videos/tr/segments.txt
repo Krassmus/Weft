@@ -1,0 +1,75 @@
+0|Zurück
+1|Weiter
+2|WEFT-TUTORIAL
+3|Ein interaktives Video erstellen
+4|Wie aus einem Video, das nur abläuft, eine Lernaufgabe wird – in vier Schritten.
+5|Los geht’s
+6|Das Video-Element
+7|Eigentlich ist das Video in Weft ein Element für Präsentationen: Datei auf die Folie ziehen, auf Abspielen drücken – fertig.
+8|Es weiß nichts von dem, was sonst auf der Folie passiert.
+9|Aber es kann mehr
+10|Starte das Video. Es hält in der Mitte von selbst an – und eine Frage erscheint.
+11|Welche beiden Farben wurden gemischt?
+12|Blau und Gelb
+13|Rot und Gelb
+14|Rot und Blau
+15|SO GEHT’S
+16|Schritt 1: Das Quiz erstellen
+17|Lege zuerst die Elemente an: Mit „+“ über der Folie fügst du ein Quiz hinzu.
+18|Schreibe die Frage und die Antworten hinein und gib dem Quiz einen Namen.
+19|Hier: Quiz
+20|Schritt 2: Die Zeitmarke setzen
+21|Wähle das Video aus und öffne „Zeitmarken konfigurieren“. Spiele das Video bis zur gewünschten Stelle und erstelle dort eine Zeitmarke.
+22|Hier sitzt die Zeitmarke: 0:06
+23|Hier hält das Video an
+24|Schritt 3: Das Quiz erscheint dort
+25|Im selben Dialog wählst du bei „Lässt erscheinen“ das Quiz aus. Bis das Video die Zeitmarke erreicht, bleibt es unsichtbar.
+26|Hier erscheint das Quiz
+27|… und geht wieder, wenn das Video weiterläuft
+28|Schritt 4: Das Video läuft weiter
+29|Im Event-Graph klickst du auf „Start des Videos“. Dort stellst du ein, wann das Video wieder losgeht: nach dem Ereignis „Quiz abgeschickt“.
+30|Mit etwas Verzögerung – dann sieht man erst, ob die Antwort richtig war.
+31|Nach diesem Ereignis geht es weiter
+32|Wartezeit in Sekunden
+33|ZEITMARKEN
+34|Zeitmarken genau genommen
+35|Jede Zeitmarke hat eine Zeit in Minuten und Sekunden – auf etwa eine Viertelsekunde genau. Du kannst beliebig viele setzen; Weft sortiert sie.
+36|Mit „Video hier stoppen“ hält das Video an. Ohne den Haken läuft es weiter, und die Zeitmarke löst nur etwas aus – zum Beispiel einen Hinweis.
+37|läuft weiter
+38|blendet nur einen Hinweis ein
+39|hält an
+40|das Quiz erscheint
+41|EVENT-GRAPH
+42|Der Event-Graph
+43|Der Event-Graph zeigt, was wann passiert. Mit „Weiter“ gehen wir ihn einmal Schritt für Schritt ab.
+44|Das Video erreicht die Zeitmarke 0:06 und hält an.
+45|Im selben Moment erscheint das Quiz.
+46|Von 2 nach 3 geht es, sobald die Frage abgeschickt wird – ganz gleich, ob die Antwort richtig oder falsch ist.
+47|Daraufhin startet das Video wieder, nach 1,8 Sekunden Wartezeit.
+48|Das Video läuft weiter.
+49|Und das Quiz verschwindet wieder. Für jede weitere Frage wiederholt sich dieses Muster.
+50|TIPP
+51|Mehrere Fragen: erst alles anlegen
+52|Hast du mehrere Fragen im Video, lege zuerst alle Elemente an – und benenne sie gut, damit du die Quizze später auseinanderhältst. Erst dann setzt du die Zeitmarken und ordnest ihnen die Elemente zu.
+53|1  Elemente anlegen und benennen
+54|Frage 1 – Farben
+55|Frage 2 – Mischen
+56|Frage 3 – Merken
+57|2  Zeitmarken setzen und zuordnen
+58|IDEEN
+59|Was du sonst noch einbauen kannst
+60|Hinweis einblenden
+61|Eine Zeitmarke ohne Stopp zeigt Text oder Bild, das Video läuft weiter.
+62|Zum Aufdecken
+63|Das Video hält an, ein Klick auf einen Button zeigt mehr.
+64|Verzweigen
+65|Falsche Antwort? Dann gibt es erst noch eine Erklärung.
+66|Zuordnen, sortieren
+67|Nach dem Video festigen Lernende, was sie gesehen haben.
+68|Punkte sammeln
+69|Jede richtige Antwort zählt – am Ende gibt es eine Auswertung.
+70|Viele Zeitmarken
+71|Eine Frage nach der anderen: Das Video wird zum kleinen Test.
+72|Jetzt bist du dran
+73|Starte ein neues Lernmodul, ziehe ein Video und ein Quiz auf eine Folie und setze die erste Zeitmarke.
+74|Lass das Quiz dort erscheinen und das Video danach weiterlaufen – schon ist dein erstes interaktives Video fertig.

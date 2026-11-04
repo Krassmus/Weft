@@ -1,0 +1,75 @@
+0|Wstecz
+1|Dalej
+2|SAMOUCZEK WEFT
+3|Stwórz interaktywne wideo
+4|Jak wideo, które tylko leci, staje się zadaniem edukacyjnym – w czterech krokach.
+5|Zaczynamy
+6|Element wideo
+7|Właściwie wideo w Weft to element do prezentacji: przeciągasz plik na slajd, naciskasz odtwarzanie – gotowe.
+8|Nie wie nic o tym, co jeszcze dzieje się na slajdzie.
+9|Ale potrafi więcej
+10|Uruchom wideo. Zatrzyma się samo w połowie – i pojawi się pytanie.
+11|Które dwa kolory zostały zmieszane?
+12|Niebieski i żółty
+13|Czerwony i żółty
+14|Czerwony i niebieski
+15|JAK TO ZROBIĆ
+16|Krok 1: Utwórz quiz
+17|Najpierw utwórz elementy: „+” nad slajdem dodaje quiz.
+18|Wpisz pytanie i odpowiedzi i nadaj quizowi nazwę.
+19|Tutaj: Quiz
+20|Krok 2: Znacznik czasu
+21|Wybierz wideo i otwórz „Skonfiguruj znaczniki czasu”. Odtwórz wideo do wybranego miejsca i utwórz tam znacznik czasu.
+22|Tu jest znacznik czasu: 0:06
+23|Tu wideo się zatrzymuje
+24|Krok 3: Quiz pojawia się tam
+25|W tym samym oknie wybierasz quiz w sekcji „Sprawia, że pojawia się”. Dopóki wideo nie dotrze do znacznika czasu, pozostaje niewidoczny.
+26|Tutaj pojawia się quiz
+27|… i znika, gdy wideo leci dalej
+28|Krok 4: Wideo leci dalej
+29|W grafie zdarzeń klikasz „Początek wideo”. Tam ustawiasz, kiedy wideo rusza ponownie: po zdarzeniu „Quiz wysłany”.
+30|Z niewielkim opóźnieniem – dzięki temu najpierw widać, czy odpowiedź była dobra.
+31|Po tym zdarzeniu rusza dalej
+32|Czas oczekiwania w sekundach
+33|ZNACZNIKI CZASU
+34|Znaczniki czasu dokładniej
+35|Każdy znacznik czasu ma czas w minutach i sekundach – z dokładnością do około ćwierć sekundy. Możesz ustawić ich dowolnie wiele; Weft je sortuje.
+36|„Zatrzymaj wideo tutaj” zatrzymuje wideo. Bez zaznaczenia wideo leci dalej, a znacznik czasu tylko coś wyzwala – na przykład podpowiedź.
+37|leci dalej
+38|tylko pokazuje podpowiedź
+39|zatrzymuje się
+40|pojawia się quiz
+41|GRAF ZDARZEŃ
+42|Graf zdarzeń
+43|Graf zdarzeń pokazuje, co dzieje się kiedy. Przyciskiem „Dalej” przejdziemy go raz, krok po kroku.
+44|Wideo dociera do znacznika czasu 0:06 i zatrzymuje się.
+45|W tym samym momencie pojawia się quiz.
+46|Z 2 do 3 przechodzi się, gdy tylko pytanie zostanie wysłane – bez względu na to, czy odpowiedź jest dobra, czy zła.
+47|Potem wideo rusza ponownie, po 1,8 sekundy oczekiwania.
+48|Wideo leci dalej.
+49|A quiz znowu znika. Przy każdym kolejnym pytaniu ten schemat się powtarza.
+50|WSKAZÓWKA
+51|Kilka pytań: najpierw utwórz
+52|Przy kilku pytaniach w wideo najpierw utwórz wszystkie elementy i dobrze je nazwij, żeby odróżnić quizy. Dopiero potem ustaw znaczniki czasu i przypisz im elementy.
+53|1  Utwórz i nazwij elementy
+54|P1 – Kolory
+55|P2 – Mieszanie
+56|P3 – Zapamiętać
+57|2  Ustaw znaczniki czasu i przypisz
+58|POMYSŁY
+59|Co jeszcze możesz dodać
+60|Pokaż podpowiedź
+61|Znacznik bez zatrzymania pokazuje tekst lub obraz.
+62|Do odkrycia
+63|Wideo się zatrzymuje, kliknięcie przycisku pokazuje więcej.
+64|Rozgałęzianie
+65|Zła odpowiedź? Wtedy najpierw jest wyjaśnienie.
+66|Dopasuj, sortuj
+67|Po wideo uczący się utrwalają to, co zobaczyli.
+68|Zbieraj punkty
+69|Każda dobra odpowiedź się liczy – na końcu jest podsumowanie.
+70|Wiele znaczników czasu
+71|Pytanie po pytaniu: wideo staje się małym testem.
+72|Teraz twoja kolej
+73|Rozpocznij nowy moduł edukacyjny, przeciągnij wideo i quiz na slajd i ustaw pierwszy znacznik czasu.
+74|Spraw, by quiz pojawił się tam, a wideo potem leciało dalej – i pierwsze interaktywne wideo gotowe.

@@ -7,7 +7,10 @@ import { writeFileSync } from "node:fs";
 import { launch, sleep } from "../tutorial-erstes-lernmodul/cdp.mjs";
 const [MODULE, OUT, UI = "de"] = process.argv.slice(2);
 const OPEN_FILE = { de: "Datei öffnen", en: "Open file", es: "Abrir archivo", fr: "Ouvrir un fichier", pt: "Abrir arquivo", it: "Apri file", tr: "Dosya aç", pl: "Otwórz plik" }[UI];
-const SCALE = 0.7; // of what the screen (2x) has: the pictures only have to be seen at about the size of the slide
+// The name of the video as the variant of this language has it (variants.py) - it is looked up in the list of the slide's elements.
+const VIDEO_NAME = { de: "Video (mit Zeitmarke)", en: "Video (with time mark)", es: "Vídeo (con marca de tiempo)", fr: "Vidéo (avec repère temporel)", pt: "Vídeo (com marca de tempo)", it: "Video (con marcatore temporale)", tr: "Video (zaman işaretli)", pl: "Wideo (ze znacznikiem czasu)" }[UI];
+process.env.WEFT_JPEG_QUALITY ||= "70"; // (the installation is not to grow: these pictures are small on purpose)
+const SCALE = 0.62; // of what the screen (2x) has: the pictures only have to be seen at about the size of the slide
 
 const c = await launch(1600, 900, 2);
 await c.send("Page.addScriptToEvaluateOnNewDocument", { source: `localStorage.setItem("weft:language","${UI}")` });
@@ -42,16 +45,17 @@ const plusAt = await c.evaluate(`(() => { const r=[...document.querySelectorAll(
 await click(...plusAt, 800);
 const popup = `(() => { let e = document.elementFromPoint(${plusAt[0]} + 60, ${plusAt[1]} + 140); while (e && !(e.getBoundingClientRect().width > 250 && e.getBoundingClientRect().height > 300)) e = e.parentElement; return e; })()`;
 const popupRect = await c.evaluate(box(popup));
-await picture("plus-menu", [popupRect[0] - 6, popupRect[1] - 6, popupRect[2] + 6, popupRect[3] + 6], { quiz: box(`${popup}.querySelectorAll("button")[14]`) });
+// (the menu is higher in a language whose words break into two lines: the picture is cut to the same height everywhere, at the top of it)
+await picture("plus-menu", [popupRect[0] - 6, popupRect[1] - 6, popupRect[2] + 6, popupRect[1] + 340], { quiz: box(`${popup}.querySelectorAll("button")[14]`) });
 await c.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape" });
 await sleep(400);
 await click(800, 22, 500); // (the empty bar at the top: the menu is surely closed)
-const videoItem = await c.evaluate(`(() => { const e=[...document.querySelectorAll(".weft-inspector *")].filter(e=>e.textContent.trim()==="Video (mit Zeitmarke)").pop(); if (!e) return null; const r=e.getBoundingClientRect(); return [r.x+r.width/2, r.y+r.height/2]; })()`);
+const videoItem = await c.evaluate(`(() => { const e=[...document.querySelectorAll(".weft-inspector *")].filter(e=>e.textContent.trim()===${JSON.stringify(VIDEO_NAME)}).pop(); if (!e) return null; const r=e.getBoundingClientRect(); return [r.x+r.width/2, r.y+r.height/2]; })()`);
 if (!videoItem) { await c.shot(`${OUT}/debug.png`); throw new Error("the video is not in the list of elements - see debug.png"); }
 await click(...videoItem);
 
 // the dialog of the time marks, with the mark chosen
-const configure = await c.evaluate(`(() => { const b=[...document.querySelectorAll(".weft-inspector button")].find(b=>b.textContent.includes("Zeitmarken konfig") || /configur|konfigur|configurar|configurer|configura|yapılandır|konfiguruj/i.test(b.textContent)); const r=b.getBoundingClientRect(); return [r.x+r.width/2, r.y+r.height/2]; })()`);
+const configure = await c.evaluate(`(() => { const b=[...document.querySelectorAll(".weft-inspector button")].find(b=>b.textContent.includes("Zeitmarken konfig") || /configur|konfigur|configurar|configurer|configura|yapılandır|konfiguruj|ayarla/i.test(b.textContent)); const r=b.getBoundingClientRect(); return [r.x+r.width/2, r.y+r.height/2]; })()`);
 await click(...configure, 900);
 await click(...(await centre(`document.querySelector(".weft-stop-point-marker")`)), 1000);
 const modal = `document.querySelector(".weft-modal")`;

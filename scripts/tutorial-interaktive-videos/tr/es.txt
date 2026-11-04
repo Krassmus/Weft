@@ -1,0 +1,75 @@
+0|Atrás
+1|Siguiente
+2|TUTORIAL DE WEFT
+3|Crear un vídeo interactivo
+4|Cómo un vídeo que solo se reproduce se convierte en una tarea de aprendizaje: en cuatro pasos.
+5|¡Vamos!
+6|El elemento de vídeo
+7|En realidad, el vídeo en Weft es un elemento para presentaciones: arrastras un archivo a la diapositiva, pulsas reproducir y listo.
+8|No sabe nada de lo que más ocurre en la diapositiva.
+9|Pero puede hacer más
+10|Inicia el vídeo. Se detiene solo a mitad – y aparece una pregunta.
+11|¿Qué dos colores se mezclaron?
+12|Azul y amarillo
+13|Rojo y amarillo
+14|Rojo y azul
+15|ASÍ SE HACE
+16|Paso 1: Crear el cuestionario
+17|Crea primero los elementos: con «+» sobre la diapositiva añades un cuestionario.
+18|Escribe la pregunta y las respuestas y ponle un nombre al cuestionario.
+19|Aquí: Cuestionario
+20|Paso 2: La marca de tiempo
+21|Selecciona el vídeo y abre «Configurar marcas de tiempo». Reproduce el vídeo hasta el punto deseado y crea ahí una marca de tiempo.
+22|Aquí está la marca de tiempo: 0:06
+23|Aquí se detiene el vídeo
+24|Paso 3: Ahí aparece el cuestionario
+25|En el mismo diálogo eliges el cuestionario en «Hace aparecer». Hasta que el vídeo llega a la marca de tiempo, permanece invisible.
+26|Aquí aparece el cuestionario
+27|… y desaparece cuando el vídeo continúa
+28|Paso 4: El vídeo continúa
+29|En el grafo de eventos haces clic en «Inicio del vídeo». Allí ajustas cuándo vuelve a arrancar el vídeo: después del evento «Cuestionario enviado».
+30|Con un pequeño retraso: así se ve primero si la respuesta era correcta.
+31|Después de este evento continúa
+32|Tiempo de espera en segundos
+33|MARCAS DE TIEMPO
+34|Las marcas de tiempo al detalle
+35|Cada marca de tiempo tiene un tiempo en minutos y segundos, con una precisión de un cuarto de segundo. Puedes poner todas las que quieras; Weft las ordena.
+36|Con «Detener el vídeo aquí» el vídeo se detiene. Sin la marca sigue reproduciéndose y la marca de tiempo solo desencadena algo, por ejemplo una pista.
+37|sigue
+38|solo muestra una pista
+39|se detiene
+40|aparece el cuestionario
+41|GRAFO DE EVENTOS
+42|El grafo de eventos
+43|El grafo de eventos muestra qué ocurre y cuándo. Con «Siguiente» lo recorremos una vez, paso a paso.
+44|El vídeo llega a la marca de tiempo 0:06 y se detiene.
+45|En ese mismo momento aparece el cuestionario.
+46|De 2 a 3 se pasa en cuanto se envía la pregunta, sea la respuesta correcta o incorrecta.
+47|Entonces el vídeo arranca de nuevo, tras 1,8 segundos de espera.
+48|El vídeo continúa.
+49|Y el cuestionario vuelve a desaparecer. Con cada pregunta adicional se repite este patrón.
+50|CONSEJO
+51|Varias preguntas: crea todo antes
+52|Con varias preguntas en el vídeo, crea primero todos los elementos y ponles buenos nombres para distinguir los cuestionarios. Solo después pones las marcas de tiempo y les asignas los elementos.
+53|1  Crear y nombrar los elementos
+54|P1 – Colores
+55|P2 – Mezclar
+56|P3 – Recordar
+57|2  Poner las marcas de tiempo y asignar
+58|IDEAS
+59|Qué más puedes añadir
+60|Mostrar una pista
+61|Una marca de tiempo sin parada muestra texto o imagen.
+62|Para descubrir
+63|El vídeo se detiene y un clic en un botón muestra más.
+64|Ramificar
+65|¿Respuesta incorrecta? Entonces primero hay una explicación.
+66|Relacionar, ordenar
+67|Tras el vídeo, el alumnado afianza lo que ha visto.
+68|Reunir puntos
+69|Cada respuesta correcta cuenta: al final hay una evaluación.
+70|Muchas marcas de tiempo
+71|Una pregunta tras otra: el vídeo se convierte en un pequeño test.
+72|Ahora te toca a ti
+73|Empieza un nuevo módulo de aprendizaje, arrastra un vídeo y un cuestionario a una diapositiva y pon la primera marca de tiempo.
+74|Haz que el cuestionario aparezca ahí y que el vídeo continúe después: ya tienes tu primer vídeo interactivo.

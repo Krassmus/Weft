@@ -48,7 +48,7 @@ export async function launch(width = 1600, height = 900, dpr = 1) {
     // `scale`: of the picture to what the screen (device pixels) has - 1: as sharp as the screen is, 0.5: half of that
     async shot(file, clip, scale = 1) {
       const jpeg = file.endsWith(".jpg");
-      const r = await send("Page.captureScreenshot", { format: jpeg ? "jpeg" : "png", ...(jpeg ? { quality: 82 } : {}), ...(clip ? { clip: { ...clip, scale } } : {}) });
+      const r = await send("Page.captureScreenshot", { format: jpeg ? "jpeg" : "png", ...(jpeg ? { quality: Number(process.env.WEFT_JPEG_QUALITY || 82) } : {}), ...(clip ? { clip: { ...clip, scale } } : {}) });
       writeFileSync(file, Buffer.from(r.data, "base64"));
     },
     async goto(url) {

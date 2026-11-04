@@ -28,7 +28,7 @@ def rect(crop, name, pad=(0, 0), width=None):
     return (x0 - pad[0], y0 - pad[1], x1 + pad[0], y1 + pad[1])
 
 
-LANGS = ["de_DE"]  # build.sh adds the others when it puts the translations in (see tr/)
+LANGS = ["de_DE", "en_US", "es_ES", "fr_FR", "pt_BR", "it_IT", "tr_TR", "pl_PL"]  # (the texts of the others come with build.sh: tr/)
 
 kit.LANGS = LANGS
 drawings.build()
@@ -83,10 +83,10 @@ pic(P, "icon_play.svg", 61, 59, 7, name="Abspielen")
 pic(P, "icon_clock.svg", 71, 59, 7, name="Stoppuhr")
 pic(P, "icon_star.svg", 81, 59, 7, name="Stern")
 text(P, "WEFT-TUTORIAL", 8, 15, 50, size=2.6, color=TEAL, font=HEAD, bold=True, name="Kicker")
-text(P, "Ein interaktives Video erstellen", 8, 22, 49, size=6.4, font=HEAD, bold=True, line=1.1, name="Titel", h=32)
-bar(P, 8, 56, 14)
-text(P, "Wie aus einem Video, das nur abläuft, eine Lernaufgabe wird – in vier Schritten.", 8, 62, 44, size=2.3, color=MUTED, name="Untertitel")
-ops.append({"op": "add_block", "page": P, "kind": "button", "set": {"position": {"x": 8, "y": 79, "width": 15, "height": 7}, "text": "Los geht’s", "action": "advance", "name": "Los geht’s", "html": f'<p style="line-height:1.25;margin:0"><font face="{BODY}" color="{DARK}"><b>Los geht’s</b></font></p>', "appearance": {"background": ACCENT, "borderColor": ACCENT, "borderWidth": 0}}})
+text(P, "Ein interaktives Video erstellen", 8, 21, 49, size=6.0, font=HEAD, bold=True, line=1.1, name="Titel", h=39)
+bar(P, 8, 59, 14)
+text(P, "Wie aus einem Video, das nur abläuft, eine Lernaufgabe wird – in vier Schritten.", 8, 64.5, 44, size=2.3, color=MUTED, name="Untertitel")
+ops.append({"op": "add_block", "page": P, "kind": "button", "set": {"position": {"x": 8, "y": 82, "width": 15, "height": 7}, "text": "Los geht’s", "action": "advance", "name": "Los geht’s", "html": f'<p style="line-height:1.25;margin:0"><font face="{BODY}" color="{DARK}"><b>Los geht’s</b></font></p>', "appearance": {"background": ACCENT, "borderColor": ACCENT, "borderWidth": 0}}})
 
 # ---- 2: a video is an element of a presentation ----------------------------------------------------------------------------------------
 P = new_page("p2")
@@ -119,8 +119,8 @@ cur[0] = 25
 body(P, "Lege zuerst die Elemente an: Mit „+“ über der Folie fügst du ein Quiz hinzu.", w=36, size=2.4, name="Quiz anlegen")
 body(P, "Schreibe die Frage und die Antworten hinein und gib dem Quiz einen Namen.", w=36, size=2.4, color=MUTED, name="Frage", effect=fx("up"))
 if SHOTS:
-    c = shot(P, "plus-menu", 352, 461, 52, 25, 24)
-    callout(P, c, rect("plus-menu", "quiz", (4, 3)), "Hier: Quiz", (80, 41.2), label_w=14, bend=0.05)
+    c = shot(P, "plus-menu", *RECTS["plus-menu"]["size"], 46, 25, 28)
+    callout(P, c, rect("plus-menu", "quiz", (4, 3)), "Hier: Quiz", (77.5, 38.8), label_w=17, bend=0.05)
 
 # ---- 5: step 2, a time mark -----------------------------------------------------------------------------------------------------------
 P = new_page("p5")
@@ -128,8 +128,8 @@ kicker(P, "SO GEHT’S")
 heading(P, "Schritt 2: Die Zeitmarke setzen", sub_width=38)
 text(P, "Wähle das Video aus und öffne „Zeitmarken konfigurieren“. Spiele das Video bis zur gewünschten Stelle und erstelle dort eine Zeitmarke.", 7, 25, 86, size=2.4, name="Zeitmarke", h=11)
 if SHOTS:
-    c = shot(P, "dialog-mark", 720, 185, 12, 47, 76)
-    callout(P, c, rect("dialog-mark", "mark", (2, 2)), "Hier sitzt die Zeitmarke: 0:06", (62, 37), label_w=34, bend=0.1)
+    c = shot(P, "dialog-mark", *RECTS["dialog-mark"]["size"], 12, 47, 76)
+    callout(P, c, rect("dialog-mark", "mark", (2, 2)), "Hier sitzt die Zeitmarke: 0:06", (52, 37), label_w=42, bend=0.1)
     callout(P, c, rect("dialog-mark", "stop", width=150), "Hier hält das Video an", (30, 83.5), label_w=28, bend=0.1)
 
 # ---- 6: step 3, the question appears there -------------------------------------------------------------------------------------------------
@@ -138,8 +138,8 @@ kicker(P, "SO GEHT’S")
 heading(P, "Schritt 3: Das Quiz erscheint dort", sub_width=38)
 text(P, "Im selben Dialog wählst du bei „Lässt erscheinen“ das Quiz aus. Bis das Video die Zeitmarke erreicht, bleibt es unsichtbar.", 7, 25, 86, size=2.4, name="Erscheinen", h=11)
 if SHOTS:
-    c = shot(P, "dialog-shows", 720, 125, 12, 47, 76)
-    callout(P, c, rect("dialog-shows", "row", width=210), "Das Quiz erscheint an der Zeitmarke", (32, 38.5), label_w=52, bend=0.1)
+    c = shot(P, "dialog-shows", *RECTS["dialog-shows"]["size"], 12, 47, 76)
+    callout(P, c, rect("dialog-shows", "row", width=210), "Hier erscheint das Quiz", (56, 38.5), label_w=38, bend=0.1)
     callout(P, c, rect("dialog-shows", "again", width=395), "… und geht wieder, wenn das Video weiterläuft", (28, 74.5), label_w=64, bend=0.0)
 
 # ---- 7: step 4, the video goes on ----------------------------------------------------------------------------------------------------------
@@ -150,7 +150,7 @@ cur[0] = 25
 body(P, "Im Event-Graph klickst du auf „Start des Videos“. Dort stellst du ein, wann das Video wieder losgeht: nach dem Ereignis „Quiz abgeschickt“.", w=36, size=2.4, name="Weiter")
 body(P, "Mit etwas Verzögerung – dann sieht man erst, ob die Antwort richtig war.", w=36, size=2.4, color=MUTED, name="Verzögerung", effect=fx("up"))
 if SHOTS:
-    c = shot(P, "event-panel", 300, 420, 70, 24, 22)
+    c = shot(P, "event-panel", *RECTS["event-panel"]["size"], 70, 24, 22)
     callout(P, c, rect("event-panel", "after", (3, 3)), "Nach diesem Ereignis geht es weiter", (42, 66), label_w=24, bend=0.05, align="right")
     callout(P, c, rect("event-panel", "delay", (3, 3)), "Wartezeit in Sekunden", (42, 50), label_w=24, bend=0.05, align="right")
 
@@ -172,7 +172,7 @@ kicker(P, "EVENT-GRAPH")
 heading(P, "Der Event-Graph", sub_width=26)
 text(P, "Der Event-Graph zeigt, was wann passiert. Mit „Weiter“ gehen wir ihn einmal Schritt für Schritt ab.", 7, 24.5, 86, size=2.4, name="Graph", h=11)
 if SHOTS:
-    c = shot(P, "graph", 1034, 295, 18, 36.5, 64)
+    c = shot(P, "graph", *RECTS["graph"]["size"], 18, 36.5, 64)
     STATIONS = [
         ("mark", "Das Video erreicht die Zeitmarke 0:06 und hält an."),
         ("shown", "Im selben Moment erscheint das Quiz."),

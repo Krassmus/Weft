@@ -77,6 +77,16 @@ window.draw = function (t) {
   blobs.forEach(function (b) { g.strokeStyle = "rgba(255,255,255,.5)"; g.lineWidth = 8; g.lineCap = "round"; g.beginPath(); g.arc(b.x, b.y, b.r * 0.72, Math.PI * 1.1, Math.PI * 1.45); g.stroke(); });
   sparkles(round, t);
 };
+// The cover picture of the tutorial (video/cover.mjs): the blobs about to meet, and under them the bar of a video with the time mark (coral, with a pause sign) at 6 s.
+window.cover = function () {
+  window.draw(2.45);
+  var x0 = 90, x1 = 1190, y = 640, at = x0 + (x1 - x0) * (6.0 / 7.6);
+  g.lineCap = "round"; g.lineWidth = 16;
+  g.strokeStyle = "#3a4a70"; g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke();
+  g.strokeStyle = "#5b8def"; g.beginPath(); g.moveTo(x0, y); g.lineTo(at, y); g.stroke();
+  g.fillStyle = "#ff6b5e"; g.beginPath(); g.arc(at, y, 30, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#ffffff"; g.fillRect(at - 11, y - 14, 8, 28); g.fillRect(at + 3, y - 14, 8, 28);
+};
 window.DURATION = ROUNDS[ROUNDS.length - 1].end;
 window.draw(0);
 </script>

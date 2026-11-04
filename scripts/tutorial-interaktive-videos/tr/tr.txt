@@ -1,0 +1,75 @@
+0|Geri
+1|İleri
+2|WEFT EĞİTİMİ
+3|Etkileşimli bir video oluştur
+4|Yalnızca oynayan bir videonun öğrenme görevine dönüşmesi – dört adımda.
+5|Başlayalım
+6|Video öğesi
+7|Aslında Weft’teki video, sunumlar için bir öğedir: dosyayı slayta sürüklersin, oynata basarsın – bitti.
+8|Slaytta olup biten başka hiçbir şeyden haberi yoktur.
+9|Ama daha fazlasını yapabilir
+10|Videoyu başlat. Ortada kendiliğinden durur – ve bir soru belirir.
+11|Hangi iki renk karıştırıldı?
+12|Mavi ve sarı
+13|Kırmızı ve sarı
+14|Kırmızı ve mavi
+15|NASIL YAPILIR
+16|Adım 1: Sınavı oluştur
+17|Önce öğeleri oluştur: slaytın üstündeki “+” ile bir sınav eklersin.
+18|Soruyu ve cevapları yaz, sınava bir ad ver.
+19|Burada: Sınav
+20|Adım 2: Zaman işareti
+21|Videoyu seç ve “Zaman işaretlerini ayarla”yı aç. Videoyu istediğin yere kadar oynat ve orada bir zaman işareti oluştur.
+22|Zaman işareti burada: 0:06
+23|Video burada durur
+24|Adım 3: Sınav orada belirir
+25|Aynı pencerede “Görünmesini sağlar” bölümünden sınavı seçersin. Video zaman işaretine ulaşana kadar görünmez kalır.
+26|Sınav burada belirir
+27|… ve video devam edince kaybolur
+28|Adım 4: Video devam eder
+29|Olay grafiğinde “Videonun başı”na tıklarsın. Orada videonun ne zaman yeniden başlayacağını ayarlarsın: “Sınav gönderildi” olayından sonra.
+30|Biraz gecikmeyle – böylece cevabın doğru olup olmadığı önce görülür.
+31|Bu olaydan sonra devam eder
+32|Saniye cinsinden bekleme
+33|ZAMAN İŞARETLERİ
+34|Zaman işaretleri ayrıntılı
+35|Her zaman işaretinin dakika ve saniye cinsinden bir zamanı vardır – yaklaşık çeyrek saniye hassasiyetle. İstediğin kadar koyabilirsin; Weft onları sıralar.
+36|“Videoyu burada durdur” videoyu durdurur. İşaret olmadan video devam eder ve zaman işareti yalnızca bir şeyi tetikler – örneğin bir ipucunu.
+37|devam eder
+38|yalnızca bir ipucu gösterir
+39|durur
+40|sınav belirir
+41|OLAY GRAFİĞİ
+42|Olay grafiği
+43|Olay grafiği neyin ne zaman olduğunu gösterir. “İleri” ile onu bir kez adım adım gezeriz.
+44|Video 0:06 zaman işaretine ulaşır ve durur.
+45|Aynı anda sınav belirir.
+46|2’den 3’e, soru gönderilir gönderilmez geçilir – cevap doğru da olsa yanlış da olsa fark etmez.
+47|Ardından video, 1,8 saniyelik beklemeden sonra yeniden başlar.
+48|Video devam eder.
+49|Ve sınav yeniden kaybolur. Her yeni soruda bu desen tekrarlanır.
+50|İPUCU
+51|Çok soru: önce hepsini oluştur
+52|Videoda birden çok soru varsa önce tüm öğeleri oluştur ve onlara iyi adlar ver, böylece sınavları ayırt edebilirsin. Zaman işaretlerini ancak sonra koy ve öğeleri ata.
+53|1  Öğeleri oluştur ve adlandır
+54|S1 – Renkler
+55|S2 – Karıştırma
+56|S3 – Hatırlama
+57|2  Zaman işaretlerini koy ve ata
+58|FİKİRLER
+59|Başka neler ekleyebilirsin
+60|İpucu göster
+61|Durdurmayan bir zaman işareti metin veya görsel gösterir.
+62|Açığa çıkarmak için
+63|Video durur, bir düğmeye tıklamak daha fazlasını gösterir.
+64|Dallandırma
+65|Yanlış cevap mı? O zaman önce bir açıklama gelir.
+66|Eşleştir, sırala
+67|Videodan sonra öğrenenler gördüklerini pekiştirir.
+68|Puan topla
+69|Her doğru cevap sayılır – sonunda bir değerlendirme olur.
+70|Çok zaman işareti
+71|Soru soru: video küçük bir teste dönüşür.
+72|Şimdi sıra sende
+73|Yeni bir öğrenme modülü başlat, bir slayta bir video ve bir sınav sürükle ve ilk zaman işaretini koy.
+74|Sınavın orada belirmesini ve videonun sonra devam etmesini sağla – ilk etkileşimli videon hazır.

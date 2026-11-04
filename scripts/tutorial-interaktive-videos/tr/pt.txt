@@ -1,0 +1,75 @@
+0|Voltar
+1|Próximo
+2|TUTORIAL DO WEFT
+3|Criar um vídeo interativo
+4|Como um vídeo que apenas toca vira uma tarefa de aprendizagem – em quatro passos.
+5|Vamos lá
+6|O elemento de vídeo
+7|Na verdade, o vídeo no Weft é um elemento para apresentações: arraste um arquivo para o slide, aperte reproduzir – pronto.
+8|Ele não sabe nada do que mais acontece no slide.
+9|Mas ele pode mais
+10|Inicie o vídeo. Ele para sozinho no meio – e uma pergunta aparece.
+11|Quais foram as duas cores misturadas?
+12|Azul e amarelo
+13|Vermelho e amarelo
+14|Vermelho e azul
+15|COMO FAZER
+16|Passo 1: Criar o quiz
+17|Crie primeiro os elementos: com «+» acima do slide você adiciona um quiz.
+18|Escreva a pergunta e as respostas e dê um nome ao quiz.
+19|Aqui: Quiz
+20|Passo 2: A marca de tempo
+21|Selecione o vídeo e abra «Configurar marcas de tempo». Reproduza o vídeo até o ponto desejado e crie ali uma marca de tempo.
+22|Aqui fica a marca de tempo: 0:06
+23|Aqui o vídeo para
+24|Passo 3: O quiz aparece ali
+25|No mesmo diálogo você escolhe o quiz em «Faz aparecer». Até o vídeo chegar à marca de tempo, ele fica invisível.
+26|O quiz aparece aqui
+27|… e some quando o vídeo continua
+28|Passo 4: O vídeo continua
+29|No grafo de eventos você clica em «Início do vídeo». Ali define quando o vídeo recomeça: depois do evento «Quiz enviado».
+30|Com um pequeno atraso – assim dá para ver primeiro se a resposta estava certa.
+31|Depois deste evento continua
+32|Tempo de espera em segundos
+33|MARCAS DE TEMPO
+34|Marcas de tempo em detalhe
+35|Cada marca de tempo tem um tempo em minutos e segundos – com precisão de cerca de um quarto de segundo. Você pode definir quantas quiser; o Weft as ordena.
+36|Com «Parar o vídeo aqui», o vídeo para. Sem a marcação, ele continua, e a marca de tempo apenas dispara algo – por exemplo, uma dica.
+37|continua
+38|só mostra uma dica
+39|para
+40|o quiz aparece
+41|GRAFO DE EVENTOS
+42|O grafo de eventos
+43|O grafo de eventos mostra o que acontece e quando. Com «Próximo» percorremos tudo uma vez, passo a passo.
+44|O vídeo chega à marca de tempo 0:06 e para.
+45|No mesmo instante o quiz aparece.
+46|De 2 para 3 passa-se assim que a pergunta é enviada – não importa se a resposta está certa ou errada.
+47|Em seguida o vídeo recomeça, após 1,8 segundo de espera.
+48|O vídeo continua.
+49|E o quiz some de novo. A cada nova pergunta, esse padrão se repete.
+50|DICA
+51|Várias perguntas: crie tudo antes
+52|Com várias perguntas no vídeo, crie primeiro todos os elementos e dê bons nomes a eles para distinguir os quizzes. Só depois defina as marcas de tempo e atribua os elementos.
+53|1  Criar e nomear os elementos
+54|P1 – Cores
+55|P2 – Misturar
+56|P3 – Lembrar
+57|2  Definir as marcas de tempo e atribuir
+58|IDEIAS
+59|O que mais você pode incluir
+60|Mostrar uma dica
+61|Uma marca de tempo sem parada mostra texto ou imagem.
+62|Para revelar
+63|O vídeo para e um clique em um botão mostra mais.
+64|Ramificar
+65|Resposta errada? Então vem primeiro uma explicação.
+66|Associar, ordenar
+67|Depois do vídeo, os alunos fixam o que viram.
+68|Ganhar pontos
+69|Cada resposta certa conta – no fim há uma avaliação.
+70|Muitas marcas de tempo
+71|Uma pergunta após a outra: o vídeo vira um pequeno teste.
+72|Agora é a sua vez
+73|Comece um novo módulo de aprendizagem, arraste um vídeo e um quiz para um slide e defina a primeira marca de tempo.
+74|Faça o quiz aparecer ali e o vídeo continuar depois – e seu primeiro vídeo interativo está pronto.

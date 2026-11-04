@@ -4,3 +4,5 @@ crops/
 ops.json
 edit.log
 *.weft
+texts-*.json
+edit-*.log

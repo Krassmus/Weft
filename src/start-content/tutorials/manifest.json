@@ -80,11 +80,37 @@
     "minutes": 7
   },
   {
-    "file": "interaktionen.weft",
-    "title": { "de": "Ein interaktives Video erstellen", "en": "Create an interactive video" },
-    "description": { "de": "Kombiniere Videostopppunkte mit Texten, Bildern und Quizfragen.", "en": "Combine video stop points with texts, images and quiz questions." },
-    "tag": { "de": "Interaktionen", "en": "Interactions" },
-    "minutes": 9
+    "file": "interaktives-video.weft",
+    "title": {
+      "de": "Ein interaktives Video erstellen",
+      "en": "Create an interactive video",
+      "es": "Crear un vídeo interactivo",
+      "fr": "Créer une vidéo interactive",
+      "pt": "Criar um vídeo interativo",
+      "it": "Creare un video interattivo",
+      "tr": "Etkileşimli bir video oluştur",
+      "pl": "Stwórz interaktywne wideo"
+    },
+    "description": {
+      "de": "Ein Video, das stoppt und Fragen stellt: Zeitmarken setzen, ein Quiz erscheinen lassen und das Video danach weiterlaufen lassen.",
+      "en": "A video that stops and asks questions: set time marks, make a quiz appear and let the video go on afterwards.",
+      "es": "Un vídeo que se detiene y hace preguntas: pon marcas de tiempo, haz aparecer un cuestionario y deja que el vídeo continúe después.",
+      "fr": "Une vidéo qui s’arrête et pose des questions : place des repères temporels, fais apparaître un quiz et laisse la vidéo continuer ensuite.",
+      "pt": "Um vídeo que para e faz perguntas: defina marcas de tempo, faça um quiz aparecer e deixe o vídeo continuar depois.",
+      "it": "Un video che si ferma e fa domande: imposta i marcatori temporali, fai comparire un quiz e lascia proseguire il video.",
+      "tr": "Durup soru soran bir video: zaman işaretleri koy, bir sınav belirt ve videonun sonra devam etmesini sağla.",
+      "pl": "Wideo, które się zatrzymuje i zadaje pytania: ustaw znaczniki czasu, pokaż quiz i pozwól, by wideo leciało dalej."
+    },
+    "tag": {
+      "de": "Interaktionen",
+      "en": "Interactions",
+      "es": "Interacciones",
+      "fr": "Interactions",
+      "pt": "Interações",
+      "it": "Interazioni",
+      "tr": "Etkileşimler",
+      "pl": "Interakcje"
+    }
   },
   {
     "file": "quiz-verzweigungen.weft",

@@ -1,0 +1,75 @@
+0|Retour
+1|Suivant
+2|TUTORIEL WEFT
+3|Créer une vidéo interactive
+4|Comment une vidéo qui ne fait que défiler devient un exercice d’apprentissage – en quatre étapes.
+5|C’est parti
+6|L’élément vidéo
+7|À l’origine, la vidéo dans Weft est un élément pour les présentations : on glisse un fichier sur la diapositive, on appuie sur lecture – terminé.
+8|Elle ne sait rien de ce qui se passe d’autre sur la diapositive.
+9|Mais il peut faire plus
+10|Lance la vidéo. Elle s’arrête toute seule au milieu – et une question apparaît.
+11|Quelles deux couleurs ont été mélangées ?
+12|Bleu et jaune
+13|Rouge et jaune
+14|Rouge et bleu
+15|COMMENT FAIRE
+16|Étape 1 : créer le quiz
+17|Crée d’abord les éléments : avec « + » au-dessus de la diapositive, tu ajoutes un quiz.
+18|Écris-y la question et les réponses et donne un nom au quiz.
+19|Ici : Quiz
+20|Étape 2 : le repère temporel
+21|Sélectionne la vidéo et ouvre « Configurer les repères temporels ». Lis la vidéo jusqu’à l’endroit voulu et crée-y un repère temporel.
+22|Le repère temporel est ici : 0:06
+23|Ici la vidéo s’arrête
+24|Étape 3 : le quiz apparaît là
+25|Dans la même fenêtre, tu choisis le quiz sous « Fait apparaître ». Tant que la vidéo n’a pas atteint le repère temporel, il reste invisible.
+26|Le quiz apparaît ici
+27|… et disparaît quand la vidéo continue
+28|Étape 4 : la vidéo continue
+29|Dans le graphe d’événements, tu cliques sur « Début de la vidéo ». Tu y règles quand la vidéo repart : après l’événement « Quiz envoyé ».
+30|Avec un petit délai – on voit ainsi d’abord si la réponse était juste.
+31|Après cet événement, ça continue
+32|Délai d’attente en secondes
+33|REPÈRES TEMPORELS
+34|Les repères temporels en détail
+35|Chaque repère temporel a une heure en minutes et secondes – précise à environ un quart de seconde. Tu peux en poser autant que tu veux ; Weft les trie.
+36|Avec « Arrêter la vidéo ici », la vidéo s’arrête. Sans la case cochée, elle continue, et le repère temporel ne fait que déclencher quelque chose – par exemple un indice.
+37|continue
+38|affiche seulement un indice
+39|s’arrête
+40|le quiz apparaît
+41|GRAPHE D’ÉVÉNEMENTS
+42|Le graphe d’événements
+43|Le graphe d’événements montre ce qui se passe et quand. Avec « Suivant », on le parcourt une fois, étape par étape.
+44|La vidéo atteint le repère temporel 0:06 et s’arrête.
+45|Au même instant, le quiz apparaît.
+46|On passe de 2 à 3 dès que la question est envoyée – que la réponse soit juste ou fausse.
+47|Ensuite la vidéo repart, après 1,8 seconde d’attente.
+48|La vidéo continue.
+49|Et le quiz disparaît de nouveau. Pour chaque question suivante, ce schéma se répète.
+50|ASTUCE
+51|Plusieurs questions : créer d’abord
+52|Avec plusieurs questions, crée d’abord tous les éléments et donne-leur de bons noms pour distinguer les quiz. Ensuite seulement, pose les repères temporels et associe-leur les éléments.
+53|1  Créer et nommer les éléments
+54|Q1 – Couleurs
+55|Q2 – Mélange
+56|Q3 – Retenir
+57|2  Poser les repères temporels et associer
+58|IDÉES
+59|Ce que tu peux ajouter d’autre
+60|Afficher un indice
+61|Un repère temporel sans arrêt affiche texte ou image.
+62|À découvrir
+63|La vidéo s’arrête, un clic sur un bouton en montre plus.
+64|Brancher
+65|Mauvaise réponse ? Alors une explication d’abord.
+66|Associer, trier
+67|Après la vidéo, les apprenants consolident ce qu’ils ont vu.
+68|Gagner des points
+69|Chaque bonne réponse compte – à la fin, il y a un bilan.
+70|Nombreux repères
+71|Une question après l’autre : la vidéo devient un petit test.
+72|À toi de jouer
+73|Démarre un nouveau module d’apprentissage, glisse une vidéo et un quiz sur une diapositive et place le premier repère temporel.
+74|Fais apparaître le quiz à cet endroit et continuer la vidéo ensuite – ta première vidéo interactive est prête.

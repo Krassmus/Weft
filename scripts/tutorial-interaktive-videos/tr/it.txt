@@ -1,0 +1,75 @@
+0|Indietro
+1|Avanti
+2|TUTORIAL WEFT
+3|Creare un video interattivo
+4|Come un video che scorre soltanto diventa un compito di apprendimento – in quattro passi.
+5|Si parte
+6|L’elemento video
+7|In realtà il video in Weft è un elemento per le presentazioni: trascini un file sulla diapositiva, premi riproduci – fatto.
+8|Non sa nulla di ciò che succede altrove sulla diapositiva.
+9|Ma può fare di più
+10|Avvia il video. Si ferma da solo a metà – e compare una domanda.
+11|Quali due colori sono stati mescolati?
+12|Blu e giallo
+13|Rosso e giallo
+14|Rosso e blu
+15|COME SI FA
+16|Passo 1: creare il quiz
+17|Crea prima gli elementi: con «+» sopra la diapositiva aggiungi un quiz.
+18|Scrivi la domanda e le risposte e dai un nome al quiz.
+19|Qui: Quiz
+20|Passo 2: il marcatore temporale
+21|Seleziona il video e apri «Configura i marcatori temporali». Riproduci il video fino al punto voluto e crea lì un marcatore temporale.
+22|Qui c’è il marcatore temporale: 0:06
+23|Qui il video si ferma
+24|Passo 3: lì compare il quiz
+25|Nella stessa finestra scegli il quiz sotto «Fa comparire». Finché il video non raggiunge il marcatore temporale, resta invisibile.
+26|Qui compare il quiz
+27|… e scompare quando il video prosegue
+28|Passo 4: il video prosegue
+29|Nel grafo degli eventi clicchi su «Inizio del video». Lì imposti quando il video riparte: dopo l’evento «Quiz inviato».
+30|Con un piccolo ritardo – così si vede prima se la risposta era giusta.
+31|Dopo questo evento prosegue
+32|Attesa in secondi
+33|MARCATORI TEMPORALI
+34|I marcatori temporali nel dettaglio
+35|Ogni marcatore temporale ha un tempo in minuti e secondi – preciso a circa un quarto di secondo. Puoi metterne quanti vuoi; Weft li ordina.
+36|Con «Ferma il video qui» il video si ferma. Senza la spunta continua, e il marcatore temporale fa solo scattare qualcosa – per esempio un suggerimento.
+37|prosegue
+38|mostra solo un suggerimento
+39|si ferma
+40|compare il quiz
+41|GRAFO DEGLI EVENTI
+42|Il grafo degli eventi
+43|Il grafo degli eventi mostra cosa succede e quando. Con «Avanti» lo percorriamo una volta, passo dopo passo.
+44|Il video raggiunge il marcatore temporale 0:06 e si ferma.
+45|Nello stesso momento compare il quiz.
+46|Da 2 a 3 si passa non appena la domanda viene inviata – non importa se la risposta è giusta o sbagliata.
+47|Poi il video riparte, dopo 1,8 secondi di attesa.
+48|Il video prosegue.
+49|E il quiz scompare di nuovo. Per ogni domanda successiva questo schema si ripete.
+50|CONSIGLIO
+51|Più domande: prima crea tutto
+52|Con più domande nel video, crea prima tutti gli elementi e dai loro nomi chiari per distinguere i quiz. Solo dopo imposta i marcatori temporali e assegna loro gli elementi.
+53|1  Creare e nominare gli elementi
+54|D1 – Colori
+55|D2 – Mescolare
+56|D3 – Ricordare
+57|2  Impostare i marcatori e assegnare
+58|IDEE
+59|Cos’altro puoi inserire
+60|Mostrare un suggerimento
+61|Un marcatore senza stop mostra testo o immagine.
+62|Da scoprire
+63|Il video si ferma, un clic su un pulsante mostra di più.
+64|Diramare
+65|Risposta sbagliata? Allora prima c’è una spiegazione.
+66|Abbinare, ordinare
+67|Dopo il video, chi impara consolida ciò che ha visto.
+68|Raccogliere punti
+69|Ogni risposta giusta conta – alla fine c’è una valutazione.
+70|Molti marcatori temporali
+71|Una domanda dopo l’altra: il video diventa un piccolo test.
+72|Ora tocca a te
+73|Avvia un nuovo modulo di apprendimento, trascina un video e un quiz su una diapositiva e imposta il primo marcatore temporale.
+74|Fai comparire lì il quiz e proseguire il video dopo – ed ecco il tuo primo video interattivo.

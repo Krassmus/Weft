@@ -10,7 +10,7 @@ import { tr } from "../../core/i18n/tr";
 /**
  * What Weft shows for a player file (see exportPlayerFile in core/io/fileIO.ts): none of the editor, just the
  * module on its first page in a wide black frame, and a button in the black border for full screen. The
- * file's page plays exactly as it does in a browser. The window's menu is still there, for opening another file.
+ * file's page plays exactly as it does in a browser. A button leads back to the start screen (and so to other files).
  */
 export function PlayerShell({ file, menu, onStart }: { file: PlayerFile; menu?: ReactNode; onStart?: () => void }) {
   const [fullscreen, setFullscreen] = useState(false);
@@ -49,7 +49,7 @@ export function PlayerShell({ file, menu, onStart }: { file: PlayerFile; menu?: 
   return (
     <div className={"weft-player-shell" + (fullscreen ? " is-fullscreen" : "")}>
       <div className="weft-player-bar">
-        {/* Where there is no menu bar (a tablet) the File menu sits in the black border. */}
+        {/* The way back to the start screen; `menu` (the File menu) is optional and not used by the app at present. */}
         <div className="weft-player-menu">
           {onStart && (
             <button type="button" className="weft-player-fullscreen weft-player-back" onClick={onStart}>

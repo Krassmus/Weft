@@ -44,7 +44,7 @@ import type { FolderLink } from "../../core/collab/folder/folderSync";
 import type { WeftDocument } from "../../core/types";
 import { enterFullscreenPreview, watchFullscreenExit } from "../../core/window/fullscreen";
 import { Canvas } from "./Canvas";
-import { AppBar, FileMenu } from "./FileMenu";
+import { AppBar } from "./FileMenu";
 import type { MenuCommand } from "./FileMenu";
 import { CollabDialogs } from "./CollabDialogs";
 import { FolderLostDialog } from "./FolderLostDialog";
@@ -998,11 +998,8 @@ export function EditorShell() {
   if (player) {
     return (
       <div className="weft-shell">
-        <PlayerShell
-          file={player}
-          onStart={showStart}
-          menu={inAppMenu ? <FileMenu onCommand={runCommand} onOpenRecent={(path) => void handleOpenRecentRef.current(path)} playerShown /> : undefined}
-        />
+        {/* No File menu in the black border: playing is all there is; "Startbildschirm" leads back to the files. */}
+        <PlayerShell file={player} onStart={showStart} />
         <CollabDialogs />
         <LibraryDialogs onOpen={(path) => void handleOpenRecentRef.current(path)} currentPath={currentPath} />
       </div>

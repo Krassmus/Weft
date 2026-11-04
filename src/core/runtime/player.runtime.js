@@ -1847,9 +1847,25 @@
     var now = Date.now();
     if (now - lastTapAdvanceAt < 300) return;
     lastTapAdvanceAt = now;
-    if (goBack) back();
-    else weiter();
+    if (goBack) {
+      flashBackSide();
+      back();
+    } else weiter();
   });
+
+  // A tap on the left fifth means "Zurück": that part of the screen lights up for a moment, so the person sees that this is what they hit.
+  // A tap that goes forward is not marked.
+  function flashBackSide() {
+    var flash = document.createElement("div");
+    flash.className = "weft-back-flash";
+    flash.setAttribute("aria-hidden", "true");
+    document.body.appendChild(flash);
+    var remove = function () {
+      if (flash.parentNode) flash.parentNode.removeChild(flash);
+    };
+    flash.addEventListener("animationend", remove);
+    setTimeout(remove, 1000);
+  }
 
   // ---- rendering ----
   // Numeric [width, height] ratios (not a CSS aspect-ratio string) - stageStyle() below turns

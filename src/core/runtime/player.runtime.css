@@ -535,6 +535,28 @@ summary:focus-visible,
   cursor: default;
 }
 
+/* The left fifth of the screen, where a tap goes back (flashBackSide in player.runtime.js): a pale blue light (to be seen on a light slide as well as on a dark one) that fades at once. */
+.weft-back-flash {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 20%;
+  z-index: 10000;
+  pointer-events: none;
+  background: linear-gradient(to right, rgba(70, 140, 255, 0.38), rgba(70, 140, 255, 0.16) 70%, rgba(70, 140, 255, 0));
+  animation: weft-back-flash 0.45s ease-out forwards;
+}
+
+@keyframes weft-back-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 /* Less motion: nothing in the stylesheet may move either (the player's own animations are cut in player.runtime.js). */
 @media (prefers-reduced-motion: reduce) {
   *,

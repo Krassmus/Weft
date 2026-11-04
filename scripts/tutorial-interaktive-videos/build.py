@@ -85,7 +85,7 @@ pic(P, "icon_star.svg", 81, 59, 7, name="Stern")
 text(P, "WEFT-TUTORIAL", 8, 15, 50, size=2.6, color=TEAL, font=HEAD, bold=True, name="Kicker")
 text(P, "Ein interaktives Video erstellen", 8, 22, 49, size=6.4, font=HEAD, bold=True, line=1.1, name="Titel", h=32)
 bar(P, 8, 56, 14)
-text(P, "Wie aus einem Video, das nur abläuft, eine Lernaufgabe wird – in drei Schritten.", 8, 62, 44, size=2.3, color=MUTED, name="Untertitel")
+text(P, "Wie aus einem Video, das nur abläuft, eine Lernaufgabe wird – in vier Schritten.", 8, 62, 44, size=2.3, color=MUTED, name="Untertitel")
 ops.append({"op": "add_block", "page": P, "kind": "button", "set": {"position": {"x": 8, "y": 79, "width": 15, "height": 7}, "text": "Los geht’s", "action": "advance", "name": "Los geht’s", "html": f'<p style="line-height:1.25;margin:0"><font face="{BODY}" color="{DARK}"><b>Los geht’s</b></font></p>', "appearance": {"background": ACCENT, "borderColor": ACCENT, "borderWidth": 0}}})
 
 # ---- 2: a video is an element of a presentation ----------------------------------------------------------------------------------------
@@ -99,7 +99,7 @@ video(P, 51, 26, 42, "Video (ohne Zeitmarken)", "v2")
 # ---- 3: ... but it can be interactive ------------------------------------------------------------------------------------------------
 P = new_page("p3")
 heading(P, "Aber es kann mehr", sub_width=36)
-text(P, "Starte das Video. Es hält von selbst an – und stellt dir eine Frage.", 7, 25, 86, size=2.4, color=MUTED, name="Aufgabe", h=6)
+text(P, "Starte das Video. Es hält in der Mitte von selbst an – und eine Frage erscheint.", 7, 25, 86, size=2.4, color=MUTED, name="Aufgabe", h=6)
 video(P, 7, 33, 44, "Video (mit Zeitmarke)", "v3", stops=[("s1", 6.0, True)])
 ops.append({"op": "add_block", "page": P, "kind": "quiz", "set": {
     "position": {"x": 56, "y": 32, "width": 37, "height": 48}, "name": "Welche Farben?", "single": True,
@@ -111,30 +111,41 @@ ops.append({"op": "set_trigger", "page": P, "to": "entrance:$q3", "from": "video
 ops.append({"op": "add_trigger", "page": P, "to": "video-start:$v3", "from": "quiz-submit:$q3", "delayMs": 1800, "weiter": False})
 ops.append({"op": "set_trigger", "page": P, "to": "exit:$q3", "from": "video-resume:$v3:s1", "delayMs": 0, "weiter": False})
 
-# ---- 4: step 1, a time mark -----------------------------------------------------------------------------------------------------------
+# ---- 4: step 1, the question ---------------------------------------------------------------------------------------------------------
 P = new_page("p4")
 kicker(P, "SO GEHT’S")
-heading(P, "Schritt 1: Eine Zeitmarke setzen", sub_width=38)
+heading(P, "Schritt 1: Das Quiz erstellen", sub_width=38)
+cur[0] = 25
+body(P, "Lege zuerst die Elemente an: Mit „+“ über der Folie fügst du ein Quiz hinzu.", w=36, size=2.4, name="Quiz anlegen")
+body(P, "Schreibe die Frage und die Antworten hinein und gib dem Quiz einen Namen.", w=36, size=2.4, color=MUTED, name="Frage", effect=fx("up"))
+if SHOTS:
+    c = shot(P, "plus-menu", 352, 461, 67, 25, 24)
+    callout(P, c, rect("plus-menu", "quiz", (4, 3)), "Hier: Quiz", (44, 52), label_w=16, anchor=(52, 55), bend=0.2)
+
+# ---- 5: step 2, a time mark -----------------------------------------------------------------------------------------------------------
+P = new_page("p5")
+kicker(P, "SO GEHT’S")
+heading(P, "Schritt 2: Die Zeitmarke setzen", sub_width=38)
 text(P, "Wähle das Video aus und öffne „Zeitmarken konfigurieren“. Spiele das Video bis zur gewünschten Stelle und erstelle dort eine Zeitmarke.", 7, 25, 86, size=2.4, name="Zeitmarke", h=11)
 if SHOTS:
     c = shot(P, "dialog-mark", 720, 185, 12, 47, 76)
     callout(P, c, rect("dialog-mark", "mark", (2, 2)), "Hier sitzt die Zeitmarke: 0:06", (60, 37.5), label_w=34, anchor=(70, 44.5), bend=0.2)
     callout(P, c, rect("dialog-mark", "stop", width=150), "Hier hält das Video an", (38, 82), label_w=26, anchor=(48, 82), bend=-0.25)
 
-# ---- 5: step 2, the question appears there -------------------------------------------------------------------------------------------------
-P = new_page("p5")
+# ---- 6: step 3, the question appears there -------------------------------------------------------------------------------------------------
+P = new_page("p6")
 kicker(P, "SO GEHT’S")
-heading(P, "Schritt 2: Das Quiz erscheint dort", sub_width=38)
-text(P, "Im selben Dialog wählst du bei „Lässt erscheinen“ das Quiz aus. Bis das Video die Zeitmarke erreicht, bleibt es unsichtbar.", 7, 25, 86, size=2.4, name="Quiz", h=11)
+heading(P, "Schritt 3: Das Quiz erscheint dort", sub_width=38)
+text(P, "Im selben Dialog wählst du bei „Lässt erscheinen“ das Quiz aus. Bis das Video die Zeitmarke erreicht, bleibt es unsichtbar.", 7, 25, 86, size=2.4, name="Erscheinen", h=11)
 if SHOTS:
     c = shot(P, "dialog-shows", 720, 125, 12, 47, 76)
     callout(P, c, rect("dialog-shows", "row", width=210), "Das Quiz erscheint an der Zeitmarke", (36, 38.5), label_w=52, anchor=(60, 44.5), bend=0.2)
     callout(P, c, rect("dialog-shows", "again", width=395), "… und geht wieder, wenn das Video weiterläuft", (28, 75), label_w=64, anchor=(50, 77), bend=-0.2)
 
-# ---- 6: step 3, the video goes on ----------------------------------------------------------------------------------------------------------
-P = new_page("p6")
+# ---- 7: step 4, the video goes on ----------------------------------------------------------------------------------------------------------
+P = new_page("p7")
 kicker(P, "SO GEHT’S")
-heading(P, "Schritt 3: Das Video läuft weiter", sub_width=38)
+heading(P, "Schritt 4: Das Video läuft weiter", sub_width=38)
 cur[0] = 25
 body(P, "Im Event-Graph klickst du auf „Start des Videos“. Dort stellst du ein, wann das Video wieder losgeht: nach dem Ereignis „Quiz abgeschickt“.", w=36, size=2.4, name="Weiter")
 body(P, "Mit etwas Verzögerung – dann sieht man erst, ob die Antwort richtig war.", w=36, size=2.4, color=MUTED, name="Verzögerung", effect=fx("up"))
@@ -183,6 +194,27 @@ if SHOTS:
             ops.append({"op": "set_trigger", "page": P, "to": f"entrance:$mk{n}m", "from": f"entrance:$mk{n - 1}m", "delayMs": STAY, "weiter": False})
             ops.append({"op": "set_trigger", "page": P, "to": f"exit:$cp{n - 1}", "from": f"entrance:$mk{n}m", "delayMs": 0, "weiter": False})
 
+# ---- 9: several questions: create everything first --------------------------------------------------------------------------------------------
+P = new_page("p9")
+kicker(P, "TIPP")
+heading(P, "Mehrere Fragen: erst alles anlegen", sub_width=40)
+text(P, "Hast du mehrere Fragen im Video, lege zuerst alle Elemente an – und benenne sie gut, damit du die Quizze später auseinanderhältst. Erst dann setzt du die Zeitmarken und ordnest ihnen die Elemente zu.", 7, 24.5, 86, size=2.4, name="Erst anlegen", h=17)
+text(P, "1  Elemente anlegen und benennen", 7, 43, 60, size=2.6, color=TEAL, font=HEAD, bold=True, name="Schritt eins", effect=fx("up", 380), as_="tp1", h=6.5)
+MARKS_X = [24.2, 50.0, 75.8]  # where the three marks of timeline3.svg are (percent of the slide)
+tip_names = ["tp1"]
+for k, (x, label) in enumerate(zip(MARKS_X, ["Frage 1 – Farben", "Frage 2 – Mischen", "Frage 3 – Merken"])):
+    card(P, x - 12, 49.5, 24, 7.5, as_=f"tc{k}", color="#22305a", effect=fx("up", 380), name=f"Element {k + 1}")
+    text(P, label, x - 12, 51.2, 24, size=2.3, bold=True, align="center", font=BODY, line=1.1, h=5, effect=fx("up", 380), name=f"Name {k + 1}", as_=f"tn{k}")
+    tip_names += [f"tc{k}", f"tn{k}"]
+pic(P, "timeline3.svg", 7, 60.5, 86, h=round(86 * 16 / 9 * 110 / 1000, 2), name="Zeitleiste", effect=fx("up", 380), as_="tl")
+for k, x in enumerate(MARKS_X):
+    arrow(P, x, 57.6, x, 64.2, f"ta{k}", bend=0.0, color=MUTED)
+    text(P, ["0:06", "0:20", "0:41"][k], x - 6, 72, 12, size=2.6, color=CORAL, font=HEAD, bold=True, align="center", line=1.1, h=6.2, effect=fx("up", 380), name=f"Zeit {k + 1}", as_=f"tt{k}")
+text(P, "2  Zeitmarken setzen und zuordnen", 7, 78, 60, size=2.6, color=TEAL, font=HEAD, bold=True, name="Schritt zwei", effect=fx("up", 380), as_="tp2", h=6.5)
+tip_names += ["tl", "ta0", "ta1", "ta2", "tt0", "tt1", "tt2", "tp2"]
+ops.append({"op": "set_trigger", "page": P, "to": f"entrance:${tip_names[0]}", "from": "start", "delayMs": 800, "weiter": False})
+chain(P, tip_names, 220)
+
 # ---- 10: more ideas ------------------------------------------------------------------------------------------------------------------------
 P = new_page("p10")
 kicker(P, "IDEEN")
@@ -214,8 +246,8 @@ card(P, 66, 14, 27, 56, name="Tafel")
 pic(P, "icon_check.svg", 69.5, 24, 20, name="Haken")
 text(P, "Jetzt bist du dran", 7, 12, 56, size=7.0, font=HEAD, bold=True, color=ACCENT, name="Überschrift", h=16)
 bar(P, 7, 28, 14)
-text(P, "Starte ein neues Lernmodul, ziehe ein Video auf eine Folie und setze deine erste Zeitmarke.", 7, 35, 54, size=3.0, font=HEAD, bold=True, name="Aufforderung")
-text(P, "Ein Quiz, das von ihr ausgelöst wird, und ein Video, das danach weiterläuft – schon ist dein erstes interaktives Video fertig.", 7, 60, 54, size=2.5, effect=fx("up"), name="Schluss")
+text(P, "Starte ein neues Lernmodul, ziehe ein Video und ein Quiz auf eine Folie und setze die erste Zeitmarke.", 7, 35, 54, size=3.0, font=HEAD, bold=True, name="Aufforderung")
+text(P, "Lass das Quiz dort erscheinen und das Video danach weiterlaufen – schon ist dein erstes interaktives Video fertig.", 7, 60, 54, size=2.5, effect=fx("up"), name="Schluss")
 
 # ---- write -----------------------------------------------------------------------------------------------------------------------------
 (HERE / "ops.json").write_text(json.dumps(ops, ensure_ascii=False, indent=1))

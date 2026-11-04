@@ -37,13 +37,21 @@ async function picture(name, [x0, y0, x1, y1], named = {}) {
 
 // slide 3 (the third thumbnail), the video in the list of the slide's elements
 await click(143, 432);
-await sleep(600);
+// the + menu above the slide, with the question in it (it is the 4th of the "interactive" column: the 15th button)
+const plusAt = await c.evaluate(`(() => { const r=[...document.querySelectorAll("button")].map(b=>b.getBoundingClientRect()).filter(r=>r.y>45&&r.y<60&&r.x>270).sort((a,b)=>a.x-b.x)[1]; return [r.x+r.width/2, r.y+r.height/2]; })()`);
+await click(...plusAt, 800);
+const popup = `(() => { let e = document.elementFromPoint(${plusAt[0]} + 60, ${plusAt[1]} + 140); while (e && !(e.getBoundingClientRect().width > 250 && e.getBoundingClientRect().height > 300)) e = e.parentElement; return e; })()`;
+const popupRect = await c.evaluate(box(popup));
+await picture("plus-menu", [popupRect[0] - 6, popupRect[1] - 6, popupRect[2] + 6, popupRect[3] + 6], { quiz: box(`${popup}.querySelectorAll("button")[14]`) });
+await c.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape" });
+await sleep(400);
+await click(800, 22, 500); // (the empty bar at the top: the menu is surely closed)
 const videoItem = await c.evaluate(`(() => { const e=[...document.querySelectorAll(".weft-inspector *")].filter(e=>e.textContent.trim()==="Video (mit Zeitmarke)").pop(); if (!e) return null; const r=e.getBoundingClientRect(); return [r.x+r.width/2, r.y+r.height/2]; })()`);
 if (!videoItem) { await c.shot(`${OUT}/debug.png`); throw new Error("the video is not in the list of elements - see debug.png"); }
 await click(...videoItem);
 
 // the dialog of the time marks, with the mark chosen
-const configure = await c.evaluate(`(() => { const b=[...document.querySelectorAll("button")].find(b=>b.textContent.includes("Zeitmarken konfig") || /configur|konfigur|configurar|configurer|configura|yapılandır|konfiguruj/i.test(b.textContent)); const r=b.getBoundingClientRect(); return [r.x+r.width/2, r.y+r.height/2]; })()`);
+const configure = await c.evaluate(`(() => { const b=[...document.querySelectorAll(".weft-inspector button")].find(b=>b.textContent.includes("Zeitmarken konfig") || /configur|konfigur|configurar|configurer|configura|yapılandır|konfiguruj/i.test(b.textContent)); const r=b.getBoundingClientRect(); return [r.x+r.width/2, r.y+r.height/2]; })()`);
 await click(...configure, 900);
 await click(...(await centre(`document.querySelector(".weft-stop-point-marker")`)), 1000);
 const modal = `document.querySelector(".weft-modal")`;

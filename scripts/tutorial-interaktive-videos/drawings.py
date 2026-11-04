@@ -100,6 +100,14 @@ def timeline(w=1000, h=110):
     ))
 
 
+def timeline3(w=1000, h=110):
+    """a bar for a video with three time marks that stop it (coral, with a pause sign)"""
+    body = f'<rect x="20" y="49" width="960" height="14" rx="7" fill="{LINE}"/><rect x="20" y="49" width="780" height="14" rx="7" fill="{BLUE}"/>'
+    for x in (200, 500, 800):
+        body += f'<circle cx="{x}" cy="56" r="22" fill="{CORAL}" stroke="{BG}" stroke-width="6"/><rect x="{x - 8}" y="46" width="6" height="20" rx="2" fill="#ffffff"/><rect x="{x + 3}" y="46" width="6" height="20" rx="2" fill="#ffffff"/>'
+    return svg(w, h, body)
+
+
 def marker():
     return svg(100, 100, f'<circle cx="50" cy="50" r="46" fill="{AMBER}" stroke="{BG}" stroke-width="6"/>')
 
@@ -128,6 +136,7 @@ def build():
     for name, fn in {"clapper": icon_clapper, "clock": icon_clock, "note": icon_note, "cursor": icon_cursor, "fork": icon_fork, "cards": icon_cards, "star": icon_star, "check": icon_check, "play": icon_play}.items():
         save(f"icon_{name}.svg", 200, 200, fn())
     (OUT / "timeline.svg").write_text(timeline())
+    (OUT / "timeline3.svg").write_text(timeline3())
     (OUT / "marker.svg").write_text(marker())
 
 

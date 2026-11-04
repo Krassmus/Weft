@@ -32,8 +32,8 @@ A list of entries:
 ```json
 [
   {
-    "file": "grundlagen.weft",
-    "title": { "de": "Die erste Präsentation", "en": "Your first presentation" },
+    "file": "mein-tutorial.weft",
+    "title": { "de": "Mein Tutorial", "en": "My tutorial" },
     "description": { "de": "…", "en": "…" },
     "tag": { "de": "Grundlagen", "en": "Basics" },
     "minutes": 6

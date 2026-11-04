@@ -22,7 +22,7 @@ Zum Ausprobieren der Sandbox auf diesem Mac (nicht hochladbar, ad-hoc signiert):
 npm run mac:appstore:test
 ```
 
-Die App läuft dann in ihrem eigenen Container (`~/Library/Containers/com.weft.app`). Ihre Meldungen sieht man, wenn man `src-tauri/target/release/bundle/macos/Weft.app/Contents/MacOS/weft` im Terminal startet („sandbox: access to N files and folders restored“).
+Die App läuft dann in ihrem eigenen Container (`~/Library/Containers/eu.townwork.weft`). Ihre Meldungen sieht man, wenn man `src-tauri/target/release/bundle/macos/Weft.app/Contents/MacOS/weft` im Terminal startet („sandbox: access to N files and folders restored“).
 
 Für den Store, signiert:
 
@@ -37,10 +37,10 @@ Das ergibt `src-tauri/target/release/bundle/macos/Weft-<version>.pkg`, das mit d
 
 ## Im Apple-Konto (einmalig, nur der Kontoinhaber kann das)
 
-1. **App-ID** `com.weft.app` für macOS anlegen (Certificates, Identifiers & Profiles → Identifiers; für iOS gibt es sie schon).
+1. **App-ID** `eu.townwork.weft` anlegen, für macOS und für iOS (Certificates, Identifiers & Profiles → Identifiers). Die Bundle-ID ist die umgekehrte Schreibweise der eigenen Domain (townwork.eu); sie lässt sich nach dem Anlegen der App in App Store Connect nicht mehr ändern.
 2. **Zertifikate** für den Mac erzeugen: „Apple Distribution“ und „Mac Installer Distribution“ (früher „3rd Party Mac Developer Application“ / „Installer“). Die Anfrage erzeugt die Schlüsselbundverwaltung.
-3. **Provisioning Profile** „Mac App Store Connect“ für `com.weft.app` erzeugen und herunterladen (`.provisionprofile`).
-4. In **App Store Connect** zwei Apps anlegen (oder eine mit zwei Plattformen, Bundle-ID `com.weft.app`): Name, Kategorie, Beschreibung (acht Sprachen möglich), Screenshots (Mac: 1280×800 oder größer; iPad: 2048×2732 oder 2064×2752), Datenschutz-URL, Support-URL, Altersfreigabe.
+3. **Provisioning Profile** „Mac App Store Connect“ für `eu.townwork.weft` erzeugen und herunterladen (`.provisionprofile`).
+4. In **App Store Connect** zwei Apps anlegen (oder eine mit zwei Plattformen, Bundle-ID `eu.townwork.weft`): Name, Kategorie, Beschreibung (acht Sprachen möglich), Screenshots (Mac: 1280×800 oder größer; iPad: 2048×2732 oder 2064×2752), Datenschutz-URL, Support-URL, Altersfreigabe.
 5. **Datenschutz-Angaben** („App-Datenschutz“): Weft erhebt keine Daten. Die Zusammenarbeit läuft direkt zwischen den Geräten (WebRTC), vermittelt über öffentliche Relays und STUN-Server; die sehen IP-Adressen. Das steht auch auf der Datenschutzseite in der App (`src/features/start/PrivacyPage.tsx`) und gehört in die Datenschutzerklärung unter der Datenschutz-URL.
 6. **Exportvorschriften** („Verschlüsselung“): App Store Connect fragt bei jedem Upload, ob die App Verschlüsselung nutzt. Die Zusammenarbeit verschlüsselt mit einem eigenen Schlüssel (der Einladungslink enthält ihn). Wie das rechtlich einzuordnen ist, entscheidet der Kontoinhaber; der Schlüssel `ITSAppUsesNonExemptEncryption` steht deshalb **nicht** in den Info.plist-Dateien.
 

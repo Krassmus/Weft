@@ -14,4 +14,4 @@ BUILD=src-tauri/gen/apple/build
 rm -rf "$BUILD/weft_iOS.xcarchive" "$BUILD/arm64"
 npx tauri ios build --debug --target aarch64 --export-method debugging --ci
 xcrun devicectl device install app --device "$DEVICE" "$BUILD/arm64/Weft.ipa"
-xcrun devicectl device process launch --device "$DEVICE" --terminate-existing com.weft.app
+xcrun devicectl device process launch --device "$DEVICE" --terminate-existing eu.townwork.weft

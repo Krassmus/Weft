@@ -3,14 +3,14 @@
 # privacy manifest, the category "Education" (src-tauri/tauri.macos-appstore.conf.json).
 #
 #   npm run mac:appstore:test     the sandboxed app with an ad hoc signature, to try on THIS Mac (it runs in its own container,
-#                                 ~/Library/Containers/com.weft.app) - cannot be uploaded
+#                                 ~/Library/Containers/eu.townwork.weft) - cannot be uploaded
 #   npm run mac:appstore          signed for the store: src-tauri/target/release/bundle/macos/Weft-<version>.pkg, to upload with the
 #                                 app "Transporter" (or `xcrun altool --upload-package`)
 #
 # The signed version needs three things from the developer account (developer.apple.com > Certificates, Identifiers & Profiles):
 #   WEFT_APP_IDENTITY            the certificate "Apple Distribution: Name (7GD6JHBABJ)" (older name: "3rd Party Mac Developer Application: ...")
 #   WEFT_INSTALLER_IDENTITY      the certificate "3rd Party Mac Developer Installer: Name (7GD6JHBABJ)" (newer: "Mac Installer Distribution: ...")
-#   WEFT_PROVISIONING_PROFILE    the path of the provisioning profile "Mac App Store" for the app id com.weft.app (a .provisionprofile file)
+#   WEFT_PROVISIONING_PROFILE    the path of the provisioning profile "Mac App Store" for the app id eu.townwork.weft (a .provisionprofile file)
 # (`security find-identity -v` shows the exact names of the certificates in the keychain.)
 set -e
 MODE="${1:-}"

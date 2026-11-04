@@ -19,7 +19,7 @@ import { CliError } from "./load";
 /** Where the app says how to reach it: the port and a password (control.json in the app's data folder). */
 export function controlFile(): string {
   if (process.env.WEFT_CONTROL_FILE) return process.env.WEFT_CONTROL_FILE;
-  const identifier = "com.weft.app";
+  const identifier = "eu.townwork.weft";
   if (process.platform === "darwin") return join(homedir(), "Library", "Application Support", identifier, "control.json");
   if (process.platform === "win32") return join(process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"), identifier, "control.json");
   return join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), identifier, "control.json");

@@ -1,6 +1,6 @@
 name: weft
 options:
-  bundleIdPrefix: com.weft.app
+  bundleIdPrefix: eu.townwork.weft
   deploymentTarget:
     iOS: 16.0
 fileGroups: [../../src]
@@ -11,7 +11,7 @@ settingGroups:
   app:
     base:
       PRODUCT_NAME: Weft
-      PRODUCT_BUNDLE_IDENTIFIER: com.weft.app
+      PRODUCT_BUNDLE_IDENTIFIER: eu.townwork.weft
 targetTemplates:
   app:
     type: application

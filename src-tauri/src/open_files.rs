@@ -79,12 +79,39 @@ pub fn open_file(path: &Path, handed_over: bool) {
 }
 
 /// The .weft files among `urls` as tao reports them (a URL in text form: no access to a file that was opened in place, see
-/// ios_open_urls.rs for the entry point that has it).
+/// ios_open_urls.rs for the entry point that has it). (Links like "weft://..." are no file paths and are left to the deep-link plugin.)
 pub fn handle_opened(urls: &[tauri::Url]) {
     for url in urls {
         if let Ok(path) = url.to_file_path() {
+            #[cfg(target_os = "ios")]
             open_file(&path, false);
+            #[cfg(not(target_os = "ios"))]
+            open_path(&path);
         }
+    }
+}
+
+/// The desktop: a .weft file that the system hands over (a double click in the Finder or the Explorer, "Open with") is opened where it
+/// lies - there is no library to copy it into, as on the tablet. The page opens it like a file of the "recent" list.
+#[cfg(desktop)]
+pub fn open_path(path: &Path) {
+    if !path.extension().is_some_and(|extension| extension.eq_ignore_ascii_case("weft")) || !path.is_file() {
+        return;
+    }
+    let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    PENDING.lock().unwrap().push(OpenedFile { name, path: Some(path.to_string_lossy().into_owned()), error: None });
+    if let Some(app) = APP.get() {
+        let _ = app.emit("weft://open-file", ());
+    }
+}
+
+/// Windows and Linux hand a file over as an argument of the program ("weft.exe C:\\...\\modul.weft"): the program's own start, and - when
+/// it is running already - the second start that the single-instance plugin passes on. Whatever is no .weft file (a "weft:" link
+/// is an argument too) is left alone.
+#[cfg(desktop)]
+pub fn handle_args(args: &[String]) {
+    for arg in args {
+        open_path(Path::new(arg));
     }
 }
 

@@ -707,13 +707,19 @@ pub fn run() {
     // the deep-link plugin picks up, and ends. All it needs to do itself is show the window.
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            // (a double click on a .weft file is a second start with the file as its argument)
+            open_files::handle_args(args.get(1..).unwrap_or(&[]));
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.unminimize();
                 let _ = window.set_focus();
             }
         }));
     }
+
+    // The file this start was made for (a double click on a .weft file): the page fetches it when it is ready.
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    open_files::handle_args(&std::env::args().skip(1).collect::<Vec<_>>());
 
     let app = builder
         .plugin(tauri_plugin_deep_link::init())
@@ -892,8 +898,9 @@ pub fn run() {
         .expect("error while building tauri application");
 
     app.run(|_app_handle, _event| {
-        // "In Weft öffnen" on the tablet: a .weft file that the system hands over (see open_files.rs).
-        #[cfg(target_os = "ios")]
+        // "In Weft öffnen": a .weft file that the system hands over (see open_files.rs) - on the tablet, and on the Mac (a double click
+        // in the Finder; Windows and Linux pass it as an argument, see above).
+        #[cfg(any(target_os = "ios", target_os = "macos"))]
         if let tauri::RunEvent::Opened { urls } = &_event {
             open_files::handle_opened(urls);
         }

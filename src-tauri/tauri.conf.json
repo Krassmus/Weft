@@ -42,6 +42,16 @@
     "iOS": {
       "minimumSystemVersion": "16.0"
     },
+    "fileAssociations": [
+      {
+        "ext": ["weft"],
+        "name": "Weft-Lernmodul",
+        "description": "Weft-Lernmodul",
+        "mimeType": "application/x-weft",
+        "role": "Editor",
+        "rank": "Owner"
+      }
+    ],
     "macOS": {
       "dmg": {
         "background": "dmg/background.png",

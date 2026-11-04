@@ -132,7 +132,9 @@ for i, (icon, title, desc, tag) in enumerate(WAYS):
     way_names += [f"wc{i}", f"wi{i}", f"wt{i}", f"wx{i}", f"wg{i}"]
 ops.append({"op": "set_trigger", "page": P, "to": f"entrance:${way_names[0]}", "from": "start", "delayMs": 500, "weiter": False})
 chain(P, way_names, 120)
-text(P, "Klappt eine Verbindung nicht, hilft ein TURN-Server – dazu gleich mehr.", 7, 78.4, 86, size=1.8, color=MUTED, name="TURN", h=6)
+# (the hint comes last, a moment after the last card is there: it should not take the eyes off the texts that are just appearing)
+text(P, "Klappt eine Verbindung nicht, hilft ein TURN-Server – dazu gleich mehr.", 7, 78.4, 86, size=1.8, color=MUTED, name="TURN", h=6, effect=fx("up", 500), as_="turnhint")
+ops.append({"op": "set_trigger", "page": P, "to": "entrance:$turnhint", "from": f"entrance:${way_names[-1]}", "delayMs": 3500, "weiter": False})
 
 # ---- 4: way 1, the link (1/2) --------------------------------------------------------------------------------------------------
 P = new_page("p4")

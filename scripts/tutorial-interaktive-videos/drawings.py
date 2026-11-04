@@ -1,99 +1,134 @@
-"""The hand-drawn pictures of the tutorial "Ein interaktives Video erstellen" (SVG, into assets/): the look and most of the pens are those of the first
-tutorial (../tutorial-erstes-lernmodul/doodles.py); what is new here are the icons of the ideas (a clock, a note, a fork, cards, a pointer)."""
+"""The pictures of the tutorial "Ein interaktives Video erstellen" (SVG, into assets/): flat, clean shapes in the colours of the module - no hand drawing, so that
+the module does not look like "Mit Lernmodulen arbeiten". Icons are 200 x 200; rings, arrows and the marker are made to measure (see kit.py)."""
 import math
 import pathlib
-import sys
 
-HERE = pathlib.Path(__file__).parent
-sys.path.insert(0, str(HERE.parent / "tutorial-erstes-lernmodul"))
-import doodles as base  # noqa: E402
-from doodles import INK, TIER, Pen, ellipse_pts  # noqa: E402
-
-OUT = HERE / "assets"
-base.OUT = OUT  # (base.save writes there)
-save = base.save
-svg = base.svg
+OUT = pathlib.Path(__file__).parent / "assets"
+BG, PANEL, LINE = "#0f1629", "#17223d", "#3a4a70"
+AMBER, TEAL, CORAL, BLUE, PAPER_TEXT = "#ffb400", "#2dd4bf", "#ff6b5e", "#5b8def", "#e9edf7"
+DARK = "#0f1629"
 
 
-def icon_clock(c):
-    p = Pen(41)
-    s = p.line([(86, 28), (114, 28)], width=5, passes=1) + p.line([(100, 30), (100, 48)], width=4, passes=1)
-    s += p.line([(150, 52), (162, 38)], width=5, passes=1)
-    s += p.line(ellipse_pts(100, 112, 62, 62, 18), True, fill=c)
-    for a in (-90, 0, 90, 180):
-        x1, y1 = 100 + 48 * math.cos(math.radians(a)), 112 + 48 * math.sin(math.radians(a))
-        x2, y2 = 100 + 56 * math.cos(math.radians(a)), 112 + 56 * math.sin(math.radians(a))
-        s += p.line([(x1, y1), (x2, y2)], width=3, passes=1, amp=0.8)
-    s += p.line([(100, 112), (100, 70)], width=4.2, passes=1, amp=1) + p.line([(100, 112), (130, 128)], width=4.2, passes=1, amp=1)
-    return s + p.dot((100, 112), 5.5)
+def svg(w, h, body):
+    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">{body}</svg>\n'
 
 
-def icon_note(c):
-    p = Pen(42)
-    s = p.line([(34, 34), (166, 34), (166, 122), (122, 166), (34, 166)], True, fill=c)
-    s += p.line([(122, 166), (124, 124), (166, 122)], True, width=3, passes=1, fill="#fff3d6", offset=(0, 0))
-    for y, x1 in ((64, 144), (88, 144), (112, 100)):
-        s += p.line([(56, y), (x1, y)], width=3, passes=1, amp=1.2)
-    return s
+def save(name, w, h, body):
+    OUT.mkdir(exist_ok=True)
+    (OUT / name).write_text(svg(w, h, body))
 
 
-def icon_fork(c):
-    p = Pen(43)
-    s = p.line([(100, 160), (100, 112), (56, 70)], width=4.2, passes=2, amp=1.4, step=60)
-    s += p.line([(100, 112), (146, 70)], width=4.2, passes=2, amp=1.4, step=60)
-    s += p.line([(44, 82), (56, 66), (70, 76)], width=4, passes=1, amp=0.8) + p.line([(134, 80), (146, 66), (160, 74)], width=4, passes=1, amp=0.8)
-    s += p.line(ellipse_pts(100, 172, 15, 15, 10), True, fill=c)
-    s += p.line(ellipse_pts(54, 42, 24, 24, 12), True, fill=c, offset=(4, 3)) + p.line(ellipse_pts(148, 42, 24, 24, 12), True, fill="#fff3d6", offset=(4, 3))
-    return s
+def star_points(cx, cy, r_out, r_in, n=5, rot=-90):
+    pts = []
+    for i in range(n * 2):
+        r = r_out if i % 2 == 0 else r_in
+        a = math.radians(rot + i * 180 / n)
+        pts.append(f"{cx + r * math.cos(a):.1f},{cy + r * math.sin(a):.1f}")
+    return " ".join(pts)
 
 
-def icon_cards(c):
-    p = Pen(44)
-    s = p.line([(22, 36), (92, 36), (92, 100), (22, 100)], True, fill=c)
-    s += p.line([(108, 100), (178, 100), (178, 164), (108, 164)], True, fill="#fff3d6")
-    s += p.line([(92, 68), (126, 76), (140, 98)], width=3.4, passes=1, amp=1.4, step=40)
-    s += p.line([(130, 88), (140, 100), (150, 90)], width=3.4, passes=1, amp=0.8)
-    s += p.line([(36, 58), (78, 58)], width=3, passes=1, amp=1) + p.line([(122, 122), (164, 122)], width=3, passes=1, amp=1)
-    return s
+def icon_clapper():
+    stripes = "".join(f'<polygon points="{28 + i * 30},52 {52 + i * 30},52 {36 + i * 30},82 {12 + i * 30},82" fill="{AMBER if i % 2 == 0 else DARK}"/>' for i in range(6))
+    return (
+        f'<rect x="28" y="88" width="144" height="82" rx="10" fill="{PAPER_TEXT}"/>'
+        f'<rect x="46" y="110" width="70" height="9" rx="4.5" fill="#aab6d3"/><rect x="46" y="130" width="108" height="9" rx="4.5" fill="#aab6d3"/><rect x="46" y="150" width="50" height="9" rx="4.5" fill="#aab6d3"/>'
+        f'<g transform="rotate(-10 28 84)"><clipPath id="c"><rect x="28" y="52" width="144" height="30" rx="7"/></clipPath><rect x="28" y="52" width="144" height="30" rx="7" fill="{DARK}"/><g clip-path="url(#c)">{stripes}</g></g>'
+        f'<rect x="28" y="82" width="144" height="12" rx="4" fill="{DARK}"/>'
+    )
 
 
-def icon_cursor(c):
-    p = Pen(45)
-    s = p.line([(24, 44), (148, 44), (148, 116), (24, 116)], True, fill=c)
-    s += p.line([(44, 66), (128, 66)], width=3, passes=1, amp=1.2) + p.line([(44, 88), (100, 88)], width=3, passes=1, amp=1.2)
-    s += p.line([(112, 96), (112, 176), (132, 158), (148, 190), (162, 182), (146, 152), (174, 150)], True, width=3.4, passes=1, fill="#ffffff", offset=(0, 0), sharp=True)
-    return s
+def icon_clock():
+    return (
+        f'<rect x="86" y="24" width="28" height="13" rx="4" fill="#9fb0cc"/><rect x="94" y="36" width="12" height="12" fill="#9fb0cc"/>'
+        f'<rect x="146" y="46" width="22" height="11" rx="4" fill="#9fb0cc" transform="rotate(40 157 51)"/>'
+        f'<circle cx="100" cy="114" r="62" fill="{TEAL}"/><circle cx="100" cy="114" r="50" fill="{DARK}"/>'
+        f'<path d="M100 114 L100 78 M100 114 L126 128" stroke="#ffffff" stroke-width="8" stroke-linecap="round" fill="none"/><circle cx="100" cy="114" r="7" fill="#ffffff"/>'
+    )
+
+
+def icon_note():
+    return (
+        f'<path d="M36 52 a16 16 0 0 1 16 -16 H148 a16 16 0 0 1 16 16 V120 L120 164 H52 a16 16 0 0 1 -16 -16 Z" fill="{AMBER}"/>'
+        f'<path d="M120 164 V132 a12 12 0 0 1 12 -12 H164 Z" fill="#c78a00"/>'
+        f'<rect x="56" y="66" width="88" height="9" rx="4.5" fill="{DARK}"/><rect x="56" y="88" width="88" height="9" rx="4.5" fill="{DARK}"/><rect x="56" y="110" width="50" height="9" rx="4.5" fill="{DARK}"/>'
+    )
+
+
+def icon_cursor():
+    return (
+        f'<rect x="24" y="40" width="134" height="86" rx="14" fill="{TEAL}"/>'
+        f'<rect x="44" y="62" width="94" height="9" rx="4.5" fill="{DARK}"/><rect x="44" y="84" width="60" height="9" rx="4.5" fill="{DARK}"/>'
+        f'<path d="M104 96 V176 L124 158 L140 190 L154 183 L138 152 L166 150 Z" fill="#ffffff" stroke="{DARK}" stroke-width="6" stroke-linejoin="round"/>'
+    )
+
+
+def icon_fork():
+    return (
+        f'<path d="M100 164 V112 L54 70 M100 112 L146 70" stroke="#e5e9f5" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
+        f'<circle cx="100" cy="170" r="16" fill="{BLUE}"/><circle cx="54" cy="46" r="24" fill="{CORAL}"/><circle cx="146" cy="46" r="24" fill="{TEAL}"/>'
+        f'<path d="M44 46 L52 54 L66 38" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
+    )
+
+
+def icon_cards():
+    return (
+        f'<rect x="20" y="34" width="76" height="66" rx="12" fill="{CORAL}"/><rect x="104" y="100" width="76" height="66" rx="12" fill="{PAPER_TEXT}"/>'
+        f'<path d="M96 66 C124 66 130 82 130 96" stroke="#e5e9f5" stroke-width="7" stroke-linecap="round" fill="none"/><path d="M120 90 L130 102 L141 90" stroke="#e5e9f5" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
+        f'<rect x="36" y="58" width="44" height="8" rx="4" fill="{DARK}"/><rect x="120" y="124" width="44" height="8" rx="4" fill="{DARK}"/>'
+    )
+
+
+def icon_star():
+    return f'<polygon points="{star_points(100, 106, 76, 32)}" fill="{AMBER}" stroke="{AMBER}" stroke-width="10" stroke-linejoin="round"/>'
+
+
+def icon_check():
+    return f'<circle cx="100" cy="100" r="76" fill="{TEAL}"/><path d="M62 104 L90 132 L140 74" stroke="{DARK}" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
+
+
+def icon_play():
+    return f'<circle cx="100" cy="100" r="76" fill="{AMBER}"/><path d="M82 66 L140 100 L82 134 Z" fill="{DARK}" stroke="{DARK}" stroke-width="8" stroke-linejoin="round"/>'
 
 
 def timeline(w=1000, h=110):
-    """a bar for a video with two time marks on it: one that does not stop it (blue) and one that does (red, with a pause sign)"""
-    p = Pen(51)
-    s = p.line([(20, 56), (980, 56)], width=6, passes=2, amp=1.6, step=80, over=0.01)
-    s += p.line([(20, 38), (20, 74)], width=5, passes=1, amp=0.8) + p.line([(980, 38), (980, 74)], width=5, passes=1, amp=0.8)
-    s += p.line(ellipse_pts(300, 56, 20, 20, 12), True, fill="#7dbdc4", offset=(3, 3))
-    s += p.line(ellipse_pts(640, 56, 20, 20, 12), True, fill="#d9534f", offset=(3, 3))
-    s += p.line([(634, 47), (634, 65)], width=5, passes=1, amp=0.5, color="#ffffff") + p.line([(647, 47), (647, 65)], width=5, passes=1, amp=0.5, color="#ffffff")
-    return svg(w, h, s)
+    """a bar for a video with two time marks on it: one that does not stop it (teal) and one that does (coral, with a pause sign)"""
+    return svg(w, h, (
+        f'<rect x="20" y="49" width="960" height="14" rx="7" fill="{LINE}"/><rect x="20" y="49" width="620" height="14" rx="7" fill="{BLUE}"/>'
+        f'<circle cx="300" cy="56" r="22" fill="{TEAL}" stroke="{BG}" stroke-width="6"/>'
+        f'<circle cx="640" cy="56" r="22" fill="{CORAL}" stroke="{BG}" stroke-width="6"/>'
+        f'<rect x="632" y="46" width="6" height="20" rx="2" fill="#ffffff"/><rect x="643" y="46" width="6" height="20" rx="2" fill="#ffffff"/>'
+    ))
+
+
+def marker():
+    return svg(100, 100, f'<circle cx="50" cy="50" r="46" fill="{AMBER}" stroke="{BG}" stroke-width="6"/>')
+
+
+def ring_svg(path, w, h, color=AMBER, width=4.5):
+    w, h = int(round(w)), int(round(h))
+    path.write_text(svg(w, h, f'<ellipse cx="{w / 2}" cy="{h / 2}" rx="{w / 2 - width}" ry="{h / 2 - width}" fill="none" stroke="{color}" stroke-width="{width}"/>'))
+
+
+def arrow_svg(path, w, h, x0, y0, x1, y1, bend=0.25, color=AMBER, width=4.5):
+    """an arrow from (x0, y0) to (x1, y1) in a canvas of w x h pixels: a curve with a head"""
+    w, h = int(round(w)), int(round(h))
+    dx, dy = x1 - x0, y1 - y0
+    cx, cy = (x0 + x1) / 2 - dy * bend, (y0 + y1) / 2 + dx * bend
+    tx, ty = x1 - cx, y1 - cy
+    ln = math.hypot(tx, ty) or 1
+    tx, ty = tx / ln, ty / ln
+    size = 15
+    bx, by = x1 - tx * size, y1 - ty * size
+    head = f"{x1:.1f},{y1:.1f} {bx - ty * size * 0.55:.1f},{by + tx * size * 0.55:.1f} {bx + ty * size * 0.55:.1f},{by - tx * size * 0.55:.1f}"
+    path.write_text(svg(w, h, f'<path d="M{x0:.1f} {y0:.1f} Q{cx:.1f} {cy:.1f} {bx:.1f} {by:.1f}" fill="none" stroke="{color}" stroke-width="{width}" stroke-linecap="round"/><polygon points="{head}" fill="{color}"/>'))
 
 
 def build():
     OUT.mkdir(exist_ok=True)
-    save("icon_tv.svg", 200, 200, base.icon_tv(TIER[2]))
-    save("icon_bulb.svg", 200, 200, base.icon_bulb())
-    save("icon_check.svg", 200, 200, base.icon_check())
-    save("icon_question.svg", 200, 200, base.icon_question())
-    save("icon_clock.svg", 200, 200, icon_clock(TIER[0]))
-    save("icon_note.svg", 200, 200, icon_note(TIER[3]))
-    save("icon_fork.svg", 200, 200, icon_fork(TIER[1]))
-    save("icon_cards.svg", 200, 200, icon_cards(TIER[4]))
-    save("icon_cursor.svg", 200, 200, icon_cursor(TIER[5]))
-    (OUT / "star.svg").write_text(base.star())
-    (OUT / "squiggle.svg").write_text(base.squiggle())
-    (OUT / "squiggle_blue.svg").write_text(base.squiggle(seed=8, color="#3b6fd4"))
-    (OUT / "arrow.svg").write_text(base.arrow())
-    (OUT / "paper.svg").write_text(base.paper())
+    for name, fn in {"clapper": icon_clapper, "clock": icon_clock, "note": icon_note, "cursor": icon_cursor, "fork": icon_fork, "cards": icon_cards, "star": icon_star, "check": icon_check, "play": icon_play}.items():
+        save(f"icon_{name}.svg", 200, 200, fn())
     (OUT / "timeline.svg").write_text(timeline())
-    base.marker_svg(OUT / "marker.svg")
+    (OUT / "marker.svg").write_text(marker())
 
 
 if __name__ == "__main__":

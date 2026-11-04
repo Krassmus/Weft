@@ -19,6 +19,6 @@ for (let i = 0; i < count; i++) {
   await chrome.shot(join(frames, String(i).padStart(4, "0") + ".jpg"));
 }
 chrome.close();
-execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-framerate", String(FPS), "-i", join(frames, "%04d.jpg"), "-vf", "scale=800:450:flags=lanczos", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "30", "-preset", "veryslow", "-movflags", "+faststart", out]);
+execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-framerate", String(FPS), "-i", join(frames, "%04d.jpg"), "-vf", "scale=800:450:flags=lanczos:out_color_matrix=bt709:out_range=tv,format=yuv420p", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv", "-c:v", "libx264", "-crf", "30", "-preset", "veryslow", "-movflags", "+faststart", out]);
 rmSync(frames, { recursive: true, force: true });
 console.log(`${out}: ${duration} s, ${count} frames`);

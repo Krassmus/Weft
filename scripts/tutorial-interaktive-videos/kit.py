@@ -7,9 +7,10 @@ import drawings
 
 HERE = pathlib.Path(__file__).parent
 A = HERE / "assets"
-INK, MUTED, ACCENT, BLUE, GREEN = "#2b2d42", "#5d6078", "#e4572e", "#3b6fd4", "#2f9e6f"
-HEAD, BODY = "Caveat", "Quicksand"
-TIER = ["#8fa8cf", "#7dbdc4", "#9ccb9a", "#ecd566", "#f3a95b", "#ee7d5c", "#d9534f"]
+BG, PANEL = "#0f1629", "#17223d"
+INK, MUTED, ACCENT, BLUE, TEAL, CORAL = "#f3f5fa", "#9fb0cc", "#ffb400", "#5b8def", "#2dd4bf", "#ff6b5e"
+DARK = "#0f1629"
+HEAD, BODY = "Oswald", "Lato"
 PX, PY = 12.8, 7.2  # pixels per percent of a 1280 x 720 slide
 
 ops = []
@@ -25,7 +26,7 @@ def fx(motion="up", ms=500):
 
 def estimate(content, paragraphs, w, size, font, bold, gap, line, box):
     """height in percent of the slide: lines x size x line height, in cqw (1 cqw = 1.78 % at 16:9), with some air"""
-    per = 0.37 if font == HEAD else 0.60
+    per = 0.44 if font == HEAD else 0.56
     if bold and font != HEAD:
         per *= 1.07
     paras = []
@@ -91,14 +92,19 @@ def pic(page, file, x, y, w, h=None, effect=None, name=None, as_=None, layout=No
 def heading(page, title, size=5.4, w=84, sub_width=30, y=6.5):
     h = estimate(title, None, w, size, HEAD, True, 1.0, 1.25, None)
     text(page, title, 7, y, w, size=size, font=HEAD, bold=True, name="Überschrift", h=h, line=1.25)
-    ul = y + h - 0.6
-    pic(page, "squiggle.svg", 7, ul, sub_width, h=sub_width * 16 / 9 * 40 / 600, name="Unterstreichung")
-    return ul + 5.5
+    ul = y + h + 0.2
+    bar(page, 7, ul, min(sub_width, 14))
+    return ul + 4.5
 
 
-def kicker(page, label, color=BLUE):
+def bar(page, x, y, w, color=ACCENT, name="Balken"):
+    """a short bar under a heading"""
+    ops.append({"op": "add_shape", "page": page, "shape": "rectangle", "x": x, "y": y, "width": w, "height": 1.0, "color": color, "radius": 50, "name": name})
+
+
+def kicker(page, label, color=TEAL):
     cur[0] = 24.0
-    text(page, label, 7, 1.6, 60, size=2.0, color=color, font=HEAD, bold=True, name="Kapitel")
+    text(page, label, 7, 2.2, 60, size=2.0, color=color, font=HEAD, bold=True, name="Kapitel")
 
 
 def chain(page, names, delay=150):
@@ -133,11 +139,12 @@ def gen_asset(prefix):
 def shot(page, name, cw, ch, x, y, w, effect=None, as_=None):
     """a crop of the editor, w percent wide at (x, y); returns its geometry for the callouts. The block has the German picture, every other language its own."""
     h = round(w * PX * ch / cw / PY, 2)
+    ops.append({"op": "add_shape", "page": page, "shape": "rectangle", "x": round(x - 0.5, 2), "y": round(y - 0.9, 2), "width": round(w + 1.0, 2), "height": round(h + 1.8, 2), "color": "#2c3b63", "radius": 1.5, "name": "Rahmen"})
     ops.append({"op": "add_image", "page": page, "file": str(CROPS / "de" / f"{name}.jpg"), "alt": "", "position": {"x": x, "y": y, "width": w, "height": h}, "fit": False, "as": as_ or f"shot_{name}"})
     block = "$" + (as_ or f"shot_{name}")
     for locale in LANGS[1:]:
         ops.append({"op": "set_media", "block": block, "language": locale, "file": str(CROPS / locale.split("_")[0] / f"{name}.jpg")})
-    sets = {"name": "Editor: " + name, "effect": {"kind": "shadow", "blur": 1.2, "color": INK, "offsetX": 0.35, "offsetY": 0.6, "opacity": 0.45}}
+    sets = {"name": "Editor: " + name}
     if effect:
         sets["entranceEffect"] = effect
     ops.append({"op": "update_block", "block": block, "set": sets})
@@ -150,7 +157,7 @@ def at(c, px, py):
 
 def ring(page, cx, cy, w, h, as_):
     f = gen_asset("ring")
-    drawings.base.circle_svg(A / f, w * PX, h * PY, seed=_gen[0])
+    drawings.ring_svg(A / f, w * PX, h * PY)
     pic(page, f, cx - w / 2, cy - h / 2, w, h=h, effect=fx("scale", 380), name="Markierung", as_=as_)
 
 
@@ -160,7 +167,7 @@ def arrow(page, x0, y0, x1, y1, as_, bend=0.22, effect=True, color=ACCENT, name=
     ty, by = min(y0, y1) - pad * 1.8, max(y0, y1) + pad * 1.8
     w, h = rx - lx, by - ty
     f = gen_asset("arrow")
-    drawings.base.arrow_svg(A / f, w * PX, h * PY, (x0 - lx) * PX, (y0 - ty) * PY, (x1 - lx) * PX, (y1 - ty) * PY, bend=bend, seed=_gen[0], color=color)
+    drawings.arrow_svg(A / f, w * PX, h * PY, (x0 - lx) * PX, (y0 - ty) * PY, (x1 - lx) * PX, (y1 - ty) * PY, bend=bend, color=color)
     pic(page, f, lx, ty, w, h=h, effect=fx("scale", 350) if effect else None, name=name, as_=as_)
 
 
@@ -193,5 +200,5 @@ def marker(page, c, px, py, n, as_):
     w = 3.0
     h = w * PX / PY
     pic(page, "marker.svg", x - w / 2, y - h / 2, w, h=h, effect=fx("scale", 350), name=f"Marke {n}", as_=as_ + "m")
-    text(page, str(n), x - w / 2, y - h / 2 + 0.55, w, size=2.2, color="#ffffff", font=HEAD, bold=True, align="center", line=1.0, h=h - 0.8, effect=fx("scale", 350), name=f"Zahl {n}", as_=as_ + "t")
+    text(page, str(n), x - w / 2, y - h / 2 + 0.55, w, size=2.2, color=DARK, font=HEAD, bold=True, align="center", line=1.0, h=h - 0.8, effect=fx("scale", 350), name=f"Zahl {n}", as_=as_ + "t")
     ops.append({"op": "set_trigger", "page": page, "to": f"entrance:${as_}t", "from": f"entrance:${as_}m", "delayMs": 0, "weiter": False})

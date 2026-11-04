@@ -1,13 +1,13 @@
 <!doctype html>
 <meta charset="utf-8">
-<style>html,body{margin:0;background:#f7f2e7}canvas{display:block}</style>
+<style>html,body{margin:0;background:#17223d}canvas{display:block}</style>
 <canvas id="c" width="1280" height="720"></canvas>
 <script>
-// The picture of the tutorial's video "Farben mischen": two blobs of paint that meet and mix (the tutorial stops it after that, at 6 s, and asks what was mixed). Nothing in it is written or spoken, so it
-// needs no translation. draw(t) paints the picture at second t (render.mjs asks for one frame after the other and has ffmpeg make the video of them).
+// The picture of the tutorial's video "Farben mischen": two blobs of paint that meet and mix (the tutorial stops it after that, at 6 s, and asks what was mixed).
+// Nothing in it is written or spoken, so it needs no translation. draw(t) paints the picture at second t (render.mjs asks for one frame after the other and has
+// ffmpeg make the video of them). A plain dark panel, no pattern: the slide around it has none either.
 var c = document.getElementById("c"), g = c.getContext("2d");
-var INK = "#2b2d42", PAPER = "#f7f2e7", GRID = "#dcd6c4";
-var COLORS = { blue: "#3b6fd4", yellow: "#f6c945", red: "#d9534f", green: "#2f9e6f", orange: "#f08a24", violet: "#8a5ac2" };
+var COLORS = { blue: "#4f8bff", yellow: "#ffc933", red: "#ff5d5d", green: "#2fd08a", orange: "#ff9a2e", violet: "#9b6cff" };
 // a round: when it starts, the two colours and what they make; the blobs come in, move together and mix, and shrink away at the end
 var ROUNDS = [
   { t0: 0.0, a: "blue", b: "yellow", mix: "green", meet: 2.6, mixEnd: 5.0, end: 7.6 },
@@ -30,19 +30,17 @@ function blobPath(cx, cy, r, seed, t) {
   g.closePath();
 }
 
-function paper() {
-  g.fillStyle = PAPER; g.fillRect(0, 0, 1280, 720);
-  g.strokeStyle = GRID; g.lineWidth = 1; g.beginPath();
-  for (var x = 0; x <= 1280; x += 32) { g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, 720); }
-  for (var y = 0; y <= 720; y += 32) { g.moveTo(0, y + 0.5); g.lineTo(1280, y + 0.5); }
-  g.stroke();
+function panel() {
+  var grad = g.createRadialGradient(640, 330, 60, 640, 360, 760);
+  grad.addColorStop(0, "#22325a"); grad.addColorStop(1, "#141d36");
+  g.fillStyle = grad; g.fillRect(0, 0, 1280, 720);
 }
 
 function blobsOf(round, t) {
   var local = t - round.t0, mixK = ease((t - round.meet) / (round.mixEnd - round.meet));
   var appear = [pop(local / 0.8), pop((local - 0.35) / 0.8)];
   var travel = easeOut((local - 1.0) / (round.meet - round.t0 - 1.0));
-  var gap = 215 - 0; // centres apart at the moment of stopping
+  var gap = 215; // centres apart at the moment of stopping
   var ax = 330 + (640 - gap / 2 - 330) * travel, bx = 950 + (640 + gap / 2 - 950) * travel;
   // after the stop: the centres move together and the blobs grow
   var close = ease((t - round.meet) / 1.4);
@@ -60,7 +58,7 @@ function blobsOf(round, t) {
 function sparkles(round, t) {
   var k = (t - round.meet - 0.9) / 1.6;
   if (k < 0 || k > 1) return;
-  g.strokeStyle = INK; g.lineWidth = 5; g.lineCap = "round";
+  g.strokeStyle = "#f3f5fa"; g.lineWidth = 6; g.lineCap = "round";
   for (var i = 0; i < 8; i++) {
     var ang = (i / 8) * Math.PI * 2 + 0.3, r0 = 175 + 25 * easeOut(k), r1 = r0 + 26 * (1 - k);
     g.globalAlpha = 1 - ease(k);
@@ -70,15 +68,13 @@ function sparkles(round, t) {
 }
 
 window.draw = function (t) {
-  paper();
+  panel();
   var round = ROUNDS.filter(function (r) { return t >= r.t0; }).pop() || ROUNDS[0];
   var blobs = blobsOf(round, t);
-  g.lineJoin = "round";
-  g.fillStyle = INK; g.strokeStyle = INK; g.lineWidth = 14;
-  blobs.forEach(function (b) { blobPath(b.x, b.y, b.r, b.seed, t); g.stroke(); g.fill(); });
+  // a soft glow, the blobs themselves, and a highlight on each
+  blobs.forEach(function (b) { g.save(); g.shadowColor = b.col; g.shadowBlur = 60; blobPath(b.x, b.y, b.r, b.seed, t); g.fillStyle = b.col; g.fill(); g.restore(); });
   blobs.forEach(function (b) { blobPath(b.x, b.y, b.r, b.seed, t); g.fillStyle = b.col; g.fill(); });
-  // a highlight on each
-  blobs.forEach(function (b) { g.strokeStyle = "rgba(255,255,255,.55)"; g.lineWidth = 7; g.lineCap = "round"; g.beginPath(); g.arc(b.x, b.y, b.r * 0.72, Math.PI * 1.1, Math.PI * 1.45); g.stroke(); });
+  blobs.forEach(function (b) { g.strokeStyle = "rgba(255,255,255,.5)"; g.lineWidth = 8; g.lineCap = "round"; g.beginPath(); g.arc(b.x, b.y, b.r * 0.72, Math.PI * 1.1, Math.PI * 1.45); g.stroke(); });
   sparkles(round, t);
 };
 window.DURATION = ROUNDS[ROUNDS.length - 1].end;

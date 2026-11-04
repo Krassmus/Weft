@@ -1,0 +1,108 @@
+0|Atrás
+1|Siguiente
+2|TUTORIAL DE WEFT
+3|Trabajar juntos en un documento de Weft
+4|En directo, con un archivo o mediante una carpeta en la nube como Nextcloud.
+5|Vamos allá
+6|PRIMERO, UNA PREGUNTA
+7|¿Prefieres trabajar a solas?
+8|¿Prefieres trabajar a solas en tus documentos y presentaciones? Perfecto. Weft no se conecta con nadie mientras no actives nada.
+9|Trabajar a solas
+10|Entonces no necesitas nada de esto. Weft funciona igual de bien si trabajas a solas.
+11|Trabajar juntos
+12|Entonces te muestro tres formas: desde un enlace hasta una carpeta en la nube.
+13|Muéstrame cómo
+14|Terminar el tutorial
+15|VISIÓN GENERAL
+16|Tres formas de trabajar juntos
+17|1  El enlace para compartir
+18|Envías un enlace. Quien lo abre trabaja en directo en el mismo documento.
+19|EN DIRECTO
+20|2  El archivo con enlace
+21|El enlace va dentro del archivo guardado. Quien lo abre ya está dentro.
+22|3  La carpeta en la nube
+23|Weft sincroniza el documento mediante una carpeta, por ejemplo en Nextcloud.
+24|EN DIFERIDO
+25|Si una conexión no funciona, ayuda un servidor TURN; más sobre eso enseguida.
+26|FORMA 1 – ENLACE PARA COMPARTIR
+27|El enlace para compartir
+28|En la barra lateral, abre la pestaña «Ajustes» y la tarjeta «Colaboración».
+29|Marca la casilla «Trabajar juntos en el archivo»: Weft crea un enlace que empieza por «weft://».
+30|Cópialo y envíalo a los demás por correo electrónico o chat.
+31|Cómo se unen los demás
+32|Si Weft está instalado, basta con hacer clic en el enlace: Weft se abre y pregunta si quieres unirte.
+33|O eliges «Archivo» → «Unirse a una invitación…» y pegas el enlace.
+34|Entonces trabajáis en directo en el mismo documento. Quién está conectado lo ves como pequeñas imágenes sobre la diapositiva.
+35|IMPORTANTE
+36|Unirse solo funciona mientras alguien tenga el documento abierto. Quien tiene el enlace puede cambiarlo todo.
+37|FORMA 2 – ARCHIVO CON ENLACE
+38|El archivo con enlace integrado
+39|La misma casilla hace algo más: al guardar, el enlace queda dentro del archivo. Así el propio archivo se convierte en una invitación.
+40|Marca la casilla «Trabajar juntos en el archivo».
+41|Guarda con «Archivo» → «Guardar».
+42|Envía el archivo .weft: por correo, mensajería, memoria USB o nube.
+43|Al exportar no se guarda ningún enlace en el archivo.
+44|A quien abre el archivo se le pregunta:
+45|«Este archivo está preparado para la colaboración en directo … ¿Conectar?»
+46|Si la persona acepta, queda conectada con todas las que tienen el archivo abierto en ese momento.
+47|CUANDO ALGO FALLA
+48|El servidor TURN
+49|Weft conecta vuestros ordenadores directamente entre sí. En algunas redes (por ejemplo, en universidades o empresas) un cortafuegos bloquea ese camino.
+50|Entonces ayuda un servidor TURN: reenvía el tráfico de datos.
+51|Tu ordenador
+52|Ordenadores de los demás
+53|Cortafuegos
+54|Servidor TURN
+55|Introducir el servidor TURN
+56|Abre los ajustes de Weft (la rueda dentada arriba a la derecha) y busca el grupo «Red (trabajo en común)».
+57|Introduce ahí la dirección, el nombre de usuario y la contraseña de tu servidor TURN.
+58|Un servidor TURN te lo da tu colegio, tu universidad o tu empresa; o puedes montar uno propio.
+59|Es solo tuyo y no va en el enlace: quien esté detrás de un cortafuegos así introduce el suyo.
+60|FORMA 3 – CARPETA EN LA NUBE
+61|La carpeta en la nube
+62|Si no todos deben estar conectados a la vez, usad una carpeta que un servicio como Nextcloud, Sciebo, Dropbox o Syncthing mantiene igual para todos. Weft deja allí sus cambios y toma lo que dejan los demás, sin enlace, sin conexión directa y sin servidor TURN.
+63|Carpeta en la nube
+64|La sincronización de carpeta está disponible en la aplicación de escritorio.
+65|Cómo configurarlo
+66|Crea una carpeta en Nextcloud y compártela con los demás, con permiso de edición.
+67|El cliente de Nextcloud mantiene la carpeta actualizada en tu ordenador.
+68|En Weft: «Ajustes» → «Colaboración» → «Elegir carpeta y sincronizar …» y elige la carpeta.
+69|Qué ocurre en la carpeta
+70|La carpeta de tu documento
+71|Abre el documento
+72|Cambios de Mara
+73|Cambios de Timo
+74|Imágenes, vídeos, fuentes
+75|Cada persona escribe solo en su propio archivo. Así Nextcloud nunca crea «copias en conflicto»: Weft lo une todo por sí mismo.
+76|Cada pocos segundos Weft mira en la carpeta y toma lo que hay de nuevo, en cualquier orden.
+77|Cómo se suman los demás
+78|Reciben la carpeta compartida en Nextcloud y la sincronizan con su ordenador.
+79|En la carpeta del documento abren el archivo «Erdkunde 7a.weft» con doble clic, o mediante «Archivo» → «Abrir…» en Weft.
+80|Weft crea una copia en su ordenador y, desde ese momento, la mantiene sincronizada con la carpeta.
+81|Weft pregunta:
+82|«En una carpeta compartida se está trabajando en común en este módulo de aprendizaje … ¿Dónde se debe guardar la copia?»
+83|Después todos ven quién está trabajando: quien haya cambiado algo en los últimos minutos se ilumina en verde.
+84|RESUMEN
+85|¿Qué forma os conviene?
+86|Trabajáis a la vez y queréis empezar rápido.
+87|El archivo con enlace
+88|El archivo ya circula por correo o por la nube.
+89|La carpeta en la nube
+90|Trabajáis en momentos distintos, por ejemplo con Nextcloud.
+91|Sin ninguna red:
+92|«Archivo» → «Combinar con archivo…» añade a tu documento los cambios de otra copia.
+93|Si la conexión directa no funciona:
+94|un servidor TURN en los ajustes de Weft.
+95|¡Eso es todo!
+96|Trabajes a solas o en equipo, Weft sirve para ambas cosas. Este tutorial lo encuentras siempre en la pantalla de inicio.
+97|Actívalo
+98|El enlace
+99|Copiar
+100|Pega aquí el enlace
+101|… y únete
+102|Dirección del servidor
+103|Datos de acceso
+104|Antes
+105|Después: Weft sincroniza y aparecen los demás
+106|Haz clic aquí
+107|Solo en la aplicación de escritorio

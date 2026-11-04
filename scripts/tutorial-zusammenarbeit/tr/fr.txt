@@ -1,0 +1,108 @@
+0|Retour
+1|Suivant
+2|TUTORIEL WEFT
+3|Travailler ensemble sur un document Weft
+4|En direct, avec un fichier ou via un dossier cloud comme Nextcloud.
+5|C’est parti
+6|D’ABORD UNE QUESTION
+7|Plutôt en solo ?
+8|Tu préfères travailler en solo sur tes documents et tes présentations ? Aucun problème. Weft ne se connecte à personne tant que tu n’actives rien.
+9|Travailler en solo
+10|Alors tu n’as besoin de rien de tout cela. Weft fonctionne tout aussi bien en solo.
+11|Travailler ensemble
+12|Alors je te montre trois façons : du lien jusqu’au dossier dans le cloud.
+13|Montre-moi comment
+14|Terminer le tutoriel
+15|APERÇU
+16|Trois façons de collaborer
+17|1  Le lien de partage
+18|Tu envoies un lien. Quiconque l’ouvre travaille en direct sur le même document.
+19|EN DIRECT
+20|2  Le fichier avec lien
+21|Le lien est dans le fichier enregistré. Qui l’ouvre est tout de suite dans la partie.
+22|3  Le dossier cloud
+23|Weft synchronise le document via un dossier, par exemple dans Nextcloud.
+24|EN DIFFÉRÉ
+25|Si une connexion ne fonctionne pas, un serveur TURN aide – on y vient tout de suite.
+26|VOIE 1 – LIEN DE PARTAGE
+27|Le lien de partage
+28|Dans la barre latérale, ouvre l’onglet « Réglages » et la carte « Collaboration ».
+29|Coche « Travailler ensemble sur le fichier » : Weft crée un lien qui commence par « weft:// ».
+30|Copie-le et envoie-le aux autres par e-mail ou par chat.
+31|Comment les autres rejoignent
+32|Si Weft est installé, un clic sur le lien suffit : Weft s’ouvre et demande si tu veux rejoindre.
+33|Ou tu choisis « Fichier » → « Rejoindre une invitation… » et tu colles le lien.
+34|Ensuite, vous travaillez en direct sur le même document. Tu vois qui est là sous forme de petites images au-dessus de la diapositive.
+35|IMPORTANT
+36|Rejoindre ne fonctionne que tant que quelqu’un a le document ouvert. Quiconque a le lien peut tout modifier.
+37|VOIE 2 – FICHIER AVEC LIEN
+38|Le fichier avec lien intégré
+39|La même case fait encore autre chose : à l’enregistrement, le lien est placé dans le fichier. Le fichier devient ainsi lui-même une invitation.
+40|Coche « Travailler ensemble sur le fichier ».
+41|Enregistre avec « Fichier » → « Enregistrer ».
+42|Envoie le fichier .weft : par e-mail, messagerie, clé USB ou cloud.
+43|À l’exportation, aucun lien n’est placé dans le fichier.
+44|À l’ouverture, il est demandé :
+45|« Ce fichier est prévu pour la collaboration en direct … Se connecter ? »
+46|Si la personne accepte, elle est connectée à tous ceux qui ont le fichier ouvert à ce moment-là.
+47|QUAND ÇA COINCE
+48|Le serveur TURN
+49|Weft relie vos ordinateurs directement entre eux. Dans certains réseaux – dans les universités ou les entreprises, par exemple – un pare-feu bloque ce chemin.
+50|Alors un serveur TURN aide : il fait passer les données.
+51|Ton ordinateur
+52|Ordinateurs des autres
+53|Pare-feu
+54|Serveur TURN
+55|Saisir le serveur TURN
+56|Ouvre les réglages de Weft (la roue dentée en haut à droite) et cherche le groupe « Réseau (travail en commun) ».
+57|Saisis-y l’adresse, le nom d’utilisateur et le mot de passe de ton serveur TURN.
+58|Un serveur TURN, tu l’obtiens auprès de ton école, de ton université ou de ton entreprise – ou tu en exploites un toi-même.
+59|Il n’appartient qu’à toi et ne figure pas dans le lien : quiconque est derrière un tel pare-feu saisit le sien.
+60|VOIE 3 – DOSSIER CLOUD
+61|Collaborer via un dossier cloud
+62|Si tout le monde ne doit pas être en ligne en même temps, utilisez un dossier qu’un service comme Nextcloud, Sciebo, Dropbox ou Syncthing garde identique pour tous. Weft y dépose ses modifications et reprend ce que les autres y déposent – sans lien, sans connexion directe, sans serveur TURN.
+63|Dossier dans le cloud
+64|La synchronisation de dossier existe dans l’application de bureau.
+65|Comment le mettre en place
+66|Crée un dossier dans Nextcloud et partage-le avec les autres – avec le droit de modifier.
+67|Le client Nextcloud maintient le dossier à jour sur ton ordinateur.
+68|Dans Weft : « Réglages » → « Collaboration » → « Choisir un dossier et synchroniser … », puis choisis le dossier.
+69|Ce qui se passe dans le dossier
+70|Le dossier de ton document
+71|Ouvre le document
+72|Modifications de Mara
+73|Modifications de Timo
+74|Images, vidéos, polices
+75|Chaque personne n’écrit que dans son propre fichier. Ainsi Nextcloud ne crée jamais de « copies en conflit » – Weft fusionne tout lui-même.
+76|Toutes les quelques secondes, Weft regarde dans le dossier et reprend ce qui est nouveau – dans n’importe quel ordre.
+77|Les autres s’y joignent
+78|Ils reçoivent le dossier partagé dans Nextcloud et le synchronisent avec leur ordinateur.
+79|Dans le dossier du document, ils ouvrent le fichier « Erdkunde 7a.weft » d’un double-clic – ou via « Fichier » → « Ouvrir… » dans Weft.
+80|Weft crée une copie sur leur ordinateur et la maintient désormais synchronisée avec le dossier.
+81|Weft demande :
+82|« Ce module d’apprentissage est travaillé en commun dans un dossier partagé … Où faut-il enregistrer la copie ? »
+83|Ensuite, tout le monde voit qui travaille : quiconque a modifié quelque chose ces dernières minutes s’allume en vert.
+84|RÉCAPITULATIF
+85|Quelle voie vous convient ?
+86|Vous travaillez en même temps et voulez démarrer vite.
+87|Le fichier avec lien
+88|Le fichier circule de toute façon par e-mail ou par le cloud.
+89|Le dossier cloud
+90|Vous travaillez à des moments différents, par exemple via Nextcloud.
+91|Sans aucun réseau :
+92|« Fichier » → « Fusionner avec un fichier… » ajoute à ton document les modifications d’une autre copie.
+93|Si la connexion directe ne fonctionne pas :
+94|un serveur TURN dans les réglages de Weft.
+95|Voilà tout !
+96|Seul ou à plusieurs : Weft fait les deux. Tu retrouves ce tutoriel à tout moment sur l’écran d’accueil.
+97|Active
+98|Le lien
+99|Copie
+100|Colle le lien ici
+101|… et rejoins
+102|Adresse du serveur
+103|Identifiants
+104|Avant
+105|Après : Weft synchronise, et les autres apparaissent
+106|Clique ici
+107|Uniquement dans l’app de bureau

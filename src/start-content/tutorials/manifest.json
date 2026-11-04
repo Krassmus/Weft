@@ -125,5 +125,38 @@
     "description": { "de": "Erstelle Rätsel, versteckte Hinweise und eine abschließende Lösung.", "en": "Create puzzles, hidden clues and a final solution." },
     "tag": { "de": "Spiele & Adventures", "en": "Games & adventures" },
     "minutes": 10
+  },
+  {
+    "file": "zusammenarbeit.weft",
+    "title": {
+      "de": "Gemeinsam an einem Weft-Dokument arbeiten",
+      "en": "Working together on a Weft document",
+      "es": "Trabajar juntos en un documento de Weft",
+      "fr": "Travailler ensemble sur un document Weft",
+      "pt": "Trabalhar juntos em um documento do Weft",
+      "it": "Lavorare insieme su un documento Weft",
+      "tr": "Bir Weft belgesinde birlikte çalışmak",
+      "pl": "Wspólna praca nad dokumentem Weft"
+    },
+    "description": {
+      "de": "Live per Link, mit einer Datei oder über einen Cloud-Ordner wie Nextcloud: wie mehrere Personen zusammen an einem Dokument arbeiten – und wann ein TURN-Server hilft.",
+      "en": "Live by link, with a file or through a cloud folder like Nextcloud: how several people work on one document together – and when a TURN server helps.",
+      "es": "En directo con un enlace, con un archivo o mediante una carpeta en la nube como Nextcloud: cómo varias personas trabajan juntas en un documento, y cuándo ayuda un servidor TURN.",
+      "fr": "En direct avec un lien, avec un fichier ou via un dossier cloud comme Nextcloud : comment plusieurs personnes travaillent ensemble sur un document – et quand un serveur TURN aide.",
+      "pt": "Ao vivo por link, por arquivo ou por uma pasta na nuvem como o Nextcloud: como várias pessoas trabalham juntas em um documento – e quando um servidor TURN ajuda.",
+      "it": "Dal vivo con un link, con un file o tramite una cartella cloud come Nextcloud: come più persone lavorano insieme su un documento – e quando aiuta un server TURN.",
+      "tr": "Bağlantıyla canlı, bir dosyayla ya da Nextcloud gibi bir bulut klasörüyle: birden çok kişi bir belgede nasıl birlikte çalışır – ve TURN sunucusu ne zaman işe yarar.",
+      "pl": "Na żywo przez link, z plikiem lub przez folder w chmurze, np. Nextcloud: jak kilka osób pracuje razem nad jednym dokumentem – i kiedy pomaga serwer TURN."
+    },
+    "tag": {
+      "de": "Zusammenarbeit",
+      "en": "Collaboration",
+      "es": "Colaboración",
+      "fr": "Collaboration",
+      "pt": "Colaboração",
+      "it": "Collaborazione",
+      "tr": "İşbirliği",
+      "pl": "Współpraca"
+    }
   }
 ]

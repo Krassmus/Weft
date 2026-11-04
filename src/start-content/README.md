@@ -23,6 +23,7 @@ own). Only a custom font of a tutorial is not shown (the fonts are read from the
 `tutorials/erstes-lernmodul.weft` and `templates/lernpyramide.weft` are made by `scripts/tutorial-erstes-lernmodul/` (see its README): they have their texts in all eight languages of Weft's
 interface, so the tutorial plays - and the template opens - in the language of the app, and the tile on the start screen shows the first slide in it too.
 `tutorials/interaktives-video.weft` is made by `scripts/tutorial-interaktive-videos/` (see its README) - also in all eight languages, kept small on purpose (0.7 MB: the video is 40 KB); its tile shows a cover picture of its own (`logo.png` in the file).
+`tutorials/zusammenarbeit.weft` is made by `scripts/tutorial-zusammenarbeit/` (see its README) - all eight languages as well, 0.7 MB, a look of its own (near-black, glowing lines in the manner of Tron); the pictures of the editor in it are real ones of the app, one set for every interface language, and its cover picture is `logo.png` in the file.
 
 ## manifest.json
 

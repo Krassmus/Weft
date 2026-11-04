@@ -1,0 +1,108 @@
+0|Voltar
+1|Próximo
+2|TUTORIAL DO WEFT
+3|Trabalhar juntos em um documento do Weft
+4|Ao vivo, por arquivo ou por uma pasta na nuvem como o Nextcloud.
+5|Vamos lá
+6|PRIMEIRO, UMA PERGUNTA
+7|Prefere trabalhar a sós?
+8|Você prefere trabalhar a sós nos seus documentos e apresentações? Tudo bem. O Weft não se conecta com ninguém enquanto você não ligar nada.
+9|Trabalhar a sós
+10|Então você não precisa de nada disso. O Weft funciona igualmente bem se você trabalha a sós.
+11|Trabalhar juntos
+12|Então vou mostrar três jeitos: do link até a pasta na nuvem.
+13|Mostre como
+14|Encerrar o tutorial
+15|VISÃO GERAL
+16|Três jeitos de trabalhar juntos
+17|1  O link de compartilhamento
+18|Você envia um link. Quem o abre trabalha ao vivo no mesmo documento.
+19|AO VIVO
+20|2  O arquivo com link
+21|O link fica dentro do arquivo salvo. Quem o abre já está dentro.
+22|3  A pasta na nuvem
+23|O Weft sincroniza o documento por uma pasta, por exemplo no Nextcloud.
+24|NÃO SIMULTÂNEO
+25|Se uma conexão não funciona, um servidor TURN ajuda – mais sobre isso já já.
+26|JEITO 1 – LINK DE COMPARTILHAMENTO
+27|O link de compartilhamento
+28|Na barra lateral, abra a aba «Configurações» e o cartão «Colaboração».
+29|Marque «Trabalhar juntos no arquivo»: o Weft cria um link que começa com «weft://».
+30|Copie-o e envie aos outros por e-mail ou chat.
+31|Como os outros entram
+32|Com o Weft instalado, basta um clique no link: o Weft abre e pergunta se você quer entrar.
+33|Ou você escolhe «Arquivo» → «Entrar em um convite…» e cola o link.
+34|Aí vocês trabalham ao vivo no mesmo documento. Quem está presente você vê como pequenas imagens acima do slide.
+35|IMPORTANTE
+36|Entrar só funciona enquanto alguém estiver com o documento aberto. Quem tem o link pode alterar tudo.
+37|JEITO 2 – ARQUIVO COM LINK
+38|O arquivo com link embutido
+39|A mesma caixa faz mais uma coisa: ao salvar, o link fica dentro do arquivo. Assim, o próprio arquivo vira um convite.
+40|Marque «Trabalhar juntos no arquivo».
+41|Salve com «Arquivo» → «Salvar».
+42|Envie o arquivo .weft: por e-mail, mensageiro, pen drive ou nuvem.
+43|Ao exportar, nenhum link vai para o arquivo.
+44|Quem abre o arquivo recebe esta pergunta:
+45|«Este arquivo está configurado para colaboração ao vivo … Conectar?»
+46|Se a pessoa concordar, ela se conecta com todos que estão com o arquivo aberto naquele momento.
+47|QUANDO EMPERRA
+48|O servidor TURN
+49|O Weft conecta os computadores diretamente entre si. Em algumas redes – em universidades ou empresas, por exemplo – um firewall bloqueia esse caminho.
+50|Aí um servidor TURN ajuda: ele repassa o tráfego de dados.
+51|Seu computador
+52|Computadores dos outros
+53|Firewall
+54|Servidor TURN
+55|Informar o servidor TURN
+56|Abra as configurações do Weft (a engrenagem no canto superior direito) e procure o grupo «Rede (trabalho em conjunto)».
+57|Informe ali o endereço, o nome de usuário e a senha do seu servidor TURN.
+58|Um servidor TURN você consegue com sua escola, universidade ou empresa – ou mantém um por conta própria.
+59|Ele é só seu e não vai no link: quem estiver atrás de um firewall assim informa o próprio.
+60|JEITO 3 – PASTA NA NUVEM
+61|A pasta na nuvem
+62|Se nem todos precisam estar on-line ao mesmo tempo, usem uma pasta que um serviço como Nextcloud, Sciebo, Dropbox ou Syncthing mantém igual para todos. O Weft deixa lá as suas alterações e pega o que os outros colocam – sem link, sem conexão direta, sem servidor TURN.
+63|Pasta na nuvem
+64|A sincronização de pasta existe no aplicativo para computador.
+65|Como configurar
+66|Crie uma pasta no Nextcloud e compartilhe com os outros – com permissão para editar.
+67|O cliente do Nextcloud mantém a pasta atualizada no seu computador.
+68|No Weft: «Configurações» → «Colaboração» → «Escolher pasta e sincronizar …» e escolha a pasta.
+69|O que acontece na pasta
+70|A pasta do seu documento
+71|Abre o documento
+72|Alterações de Mara
+73|Alterações de Timo
+74|Imagens, vídeos, fontes
+75|Cada pessoa escreve só no próprio arquivo. Assim o Nextcloud nunca cria «cópias em conflito» – o Weft junta tudo sozinho.
+76|A cada poucos segundos o Weft olha na pasta e pega o que é novo – em qualquer ordem.
+77|Como os outros participam
+78|Eles recebem a pasta compartilhada no Nextcloud e a sincronizam com o computador deles.
+79|Na pasta do documento, eles abrem o arquivo «Erdkunde 7a.weft» com um clique duplo – ou por «Arquivo» → «Abrir…» no Weft.
+80|O Weft cria uma cópia no computador deles e, a partir daí, a mantém sincronizada com a pasta.
+81|O Weft pergunta:
+82|«Neste módulo de aprendizagem está se trabalhando em conjunto em uma pasta compartilhada … Onde a cópia deve ser salva?»
+83|Depois todos veem quem está trabalhando: quem alterou algo nos últimos minutos acende em verde.
+84|RESUMO
+85|Qual jeito combina com vocês?
+86|Vocês trabalham ao mesmo tempo e querem começar logo.
+87|O arquivo com link
+88|O arquivo já circula por e-mail ou nuvem de qualquer jeito.
+89|A pasta na nuvem
+90|Vocês trabalham em horários diferentes, por exemplo pelo Nextcloud.
+91|Sem rede nenhuma:
+92|«Arquivo» → «Mesclar com arquivo…» acrescenta ao seu documento as alterações de outra cópia.
+93|Se a conexão direta não funcionar:
+94|um servidor TURN nas configurações do Weft.
+95|É isso!
+96|Seja a sós, seja em equipe: o Weft serve para os dois. Você encontra este tutorial a qualquer hora na tela inicial.
+97|Ative
+98|O link
+99|Copie
+100|Cole o link aqui
+101|… e entre
+102|Endereço do servidor
+103|Dados de acesso
+104|Antes
+105|Depois: o Weft sincroniza e os outros aparecem
+106|Clique aqui
+107|Só no aplicativo para computador

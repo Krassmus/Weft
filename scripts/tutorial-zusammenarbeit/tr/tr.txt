@@ -1,0 +1,108 @@
+0|Geri
+1|İleri
+2|WEFT EĞİTİMİ
+3|Bir Weft belgesinde birlikte çalışmak
+4|Canlı, dosyayla ya da Nextcloud gibi bir bulut klasörüyle.
+5|Başlayalım
+6|ÖNCE BİR SORU
+7|Tek başına mı çalışırsın?
+8|Belgeler ve sunumlar üzerinde tek başına çalışmayı mı tercih edersin? Sorun değil. Sen bir şeyi açmadıkça Weft kimseyle bağlantı kurmaz.
+9|Tek başına çalışmak
+10|O zaman bunların hiçbirine ihtiyacın yok. Weft tek başına çalışırken de aynı derecede iyi çalışır.
+11|Birlikte çalışmak
+12|O zaman sana üç yol göstereyim: bağlantıdan bulut klasörüne kadar.
+13|Nasıl olduğunu göster
+14|Eğitimi bitir
+15|GENEL BAKIŞ
+16|Birlikte çalışmanın üç yolu
+17|1  Paylaşım bağlantısı
+18|Bir bağlantı gönderirsin. Onu açan herkes aynı belgede canlı çalışır.
+19|CANLI
+20|2  Bağlantılı dosya
+21|Bağlantı kayıtlı dosyanın içinde durur. Dosyayı açan hemen aramıza katılır.
+22|3  Bulut klasörü
+23|Weft belgeyi bir klasör üzerinden eşitler, örneğin Nextcloud’da.
+24|FARKLI ZAMANLARDA
+25|Bir bağlantı kurulamazsa TURN sunucusu yardımcı olur – birazdan buna geleceğiz.
+26|YOL 1 – PAYLAŞIM BAĞLANTISI
+27|Paylaşım bağlantısı
+28|Kenar çubuğunda “Ayarlar” sekmesini ve “İşbirliği” kartını aç.
+29|“Dosya üzerinde birlikte çalış” kutusunu işaretle: Weft, “weft://” ile başlayan bir bağlantı oluşturur.
+30|Bağlantıyı kopyala ve diğerlerine e-postayla ya da sohbetle gönder.
+31|Diğerleri nasıl katılır
+32|Weft kuruluysa bağlantıya tek tıklama yeter: Weft açılır ve katılmak isteyip istemediğini sorar.
+33|Ya da “Dosya” → “Bir davete katıl…” seçeneğini seçip bağlantıyı yapıştırırsın.
+34|Sonra aynı belgede canlı çalışırsınız. Kimlerin orada olduğunu slaytın üstünde küçük resimler olarak görürsün.
+35|ÖNEMLİ
+36|Katılmak, ancak biri belgeyi açıkken işe yarar. Bağlantıya sahip olan herkes her şeyi değiştirebilir.
+37|YOL 2 – BAĞLANTILI DOSYA
+38|Bağlantısı gömülü dosya
+39|Aynı kutu bir şey daha yapar: kaydettiğinde bağlantı dosyanın içine konur. Böylece dosyanın kendisi bir davet olur.
+40|“Dosya üzerinde birlikte çalış” kutusunu işaretle.
+41|“Dosya” → “Kaydet” ile kaydet.
+42|.weft dosyasını gönder: e-posta, mesajlaşma, USB bellek ya da bulut ile.
+43|Dışa aktarırken dosyaya bağlantı konmaz.
+44|Dosyayı açan kişiye şu sorulur:
+45|“Bu dosya canlı iş birliği için ayarlı … Bağlanılsın mı?”
+46|Kişi kabul ederse, dosyayı o anda açık tutan herkesle bağlanır.
+47|TAKILDIĞINDA
+48|TURN sunucusu
+49|Weft bilgisayarlarınızı doğrudan birbirine bağlar. Bazı ağlarda – örneğin üniversitelerde ya da şirketlerde – bir güvenlik duvarı bu yolu engeller.
+50|O zaman bir TURN sunucusu yardımcı olur: veri trafiğini aktarır.
+51|Senin bilgisayarın
+52|Diğerlerinin bilgisayarları
+53|Güvenlik duvarı
+54|TURN sunucusu
+55|TURN sunucusunu girmek
+56|Weft’in ayarlarını aç (sağ üstteki dişli) ve “Ağ (birlikte çalışma)” grubunu bul.
+57|Orada TURN sunucunun adresini, kullanıcı adını ve parolasını gir.
+58|TURN sunucusunu okulundan, üniversitenden ya da şirketinden edinirsin – ya da kendin işletirsin.
+59|Yalnızca sana aittir ve bağlantıda yer almaz: böyle bir güvenlik duvarının arkasındaki kişi kendi sunucusunu girer.
+60|YOL 3 – BULUT KLASÖRÜ
+61|Bulut klasöründe çalışmak
+62|Herkesin aynı anda çevrimiçi olması gerekmiyorsa, Nextcloud, Sciebo, Dropbox ya da Syncthing gibi bir hizmetin herkes için aynı tuttuğu bir klasör kullanın. Weft değişikliklerini oraya bırakır, diğerlerinin bıraktıklarını alır – bağlantı linki, doğrudan bağlantı ve TURN sunucusu olmadan.
+63|Bulutta klasör
+64|Klasör eşitleme masaüstü uygulamasında var.
+65|Nasıl kurulur
+66|Nextcloud’da bir klasör oluştur ve düzenleme izniyle diğerleriyle paylaş.
+67|Nextcloud istemcisi klasörü bilgisayarında güncel tutar.
+68|Weft’te: “Ayarlar” → “İşbirliği” → “Klasör seç ve eşitle …” ve klasörü seç.
+69|Klasörde neler olur
+70|Belgenin klasörü
+71|Belgeyi açar
+72|Mara’nın değişiklikleri
+73|Timo’nun değişiklikleri
+74|Resimler, videolar, yazı tipleri
+75|Herkes yalnızca kendi dosyasına yazar. Böylece Nextcloud hiçbir zaman “çakışan kopyalar” oluşturmaz – Weft her şeyi kendisi birleştirir.
+76|Weft birkaç saniyede bir klasöre bakar ve yeni olanı alır – hangi sırayla olursa olsun.
+77|Diğerleri nasıl dahil olur
+78|Klasörü Nextcloud’da paylaşım olarak alırlar ve bilgisayarlarına eşitlerler.
+79|Belgenin klasöründe “Erdkunde 7a.weft” dosyasını çift tıklayarak ya da Weft’te “Dosya” → “Aç…” ile açarlar.
+80|Weft onların bilgisayarında bir kopya oluşturur ve bundan sonra klasörle eşitli tutar.
+81|Weft sorar:
+82|“Bu öğrenme modülü paylaşılan bir klasörde birlikte çalışılıyor … Kopya nereye kaydedilsin?”
+83|Sonra herkes kimin çalıştığını görür: son dakikalarda bir şey değiştiren yeşil yanar.
+84|ÖZET
+85|Hangi yol size uyar?
+86|Aynı anda çalışıyorsunuz ve hızlıca başlamak istiyorsunuz.
+87|Bağlantılı dosya
+88|Dosya zaten e-posta ya da bulutla dolaşıyor.
+89|Bulut klasörü
+90|Farklı zamanlarda çalışıyorsunuz, örneğin Nextcloud üzerinden.
+91|Ağ olmadan:
+92|“Dosya” → “Dosyayla birleştir…” başka bir kopyanın değişikliklerini belgene ekler.
+93|Doğrudan bağlantı çalışmazsa:
+94|Weft ayarlarında bir TURN sunucusu.
+95|Hepsi bu!
+96|İster tek başına ister birlikte: Weft ikisinde de işe yarar. Bu eğitimi istediğin zaman başlangıç ekranında bulursun.
+97|Aç
+98|Bağlantı
+99|Kopyala
+100|Bağlantıyı buraya yapıştır
+101|… ve katıl
+102|Sunucunun adresi
+103|Giriş bilgileri
+104|Önce
+105|Sonra: Weft eşitler ve diğerleri görünür
+106|Buraya tıkla
+107|Yalnızca masaüstü uygulamasında

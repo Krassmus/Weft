@@ -1,0 +1,108 @@
+0|Back
+1|Next
+2|WEFT TUTORIAL
+3|Working together on a Weft document
+4|Live, by file or through a cloud folder like Nextcloud.
+5|Let’s go
+6|A QUESTION FIRST
+7|Prefer to work alone?
+8|You prefer to work alone on your documents and presentations? That’s perfectly fine. Weft doesn’t connect to anyone unless you switch something on.
+9|Work alone
+10|Then you don’t need any of this. Weft works just as well if you work alone.
+11|Work together
+12|Then I’ll show you three ways – from a link to a cloud folder.
+13|Show me how
+14|End tutorial
+15|OVERVIEW
+16|Three ways to work together
+17|1  The share link
+18|You send a link. Whoever opens it works live on the same document.
+19|LIVE
+20|2  The file with a link
+21|The link is inside the saved file. Whoever opens it is right there.
+22|3  The cloud folder
+23|Weft syncs the document through a folder, for example in Nextcloud.
+24|AT DIFFERENT TIMES
+25|If a connection doesn’t work, a TURN server helps – more on that in a moment.
+26|WAY 1 – SHARE LINK
+27|The share link
+28|In the sidebar, open the “Settings” tab and the “Collaboration” card.
+29|Tick “Work on the file together”: Weft creates a link that starts with “weft://”.
+30|Copy it and send it to the others by email or chat.
+31|How the others join
+32|If Weft is installed, one click on the link is enough: Weft opens and asks whether you want to join.
+33|Or choose “File” → “Join invitation…” and paste the link.
+34|Then you work live on the same document. You can see who is there as small pictures above the slide.
+35|IMPORTANT
+36|Joining only works while someone has the document open. Whoever has the link can change everything.
+37|WAY 2 – FILE WITH LINK
+38|The file with a built-in link
+39|The same tick does one more thing: when you save, the link is stored in the file. That makes the file itself an invitation.
+40|Tick “Work on the file together”.
+41|Save with “File” → “Save”.
+42|Send the .weft file: by email, messenger, USB stick or cloud.
+43|When you export, no link is stored in the file.
+44|Whoever opens the file is asked:
+45|“This file is set up for live collaboration … Connect?”
+46|If the person agrees, they are connected to everyone who has the file open right now.
+47|WHEN IT STALLS
+48|The TURN server
+49|Weft connects your computers directly to each other. In some networks – at universities or in companies, for example – a firewall blocks this way.
+50|Then a TURN server helps: it passes the traffic along.
+51|Your computer
+52|The others’ computers
+53|Firewall
+54|TURN server
+55|Entering the TURN server
+56|Open Weft’s settings (the gear at the top right) and find the group “Network (working together)”.
+57|Enter the address, user name and password of your TURN server there.
+58|You get a TURN server from your school, university or company – or you run one yourself.
+59|It belongs to you alone and is not in the link: whoever sits behind such a firewall enters their own.
+60|WAY 3 – CLOUD FOLDER
+61|Working in a cloud folder
+62|If not everybody should have to be online at the same time, use a folder that a service like Nextcloud, Sciebo, Dropbox or Syncthing keeps identical for everyone. Weft puts its changes there and takes over what the others put in – with no link, no direct connection, no TURN server.
+63|Folder in the cloud
+64|Folder sync is available in the desktop app.
+65|How to set it up
+66|Create a folder in Nextcloud and share it with the others – with permission to edit.
+67|The Nextcloud client keeps the folder up to date on your computer.
+68|In Weft: “Settings” → “Collaboration” → “Choose folder and sync …” and pick the folder.
+69|What happens in the folder
+70|The folder of your document
+71|Opens the document
+72|Changes by Mara
+73|Changes by Timo
+74|Pictures, videos, fonts
+75|Each person writes only to their own file. That way Nextcloud never creates “conflicted copies” – Weft merges everything itself.
+76|Every few seconds Weft looks into the folder and takes over what is new – in any order.
+77|How the others join in
+78|They get the folder shared with them in Nextcloud and sync it to their computer.
+79|In the document’s folder they open the file “Erdkunde 7a.weft” with a double click – or via “File” → “Open…” in Weft.
+80|Weft makes a copy on their computer and from now on keeps it in sync with the folder.
+81|Weft asks:
+82|“This learning module is being worked on together in a shared folder … Where should the copy be saved?”
+83|After that everybody can see who is working: whoever changed something in the last few minutes lights up green.
+84|SUMMARY
+85|Which way suits you?
+86|You work at the same time and want to get going quickly.
+87|The file with a link
+88|The file gets passed around by email or cloud anyway.
+89|The cloud folder
+90|You work at different times, for example through Nextcloud.
+91|Without any network:
+92|“File” → “Merge with file…” adds the changes of another copy to your document.
+93|If the direct connection doesn’t work:
+94|a TURN server in Weft’s settings.
+95|That’s it!
+96|Whether alone or together: Weft does both. You can find this tutorial on the start screen at any time.
+97|Switch on
+98|The link
+99|Copy
+100|Paste the link here
+101|… and join
+102|Address of the server
+103|Login details
+104|Before
+105|After: Weft syncs, and the others appear
+106|Click here
+107|Desktop app only

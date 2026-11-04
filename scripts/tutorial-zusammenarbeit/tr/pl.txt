@@ -1,0 +1,108 @@
+0|Wstecz
+1|Dalej
+2|SAMOUCZEK WEFT
+3|Wspólna praca nad dokumentem Weft
+4|Na żywo, przez plik lub folder w chmurze, np. Nextcloud.
+5|Zaczynamy
+6|NAJPIERW PYTANIE
+7|Wolisz działać solo?
+8|Wolisz pracować na własną rękę nad swoimi dokumentami i prezentacjami? Nie ma problemu. Weft nie łączy się z nikim, dopóki niczego nie włączysz.
+9|Praca na własną rękę
+10|W takim razie nic z tego nie jest ci potrzebne. Weft działa równie dobrze bez żadnej współpracy.
+11|Praca razem
+12|W takim razie pokażę ci trzy sposoby – od linku po folder w chmurze.
+13|Pokaż, jak
+14|Zakończ samouczek
+15|PRZEGLĄD
+16|Trzy sposoby wspólnej pracy
+17|1  Link do udostępniania
+18|Wysyłasz link. Kto go otworzy, pracuje na żywo nad tym samym dokumentem.
+19|NA ŻYWO
+20|2  Plik z linkiem
+21|Link jest wewnątrz zapisanego pliku. Kto otworzy plik, od razu jest w grze.
+22|3  Folder w chmurze
+23|Weft synchronizuje dokument przez folder, na przykład w Nextcloud.
+24|W RÓŻNYM CZASIE
+25|Gdy połączenie nie działa, pomaga serwer TURN – o tym za chwilę.
+26|SPOSÓB 1 – LINK DO UDOSTĘPNIANIA
+27|Link do udostępniania
+28|W panelu bocznym otwórz kartę „Ustawienia” i sekcję „Współpraca”.
+29|Zaznacz „Pracuj razem nad plikiem”: Weft tworzy link zaczynający się od „weft://”.
+30|Skopiuj go i wyślij pozostałym e-mailem lub czatem.
+31|Jak dołączają pozostali
+32|Jeśli Weft jest zainstalowany, wystarczy kliknąć link: Weft się otwiera i pyta, czy chcesz dołączyć.
+33|Albo wybierasz „Plik” → „Dołącz do zaproszenia…” i wklejasz link.
+34|Potem pracujecie na żywo nad tym samym dokumentem. Kto jest obecny, widzisz jako małe obrazki nad slajdem.
+35|WAŻNE
+36|Dołączenie działa tylko wtedy, gdy ktoś ma otwarty dokument. Kto ma link, może zmienić wszystko.
+37|SPOSÓB 2 – PLIK Z LINKIEM
+38|Plik z wbudowanym linkiem
+39|To samo zaznaczenie robi jeszcze coś: przy zapisie link trafia do pliku. W ten sposób sam plik staje się zaproszeniem.
+40|Zaznacz „Pracuj razem nad plikiem”.
+41|Zapisz przez „Plik” → „Zapisz”.
+42|Wyślij plik .weft: e-mailem, komunikatorem, pendrive’em lub przez chmurę.
+43|Przy eksporcie link nie trafia do pliku.
+44|Kto otworzy plik, zostaje zapytany:
+45|„Ten plik jest przygotowany do współpracy na żywo … Połączyć?”
+46|Jeśli osoba się zgodzi, łączy się ze wszystkimi, którzy w tej chwili mają plik otwarty.
+47|GDY COŚ SZWANKUJE
+48|Serwer TURN
+49|Weft łączy wasze komputery bezpośrednio ze sobą. W niektórych sieciach – na przykład na uczelniach czy w firmach – zapora blokuje tę drogę.
+50|Wtedy pomaga serwer TURN: przekazuje ruch danych.
+51|Twój komputer
+52|Komputery pozostałych
+53|Zapora
+54|Serwer TURN
+55|Wpisanie serwera TURN
+56|Otwórz ustawienia Weft (koło zębate w prawym górnym rogu) i znajdź grupę „Sieć (wspólna praca)”.
+57|Wpisz tam adres, nazwę użytkownika i hasło swojego serwera TURN.
+58|Serwer TURN dostaniesz w szkole, na uczelni lub w firmie – albo prowadzisz własny.
+59|Należy tylko do ciebie i nie ma go w linku: kto siedzi za taką zaporą, wpisuje własny.
+60|SPOSÓB 3 – FOLDER W CHMURZE
+61|Praca w folderze w chmurze
+62|Jeśli nie wszyscy mają być online w tym samym czasie, użyjcie folderu, który usługa taka jak Nextcloud, Sciebo, Dropbox czy Syncthing utrzymuje jednakowy dla wszystkich. Weft zostawia tam swoje zmiany i bierze to, co zostawią inni – bez linku, bez połączenia bezpośredniego, bez serwera TURN.
+63|Folder w chmurze
+64|Synchronizacja folderu jest dostępna w aplikacji na komputer.
+65|Jak to skonfigurować
+66|Utwórz folder w Nextcloud i udostępnij go pozostałym – z prawem do edycji.
+67|Klient Nextcloud utrzymuje folder na twoim komputerze w aktualnym stanie.
+68|W Weft: „Ustawienia” → „Współpraca” → „Wybierz folder i synchronizuj …” i wybierz folder.
+69|Co dzieje się w folderze
+70|Folder twojego dokumentu
+71|Otwiera dokument
+72|Zmiany od Mary
+73|Zmiany od Timo
+74|Obrazy, filmy, czcionki
+75|Każda osoba zapisuje tylko do własnego pliku. Dzięki temu Nextcloud nigdy nie tworzy „kopii konfliktowych” – Weft łączy wszystko sam.
+76|Co kilka sekund Weft zagląda do folderu i przejmuje to, co nowe – w dowolnej kolejności.
+77|Jak dołączają inni
+78|Dostają folder udostępniony w Nextcloud i synchronizują go ze swoim komputerem.
+79|W folderze dokumentu otwierają plik „Erdkunde 7a.weft” dwuklikiem – albo przez „Plik” → „Otwórz…” w Weft.
+80|Weft tworzy kopię na ich komputerze i od tej chwili utrzymuje ją zsynchronizowaną z folderem.
+81|Weft pyta:
+82|„Nad tym modułem edukacyjnym pracuje się wspólnie w folderze współdzielonym … Gdzie zapisać kopię?”
+83|Potem wszyscy widzą, kto pracuje: kto zmienił coś w ostatnich minutach, świeci się na zielono.
+84|PODSUMOWANIE
+85|Który sposób do was pasuje?
+86|Pracujecie jednocześnie i chcecie szybko zacząć.
+87|Plik z linkiem
+88|Plik i tak krąży e-mailem albo przez chmurę.
+89|Folder w chmurze
+90|Pracujecie w różnym czasie, na przykład przez Nextcloud.
+91|Zupełnie bez sieci:
+92|„Plik” → „Scal z plikiem…” dodaje do twojego dokumentu zmiany z innej kopii.
+93|Gdy połączenie bezpośrednie nie działa:
+94|serwer TURN w ustawieniach Weft.
+95|To wszystko!
+96|Samotnie czy razem: Weft sprawdza się w obu przypadkach. Ten samouczek znajdziesz zawsze na ekranie startowym.
+97|Włącz
+98|Link
+99|Skopiuj
+100|Wklej tutaj link
+101|… i dołącz
+102|Adres serwera
+103|Dane dostępu
+104|Przed
+105|Potem: Weft synchronizuje i pojawiają się pozostali
+106|Kliknij tutaj
+107|Tylko w aplikacji na komputer

@@ -1,0 +1,10 @@
+assets/
+crops/
+ops.json
+edit*.log
+*.weft
+texts-*.json
+shots.log
+validate.out
+tr/todo.txt
+capture-ops.json

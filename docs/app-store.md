@@ -64,6 +64,18 @@ Das macht für jede der acht Sprachen (`de en es fr pt it tr pl`) fünf Bilder m
 - Gewählt sind Folien, bei denen im Ereignisgraphen kein Wort steht, das die App nicht übersetzt (bei Folien, auf denen Elemente erscheinen, steht „… erscheint“ in jeder Sprache auf Deutsch; offene Lücke des Editors).
 - In App Store Connect: bei jeder Sprache („Lokalisierung“) die Bilder des passenden Ordners hochladen.
 
+## Webseiten für den Store (Datenschutz und Support)
+
+App Store Connect verlangt eine **Datenschutz-URL** und eine **Support-URL**. Dafür gibt es zwei Seiten, `website/privacy.html` und `website/support.html`, in allen acht Sprachen:
+
+```bash
+node scripts/website/build.mjs      # schreibt website/privacy.html und website/support.html
+```
+
+Die Texte stehen in `scripts/website/texts.mjs` (der Datenschutztext ist der von `src/features/start/PrivacyPage.tsx`, die es in der App nur auf Deutsch und Englisch gibt; die anderen sechs Sprachen sind nicht von Muttersprachlern geprüft; ändert sich der Text in der App, hier mitändern). Jede Seite ist eine einzige Datei mit allen Sprachen: Sie zeigt die Sprache des Browsers, man kann sie oben wechseln, und die Adresse kann sie festlegen: `privacy.html#fr` (oder `?lang=fr`). So bekommt in App Store Connect jede Lokalisierung ihre eigene Adresse. Ohne Skript erscheint die Seite auf Englisch. Die Seiten setzen keine Cookies und laden nichts von anderen Seiten.
+
+Die Dateien aus `website/` auf den eigenen Webserver legen (townwork.eu); die Adressen kommen dann unter „App-Informationen“ (Datenschutz-URL) und bei der Version (Support-URL) in App Store Connect. Der Datenschutztext muss zu den „App-Datenschutz“-Angaben passen (siehe oben, Punkt 5).
+
 ## Was sich in der Store-Version des Mac ändert
 
 - Datei **neben** der gespeicherten Datei anlegen (die temporäre Datei beim sicheren Speichern) darf die Sandbox nicht; die App schreibt dann direkt in die Datei (ein Absturz mitten im Schreiben könnte sie beschädigen – das Autospeichern läuft alle paar Sekunden, deshalb ist der Fall selten).

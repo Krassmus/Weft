@@ -9,7 +9,7 @@ import { useTranslation } from "../../core/i18n/useTranslation";
  */
 const IMPRESSUM: string[] = ["Rasmus Fuhse", "Pastor-Sander-Bogen 45", "37083 Göttingen"];
 const EMAIL = "krassmus@gmail.com";
-const DISCORD_URL = "https://discord.gg/qvYT9q6grg";
+const DISCORD_URL = "https://discord.gg/y7VnU3psN5";
 
 type Section = { title: string; paragraphs: string[] };
 type Texts = { privacy: string; sections: Section[]; legalTitle: string; legalIntro: string; legalOutro: string; supportTitle: string; supportText: string; supportLink: string; supportNote: string };

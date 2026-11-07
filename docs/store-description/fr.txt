@@ -1,0 +1,13 @@
+Un module d’e-learning est une présentation dotée d’éléments interactifs. Tu peux les remettre à tes apprenants ou les publier sur ton site web sous forme de MOOC.
+
+• Crée des présentations riches avec des animations et des transitions.
+• Ajoute des éléments interactifs comme des quiz, des boutons, des vidéos interactives, des textes à trous, de l’audio, des puzzles de tri, des galeries d’images et des revealers pour transformer ta présentation en véritable module d’e-learning.
+• Parcours d’apprentissage ramifiés et diapositives de saut qui réagissent à la progression de l’apprenant.
+• Compatible avec les formules LaTeX, les sites web dans des iframes, les blocs de code et d’autres fonctions introuvables dans PowerPoint ou Keynote.
+• Travaille en ligne avec tes amis et collègues sur tes contenus, ou via n’importe quel stockage cloud.
+• De nombreux exemples pour apprendre et à réutiliser comme modèles.
+• Tout ce que tu crées avec Weft est du HTML au final. Fonctionne sur tout ordinateur doté d’un navigateur web et peut être partagé avec le monde entier.
+• Entièrement open source et gratuit. Aucun compte nécessaire. Nous respectons ta vie privée.
+• Idéal pour les écoles, les universités et les formations en entreprise.
+
+Weft est un outil auteur open source pour présentations et modules d’e-learning interactifs. Export en HTML ou lecture dans n’importe quelle autre app Weft.

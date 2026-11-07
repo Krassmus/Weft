@@ -1,0 +1,13 @@
+An elearning module is a presentation with interactive elements. You can hand them over to your students or put them on your website as a MOOC.
+
+• Create rich presentations with animations and transitions.
+• Add interactive elements like quizzes, buttons, interactive videos, fill-in-the-words, audio, sorting puzzles, image galleries and revealers to your presentation to make it a full elearning module.
+• Branching learning paths, jump slides that react to the learning progress of the user.
+• Works with LaTeX formulas, websites in iframes, code blocks and other stuff that you won't find in PowerPoint or Keynote.
+• Work together with friends and colleagues on your material online or in any cloud storage.
+• Rich examples you can learn from and reuse as a template.
+• All Weft material is HTML at the end. Works on any computer with a web browser. Can be shared with the whole world.
+• Fully open source and free. No accounts needed. We respect your privacy.
+• Perfect for schools, universities or corporate training courses.
+
+Weft is an open source authoring tool for presentations and interactive elearning modules. It exports them as HTML or can be played with any other Weft app.

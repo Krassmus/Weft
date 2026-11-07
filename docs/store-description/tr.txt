@@ -1,0 +1,13 @@
+Bir e-öğrenme modülü, etkileşimli öğeler içeren bir sunumdur. Bunları öğrencilerine verebilir ya da MOOC olarak web sitene koyabilirsin.
+
+• Animasyonlar ve geçişlerle zengin sunumlar oluştur.
+• Sunumunu eksiksiz bir e-öğrenme modülüne dönüştürmek için sınavlar, düğmeler, etkileşimli videolar, boşluk doldurma metinleri, ses, sıralama bulmacaları, görsel galerileri ve revealer’lar gibi etkileşimli öğeler ekle.
+• Kullanıcının öğrenme ilerlemesine tepki veren dallanan öğrenme yolları ve atlama slaytları.
+• LaTeX formülleri, iframe içindeki web siteleri, kod blokları ve PowerPoint ya da Keynote’ta bulamayacağın başka şeylerle çalışır.
+• Materyalin üzerinde arkadaşların ve iş arkadaşlarınla çevrimiçi ya da herhangi bir bulut depolamada birlikte çalış.
+• Öğrenebileceğin ve şablon olarak yeniden kullanabileceğin zengin örnekler.
+• Tüm Weft materyali sonunda HTML’dir. Web tarayıcısı olan her bilgisayarda çalışır ve tüm dünyayla paylaşılabilir.
+• Tamamen açık kaynaklı ve ücretsiz. Hesap gerekmez. Gizliliğine saygı duyuyoruz.
+• Okullar, üniversiteler ve kurumsal eğitimler için mükemmel.
+
+Weft, sunumlar ve etkileşimli e-öğrenme modülleri için açık kaynaklı bir yazım aracıdır. HTML olarak dışa aktarır ya da başka bir Weft uygulamasında oynatır.

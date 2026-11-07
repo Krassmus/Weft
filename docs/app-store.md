@@ -49,6 +49,21 @@ Das ergibt `src-tauri/target/release/bundle/macos/Weft-<version>.pkg`, das mit d
 - Die **Version** (`package.json`, `tauri.conf.json`, `Cargo.toml`, iOS `project.yml` und `Info.plist`) und die **Build-Nummer**: Jeder Upload braucht eine Build-Nummer, die höher ist als jede zuvor hochgeladene. Für den Mac ist das `CFBundleVersion` (bei Tauri `bundle.macOS.bundleVersion`), für das iPad `CFBundleVersion` in `Info.plist`/`project.yml`. Bei der ersten Einreichung reicht `0.2.0`.
 - `npm test` und `npx tsc --noEmit -p .`.
 
+## Screenshots für den Mac App Store
+
+```bash
+npm run dev                                   # in einem zweiten Terminal (Port 1420)
+node scripts/appstore-screenshots/capture.mjs app-store-screenshots
+```
+
+Das macht für jede der acht Sprachen (`de en es fr pt it tr pl`) fünf Bilder mit je 2560 × 1600 Pixeln (eine der Größen, die der Mac App Store nimmt; PNG ohne Transparenz) in `app-store-screenshots/<Sprache>/`: der Editor mit der Vorlage „Lernpyramide“ (Sortieraufgabe, Aufgabe gewählt), das „+“ über der Folie offen (alle Elemente) und die drei Tutorials im Player. `ONLY=02-werkzeuge node …` nimmt nur ein Motiv neu auf, ein dritter Parameter (`de,en`) nur diese Sprachen. Der Ordner steht in `.gitignore` (etwa 25 MB).
+
+- Aufgenommen wird die Weboberfläche mit Chrome (dieselbe Seite wie in der Mac-App, aber ohne Fensterrahmen und Menüleiste des Systems). Die Leiste mit „Datei“, Rückgängig und Zahnrad gibt es nur ohne eigene Menüleiste (Browser, iPad), deshalb wird sie ausgeblendet: Die Bilder zeigen den Editor, wie er am Mac aussieht.
+- Kein Bild vom Startbildschirm: Den sehen die Leute beim ersten Start.
+- Die Namen der beiden Verzweigungen in der Vorlage („Order correct?“ …) sind in allen Sprachen englisch (ein Verzweigungsname ist ein einzelner Text ohne Übersetzungen). Für die Bilder benennt das Skript sie in einer Kopie der Vorlage in der Sprache der Oberfläche um (`BRANCH_NAMES` in `capture.mjs`, nicht von Muttersprachlern geprüft); die Vorlage selbst bleibt unverändert.
+- Gewählt sind Folien, bei denen im Ereignisgraphen kein Wort steht, das die App nicht übersetzt (bei Folien, auf denen Elemente erscheinen, steht „… erscheint“ in jeder Sprache auf Deutsch; offene Lücke des Editors).
+- In App Store Connect: bei jeder Sprache („Lokalisierung“) die Bilder des passenden Ordners hochladen.
+
 ## Was sich in der Store-Version des Mac ändert
 
 - Datei **neben** der gespeicherten Datei anlegen (die temporäre Datei beim sicheren Speichern) darf die Sandbox nicht; die App schreibt dann direkt in die Datei (ein Absturz mitten im Schreiben könnte sie beschädigen – das Autospeichern läuft alle paar Sekunden, deshalb ist der Fall selten).

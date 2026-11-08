@@ -163,7 +163,9 @@ export function EditorShell() {
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [player !== null]);
+    // (The work area is not there while the start screen is - or the player - is shown: measuring starts when it appears. Without the phase here the
+    // width stayed unknown after "Neu erstellen" / a file opened from the start screen, and the drawer never came.)
+  }, [player !== null, phase === "editor"]);
   // An event of the graph was selected: its panel is what the drawer is for. Not for what is selected on the slide - tapping an object
   // is for moving it and for selecting its text, and a drawer that comes out by itself is in the way of that; its tab brings it.
   useEffect(() => {

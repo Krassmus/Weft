@@ -408,7 +408,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = eu.townwork.weft;
 				PRODUCT_NAME = "Weft";
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 2;
 				VALID_ARCHS = arm64;
 			};
 			name = debug;
@@ -438,7 +438,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = eu.townwork.weft;
 				PRODUCT_NAME = "Weft";
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 2;
 				VALID_ARCHS = arm64;
 			};
 			name = release;

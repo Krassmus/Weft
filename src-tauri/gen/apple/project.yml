@@ -86,6 +86,8 @@ targets:
         EXCLUDED_ARCHS[sdk=iphoneos*]: x86_64
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: 7GD6JHBABJ
+        # iPad only ("Weft Authoring" is for Mac and iPad; the phones get the app "Weft Player", see player/). The generated project.pbxproj says the same.
+        TARGETED_DEVICE_FAMILY: "2"
         # Not a `dependencies: - framework: libapp.a` entry: XcodeGen resolves a
         # bare filename like that by globbing the whole project tree for any
         # file named libapp.a, and once both Externals/arm64/debug/libapp.a and

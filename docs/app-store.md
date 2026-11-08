@@ -77,6 +77,21 @@ Die Texte stehen in `scripts/website/texts.mjs` (der Datenschutztext ist der von
 
 Die Dateien aus `website/` auf den eigenen Webserver legen (townwork.eu); die Adressen kommen dann unter „App-Informationen“ (Datenschutz-URL) und bei der Version (Support-URL) in App Store Connect. Der Datenschutztext muss zu den „App-Datenschutz“-Angaben passen (siehe oben, Punkt 5).
 
+## Weft Player (iPhone)
+
+"Weft Authoring" (die App `eu.townwork.weft`) gibt es nur für Mac und iPad. Für Smartphones gibt es eine zweite, kleine App, die nur abspielt: **Weft Player**, Bundle-ID `eu.townwork.weft.player`, nur iPhone (Android später). Sie benutzt den Code von Weft (`src/core/`, Dateiöffnen in `src-tauri/src/open_files.rs`), hat aber einen eigenen Einstieg und ein eigenes Tauri-Projekt: alles steht in `player/` (siehe `player/README.md`).
+
+```bash
+npm run dev:player      # die Seite im Browser (Port 1430)
+npm run player:ios:sim  # die App für den iPhone-Simulator
+npm run player:ios      # das Archiv für App Store Connect (signiert; siehe unten)
+```
+
+- **Startseite:** die Module, die auf dem Telefon bekannt sind (die geöffneten, im Dokumenten-Ordner der App) und die zwei Beispiele von Weft. Tippen spielt ab, das × entfernt ein Modul (nach Rückfrage).
+- **Von außen öffnen:** Eine `.weft`-Datei aus Mail, Messenger oder Dateien öffnet den Player, wird in die Bibliothek kopiert und sofort abgespielt. **Einladungslinks** (`weft:…`) zeigen die Meldung, dass sie für Weft auf einem Tablet oder Computer sind.
+- **Im Apple-Konto:** App-ID `eu.townwork.weft.player` (iOS), ein eigener Eintrag „Weft Player“ in App Store Connect (nur iPhone), Screenshots für das 6,9-Zoll-iPhone (1320 × 2868), dieselben Datenschutz- und Support-Seiten (`website/`; der Datenschutztext spricht noch von der Zusammenarbeit, die der Player nicht hat). Das Archiv `npm run player:ios` meldet die App-ID bei automatischem Signieren selbst im Konto an: erst bauen, wenn das gewollt ist.
+- **Ausfuhr (Verschlüsselung):** Der Player hat keine eigene Zusammenarbeit und keine eigene Netzwerkverbindung; die Antwort dort fällt vermutlich anders aus als bei Weft - beim Ausfüllen prüfen, nicht von Weft übernehmen.
+
 ## Was sich in der Store-Version des Mac ändert
 
 - Datei **neben** der gespeicherten Datei anlegen (die temporäre Datei beim sicheren Speichern) darf die Sandbox nicht; die App schreibt dann direkt in die Datei (ein Absturz mitten im Schreiben könnte sie beschädigen – das Autospeichern läuft alle paar Sekunden, deshalb ist der Fall selten).

@@ -1,0 +1,32 @@
+[package]
+name = "weft-player"
+version = "1.0.0"
+description = "Weft Player: plays Weft learning modules"
+authors = ["Weft contributors"]
+edition = "2021"
+
+[lib]
+# (As in ../../src-tauri/Cargo.toml: no "cdylib" - nothing loads one, and cargo would try to link it before Xcode has compiled the Swift side.)
+name = "weft_player_lib"
+crate-type = ["staticlib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# The library of modules on the phone (read, write, delete in the Documents folder), links of modules to the browser, "weft:" links.
+tauri-plugin-fs = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-deep-link = "2"
+
+# For taking in a file that "Open in Weft Player" hands over - the code is that of Weft (../../src-tauri/src/open_files.rs, ios_open_urls.rs).
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2 = "0.6"
+block2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "alloc", "NSURL", "NSString"] }
+
+[profile.release]
+opt-level = 3

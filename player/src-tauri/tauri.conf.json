@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Weft Player",
+  "version": "1.0.0",
+  "identifier": "eu.townwork.weft.player",
+  "build": {
+    "beforeDevCommand": "npm --prefix .. run dev:player",
+    "devUrl": "http://localhost:1430",
+    "beforeBuildCommand": "npm --prefix .. run build:player",
+    "frontendDist": "../../dist-player"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Weft Player",
+        "width": 420,
+        "height": 860,
+        "dragDropEnabled": false,
+        "zoomHotkeysEnabled": false
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$APPCACHE/**"]
+      }
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "mobile": [{ "scheme": ["weft"], "appLink": false }]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "iOS": {
+      "minimumSystemVersion": "16.0",
+      "developmentTeam": "7GD6JHBABJ"
+    },
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+  }
+}

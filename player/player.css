@@ -1,0 +1,297 @@
+/* The app "Weft Player" (player/): the look of the start screen of Weft (dark, blue), made for a phone - one column of tiles, big targets, the notch and
+   the home bar left alone. Self-contained: the editor's stylesheet (src/App.css) is not part of this app. */
+:root {
+  --weft-bg: #0a0d16;
+  --weft-panel: #12151f;
+  --weft-border: #242938;
+  --weft-border-subtle: #1b1f2c;
+  --weft-text: #e7e9ee;
+  --weft-text-muted: #8b93a7;
+  --weft-accent: #3b82f6;
+  --weft-accent-hover: #5b95f7;
+  --player-radius: 14px;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--weft-bg);
+  color: var(--weft-text);
+  font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.player-app {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+}
+
+/* ---- the start page ---- */
+.player-home {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  background: radial-gradient(900px 400px at 20% -10%, #14224a 0%, transparent 60%), var(--weft-bg);
+}
+
+.player-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  padding: calc(env(safe-area-inset-top) + 12px) 20px 12px;
+  border-bottom: 1px solid var(--weft-border-subtle);
+}
+
+.player-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.player-header h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.player-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 20px calc(env(safe-area-inset-bottom) + 24px);
+  -webkit-overflow-scrolling: touch;
+}
+
+.player-main h2 {
+  margin: 24px 0 12px;
+  color: var(--weft-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.player-empty {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed var(--weft-border);
+  border-radius: var(--player-radius);
+  color: var(--weft-text-muted);
+}
+
+.player-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.player-tile {
+  position: relative;
+}
+
+.player-tile-open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--player-radius);
+  background: var(--weft-panel);
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.player-tile-open:active,
+.player-tile-open:focus-visible {
+  border-color: var(--weft-accent);
+}
+
+.player-tile-title {
+  display: -webkit-box;
+  padding: 10px 12px 12px;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.player-tile-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 15px;
+  background: rgba(10, 13, 22, 0.75);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* The picture of a tile (ModuleThumb of the start screen of Weft): the module's first slide, cut off at the bottom. */
+.weft-start-thumb {
+  position: relative;
+  height: 96px;
+  overflow: hidden;
+  background: #0d1020;
+  pointer-events: none;
+}
+
+.weft-start-thumb-frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.weft-start-thumb-empty {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #1d2a55, #0d1020);
+}
+
+/* ---- playing ---- */
+.player-playing {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  background: #000;
+}
+
+.player-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  padding: env(safe-area-inset-top) 10px 0;
+  min-height: calc(env(safe-area-inset-top) + 48px);
+}
+
+.player-back {
+  padding: 7px 14px;
+  border: 1px solid #3a3f50;
+  border-radius: 9px;
+  background: none;
+  font-size: 15px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.player-rotate {
+  display: none;
+  margin-left: auto;
+  color: var(--weft-text-muted);
+  font-size: 13px;
+  text-align: right;
+}
+
+@media (orientation: portrait) {
+  .player-rotate {
+    display: block;
+  }
+}
+
+.player-stage {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.player-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #000;
+}
+
+/* ---- messages ---- */
+.player-busy {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 24px);
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  border: 1px solid var(--weft-border);
+  border-radius: 999px;
+  background: var(--weft-panel);
+  font-size: 14px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+
+.player-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.player-sheet {
+  width: 100%;
+  max-width: 340px;
+  padding: 20px;
+  border: 1px solid var(--weft-border);
+  border-radius: var(--player-radius);
+  background: var(--weft-panel);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.player-sheet h3 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.player-sheet p {
+  margin: 0 0 16px;
+}
+
+.player-sheet-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.player-sheet-buttons button {
+  padding: 9px 16px;
+  border: 1px solid var(--weft-border);
+  border-radius: 9px;
+  background: none;
+  cursor: pointer;
+}
+
+.player-sheet-buttons button.is-danger {
+  border-color: #c0392b;
+  color: #ff8a7a;
+}

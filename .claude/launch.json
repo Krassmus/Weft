@@ -4,8 +4,20 @@
     {
       "name": "weft-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 1420
+    },
+    {
+      "name": "weft-player-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:player"
+      ],
+      "port": 1430
     }
   ]
 }

@@ -32,3 +32,4 @@ src-tauri/binaries/
 
 # Screenshots for the App Stores (made by scripts/appstore-screenshots/capture.mjs, about 25 MB)
 /app-store-screenshots/
+/app-store-screenshots-ipad/

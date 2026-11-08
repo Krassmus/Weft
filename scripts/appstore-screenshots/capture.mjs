@@ -19,6 +19,9 @@ import { launch, sleep } from "../tutorial-erstes-lernmodul/cdp.mjs";
 const OUT = process.argv[2];
 const LANGS = (process.argv[3] || "de,en,es,fr,pt,it,tr,pl").split(",");
 // ONLY=01-editor,02-werkzeuge,03-tutorial-lernmodul … takes just those pictures again
+// DEVICE=ipad makes the pictures for the iPad instead (2752 x 2064 pixels - a 13" iPad across, a window of 1376 x 1032 at Retina sharpness; the App Store
+// takes 2752x2064, 2064x2752, 2732x2048 and 2048x2732): the bar above the editor stays (on the iPad it belongs to the app). Use another folder for them.
+const IPAD = process.env.DEVICE === "ipad";
 const want = (name) => !process.env.ONLY || process.env.ONLY.split(",").includes(name);
 const TEMPLATE_FILE = new URL("../../src/start-content/templates/lernpyramide.weft", import.meta.url).pathname;
 
@@ -63,10 +66,10 @@ for (const lang of LANGS) {
   const dir = `${OUT}/${lang}`;
   mkdirSync(dir, { recursive: true });
   const template = templateFor(lang);
-  const c = await launch(1280, 800, 2);
+  const c = await launch(IPAD ? 1376 : 1280, IPAD ? 1032 : 800, 2);
   await c.send("Page.addScriptToEvaluateOnNewDocument", {
     source: `localStorage.setItem("weft:language","${lang}");
-      document.addEventListener("DOMContentLoaded", () => { const s = document.createElement("style"); s.textContent = ".weft-appbar { display: none !important; }"; document.head.appendChild(s); });`,
+      ${IPAD ? "" : `document.addEventListener("DOMContentLoaded", () => { const s = document.createElement("style"); s.textContent = ".weft-appbar { display: none !important; }"; document.head.appendChild(s); });`}`,
   });
   await c.send("Page.setInterceptFileChooserDialog", { enabled: true });
   c.on(async (m) => {

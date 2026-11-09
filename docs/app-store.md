@@ -10,7 +10,7 @@ Beide Apps gehen über den App Store. Dieses Dokument beschreibt, was dafür im 
 - Beim Start öffnet die App alle gemerkten Lesezeichen (die letzten 100), noch bevor die Seite läuft.
 - Außerhalb der Sandbox (Entwicklung, Windows, Linux, iPad) tut das alles nichts; erkannt wird die Sandbox an der Umgebungsvariable `APP_SANDBOX_CONTAINER_ID`.
 - In der Sandbox startet der lokale Steuerserver für KI-Assistenten (`control.rs`) nicht. Das Kommandozeilenwerkzeug (`weft`, mit eigenem Node) ist nicht in der Store-Version: Es kommt nur über `tauri.cli.conf.json` ins Paket, und die Store-Version nutzt diese Datei nicht.
-- Die Rechte stehen in `src-tauri/appstore/Entitlements.plist`: Netzwerk (Client und Server, für WebRTC), vom Menschen gewählte Dateien lesen und schreiben, Lesezeichen.
+- Die Rechte stehen in `src-tauri/appstore/Entitlements.plist`: Netzwerk (nur Client, für die Zusammenarbeit), vom Menschen gewählte Dateien lesen und schreiben, Lesezeichen.
 
 **Datenschutz-Manifest.** `PrivacyInfo.xcprivacy` (Mac: `src-tauri/appstore/`, iPad: `src-tauri/gen/apple/weft_iOS/`; beide gleich halten). Weft sammelt nichts und verfolgt nichts. Eingetragen sind die „Required Reason“-Schnittstellen, die Laufzeit und Dateiverwaltung benutzen: Dateizeiten, Uhr (Messung), UserDefaults. Fehlt Apple etwas, schreibt es nach dem Hochladen eine E-Mail mit dem genauen Namen – dann hier ergänzen.
 
@@ -46,6 +46,7 @@ Das ergibt `src-tauri/target/release/bundle/macos/Weft-<version>.pkg`, das mit d
 
 ## Vor jedem Upload
 
+- Das Mac-Paket trägt seine Build-Nummer in `src-tauri/tauri.macos-appstore.conf.json` (`bundle.macOS.bundleVersion`, nach dem ersten Upload `1.0.1`: die Version bleibt `1.0.0`); bei jedem weiteren Upload erhöhen.
 - Die **Version** (`package.json`, `tauri.conf.json`, `Cargo.toml`, iOS `project.yml` und `Info.plist`) und die **Build-Nummer**: Jeder Upload braucht eine Build-Nummer, die höher ist als jede zuvor hochgeladene. Für den Mac ist das `CFBundleVersion` (bei Tauri `bundle.macOS.bundleVersion`), für das iPad `CFBundleVersion` in `Info.plist`/`project.yml`. Die erste Einreichung ist `1.0.0` (Version und Build-Nummer); danach muss die Build-Nummer bei jedem Upload steigen (zum Beispiel `1.0.1`, auch wenn die Version `1.0.0` bleibt).
 - `npm test` und `npx tsc --noEmit -p .`.
 
@@ -91,6 +92,10 @@ npm run player:ios      # das Archiv für App Store Connect (signiert; siehe unt
 - **Von außen öffnen:** Eine `.weft`-Datei aus Mail, Messenger oder Dateien öffnet den Player, wird in die Bibliothek kopiert und sofort abgespielt. **Einladungslinks** (`weft:…`) zeigen die Meldung, dass sie für Weft auf einem Tablet oder Computer sind.
 - **Im Apple-Konto:** App-ID `eu.townwork.weft.player` (iOS), ein eigener Eintrag „Weft Player“ in App Store Connect (nur iPhone), Screenshots für das 6,9-Zoll-iPhone (1320 × 2868), dieselben Datenschutz- und Support-Seiten (`website/`; der Datenschutztext spricht noch von der Zusammenarbeit, die der Player nicht hat). Das Archiv `npm run player:ios` meldet die App-ID bei automatischem Signieren selbst im Konto an: erst bauen, wenn das gewollt ist.
 - **Ausfuhr (Verschlüsselung):** Der Player hat keine eigene Zusammenarbeit und keine eigene Netzwerkverbindung; die Antwort dort fällt vermutlich anders aus als bei Weft - beim Ausfüllen prüfen, nicht von Weft übernehmen.
+
+## Prüfung durch Apple: Rechte
+
+Apple prüft die Rechte (Entitlements) automatisch und lehnt Apps ab, die mehr verlangen, als sie erkennbar nutzen (Beispiel: `com.apple.security.network.server` ohne eigenen Server, abgelehnt am 9.11.2026). Die Mac-App hat nur noch: App-Sandbox, Netzwerk als Client, vom Menschen gewählte Dateien (lesen und schreiben) und die Lesezeichen. `network.server` war nicht nötig: In einer sandboxed Test-Version (zwei WebRTC-Verbindungen in der Seite, mit Host- und STUN-Adressen) verbinden sich die Partner mit und ohne den Eintrag (die Web-Ansicht des Systems macht das selbst). Ein Test mit einem entfernten Partner ist das nicht: Wenn Zusammenarbeit zwischen zwei Rechnern im Store-Build nicht klappt, zuerst hier suchen.
 
 ## Was sich in der Store-Version des Mac ändert
 

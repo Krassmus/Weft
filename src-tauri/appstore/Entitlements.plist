@@ -2,8 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
   The Mac App Store version of Weft (scripts/mac-appstore.sh). The App Sandbox is required there; this is all the app asks of it:
-  - network client and server: collaboration (WebRTC to the others, the public relays that introduce them) - a call that comes in from
-    another computer needs "server";
+  - network client: collaboration (WebRTC to the others, the public relays that introduce them). Not "server": the web view does the WebRTC
+    sockets itself, which the app's own sandbox does not stand in the way of - tried in a sandboxed build (two peer connections in the page,
+    host and STUN candidates, the data channel opens) with and without it, no difference; and Apple's review refused the app for having it
+    ("does not appear to have matching functionality"). The local interface for AI assistants (control.rs), the only thing in Weft that
+    listens, does not run in the sandbox.
   - files chosen in a dialog or handed over by the Finder, read and write, and the bookmarks that keep that access for the next start
     (src-tauri/src/sandbox.rs): "Zuletzt geöffnet", autosave, the shared folder (Nextcloud ...).
   The first two keys are the app's identity at Apple (the team of src-tauri/gen/apple/project.yml); a build for trying the sandbox on this
@@ -18,8 +21,6 @@
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
 	<key>com.apple.security.network.client</key>
-	<true/>
-	<key>com.apple.security.network.server</key>
 	<true/>
 	<key>com.apple.security.files.user-selected.read-write</key>
 	<true/>

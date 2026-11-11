@@ -198,16 +198,23 @@ button {
 
 /* The cross in the corner, as for any window that is closed: it leads back to the start page. */
 .player-close {
+  display: inline-flex;
   flex: none;
+  align-items: center;
+  justify-content: center;
   width: 44px;
   height: 44px;
-  padding: 0 0 3px;
+  padding: 0;
   border: 1px solid #3a3f50;
   border-radius: 10px;
   background: none;
-  font-size: 26px;
-  line-height: 1;
   cursor: pointer;
+}
+
+/* A drawing, not a letter: the button puts it exactly in the middle. */
+.player-close svg {
+  width: 20px;
+  height: 20px;
 }
 
 .player-rotate {

@@ -4181,15 +4181,23 @@ button.weft-timeline-node-icon:hover {
 }
 
 .weft-player-fullscreen {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 32px;
   height: 32px;
+  padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 6px;
   background: transparent;
   color: #fff;
-  font-size: 18px;
-  line-height: 1;
   cursor: pointer;
+}
+
+/* The sign is a drawing (see Icon in PlayerShell.tsx): the button puts it in the middle. */
+.weft-player-fullscreen svg {
+  width: 16px;
+  height: 16px;
 }
 
 .weft-player-fullscreen:hover {
@@ -4354,11 +4362,6 @@ button.weft-timeline-node-icon:hover {
   margin-right: auto;
 }
 
-/* The cross that leaves the player (to the start screen): the same square button as the full screen one, the sign a little bigger. */
-.weft-player-fullscreen.weft-player-close {
-  font-size: 24px;
-  padding-bottom: 2px;
-}
 
 .weft-player-menu .weft-filemenu-button {
   border-color: rgba(255, 255, 255, 0.35);
@@ -4485,6 +4488,11 @@ button.weft-timeline-node-icon:hover {
   .weft-player-fullscreen {
     width: 44px;
     height: 44px;
+  }
+
+  .weft-player-fullscreen svg {
+    width: 20px;
+    height: 20px;
   }
 }
 

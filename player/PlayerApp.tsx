@@ -154,7 +154,9 @@ export function PlayerApp() {
           <div className="player-bar">
             <span className="player-rotate">{t.rotate}</span>
             <button type="button" className="player-close" onClick={() => setPlaying(null)} title={t.close} aria-label={t.close}>
-              ×
+              <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <path d="M3 3 L13 13 M13 3 L3 13" />
+              </svg>
             </button>
           </div>
           <div className="player-stage">

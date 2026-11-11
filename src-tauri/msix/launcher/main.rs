@@ -15,7 +15,11 @@ fn main() {
         }
     };
     let dir = exe.parent().expect("an executable is in a folder");
-    let script = if exe.file_stem().is_some_and(|s| s.eq_ignore_ascii_case("weft-mcp")) { "weft-mcp.mjs" } else { "weft.mjs" };
+    // Both aliases start this one file (the manifest allows one per app): which one it was, the name it was called with says -
+    // `weft-mcp` from an MCP client, ...\WindowsApps\weft-mcp.exe from a shell. (And the file's own name, for weft-mcp.exe next to it.)
+    let called_as = |name: &std::path::Path| name.file_stem().is_some_and(|s| s.eq_ignore_ascii_case("weft-mcp"));
+    let mcp = env::args_os().next().is_some_and(|arg0| called_as(std::path::Path::new(&arg0))) || called_as(&exe);
+    let script = if mcp { "weft-mcp.mjs" } else { "weft.mjs" };
     let node = dir.join("..").join("weft-node.exe");
     if !node.exists() {
         eprintln!("weft: the Node that comes with the app was not found ({}) - is the app complete?", node.display());

@@ -46,7 +46,7 @@ Das ergibt `src-tauri/target/release/bundle/macos/Weft-<version>.pkg`, das mit d
 
 ## Vor jedem Upload
 
-- Das Mac-Paket trägt seine Build-Nummer in `src-tauri/tauri.macos-appstore.conf.json` (`bundle.macOS.bundleVersion`, nach dem ersten Upload `1.0.1`: die Version bleibt `1.0.0`); bei jedem weiteren Upload erhöhen.
+- Das Mac-Paket trägt seine Build-Nummer in `src-tauri/tauri.macos-appstore.conf.json` (`bundle.macOS.bundleVersion`, derzeit `1.0.2`: die Version bleibt `1.0.0`); bei jedem weiteren Upload erhöhen.
 - Die **Version** (`package.json`, `tauri.conf.json`, `Cargo.toml`, iOS `project.yml` und `Info.plist`) und die **Build-Nummer**: Jeder Upload braucht eine Build-Nummer, die höher ist als jede zuvor hochgeladene. Für den Mac ist das `CFBundleVersion` (bei Tauri `bundle.macOS.bundleVersion`), für das iPad `CFBundleVersion` in `Info.plist`/`project.yml`. Die erste Einreichung ist `1.0.0` (Version und Build-Nummer); danach muss die Build-Nummer bei jedem Upload steigen (zum Beispiel `1.0.1`, auch wenn die Version `1.0.0` bleibt).
 - `npm test` und `npx tsc --noEmit -p .`.
 

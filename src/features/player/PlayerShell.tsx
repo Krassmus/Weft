@@ -49,19 +49,18 @@ export function PlayerShell({ file, menu, onStart }: { file: PlayerFile; menu?: 
   return (
     <div className={"weft-player-shell" + (fullscreen ? " is-fullscreen" : "")}>
       <div className="weft-player-bar">
-        {/* The way back to the start screen; `menu` (the File menu) is optional and not used by the app at present. */}
-        <div className="weft-player-menu">
-          {onStart && (
-            <button type="button" className="weft-player-fullscreen weft-player-back" onClick={onStart}>
-              ‹ {tr("ui.start_home")}
-            </button>
-          )}
-          {menu}
-        </div>
+        {/* `menu` (the File menu) is optional and not used by the app at present. */}
+        {menu && <div className="weft-player-menu">{menu}</div>}
         {!isTouchDevice() && (
         <button type="button" className="weft-player-fullscreen" onClick={() => void toggleFullscreen()} title={fullscreen ? tr("ui.exit_full_screen_esc") : tr("ui.full_screen")}>
           {fullscreen ? "⤡" : "⤢"}
         </button>
+        )}
+        {/* The way back to the start screen (and so to other files): a cross in the corner, as for any window that is closed. */}
+        {onStart && (
+          <button type="button" className="weft-player-fullscreen weft-player-close" onClick={onStart} title={tr("ui.close")} aria-label={tr("ui.close")}>
+            ×
+          </button>
         )}
       </div>
       <div className="weft-player-stage">

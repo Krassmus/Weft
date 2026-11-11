@@ -4175,6 +4175,7 @@ button.weft-timeline-node-icon:hover {
   flex: none;
   align-items: center;
   justify-content: flex-end;
+  gap: 8px;
   height: 48px;
   padding: 0 24px;
 }
@@ -4353,18 +4354,10 @@ button.weft-timeline-node-icon:hover {
   margin-right: auto;
 }
 
-.weft-player-fullscreen.weft-player-back {
-  width: auto;
-  padding: 0 12px;
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-/* A finger: the same size as the other buttons of the bar (the 32 points above are for a pointer). */
-@media (pointer: coarse) {
-  .weft-player-fullscreen.weft-player-back {
-    font-size: 15px;
-  }
+/* The cross that leaves the player (to the start screen): the same square button as the full screen one, the sign a little bigger. */
+.weft-player-fullscreen.weft-player-close {
+  font-size: 24px;
+  padding-bottom: 2px;
 }
 
 .weft-player-menu .weft-filemenu-button {

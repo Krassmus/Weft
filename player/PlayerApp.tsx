@@ -152,10 +152,10 @@ export function PlayerApp() {
       {playing ? (
         <div className="player-playing">
           <div className="player-bar">
-            <button type="button" className="player-back" onClick={() => setPlaying(null)}>
-              ‹ {t.back}
-            </button>
             <span className="player-rotate">{t.rotate}</span>
+            <button type="button" className="player-close" onClick={() => setPlaying(null)} title={t.close} aria-label={t.close}>
+              ×
+            </button>
           </div>
           <div className="player-stage">
             <PlayerFrame html={playing.html} title={playing.title || "Weft"} />

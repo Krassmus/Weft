@@ -190,27 +190,31 @@ button {
   display: flex;
   flex: none;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
   padding: env(safe-area-inset-top) 10px 0;
   min-height: calc(env(safe-area-inset-top) + 48px);
 }
 
-.player-back {
-  padding: 7px 14px;
+/* The cross in the corner, as for any window that is closed: it leads back to the start page. */
+.player-close {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0 0 3px;
   border: 1px solid #3a3f50;
-  border-radius: 9px;
+  border-radius: 10px;
   background: none;
-  font-size: 15px;
-  white-space: nowrap;
+  font-size: 26px;
+  line-height: 1;
   cursor: pointer;
 }
 
 .player-rotate {
   display: none;
-  margin-left: auto;
+  margin-right: auto;
   color: var(--weft-text-muted);
   font-size: 13px;
-  text-align: right;
 }
 
 @media (orientation: portrait) {

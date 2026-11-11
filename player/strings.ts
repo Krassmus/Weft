@@ -13,8 +13,8 @@ interface Strings {
   /** Nothing there yet. */
   empty: string;
   opening: string;
-  /** The button in the bar above the module. */
-  back: string;
+  /** The cross in the corner above the module (back to the start page). */
+  close: string;
   remove: string;
   removeAsk: string;
   cancel: string;
@@ -34,7 +34,7 @@ const STRINGS: Record<Language, Strings> = {
     examples: "Beispiele",
     empty: "Noch keine Module. Schickt dir jemand ein Weft-Modul, zum Beispiel per Mail oder Messenger, öffne die Datei hier: Sie wird auf diesem Gerät abgelegt und sofort abgespielt.",
     opening: "Wird geöffnet …",
-    back: "Module",
+    close: "Schließen",
     remove: "Entfernen",
     removeAsk: "Dieses Modul von diesem Gerät entfernen?",
     cancel: "Abbrechen",
@@ -50,7 +50,7 @@ const STRINGS: Record<Language, Strings> = {
     examples: "Examples",
     empty: "No modules yet. If somebody sends you a Weft module, by mail or a messenger for example, open the file here: it is kept on this device and played right away.",
     opening: "Opening …",
-    back: "Modules",
+    close: "Close",
     remove: "Remove",
     removeAsk: "Remove this module from this device?",
     cancel: "Cancel",
@@ -66,7 +66,7 @@ const STRINGS: Record<Language, Strings> = {
     examples: "Ejemplos",
     empty: "Aún no hay módulos. Si alguien te envía un módulo de Weft, por correo o por mensajería, por ejemplo, abre el archivo aquí: se guardará en este dispositivo y se reproducirá enseguida.",
     opening: "Abriendo …",
-    back: "Módulos",
+    close: "Cerrar",
     remove: "Quitar",
     removeAsk: "¿Quitar este módulo de este dispositivo?",
     cancel: "Cancelar",
@@ -82,7 +82,7 @@ const STRINGS: Record<Language, Strings> = {
     examples: "Exemples",
     empty: "Aucun module pour l’instant. Si quelqu’un t’envoie un module Weft, par e-mail ou par messagerie par exemple, ouvre le fichier ici : il est conservé sur cet appareil et lu aussitôt.",
     opening: "Ouverture …",
-    back: "Modules",
+    close: "Fermer",
     remove: "Retirer",
     removeAsk: "Retirer ce module de cet appareil ?",
     cancel: "Annuler",
@@ -98,7 +98,7 @@ const STRINGS: Record<Language, Strings> = {
     examples: "Exemplos",
     empty: "Ainda não há módulos. Se alguém lhe enviar um módulo do Weft, por e-mail ou mensageiro, por exemplo, abra o arquivo aqui: ele fica guardado neste dispositivo e é reproduzido na hora.",
     opening: "Abrindo …",
-    back: "Módulos",
+    close: "Fechar",
     remove: "Remover",
     removeAsk: "Remover este módulo deste dispositivo?",
     cancel: "Cancelar",
@@ -114,7 +114,7 @@ const STRINGS: Record<Language, Strings> = {
     examples: "Esempi",
     empty: "Ancora nessun modulo. Se qualcuno ti manda un modulo Weft, per esempio per e-mail o con un messenger, apri qui il file: viene salvato su questo dispositivo e riprodotto subito.",
     opening: "Apertura …",
-    back: "Moduli",
+    close: "Chiudi",
     remove: "Rimuovi",
     removeAsk: "Rimuovere questo modulo da questo dispositivo?",
     cancel: "Annulla",
@@ -130,7 +130,7 @@ const STRINGS: Record<Language, Strings> = {
     examples: "Örnekler",
     empty: "Henüz modül yok. Birisi sana bir Weft modülü gönderirse, örneğin e-postayla ya da bir mesajlaşma uygulamasıyla, dosyayı burada aç: Bu cihaza kaydedilir ve hemen oynatılır.",
     opening: "Açılıyor …",
-    back: "Modüller",
+    close: "Kapat",
     remove: "Kaldır",
     removeAsk: "Bu modül bu cihazdan kaldırılsın mı?",
     cancel: "İptal",
@@ -146,7 +146,7 @@ const STRINGS: Record<Language, Strings> = {
     examples: "Przykłady",
     empty: "Nie ma jeszcze modułów. Jeśli ktoś wyśle ci moduł Weft, na przykład mailem lub komunikatorem, otwórz plik tutaj: zostanie zapisany na tym urządzeniu i od razu odtworzony.",
     opening: "Otwieranie …",
-    back: "Moduły",
+    close: "Zamknij",
     remove: "Usuń",
     removeAsk: "Usunąć ten moduł z tego urządzenia?",
     cancel: "Anuluj",

@@ -804,11 +804,14 @@ pub fn run() {
             }
 
             // Windows (unpackaged/dev) and Linux (AppImage) don't have an installer that registers the link
-            // scheme, so the program does it itself. (macOS: it is part of the app bundle's Info.plist.)
+            // scheme, so the program does it itself. (macOS: it is part of the app bundle's Info.plist; the
+            // Microsoft Store package: its AppxManifest.xml, and a packaged app's registry is a private copy.)
             #[cfg(any(windows, target_os = "linux"))]
             {
                 use tauri_plugin_deep_link::DeepLinkExt;
-                _app.deep_link().register_all()?;
+                if !cli_tool::in_store_package() {
+                    _app.deep_link().register_all()?;
+                }
             }
 
             // No native menu bar on mobile (see this file's own header comment) - nothing here to

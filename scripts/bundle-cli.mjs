@@ -77,7 +77,10 @@ async function officialNode(target) {
   }
   const unpacked = join(cache, base.replace(/\.(tar\.gz|tar\.xz|zip)$/, ""));
   rmSync(unpacked, { recursive: true, force: true });
-  execFileSync("tar", ["-xf", archive, "-C", cache]); // (bsdtar reads .zip too; Windows 10 and later have it)
+  // (bsdtar reads .zip too; Windows 10 and later have it - by its full path, as Git's GNU tar may come first on the PATH and takes "C:"
+  // for a remote computer)
+  const tar = process.platform === "win32" ? join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe") : "tar";
+  execFileSync(tar, ["-xf", archive, "-C", cache]);
   return join(unpacked, binary);
 }
 

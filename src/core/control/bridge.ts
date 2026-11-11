@@ -17,11 +17,12 @@ import type { JsonPatch } from "./jsonPatches";
 export type ControlMode = "off" | "read" | "edit";
 
 /**
- * Whether the settings show the section "KI-Assistenten" (the command line tool, and what an assistant may do with the open module). It is
- * hidden for now - the way to hand the tool out is not decided yet - and while it is, the person has no way to allow anything: the
- * interface is OFF unless `localStorage["weft.control.mode"]` is set to "read" or "edit" by hand (for trying it out).
+ * Whether the settings show the section "KI-Assistenten" (the command line tool, and what an assistant may do with the open module). Only on
+ * Windows, where the app brings the tool (the installer, and the Microsoft Store package as the commands `weft` and `weft-mcp`). Elsewhere
+ * it is hidden - the Mac App Store version cannot bring the tool - and while it is, the person has no way to allow anything: the interface is
+ * OFF unless `localStorage["weft.control.mode"]` is set to "read" or "edit" by hand (for trying it out).
  */
-export const AI_SETTINGS_VISIBLE = false;
+export const AI_SETTINGS_VISIBLE = typeof navigator !== "undefined" && /Windows/.test(navigator.userAgent);
 
 const MODE_KEY = "weft.control.mode";
 

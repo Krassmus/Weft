@@ -1,0 +1,18 @@
+# The two small programs behind the commands `weft` and `weft-mcp` of the Microsoft Store package (src-tauri/msix/AppxManifest.xml,
+# built by scripts/windows-store.mjs). Windows makes a command of a packaged app only from an .exe, not from the .cmd launchers.
+[package]
+name = "weft-msix-launcher"
+version = "1.0.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "weft-msix-launcher"
+path = "main.rs"
+
+# not a member of src-tauri's crate
+[workspace]
+
+[profile.release]
+opt-level = "s"
+strip = true

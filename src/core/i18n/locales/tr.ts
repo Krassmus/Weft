@@ -94,6 +94,7 @@ export const tr: Record<TranslationKey, string> = {
   "settings.ai.copy": "Kopyala",
   "settings.ai.copied": "Kopyalandı",
   "settings.ai.windows": "Araç bu klasörde (Windows'ta bağlantı oluşturulmaz). Yardımcına bu yolu ver:",
+  "settings.ai.commands": "Araç her terminalde bir komuttur. Yardımcına bu adı ver:",
   "settings.ai.version": "Sürüm {version}",
   "settings.ai.error": "Olmadı: {message}",
   "settings.ai.missing": "Weft'in bu kopyası komut satırı aracını içermiyor (bir geliştirme sürümü ya da App Store sürümü). Araç, indirilen masaüstü uygulamasıyla ve depoyla birlikte gelir (bkz. AGENTS.md).",

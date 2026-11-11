@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Microsoft Store package (MSIX) of the desktop app. The identity is the one from Partner Center (Apps und Spiele > Weft >
+     Produktverwaltung > Produktidentität); scripts/windows-store.mjs fills in the version from package.json. -->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap3 desktop rescap">
+
+  <Identity Name="RasmusFuhse.WeftAuthoring" Publisher="CN=DAA4D157-248B-4C1E-8DE8-6F757D9C0514" Version="{{VERSION}}" ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>Weft</DisplayName>
+    <PublisherDisplayName>Rasmus Fuhse</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <!-- Windows 10 1809: the oldest one WebView2 and MSIX desktop apps run on without trouble -->
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <!-- Partner Center wants a store listing for every language named here -->
+  <Resources>
+    <Resource Language="de-DE" />
+    <Resource Language="en-US" />
+  </Resources>
+
+  <Applications>
+    <Application Id="Weft" Executable="weft.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Weft"
+        Description="Präsentationen und interaktive Lernmodule"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Square71x71Logo="Assets\Square71x71Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <!-- a double click on a .weft file starts weft.exe with the file as its argument (src-tauri/src/open_files.rs) -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="weft">
+            <uap:DisplayName>Weft-Lernmodul</uap:DisplayName>
+            <uap:Logo>Assets\Square44x44Logo.png</uap:Logo>
+            <uap:SupportedFileTypes>
+              <uap:FileType ContentType="application/x-weft">.weft</uap:FileType>
+            </uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+        <!-- weft: links (the deep-link plugin); the app does not register them itself when it runs from the package -->
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="weft">
+            <uap:DisplayName>Weft</uap:DisplayName>
+          </uap:Protocol>
+        </uap:Extension>
+      </Extensions>
+    </Application>
+
+    <!-- The command line tool and the MCP server (scripts/bundle-cli.mjs, src-tauri/msix/launcher): `weft` and `weft-mcp` in every
+         terminal - Windows puts the aliases on the PATH, and they stay right when the Store updates the app into another folder.
+         Not in the start menu. -->
+    <Application Id="WeftCli" Executable="weft-cli\weft.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="weft" Description="Weft: Kommandozeile" BackgroundColor="transparent" AppListEntry="none"
+        Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" />
+      <Extensions>
+        <uap3:Extension Category="windows.appExecutionAlias" Executable="weft-cli\weft.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap3:AppExecutionAlias>
+            <desktop:ExecutionAlias Alias="weft.exe" />
+          </uap3:AppExecutionAlias>
+        </uap3:Extension>
+      </Extensions>
+    </Application>
+    <Application Id="WeftMcp" Executable="weft-cli\weft-mcp.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="weft-mcp" Description="Weft: MCP-Server" BackgroundColor="transparent" AppListEntry="none"
+        Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" />
+      <Extensions>
+        <uap3:Extension Category="windows.appExecutionAlias" Executable="weft-cli\weft-mcp.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap3:AppExecutionAlias>
+            <desktop:ExecutionAlias Alias="weft-mcp.exe" />
+          </uap3:AppExecutionAlias>
+        </uap3:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

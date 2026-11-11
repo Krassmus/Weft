@@ -4,7 +4,16 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const CHROME = process.env.WEFT_CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+// (Windows: Chrome, else Edge - which every Windows has and which speaks the same protocol)
+const CHROME =
+  process.env.WEFT_CHROME ||
+  (process.platform === "win32"
+    ? [
+        join(process.env.ProgramFiles ?? "C:\\Program Files", "Google", "Chrome", "Application", "chrome.exe"),
+        join(process.env.LOCALAPPDATA ?? "", "Google", "Chrome", "Application", "chrome.exe"),
+        join(process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)", "Microsoft", "Edge", "Application", "msedge.exe"),
+      ].find((p) => existsSync(p))
+    : "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome");
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function launch(width = 1600, height = 900, dpr = 1) {

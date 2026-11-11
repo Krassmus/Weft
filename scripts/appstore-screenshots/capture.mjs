@@ -1,4 +1,4 @@
-// Screenshots of Weft for the Mac App Store, in every language of the interface:
+// Screenshots of Weft for the Mac App Store (and the Microsoft Store, see DEVICE below), in every language of the interface:
 //   node capture.mjs <folder> [languages, e.g. de,en]
 // Needs the dev server (`npm run dev`, port 1420) and an installed Chrome. Makes <folder>/<language>/01-….png … 05-….png, each 2560 x 1600 pixels
 // (a window of 1280 x 800 at the sharpness of a Retina screen - one of the sizes the Mac App Store takes: 1280x800, 1440x900, 2560x1600, 2880x1800).
@@ -11,9 +11,11 @@
 // The pictures are of the web version of the app (the same page the desktop app shows), so there is no window frame around them. The bar above the editor
 // with "Datei", undo, redo and the settings only exists where the app has no menu bar of its own (a browser, the iPad): the Mac has its menu bar, so the
 // bar is hidden here (CSS below) and the pictures show the editor as it looks on the Mac.
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { launch, sleep } from "../tutorial-erstes-lernmodul/cdp.mjs";
 
 const OUT = process.argv[2];
@@ -21,9 +23,12 @@ const LANGS = (process.argv[3] || "de,en,es,fr,pt,it,tr,pl").split(",");
 // ONLY=01-editor,02-werkzeuge,03-tutorial-lernmodul … takes just those pictures again
 // DEVICE=ipad makes the pictures for the iPad instead (2752 x 2064 pixels - a 13" iPad across, a window of 1376 x 1032 at Retina sharpness; the App Store
 // takes 2752x2064, 2064x2752, 2732x2048 and 2048x2732): the bar above the editor stays (on the iPad it belongs to the app). Use another folder for them.
+// DEVICE=windows makes them for the Microsoft Store (2732 x 1536 pixels - a window of 1366 x 768 at twice the sharpness: 16:9, which the Store prefers; it takes
+// 1366x768 up to 3840x2160). Windows has a menu bar of its own too, so the bar above the editor is hidden as for the Mac.
 const IPAD = process.env.DEVICE === "ipad";
+const [WIDTH, HEIGHT] = IPAD ? [1376, 1032] : process.env.DEVICE === "windows" ? [1366, 768] : [1280, 800];
 const want = (name) => !process.env.ONLY || process.env.ONLY.split(",").includes(name);
-const TEMPLATE_FILE = new URL("../../src/start-content/templates/lernpyramide.weft", import.meta.url).pathname;
+const TEMPLATE_FILE = fileURLToPath(new URL("../../src/start-content/templates/lernpyramide.weft", import.meta.url));
 
 // The names of the two branches of the template ("Order correct?" with "Correct"/"Almost", "Sceptical?" with "Correct"/"Surprised") are English in every language
 // (the name of a branch is one text, it has no translations) - in a picture of the editor in French that would look wrong. So the pictures use a copy of the
@@ -41,17 +46,16 @@ const BRANCH_NAMES = {
 function templateFor(lang) {
   const names = BRANCH_NAMES[lang] ?? {};
   if (!Object.keys(names).length) return TEMPLATE_FILE;
-  const dir = mkdtempSync(`${tmpdir()}/weft-appstore-`);
-  execFileSync("unzip", ["-q", TEMPLATE_FILE, "-d", dir]);
-  let json = readFileSync(`${dir}/weft.json`, "utf8");
+  const entries = unzipSync(readFileSync(TEMPLATE_FILE));
+  let json = strFromU8(entries["weft.json"]);
   for (const [from, to] of Object.entries(names)) {
     const quoted = JSON.stringify(from);
     if (!json.includes(quoted)) throw new Error(`branch name ${quoted} is not in the template any more`);
     json = json.split(quoted).join(JSON.stringify(to));
   }
-  writeFileSync(`${dir}/weft.json`, json);
-  const file = `${dir}.weft`;
-  execFileSync("zip", ["-q", "-r", file, "."], { cwd: dir }); // (everything: weft.json, the page, the picture and assets/)
+  entries["weft.json"] = strToU8(json);
+  const file = join(mkdtempSync(join(tmpdir(), "weft-appstore-")), "lernpyramide.weft");
+  writeFileSync(file, zipSync(entries)); // (everything: weft.json, the page, the picture and assets/)
   return file;
 }
 const OPEN_FILE = { de: "Datei öffnen", en: "Open file", es: "Abrir archivo", fr: "Ouvrir un fichier", pt: "Abrir arquivo", it: "Apri file", tr: "Dosya aç", pl: "Otwórz plik" };
@@ -66,7 +70,7 @@ for (const lang of LANGS) {
   const dir = `${OUT}/${lang}`;
   mkdirSync(dir, { recursive: true });
   const template = templateFor(lang);
-  const c = await launch(IPAD ? 1376 : 1280, IPAD ? 1032 : 800, 2);
+  const c = await launch(WIDTH, HEIGHT, 2);
   await c.send("Page.addScriptToEvaluateOnNewDocument", {
     source: `localStorage.setItem("weft:language","${lang}");
       ${IPAD ? "" : `document.addEventListener("DOMContentLoaded", () => { const s = document.createElement("style"); s.textContent = ".weft-appbar { display: none !important; }"; document.head.appendChild(s); });`}`,

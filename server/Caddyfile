@@ -1,0 +1,16 @@
+# The front door of Weft Cloud: Caddy gets and renews the certificates itself (Let's Encrypt) - the DNS entry of the address has to point to this server first.
+# No access log on purpose (docs/server.md, "Datenschutz"): what is not written down cannot be handed out.
+{$CLOUD_HOST:cloud.townwork.eu} {
+	encode zstd gzip
+	reverse_proxy cloud:8080
+}
+
+# Later (docs/pro-plan.md): the sync server for documents that are always online (a WebSocket - reverse_proxy passes it on as it is) and the frames of the
+# blocks (polls, writing together, discussions) on an address of their own:
+#
+# sync.townwork.eu {
+# 	reverse_proxy sync:3030
+# }
+# blocks.townwork.eu {
+# 	reverse_proxy blocks:8081
+# }

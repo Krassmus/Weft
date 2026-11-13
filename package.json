@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "dev:player": "vite --config vite.player.config.ts",
+    "server:dev": "npm --prefix server run dev",
+    "server:check": "tsc -p server",
     "build:player": "vite build --config vite.player.config.ts",
     "player:ios:sim": "cd player/src-tauri && ../../node_modules/.bin/tauri ios build --debug --target aarch64-sim --ci",
     "player:ios": "cd player/src-tauri && ../../node_modules/.bin/tauri ios build --target aarch64 --export-method app-store-connect --ci",

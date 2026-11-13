@@ -34,3 +34,6 @@ src-tauri/binaries/
 /app-store-screenshots/
 /app-store-screenshots-ipad/
 /dist-player/
+
+# Weft Cloud (server/): the settings with the secrets
+server/.env

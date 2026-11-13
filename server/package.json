@@ -1,0 +1,13 @@
+{
+  "name": "weft-cloud",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Weft Cloud: the server side of Weft Pro (session from a store purchase, TURN credentials). Not live yet - see ../docs/server.md and ../docs/pro-plan.md.",
+  "type": "module",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "start": "node src/main.ts",
+    "dev": "HOST=127.0.0.1 WEFT_CLOUD_DEV=1 WEFT_CLOUD_TOKEN_SECRET=dev-secret TURN_SECRET=dev-turn-secret TURN_URLS=turn:localhost:3478 node src/main.ts",
+    "check": "tsc -p ."
+  }
+}

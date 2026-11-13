@@ -1,0 +1,79 @@
+# Weft Cloud on a server of its own (docs/server.md): the service (session, TURN credentials), Caddy in front of it and coturn (the TURN server itself).
+# Not tried with Docker here - the first start on the server is the first test: `docker compose up -d --build`, then `docker compose logs`.
+x-logging: &logging
+  # coturn writes the addresses of the people it relays for into its log: nothing is kept for long.
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  cloud:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "8080"
+      HOST: "0.0.0.0"
+      # (Caddy is the only thing in front: the last entry of X-Forwarded-For is the client)
+      TRUST_PROXY: "1"
+    expose:
+      - "8080"
+    logging: *logging
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      CLOUD_HOST: ${CLOUD_HOST:-cloud.townwork.eu}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - cloud
+    logging: *logging
+
+  coturn:
+    # Pin to a version after the first start (docker image ls).
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    # A TURN server hands out ports from a wide range: with host networking they need no mapping.
+    network_mode: host
+    command:
+      - "-n"
+      - "--log-file=stdout"
+      - "--lt-cred-mech"
+      - "--use-auth-secret"
+      - "--static-auth-secret=${TURN_SECRET}"
+      - "--realm=${TURN_REALM:-turn.townwork.eu}"
+      - "--listening-port=3478"
+      - "--min-port=49152"
+      - "--max-port=65535"
+      - "--fingerprint"
+      - "--no-cli"
+      - "--no-multicast-peers"
+      - "--no-tlsv1"
+      - "--no-tlsv1_1"
+      - "--user-quota=20"
+      - "--total-quota=1000"
+      # Never relay to the server's own network or to private addresses (else the TURN server is a way into them):
+      - "--denied-peer-ip=0.0.0.0-0.255.255.255"
+      - "--denied-peer-ip=10.0.0.0-10.255.255.255"
+      - "--denied-peer-ip=100.64.0.0-100.127.255.255"
+      - "--denied-peer-ip=127.0.0.0-127.255.255.255"
+      - "--denied-peer-ip=169.254.0.0-169.254.255.255"
+      - "--denied-peer-ip=172.16.0.0-172.31.255.255"
+      - "--denied-peer-ip=192.168.0.0-192.168.255.255"
+      - "--denied-peer-ip=198.18.0.0-198.19.255.255"
+      - "--denied-peer-ip=224.0.0.0-255.255.255.255"
+      - "--denied-peer-ip=::1"
+    logging: *logging
+
+volumes:
+  caddy_data:
+  caddy_config:

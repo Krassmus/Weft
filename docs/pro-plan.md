@@ -1,6 +1,6 @@
 # Weft Pro (Plan)
 
-Stand: 13.11.2026. **Vorbereitet, nicht live:** Im Code steht die Schicht für den Status eines Abos (`src/core/pro/`) und eine versteckte Karte in den Einstellungen. Es gibt noch keinen Server, keine Store-Produkte und keine Funktion, die Pro verlangt. Für Nutzer ist nichts sichtbar.
+Stand: 14.11.2026. **Vorbereitet, nicht live:** Im Code steht die Schicht für den Status eines Abos (`src/core/pro/`) und eine versteckte Karte in den Einstellungen; der Server hat ein Gerüst (`server/`, `docs/server.md`). Es läuft noch nichts auf einem Server, es gibt keine Store-Produkte und keine Funktion, die Pro verlangt. Für Nutzer ist nichts sichtbar.
 
 ## Entscheidungen
 
@@ -77,7 +77,7 @@ Der Server ist mit etwa 10 bis 20 € im Monat (Server, Sicherung, Domain) schon
 ## Reihenfolge
 
 1. Die Schicht in der App (erledigt).
-2. Server-Grundlage und TURN: Sitzung und TURN-Zugang sind der kleinste ganze Kreislauf (Kauf, Prüfung, Token, Dienst). Dazu die Store-Produkte anlegen und mit den Test-Konten der Stores ausprobieren.
+2. Server-Grundlage und TURN: Sitzung und TURN-Zugang sind der kleinste ganze Kreislauf (Kauf, Prüfung, Token, Dienst). **Gerüst steht** (`server/`, `docs/server.md`: Sitzung und TURN-Zugangsdaten mit einem Entwicklungs-Store, Docker, Caddy, coturn; auf keinem Server ausprobiert). Offen: die Prüfung bei Apple und Microsoft, der Anbieter in der App, die Store-Produkte (mit den Test-Konten der Stores ausprobieren).
 3. Cloud-Dokumente.
 4. Cloud-Blöcke, zuerst die Umfrage.
 5. Später: Lizenz für Schulen und Teams (Rechnung außerhalb der Stores), mehr Speicher, Android.

@@ -13,7 +13,11 @@ import {
 import type { TurnSetting } from "../../core/collab/settings";
 import { useTranslation } from "../../core/i18n/useTranslation";
 import { useLanguageStore } from "../../core/i18n/languageStore";
-import { LANGUAGES, LANGUAGE_NAMES } from "../../core/i18n/translations";
+import { LANGUAGES, LANGUAGE_LOCALES, LANGUAGE_NAMES } from "../../core/i18n/translations";
+import { PRO_FEATURE_TEXT } from "../../core/pro/featureTexts";
+import { useProStore } from "../../core/pro/proStore";
+import { currentProProvider, proUiVisible } from "../../core/pro/providers";
+import { PRO_FEATURES } from "../../core/pro/types";
 import type { LanguagePreference } from "../../core/i18n/languageStore";
 import { useSyncMenuLanguage } from "../../core/i18n/useSyncMenuLanguage";
 import { avatarFromFile } from "../../core/profile/avatarImage";
@@ -285,6 +289,60 @@ function AiSettings() {
   );
 }
 
+/**
+ * Weft Pro: the optional subscription (docs/pro-plan.md) - what it is for, whether this person has it, and the buttons to buy and restore it. Only shown while the
+ * preview is switched on by hand (proUiVisible): there is no store and no server behind it yet, nobody else gets to see it.
+ */
+function ProSettings() {
+  const { t, lang } = useTranslation();
+  const status = useProStore((s) => s.status);
+  const refresh = useProStore((s) => s.refresh);
+  const purchase = useProStore((s) => s.purchase);
+  const restore = useProStore((s) => s.restore);
+  const provider = currentProProvider();
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const statusText =
+    status.state === "unknown"
+      ? t("settings.pro.checking")
+      : status.state === "free"
+        ? t("settings.pro.free")
+        : status.expiresAt !== null
+          ? t("settings.pro.activeUntil", { date: new Date(status.expiresAt).toLocaleDateString(LANGUAGE_LOCALES[lang]) })
+          : t("settings.pro.active");
+
+  return (
+    <SettingsGroup title={t("settings.pro.legend")}>
+      <p className="weft-hint">{t("settings.pro.intro")}</p>
+      <ul className="weft-pro-features">
+        {PRO_FEATURES.map((feature) => (
+          <li key={feature}>{t(PRO_FEATURE_TEXT[feature])}</li>
+        ))}
+      </ul>
+      <p role="status">{statusText}</p>
+      {!provider.canPurchase && <p className="weft-hint">{t("settings.pro.unavailable")}</p>}
+      <div className="weft-field">
+        <button type="button" className="weft-ghost-button" disabled={!provider.canPurchase || status.state === "pro"} onClick={() => void purchase()}>
+          {t("settings.pro.subscribe")}
+        </button>{" "}
+        <button type="button" className="weft-ghost-button" disabled={!provider.canPurchase} onClick={() => void restore()}>
+          {t("settings.pro.restore")}
+        </button>
+        {status.state === "pro" && provider.manage && (
+          <>
+            {" "}
+            <button type="button" className="weft-ghost-button" onClick={() => void provider.manage?.().then(refresh)}>
+              {t("settings.pro.manage")}
+            </button>
+          </>
+        )}
+      </div>
+    </SettingsGroup>
+  );
+}
+
 export function SettingsWindow() {
   const { t } = useTranslation();
   const preference = useLanguageStore((s) => s.preference);
@@ -390,6 +448,7 @@ export function SettingsWindow() {
       </SettingsGroup>
       <LicenseSettings />
       {AI_SETTINGS_VISIBLE && <AiSettings />}
+      {proUiVisible() && <ProSettings />}
       <NetworkSettings />
     </div>
   );

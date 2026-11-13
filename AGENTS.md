@@ -42,4 +42,5 @@ a person has to hand the `.weft` file over. See `docs/mcp.md` ("Ausblick") for w
 - The docs exist in German and English (`docs/ai-authoring.md` / `.en.md`, `docs/cli.md` / `.en.md`, `docs/operations.md` / `.en.md`); the CLI
   embeds them for `weft guide`, so change both languages together. Every operation of `weft edit` must be described in `docs/operations*.md`.
 - The editor in the browser: `npm run dev` (http://localhost:1420). The desktop and iOS apps: `npm run tauri …`.
+- Weft Pro (an optional subscription for what needs a server of our own; prepared, not live, invisible to users): the app side is `src/core/pro/` (status, providers a store plugs into, `requirePro(feature)`), the plan - price, platforms, server sketch, checklist - is `docs/pro-plan.md`. A feature that will need Pro asks `requirePro` before it starts.
 - `player/` is a second app, "Weft Player" (iPhone, later Android: only plays modules), with its own entry point and its own Tauri project; it shares `src/core/` with Weft - see `player/README.md`. A change in `src/core/` can reach it: check it with `npm run build:player`.

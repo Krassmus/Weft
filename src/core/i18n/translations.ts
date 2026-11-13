@@ -130,6 +130,19 @@ const baseEn = {
   "settings.ai.live.copy": "Copy a text for the assistant",
   "settings.ai.live.prompt": "The Weft app is open on my computer with a learning module. Use the tool `weft` (or the MCP server `weft-mcp`): `weft status` shows what is open, read `weft guide` first. Without a file name, `weft inspect`, `weft validate`, `weft render`, `weft play` and `weft edit <operations.json>` work directly on the module I have open; what you change appears on my screen at once (I can undo it). What I want: ",
   "settings.ai.web": "The command line tool comes with the desktop app for Mac, Windows and Linux.",
+  "settings.pro.legend": "Weft Pro",
+  "settings.pro.intro": "Weft Pro is an optional subscription for what needs a server. Everything else in Weft stays free.",
+  "settings.pro.checking": "Checking the subscription …",
+  "settings.pro.free": "No Weft Pro subscription.",
+  "settings.pro.active": "Weft Pro is active.",
+  "settings.pro.activeUntil": "Weft Pro is active until {date}.",
+  "settings.pro.turn": "TURN server: working together also through strict firewalls",
+  "settings.pro.cloud": "Documents that are always online, also when nobody has them open",
+  "settings.pro.blocks": "Interactive blocks with shared memory: polls, writing together, discussions with votes",
+  "settings.pro.unavailable": "The subscription is not available in this version yet.",
+  "settings.pro.subscribe": "Subscribe",
+  "settings.pro.restore": "Restore purchases",
+  "settings.pro.manage": "Manage subscription",
 } as const;
 
 const baseDe: Record<keyof typeof baseEn, string> = {
@@ -241,6 +254,19 @@ const baseDe: Record<keyof typeof baseEn, string> = {
   "settings.ai.live.copy": "Text für den Assistenten kopieren",
   "settings.ai.live.prompt": "Die Weft-App ist auf meinem Computer mit einem Lernmodul geöffnet. Benutze das Werkzeug `weft` (oder den MCP-Server `weft-mcp`): `weft status` zeigt, was offen ist, lies zuerst `weft guide`. Ohne Dateiname arbeiten `weft inspect`, `weft validate`, `weft render`, `weft play` und `weft edit <operationen.json>` direkt an dem Modul, das ich offen habe; was du änderst, erscheint sofort auf meinem Bildschirm (ich kann es zurücknehmen). Was ich möchte: ",
   "settings.ai.web": "Das Kommandozeilenwerkzeug gehört zur Desktop-App für Mac, Windows und Linux.",
+  "settings.pro.legend": "Weft Pro",
+  "settings.pro.intro": "Weft Pro ist ein freiwilliges Abo für alles, was einen Server braucht. Alles andere in Weft bleibt kostenlos.",
+  "settings.pro.checking": "Das Abo wird geprüft …",
+  "settings.pro.free": "Kein Weft-Pro-Abo.",
+  "settings.pro.active": "Weft Pro ist aktiv.",
+  "settings.pro.activeUntil": "Weft Pro ist aktiv bis {date}.",
+  "settings.pro.turn": "TURN-Server: Zusammenarbeit auch hinter strengen Firewalls",
+  "settings.pro.cloud": "Dokumente, die immer online sind, auch wenn sie niemand geöffnet hat",
+  "settings.pro.blocks": "Interaktive Blöcke mit gemeinsamem Speicher: Umfragen, gemeinsames Schreiben, Diskussionen mit Abstimmung",
+  "settings.pro.unavailable": "Das Abo gibt es in dieser Version noch nicht.",
+  "settings.pro.subscribe": "Abonnieren",
+  "settings.pro.restore": "Käufe wiederherstellen",
+  "settings.pro.manage": "Abo verwalten",
 };
 
 // The strings added when the rest of the interface was translated (see uiStrings.ts).

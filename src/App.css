@@ -3361,6 +3361,13 @@ button.weft-timeline-node-icon:hover {
   background: var(--weft-collapsible-bg);
 }
 
+/* The features of Weft Pro in the settings. */
+.weft-pro-features {
+  margin: 8px 0;
+  padding-left: 20px;
+  color: var(--weft-text-muted);
+}
+
 .weft-settings-field-title {
   margin: 0;
   padding: 9px 0 0;

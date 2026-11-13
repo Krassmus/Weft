@@ -1,8 +1,16 @@
-import type { Block, Page } from "../types";
+import type { Block, BlockGroup, Page, WeftModule } from "../types";
 import { shownWordings } from "../blocks/registry";
 import { orderedValues } from "./ordering";
+import type { SelectionRef } from "./store";
 
-export type ClipboardEntry = { kind: "page"; page: Page } | { kind: "block"; block: Block };
+/** A group as it travels in the clipboard: which of the copied blocks belong together (by their ids in the copy), and the group's own Aufbau/Abbau. */
+export type ClipboardGroup = Pick<BlockGroup, "blockIds" | "entranceEffect" | "exitEffect">;
+
+/** A page, one block, or several blocks (a group, or a multi-selection - with the groups that were wholly in it). */
+export type ClipboardEntry =
+  | { kind: "page"; page: Page }
+  | { kind: "block"; block: Block }
+  | { kind: "blocks"; blocks: Block[]; groups: ClipboardGroup[] };
 
 /**
  * An in-app clipboard, not the OS one - a same-session fallback for when the real OS clipboard
@@ -50,6 +58,10 @@ export function parseClipboardText(text: string): ClipboardEntry | null {
     const entry = parsed as Record<string, unknown>;
     if (entry.kind === "page" && typeof entry.page === "object" && entry.page !== null) return entry as ClipboardEntry;
     if (entry.kind === "block" && typeof entry.block === "object" && entry.block !== null) return entry as ClipboardEntry;
+    if (entry.kind === "blocks" && Array.isArray(entry.blocks) && entry.blocks.length > 0 && entry.blocks.every((b) => typeof b === "object" && b !== null)) {
+      const groups = Array.isArray(entry.groups) ? entry.groups.filter((g) => typeof g === "object" && g !== null && Array.isArray((g as ClipboardGroup).blockIds)) : [];
+      return { kind: "blocks", blocks: entry.blocks as Block[], groups: groups as ClipboardGroup[] };
+    }
     return null;
   } catch {
     return null;
@@ -87,7 +99,12 @@ function blockLines(block: Block): string[] {
 
 /** The text of a copy as plain text: the words of the block or of every block of the page (paragraphs apart, no empty ones at the ends). */
 export function clipboardEntryPlainText(entry: ClipboardEntry): string {
-  const groups = entry.kind === "block" ? [blockLines(entry.block)] : orderedValues(entry.page.blocks).map(blockLines);
+  const groups =
+    entry.kind === "block"
+      ? [blockLines(entry.block)]
+      : entry.kind === "blocks"
+        ? entry.blocks.map(blockLines)
+        : orderedValues(entry.page.blocks).map(blockLines);
   const text = groups
     .map((lines) => lines.join("\n").replace(/\n{3,}/g, "\n\n").trim())
     .filter((group) => group !== "")
@@ -111,6 +128,9 @@ function fromBase64(base64: string): string {
   return new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
 }
 
+/** What other programs get from a copy that has no words (a shape, a picture). */
+export const WORDLESS_COPY_TEXT = "Weft";
+
 const WEFT_CLIPBOARD_ATTRIBUTE = "data-weft-clipboard";
 
 /** The copy as HTML: its paragraphs, and the structure (see serializeClipboardEntry) in an attribute of the container. */
@@ -120,7 +140,9 @@ export function clipboardEntryHtml(entry: ClipboardEntry): string {
     .filter((paragraph) => paragraph !== "")
     .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, "<br>")}</p>`)
     .join("");
-  return `<div ${WEFT_CLIPBOARD_ATTRIBUTE}="${toBase64(serializeClipboardEntry(entry))}">${paragraphs}</div>`;
+  // A copy without words (a shape, a group of shapes) still gets a paragraph: a browser that cleans the HTML before it reaches the clipboard
+  // (WebKit does) may throw away an empty container together with the structure in its attribute.
+  return `<div ${WEFT_CLIPBOARD_ATTRIBUTE}="${toBase64(serializeClipboardEntry(entry))}">${paragraphs || `<p>${WORDLESS_COPY_TEXT}</p>`}</div>`;
 }
 
 /** The inverse of clipboardEntryHtml - null for HTML from anywhere else. */
@@ -133,4 +155,51 @@ export function parseClipboardHtml(html: string): ClipboardEntry | null {
   } catch {
     return null;
   }
+}
+
+// ---- What a selection copies ------------------------------------------------------------------------------------------------------
+
+/**
+ * The copy of what is selected: a page, one block, or - for a group and for several blocks marked together - all of those blocks (in their
+ * stacking order) with the groups that are wholly in them. Null when the selection is nothing that can be copied.
+ */
+export function clipboardEntryOfSelection(content: WeftModule, selection: SelectionRef | null): ClipboardEntry | null {
+  if (!selection) return null;
+  if (selection.type === "page") {
+    const page = content.pages[selection.pageId];
+    return page ? { kind: "page", page } : null;
+  }
+  if (selection.type === "block") {
+    const blocks = selection.container.kind === "page" ? content.pages[selection.container.pageId]?.blocks : content.layouts[selection.container.layoutId]?.blocks;
+    const block = blocks?.[selection.blockId];
+    return block ? { kind: "block", block } : null;
+  }
+  if (selection.type === "group") {
+    const page = content.pages[selection.pageId];
+    const group = page?.groups.find((g) => g.id === selection.groupId);
+    if (!page || !group) return null;
+    const blocks = orderedValues(page.blocks).filter((b) => group.blockIds.includes(b.id));
+    if (blocks.length === 0) return null;
+    return { kind: "blocks", blocks, groups: [groupToClipboard(group, blocks)] };
+  }
+  if (selection.type === "blocks") {
+    const container = selection.container;
+    const all = container.kind === "page" ? content.pages[container.pageId]?.blocks : content.layouts[container.layoutId]?.blocks;
+    if (!all) return null;
+    const ids = new Set(selection.blockIds);
+    const blocks = orderedValues(all).filter((b) => ids.has(b.id));
+    if (blocks.length === 0) return null;
+    const groups = container.kind === "page" ? (content.pages[container.pageId]?.groups ?? []).filter((g) => g.blockIds.length > 1 && g.blockIds.every((id) => ids.has(id))) : [];
+    return { kind: "blocks", blocks, groups: groups.map((g) => groupToClipboard(g, blocks)) };
+  }
+  return null;
+}
+
+function groupToClipboard(group: BlockGroup, blocks: Block[]): ClipboardGroup {
+  const present = new Set(blocks.map((b) => b.id));
+  return {
+    blockIds: group.blockIds.filter((id) => present.has(id)),
+    ...(group.entranceEffect && { entranceEffect: structuredClone(group.entranceEffect) }),
+    ...(group.exitEffect && { exitEffect: structuredClone(group.exitEffect) }),
+  };
 }

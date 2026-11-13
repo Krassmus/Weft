@@ -7,15 +7,20 @@ import {
   addImageBlockToLayout,
   addImageBlockToPage,
   pasteBlockInto,
+  pasteBlocksInto,
   pastePageAfter,
   pasteTextBlockInto,
   removeBlock,
+  removeBlocks,
+  removeGroup,
   removeLayoutBlock,
   removePage,
 } from "../../core/document/actions";
 import type { ClipboardEntry } from "../../core/document/clipboard";
 import {
+  WORDLESS_COPY_TEXT,
   clipboardEntryHtml,
+  clipboardEntryOfSelection,
   clipboardEntryPlainText,
   getClipboard,
   parseClipboardHtml,
@@ -25,7 +30,6 @@ import {
 import { useDocumentStore } from "../../core/document/store";
 import type { BlockContainerRef, SelectionRef } from "../../core/document/store";
 import { isTauri } from "../../core/io/fileIO";
-import type { Block, WeftModule } from "../../core/types";
 import { tr } from "../../core/i18n/tr";
 
 function isEditableTarget(el: Element | null): boolean {
@@ -34,17 +38,11 @@ function isEditableTarget(el: Element | null): boolean {
   return (el as HTMLElement).isContentEditable;
 }
 
-function resolveSelectedBlock(content: WeftModule, selection: Extract<SelectionRef, { type: "block" }>): Block | null {
-  if (selection.container.kind === "page") {
-    return content.pages[selection.container.pageId]?.blocks[selection.blockId] ?? null;
-  }
-  return content.layouts[selection.container.layoutId]?.blocks[selection.blockId] ?? null;
-}
-
 /** Which page a "paste page" should land next to, given what's currently selected. */
 function resolveCurrentPageId(selection: SelectionRef | null): string | null {
   if (selection?.type === "page") return selection.pageId;
-  if (selection?.type === "block" && selection.container.kind === "page") return selection.container.pageId;
+  if ((selection?.type === "block" || selection?.type === "blocks") && selection.container.kind === "page") return selection.container.pageId;
+  if (selection?.type === "group") return selection.pageId;
   return null;
 }
 
@@ -52,7 +50,8 @@ function resolveCurrentPageId(selection: SelectionRef | null): string | null {
 function resolveBlockTarget(selection: SelectionRef | null): BlockContainerRef | null {
   if (selection?.type === "page") return { kind: "page", pageId: selection.pageId };
   if (selection?.type === "layout") return { kind: "layout", layoutId: selection.layoutId };
-  if (selection?.type === "block") return selection.container;
+  if (selection?.type === "block" || selection?.type === "blocks") return selection.container;
+  if (selection?.type === "group") return { kind: "page", pageId: selection.pageId };
   return null;
 }
 
@@ -131,6 +130,16 @@ function pasteEntry(entry: ClipboardEntry, selection: SelectionRef | null): void
     if (!afterPageId) return;
     const newPageId = pastePageAfter(afterPageId, entry.page);
     if (newPageId) select({ type: "page", pageId: newPageId });
+  } else if (entry.kind === "blocks") {
+    const target = resolveBlockTarget(selection);
+    if (!target) return;
+    const { blockIds, groupIds } = pasteBlocksInto(target, entry.blocks, entry.groups);
+    // What was pasted is what is selected: the group when the copy was one group, else the blocks together.
+    if (blockIds.length === 0) return;
+    if (target.kind === "page" && groupIds.length === 1 && blockIds.length === entry.blocks.length && entry.groups[0].blockIds.length === entry.blocks.length) {
+      select({ type: "group", pageId: target.pageId, groupId: groupIds[0] });
+    } else if (blockIds.length > 1) select({ type: "blocks", container: target, blockIds });
+    else select({ type: "block", container: target, blockId: blockIds[0] });
   } else {
     const target = resolveBlockTarget(selection);
     if (!target) return;
@@ -278,6 +287,12 @@ async function pasteFromClipboard(): Promise<void> {
         return;
       }
     }
+    // A copy without words (a shape) leaves just WORDLESS_COPY_TEXT in the clipboard when the webview cleaned the structure out of the HTML:
+    // then it is Weft's own last copy that is meant, if there is one.
+    if (fallbackText === WORDLESS_COPY_TEXT && getClipboard()) {
+      pasteEntry(getClipboard() as ClipboardEntry, selection);
+      return;
+    }
     if (fallbackText !== null && fallbackText.trim()) pasteOsText(fallbackText, selection);
   } catch {
     // navigator.clipboard.read() unsupported or denied here (some webviews only implement
@@ -299,7 +314,7 @@ function hasMarkedText(): boolean {
 function writeOsClipboard(entry: ClipboardEntry): void {
   const clipboard = navigator.clipboard;
   if (!clipboard) return;
-  const text = clipboardEntryPlainText(entry) || "Weft";
+  const text = clipboardEntryPlainText(entry) || WORDLESS_COPY_TEXT;
   const plainOnly = () => void clipboard.writeText(text).catch(() => {});
   if (typeof ClipboardItem === "undefined" || !clipboard.write) {
     plainOnly();
@@ -347,14 +362,7 @@ export function useCopyPaste(enabled: boolean) {
       const content = doc.content;
 
       if (key === "c" || key === "x") {
-        let entry: ClipboardEntry | null = null;
-        if (selection?.type === "page") {
-          const page = content.pages[selection.pageId];
-          if (page) entry = { kind: "page", page };
-        } else if (selection?.type === "block") {
-          const block = resolveSelectedBlock(content, selection);
-          if (block) entry = { kind: "block", block };
-        }
+        const entry = clipboardEntryOfSelection(content, selection);
         if (!entry) return;
 
         setClipboard(entry);
@@ -364,6 +372,8 @@ export function useCopyPaste(enabled: boolean) {
 
         if (key === "x") {
           if (selection?.type === "page") removePage(selection.pageId);
+          else if (selection?.type === "group") removeGroup(selection.pageId, selection.groupId);
+          else if (selection?.type === "blocks") removeBlocks(selection.container, selection.blockIds);
           else if (selection?.type === "block") {
             if (selection.container.kind === "page") removeBlock(selection.container.pageId, selection.blockId);
             else removeLayoutBlock(selection.container.layoutId, selection.blockId);

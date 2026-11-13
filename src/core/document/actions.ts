@@ -1955,6 +1955,60 @@ export function pasteBlockInto(
   return inserted ? newBlock.id : null;
 }
 
+/**
+ * Pastes several copied blocks (a group, or blocks that were marked together) into a page's or layout's block list, all in one undo step: new ids, a
+ * small shift down-right like pasteBlockInto, the stacking order they had, and the groups that were copied with them made again around the new
+ * blocks. Returns the ids of the new blocks and of the new groups (empty when nothing could be pasted: a layout takes no page-only blocks, a page no
+ * placeholders).
+ */
+export function pasteBlocksInto(
+  target: { kind: "page"; pageId: string } | { kind: "layout"; layoutId: string },
+  sourceBlocks: Block[],
+  sourceGroups: Pick<BlockGroup, "blockIds" | "entranceEffect" | "exitEffect">[] = [],
+): { blockIds: string[]; groupIds: string[] } {
+  const idMap = new Map<UUID, UUID>();
+  const clones: Block[] = [];
+  for (const source of sourceBlocks) {
+    if (target.kind === "layout" && isPageOnlyKind(source.kind)) continue;
+    if (target.kind === "page" && isLayoutOnlyKind(source.kind)) continue;
+    const clone = cloneBlockWithNewId(source);
+    if (clone.kind === "text") delete clone.placeholderOf;
+    clone.position = offsetPosition(clone.position);
+    idMap.set(source.id, clone.id);
+    clones.push(clone);
+  }
+  if (clones.length === 0) return { blockIds: [], groupIds: [] };
+
+  const groupIds: string[] = [];
+  edit("Elemente einfügen", (m) => {
+    const container = target.kind === "page" ? m.pages[target.pageId] : m.layouts[target.layoutId];
+    if (!container) {
+      clones.length = 0;
+      return;
+    }
+    // They are put in one after the other, in the order they were copied in (their stacking order), on top of what is there.
+    for (const clone of clones) insertOrdered(container.blocks as Record<UUID, Block>, clone.id, clone as never);
+    if (target.kind !== "page") return;
+    const page = m.pages[target.pageId];
+    for (const group of sourceGroups) {
+      const blockIds = group.blockIds.map((id) => idMap.get(id)).filter((id): id is UUID => id !== undefined);
+      if (blockIds.length < 2) continue;
+      const id = createId();
+      page.groups.push({
+        id,
+        blockIds,
+        ...(group.entranceEffect && { entranceEffect: plain(group.entranceEffect) }),
+        ...(group.exitEffect && { exitEffect: plain(group.exitEffect) }),
+      });
+      groupIds.push(id);
+    }
+    syncPageTimelineEvents(page);
+    ensureEffectTriggers(page, clones.map((c) => c.id));
+    for (const clone of clones) ensureButtonTrigger(page, clone.id);
+  });
+  return clones.length === 0 ? { blockIds: [], groupIds: [] } : { blockIds: clones.map((c) => c.id), groupIds };
+}
+
 // ---- Custom fonts (uploaded, unlike the curated set shipped with the app - see core/fonts/) --
 
 function deriveFontFamilyName(fileName: string, existing: CustomFont[]): string {

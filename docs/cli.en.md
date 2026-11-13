@@ -47,7 +47,7 @@ weft open module.weft              # show a file in the app (as a new module tha
 
 The person decides in the app's settings (KI-Assistenten) whether that is allowed: nothing, look only, look and change. The app opens a door for this computer only (a socket on 127.0.0.1, port and password in `control.json` in the app's data folder, readable by this user only); `WEFT_CONTROL_FILE` points to another `control.json` (a second copy of the app, say). There is none on an iPad or iPhone, nor in the App Store version (it keeps its data in a folder of its own).
 
-**Status:** the settings section "KI-Assistenten" is hidden for now (`AI_SETTINGS_VISIBLE` in `src/core/control/bridge.ts`), and while it is, the door is **off**. To try it, set `localStorage["weft.control.mode"] = "edit"` (or `"read"`) in the app's web view.
+**Status:** the settings section "KI-Assistenten" exists on Windows only (`AI_SETTINGS_VISIBLE` in `src/core/control/bridge.ts`); on the Mac and on Linux it is hidden, and there the door is **off**. To try it, set `localStorage["weft.control.mode"] = "edit"` (or `"read"`) in the app's web view.
 
 ## `weft inspect <file> [--page <number>] [--json]`
 

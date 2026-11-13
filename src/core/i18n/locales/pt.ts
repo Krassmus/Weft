@@ -94,6 +94,7 @@ export const pt: Record<TranslationKey, string> = {
   "settings.ai.copy": "Copiar",
   "settings.ai.copied": "Copiado",
   "settings.ai.windows": "A ferramenta está nesta pasta (no Windows não é criado um link). Informe este caminho ao seu assistente:",
+  "settings.ai.commands": "A ferramenta é um comando em qualquer terminal. Informe este nome ao seu assistente:",
   "settings.ai.version": "Versão {version}",
   "settings.ai.error": "Não funcionou: {message}",
   "settings.ai.missing": "Esta cópia do Weft não contém a ferramenta de linha de comando (uma versão de desenvolvimento ou a versão da App Store). Ela vem com o app de desktop baixado e com o repositório (veja AGENTS.md).",

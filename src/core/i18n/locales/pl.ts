@@ -94,6 +94,7 @@ export const pl: Record<TranslationKey, string> = {
   "settings.ai.copy": "Kopiuj",
   "settings.ai.copied": "Skopiowano",
   "settings.ai.windows": "Narzędzie znajduje się w tym folderze (w systemie Windows nie tworzy się łącza). Podaj asystentowi tę ścieżkę:",
+  "settings.ai.commands": "Narzędzie jest poleceniem w każdym terminalu. Podaj asystentowi tę nazwę:",
   "settings.ai.version": "Wersja {version}",
   "settings.ai.error": "Nie udało się: {message}",
   "settings.ai.missing": "Ta kopia Weft nie zawiera narzędzia wiersza poleceń (wersja deweloperska albo wersja z App Store). Jest dołączone do pobranej aplikacji na komputer i do repozytorium (zob. AGENTS.md).",

@@ -1,7 +1,8 @@
 // The command line tool and the MCP server that come inside the desktop app (scripts/bundle-cli.mjs puts them into the resources, with a
 // Node of their own): where they are, and a link in ~/.local/bin so that `weft` works in a terminal - the link points into the app, so
 // every update of the app updates the tool with it. Windows has no such link (it needs rights a normal user lacks): the settings show
-// the path there. iOS and a build without the tool (a development build, the Mac App Store) report `available: false`.
+// the path there - except the Microsoft Store package, whose manifest makes `weft` and `weft-mcp` commands (src-tauri/msix). iOS and a
+// build without the tool (a development build, the Mac App Store) report `available: false`.
 
 use serde::Serialize;
 use std::path::PathBuf;
@@ -25,7 +26,14 @@ pub struct CliInfo {
     can_link: bool,
     /// `~/.local/bin` (where the links go) - the person has to have it on the PATH.
     link_dir: Option<String>,
+    /// The launchers are commands on the PATH (the Microsoft Store package): `launcher` and `mcp_launcher` are their names.
+    commands: bool,
     platform: String,
+}
+
+/// Whether this program runs from the Microsoft Store package (Windows installs packages under ...\WindowsApps\).
+pub fn in_store_package() -> bool {
+    cfg!(windows) && std::env::current_exe().map(|exe| exe.to_string_lossy().contains("\\WindowsApps\\")).unwrap_or(false)
 }
 
 fn cli_dir(app: &AppHandle) -> Option<PathBuf> {
@@ -46,6 +54,12 @@ fn describe(app: &AppHandle) -> CliInfo {
     let (cli, mcp) = if windows { ("weft.cmd", "weft-mcp.cmd") } else { ("weft", "weft-mcp") };
     info.launcher = Some(dir.join(cli).to_string_lossy().into_owned());
     info.mcp_launcher = Some(dir.join(mcp).to_string_lossy().into_owned());
+    if in_store_package() {
+        // (the folder of the package changes with every update; the commands stay)
+        info.commands = true;
+        info.launcher = Some("weft".to_string());
+        info.mcp_launcher = Some("weft-mcp".to_string());
+    }
     #[cfg(unix)]
     {
         info.can_link = true;

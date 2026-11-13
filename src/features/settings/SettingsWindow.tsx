@@ -146,6 +146,8 @@ interface CliInfo {
   linked: boolean;
   canLink: boolean;
   linkDir: string | null;
+  /** `launcher` and `mcpLauncher` are commands on the PATH (the Microsoft Store package). */
+  commands: boolean;
   platform: string;
 }
 
@@ -269,7 +271,7 @@ function AiSettings() {
             </>
           ) : (
             <>
-              <p className="weft-hint">{t("settings.ai.windows")}</p>
+              <p className="weft-hint">{t(info.commands ? "settings.ai.commands" : "settings.ai.windows")}</p>
               <CopyBlock text={info.launcher ?? ""} />
             </>
           )}

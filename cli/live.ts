@@ -1,5 +1,5 @@
 import { connect } from "node:net";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { strToU8, zipSync } from "fflate";
@@ -21,7 +21,16 @@ export function controlFile(): string {
   if (process.env.WEFT_CONTROL_FILE) return process.env.WEFT_CONTROL_FILE;
   const identifier = "eu.townwork.weft";
   if (process.platform === "darwin") return join(homedir(), "Library", "Application Support", identifier, "control.json");
-  if (process.platform === "win32") return join(process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"), identifier, "control.json");
+  if (process.platform === "win32") {
+    const file = join(process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"), identifier, "control.json");
+    if (existsSync(file)) return file;
+    // The app from the Microsoft Store writes its AppData into a folder of its package - which the tool sees as the app does when it is
+    // started as the package's command `weft`, but not when it is started from elsewhere (the repository, the installer version).
+    const packages = join(process.env.LOCALAPPDATA ?? join(homedir(), "AppData", "Local"), "Packages");
+    const store = existsSync(packages) ? readdirSync(packages).find((name) => name.startsWith("RasmusFuhse.WeftAuthoring_")) : undefined;
+    const storeFile = store && join(packages, store, "LocalCache", "Roaming", identifier, "control.json");
+    return storeFile && existsSync(storeFile) ? storeFile : file;
+  }
   return join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), identifier, "control.json");
 }
 
